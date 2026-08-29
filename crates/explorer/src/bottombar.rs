@@ -1,12 +1,25 @@
 use gpui::*;
 
-use crate::app::shell::Shell;
 use workspace::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, toolbar_icon_size};
 
-impl Shell {
+use crate::state::state::ExplorerState;
+
+/// Free-function entry point: renders the explorer bottom bar from the
+/// app-wide explorer state (the shell owns no explorer state).
+pub fn render_explorer_bottombar(
+    panel_id: PanelId,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    ExplorerState::update(cx, |state, cx| {
+        state.render_explorer_bottombar(panel_id, theme, cx)
+    })
+}
+
+impl ExplorerState {
     /// Bottom bar of an Explorer area: add-folder button plus the worktree
     /// count. The folder icon opens a folder picker that adds the chosen
     /// directory as a new worktree (mirrors the root row's folder button,
@@ -15,12 +28,11 @@ impl Shell {
         &self,
         panel_id: PanelId,
         theme: &Theme,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let shell_add = cx.entity().downgrade();
-        let worktree_count = self.panels.explorer.worktrees.len();
+        let worktree_count = self.worktrees.len();
         let btn_icon_size = toolbar_icon_size(d.bottombar_height);
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
@@ -40,8 +52,8 @@ impl Shell {
                                     .text_color(c.text_default),
                             )
                             .on_click(move |_event, window, cx| {
-                                let _ = shell_add.update(cx, |shell, cx| {
-                                    shell.prompt_open_explorer_folder(window, cx);
+                                ExplorerState::update(cx, |state, cx| {
+                                    state.prompt_open_explorer_folder(window, cx);
                                 });
                                 cx.stop_propagation();
                             }),

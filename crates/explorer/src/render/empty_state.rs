@@ -2,13 +2,14 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::app::shell::Shell;
+use crate::state::state::ExplorerState;
+
 use workspace::PanelId;
 use i18n::I18nStrings;
 use theme::Theme;
 use ui::empty_state::empty_state_container;
 
-impl Shell {
+impl ExplorerState {
     pub(crate) fn render_explorer_empty_state(
         &self,
         title: &str,
@@ -18,12 +19,11 @@ impl Shell {
         strings: &I18nStrings,
         recent_folders: &[PathBuf],
         recent_files: &[PathBuf],
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
-        let click_shell = cx.entity().downgrade();
         let drop_target_bg = c.dialog_secondary_button_hover;
 
         let display_title = if title.is_empty() {
@@ -44,20 +44,18 @@ impl Shell {
             // Dropping folders onto the empty state opens them as worktrees
             // (mirrors Zed's empty-state drop-to-open).
             .drag_over::<ExternalPaths>(move |this, _, _, _| this.bg(drop_target_bg))
-            .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(|shell, paths, window, cx| {
-                for path in paths.paths() {
-                    if path.is_dir() {
-                        shell.open_explorer_folder_path(path.clone(), cx);
-                    } else {
-                        shell.open_explorer_file(
-                            path.clone(),
-                            crate::editor::engine::controller::OpenFileMode::Persistent,
-                            window,
-                            cx,
-                        );
+            .on_drop::<ExternalPaths>(move |paths, window, cx| {
+                let paths: Vec<_> = paths.paths().to_vec();
+                ExplorerState::update(cx, |state, cx| {
+                    for path in paths {
+                        if path.is_dir() {
+                            state.open_explorer_folder_path(path.clone(), cx);
+                        } else {
+                            state.open_explorer_file(path.clone(), true, window, cx);
+                        }
                     }
-                }
-            }))
+                });
+            })
             .child(
                 svg()
                     .path("icons/explorer/worktree/folder.svg")
@@ -112,8 +110,8 @@ impl Shell {
                             .child("Open Folder"),
                     )
                     .on_click(move |_event, window, cx| {
-                        let _ = click_shell.update(cx, |shell, cx| {
-                            shell.prompt_open_explorer_folder(window, cx);
+                        ExplorerState::update(cx, |state, cx| {
+                            state.prompt_open_explorer_folder(window, cx);
                         });
                     }),
             )
@@ -144,7 +142,6 @@ impl Shell {
                                 .file_name()
                                 .map(|name| name.to_string_lossy().to_string())
                                 .unwrap_or_else(|| path.to_string_lossy().to_string());
-                            let item_shell = cx.entity().downgrade();
                             let path = path.clone();
                             div()
                                 .id(ElementId::Name(
@@ -179,8 +176,8 @@ impl Shell {
                                         .child(folder_name),
                                 )
                                 .on_click(move |_event, _window, cx| {
-                                    let _ = item_shell.update(cx, |shell, cx| {
-                                        shell.open_explorer_folder_path(path.clone(), cx);
+                                    ExplorerState::update(cx, |state, cx| {
+                                        state.open_explorer_folder_path(path.clone(), cx);
                                     });
                                 })
                         }))
@@ -189,7 +186,6 @@ impl Shell {
                                 .file_name()
                                 .map(|name| name.to_string_lossy().to_string())
                                 .unwrap_or_else(|| path.to_string_lossy().to_string());
-                            let item_shell = cx.entity().downgrade();
                             let path = path.clone();
                             div()
                                 .id(ElementId::Name(
@@ -220,10 +216,10 @@ impl Shell {
                                         .child(file_name),
                                 )
                                 .on_click(move |_event, window, cx| {
-                                    let _ = item_shell.update(cx, |shell, cx| {
-                                        shell.open_explorer_file(
+                                    ExplorerState::update(cx, |state, cx| {
+                                        state.open_explorer_file(
                                             path.clone(),
-                                            crate::editor::engine::controller::OpenFileMode::Persistent,
+                                            true,
                                             window,
                                             cx,
                                         );

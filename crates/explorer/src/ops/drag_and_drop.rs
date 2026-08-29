@@ -14,7 +14,7 @@
 //!   the copy modifier; worktree root rows are dragged to reorder
 //!   worktrees (Zed's `move_worktree`). Nested selections are reduced to
 //!   their outermost directories (Zed's `disjoint_entries`), and a
-//!   disambiguated copy opens the inline rename shell.
+//!   disambiguated copy opens the inline rename state.
 //! - Dropping external files copies them; name collisions prompt for
 //!   confirmation before replacing (Zed's `drop_external_files`).
 
@@ -23,14 +23,13 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::app::shell::Shell;
 
-use crate::explorer::state::state::*;
-use crate::explorer::state::undo::{ExplorerChange, explorer_change_destination};
-use crate::explorer::state::utils::{execute_entry_ops, explorer_is_copy_modifier};
+use crate::state::state::*;
+use crate::state::undo::{ExplorerChange, explorer_change_destination};
+use crate::state::utils::{execute_entry_ops, explorer_is_copy_modifier};
 use theme::ThemeManager;
 
-impl Shell {
+impl ExplorerState {
     // ── Panel-level drag handling (cursor style + hover scroll) ─────────
 
     /// Refresh the drag cursor to signal move vs. copy while a drag is
@@ -40,7 +39,7 @@ impl Shell {
         &self,
         modifiers: &Modifiers,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         if let Some(existing_cursor) = cx.active_drag_cursor_style() {
             let new_cursor = if explorer_is_copy_modifier(modifiers) {
@@ -65,16 +64,16 @@ impl Shell {
         &mut self,
         event: &DragMoveEvent<T>,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> bool {
-        if let Some(previous_position) = self.panels.explorer.previous_drag_position {
+        if let Some(previous_position) = self.previous_drag_position {
             // Modifiers are not refreshed when the cursor does not move, so
             // only re-check the style on actual movement.
             if event.event.position != previous_position {
                 self.refresh_explorer_drag_cursor(&event.event.modifiers, window, cx);
             }
         }
-        self.panels.explorer.previous_drag_position = Some(event.event.position);
+        self.previous_drag_position = Some(event.event.position);
         if !event.bounds.contains(&event.event.position) {
             self.clear_explorer_drag(cx);
             return false;
@@ -91,7 +90,7 @@ impl Shell {
         &mut self,
         position: Point<Pixels>,
         bounds: Bounds<Pixels>,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let panel_height = bounds.size.height;
         if panel_height <= px(0.0) {
@@ -112,35 +111,34 @@ impl Shell {
             return;
         };
         let adjustment = point(px(0.0), px(vertical_scroll_offset));
-        self.panels.explorer.hover_scroll_task.take();
+        self.hover_scroll_task.take();
         let generation = {
-            let explorer = &mut self.panels.explorer;
+            let explorer = &mut *self;
             explorer.hover_scroll_generation += 1;
             explorer.hover_scroll_generation
         };
-        let weak_shell = cx.entity().downgrade();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let task = cx.spawn(async move |cx: &mut AsyncApp| {
             loop {
-                let keep_scrolling = weak_shell
-                    .update(cx, |shell, cx| {
+                let keep_scrolling = cx.update(|cx| {
+                    ExplorerState::update(cx, |state, cx| {
                         // The drag ended (mouse released outside the panel,
                         // cancelled, dropped elsewhere): stop scrolling and
                         // clear the leftover drag state so no stale
                         // highlight or task survives.
                         if !cx.has_active_drag() {
-                            shell.clear_explorer_drag(cx);
+                            state.clear_explorer_drag(cx);
                             return false;
                         }
-                        if shell.panels.explorer.hover_scroll_generation != generation {
+                        if state.hover_scroll_generation != generation {
                             return false; // replaced by a newer move
                         }
-                        let handle = shell.panels.explorer.scroll_handle.0.borrow_mut();
+                        let handle = state.scroll_handle.0.borrow_mut();
                         let offset = handle.base_handle.offset();
                         handle.base_handle.set_offset(offset + adjustment);
-                        cx.notify();
+                        cx.refresh_windows();
                         true
                     })
-                    .unwrap_or(false);
+                });
                 if !keep_scrolling {
                     return;
                 }
@@ -149,7 +147,7 @@ impl Shell {
                     .await;
             }
         });
-        self.panels.explorer.hover_scroll_task = Some(task);
+        self.hover_scroll_task = Some(task);
     }
 
     /// Whether dropping internal selections on the background is meaningful
@@ -162,8 +160,6 @@ impl Shell {
         }
         match payload.active() {
             Some(sel) => !self
-                .panels
-                .explorer
                 .snapshots
                 .last()
                 .and_then(|snap| snap.root_entry())
@@ -182,20 +178,18 @@ impl Shell {
         &mut self,
         event: &DragMoveEvent<ExternalPaths>,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         if !self.explorer_handle_drag_move(event, window, cx) {
             return;
         }
         if self
-            .panels
-            .explorer
             .drag_target
             .and_then(|t| t.entry_id())
             .is_none()
         {
-            self.panels.explorer.drag_target = Some(DragExplorerTarget::Background);
-            cx.notify();
+            self.drag_target = Some(DragExplorerTarget::Background);
+            cx.refresh_windows();
         }
     }
 
@@ -208,34 +202,32 @@ impl Shell {
         &mut self,
         event: &DragMoveEvent<DraggedExplorerSelection>,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         if !self.explorer_handle_drag_move(event, window, cx) {
             return;
         }
         if self
-            .panels
-            .explorer
             .drag_target
             .and_then(|t| t.entry_id())
             .is_none()
             && self.explorer_should_highlight_background(event.drag(cx))
         {
-            self.panels.explorer.drag_target = Some(DragExplorerTarget::Background);
-            cx.notify();
+            self.drag_target = Some(DragExplorerTarget::Background);
+            cx.refresh_windows();
         }
     }
 
     /// Clear all drag state (drop / drag leaving the panel).
-    pub(crate) fn clear_explorer_drag(&mut self, cx: &mut Context<Self>) {
-        let had_drag_state = self.panels.explorer.drag_target.take().is_some()
-            | self.panels.explorer.hover_expand_task.take().is_some()
-            | self.panels.explorer.hover_scroll_task.take().is_some()
-            | self.panels.explorer.previous_drag_position.take().is_some();
+    pub(crate) fn clear_explorer_drag(&mut self, cx: &mut App) {
+        let had_drag_state = self.drag_target.take().is_some()
+            | self.hover_expand_task.take().is_some()
+            | self.hover_scroll_task.take().is_some()
+            | self.previous_drag_position.take().is_some();
         if had_drag_state {
             // Stop any in-flight hover-scroll task.
-            self.panels.explorer.hover_scroll_generation += 1;
-            cx.notify();
+            self.hover_scroll_generation += 1;
+            cx.refresh_windows();
         }
     }
 
@@ -251,7 +243,7 @@ impl Shell {
         event: &DragMoveEvent<ExternalPaths>,
         entry_id: ExplorerEntryId,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.explorer_drag_hover_entry_impl(event, entry_id, None, window, cx);
     }
@@ -264,7 +256,7 @@ impl Shell {
         event: &DragMoveEvent<DraggedExplorerSelection>,
         entry_id: ExplorerEntryId,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let payload = event.drag(cx).clone();
         self.explorer_drag_hover_entry_impl(event, entry_id, Some(&payload), window, cx);
@@ -285,18 +277,16 @@ impl Shell {
         entry_id: ExplorerEntryId,
         drag: Option<&DraggedExplorerSelection>,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let is_current_target = self
-            .panels
-            .explorer
             .drag_target
             .and_then(|target| target.entry_id())
             == Some(entry_id);
         if !event.bounds.contains(&event.event.position) {
             if is_current_target {
-                self.panels.explorer.drag_target = None;
-                cx.notify();
+                self.drag_target = None;
+                cx.refresh_windows();
             }
             return;
         }
@@ -307,65 +297,62 @@ impl Shell {
         // (mirrors Zed: single item drags collapse the marks to themselves).
         if let Some(drag) = drag {
             if drag.selections.len() == 1 {
-                self.panels.explorer.marked.clear();
+                self.marked.clear();
                 if let Some(active) = drag.active() {
-                    self.panels.explorer.marked.insert(*active);
+                    self.marked.insert(*active);
                 }
             }
         } else {
-            self.panels.explorer.marked.clear();
+            self.marked.clear();
         }
         let Some((highlight_entry_id, is_dir, is_expanded)) =
             self.explorer_highlight_for_drag(entry_id, drag)
         else {
             // No highlight for this target (e.g. a single item dragged onto
             // its own parent): clear any stale highlight.
-            self.panels.explorer.drag_target = None;
-            cx.notify();
+            self.drag_target = None;
+            cx.refresh_windows();
             return;
         };
-        self.panels.explorer.drag_target = Some(DragExplorerTarget::Entry {
+        self.drag_target = Some(DragExplorerTarget::Entry {
             entry_id,
             highlight_entry_id,
         });
         // Hover-expand: restart the timer on every move onto a collapsed
         // directory (mirrors Zed).
-        self.panels.explorer.hover_expand_task.take();
+        self.hover_expand_task.take();
         if is_dir && !is_expanded {
             let bounds = event.bounds;
             let window_handle = window.window_handle();
-            let weak_shell = cx.entity().downgrade();
-            let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+            let task = cx.spawn(async move |cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(500))
                     .await;
                 let _ = cx.update_window(window_handle, |_, window, cx| {
-                    let _ = weak_shell.update(cx, |shell, cx| {
-                        shell.panels.explorer.hover_expand_task = None;
+                    ExplorerState::update(cx, |state, cx| {
+                        state.hover_expand_task = None;
                         if cx.has_active_drag()
-                            && shell
-                                .panels
-                                .explorer
+                            && state
                                 .drag_target
                                 .and_then(|target| target.entry_id())
                                 == Some(entry_id)
                             && bounds.contains(&window.mouse_position())
                             // Only expand a directory that is still folded
                             // (the user may have toggled it meanwhile).
-                            && shell.explorer_entry_by_id(entry_id).is_some_and(|entry| {
+                            && state.explorer_entry_by_id(entry_id).is_some_and(|entry| {
                                 entry.kind == ExplorerEntryKind::Directory
                                     && !entry.is_expanded
                             })
                         {
-                            shell.toggle_explorer_node(entry_id, cx);
+                            state.toggle_explorer_node(entry_id, cx);
                         }
-                        cx.notify();
+                        cx.refresh_windows();
                     });
                 });
             });
-            self.panels.explorer.hover_expand_task = Some(task);
+            self.hover_expand_task = Some(task);
         }
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Compute the highlight entry for a drag target (mirrors Zed's
@@ -410,8 +397,6 @@ impl Shell {
             self.explorer_id_for_path(parent_path)?.entry_id
         };
         let is_expanded = self
-            .panels
-            .explorer
             .expanded
             .values()
             .any(|set| set.contains(&highlight_entry_id));
@@ -439,22 +424,18 @@ impl Shell {
         payload: &DraggedExplorerSelection,
         entry_id: ExplorerEntryId,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.clear_explorer_drag(cx);
         // Root rows reorder worktrees (Zed's `move_worktree_root`)
         for selection in &payload.selections {
             if self.is_explorer_root_entry(selection.entry_id) {
                 let to = self
-                    .panels
-                    .explorer
                     .snapshots
                     .iter()
                     .position(|snap| snap.path_for_id.contains_key(&entry_id))
                     .unwrap_or(0);
                 if let Some(from) = self
-                    .panels
-                    .explorer
                     .snapshots
                     .iter()
                     .position(|snap| snap.root_entry().is_some_and(|e| e.id == selection.entry_id))
@@ -487,18 +468,16 @@ impl Shell {
         &mut self,
         payload: &DraggedExplorerSelection,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.clear_explorer_drag(cx);
         let Some(root) = self.last_explorer_root_path() else {
             return;
         };
-        let last_index = self.panels.explorer.worktrees.len().saturating_sub(1);
+        let last_index = self.worktrees.len().saturating_sub(1);
         for selection in &payload.selections {
             if self.is_explorer_root_entry(selection.entry_id) {
                 if let Some(from) = self
-                    .panels
-                    .explorer
                     .snapshots
                     .iter()
                     .position(|snap| snap.root_entry().is_some_and(|e| e.id == selection.entry_id))
@@ -527,7 +506,7 @@ impl Shell {
         paths: &[PathBuf],
         entry_id: ExplorerEntryId,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.clear_explorer_drag(cx);
         let Some(target_dir) = self.explorer_drop_target_dir(entry_id) else {
@@ -542,7 +521,7 @@ impl Shell {
         &mut self,
         paths: &[PathBuf],
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.clear_explorer_drag(cx);
         let Some(root) = self.last_explorer_root_path() else {
@@ -559,7 +538,7 @@ impl Shell {
         paths: &[PathBuf],
         target_dir: PathBuf,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let conflicts: Vec<PathBuf> = paths
             .iter()
@@ -574,10 +553,9 @@ impl Shell {
             self.perform_entry_ops(paths.to_vec(), target_dir, false, window, cx);
             return;
         }
-        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
         let paths = paths.to_vec();
-        let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let mut remaining = paths;
             for conflict in &conflicts {
                 // Resolve the conflicts one at a time: GPUI forbids
@@ -610,8 +588,8 @@ impl Shell {
                 return;
             }
             let _ = cx.update_window(window_handle, |_, window, cx| {
-                let _ = weak_shell.update(cx, |shell, cx| {
-                    shell.perform_entry_ops(remaining, target_dir, false, window, cx);
+                ExplorerState::update(cx, |state, cx| {
+                    state.perform_entry_ops(remaining, target_dir, false, window, cx);
                 });
             });
         });
@@ -647,52 +625,66 @@ impl Shell {
         target_dir: PathBuf,
         is_cut: bool,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         if paths.is_empty() {
             return;
         }
         let disambiguate = !is_cut;
-        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
-        let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let changes = cx
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&paths, &target_dir, is_cut, disambiguate) })
                 .await;
-            let _ = weak_shell.update(cx, |shell, cx| {
-                shell.clear_explorer_drag(cx);
-                if changes.len() > 1 {
-                    let batch = ExplorerChange::Batch(changes.clone());
-                    shell.record_explorer_change(batch.clone());
-                    shell.sync_open_tabs_after_fs_change(&batch, cx);
-                } else if let Some(change) = changes.first() {
-                    shell.record_explorer_change(change.clone());
-                    shell.sync_open_tabs_after_fs_change(change, cx);
-                }
-                for change in &changes {
-                    if let Some(dest) = explorer_change_destination(change) {
-                        shell.expand_to_path(dest);
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.clear_explorer_drag(cx);
+                    if changes.len() > 1 {
+                        let batch = ExplorerChange::Batch(changes.clone());
+                        state.record_explorer_change(batch.clone());
+                    } else if let Some(change) = changes.first() {
+                        state.record_explorer_change(change.clone());
                     }
-                }
-                shell.rescan_explorer_worktrees(cx);
-                if let Some(last) = changes.last().and_then(explorer_change_destination) {
-                    if let Some(sel) = shell.explorer_id_for_path(last) {
-                        shell.panels.explorer.pending_select = Some((sel.worktree_id, last.to_path_buf()));
+                    for change in &changes {
+                        if let Some(dest) = explorer_change_destination(change) {
+                            state.expand_to_path(dest);
+                        }
                     }
-                }
-                // A disambiguated copy ("name copy.ext") opens the inline
-                // rename editor with the suffix pre-selected (mirrors Zed) —
-                // once the rescan makes the new entry visible.
-                if disambiguate
-                    && changes.len() == 1
-                    && let Some(ExplorerChange::Copied { source, dest }) = changes.first()
-                    && source.file_name() != dest.file_name()
-                {
-                    shell.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
-                }
-                shell.sync_explorer_models(cx);
-                cx.notify();
+                    state.rescan_explorer_worktrees(cx);
+                    if let Some(last) = changes.last().and_then(explorer_change_destination) {
+                        if let Some(sel) = state.explorer_id_for_path(last) {
+                            state.pending_select = Some((sel.worktree_id, last.to_path_buf()));
+                        }
+                    }
+                    // A disambiguated copy ("name copy.ext") opens the inline
+                    // rename editor with the suffix pre-selected (mirrors Zed) —
+                    // once the rescan makes the new entry visible.
+                    if disambiguate
+                        && changes.len() == 1
+                        && let Some(ExplorerChange::Copied { source, dest }) = changes.first()
+                        && source.file_name() != dest.file_name()
+                    {
+                        state.pending_rename = Some((window_handle, dest.clone()));
+                    }
+                    state.sync_explorer_models(cx);
+                    cx.refresh_windows();
+                });
+                // Window-scoped dispatch must run after the global lease
+                // above ends (nested global leases panic).
+                let _ = cx.update_window(window_handle, |_, window, cx| {
+                    ExplorerState::update(cx, |state, cx| {
+                        if changes.len() > 1 {
+                            state.sync_open_tabs_after_fs_change(
+                                &ExplorerChange::Batch(changes.clone()),
+                                window,
+                                cx,
+                            );
+                        } else if let Some(change) = changes.first() {
+                            state.sync_open_tabs_after_fs_change(change, window, cx);
+                        }
+                    });
+                });
             });
         });
     }

@@ -2,11 +2,11 @@
 
 use gpui::*;
 
-use crate::app::shell::Shell;
-use crate::explorer::state::state::EXPLORER_NODE_HEIGHT;
+use crate::state::state::{EXPLORER_NODE_HEIGHT, ExplorerState};
+use crate::filename_editor::ExplorerFilenameImeHost;
 use theme::ThemeManager;
 
-pub(crate) fn shape_filename_line(window: &mut Window, text: &str) -> ShapedLine {
+pub fn shape_filename_line(window: &mut Window, text: &str) -> ShapedLine {
     let display_text: SharedString = text.to_string().into();
     let style = window.text_style();
     let font_size = style.font_size.to_pixels(window.rem_size());
@@ -25,7 +25,7 @@ pub(crate) fn shape_filename_line(window: &mut Window, text: &str) -> ShapedLine
 
 // ── Input element ───────────────────────────────────────────────────────
 
-pub(crate) struct ExplorerFilenamePrepaintState {
+pub struct ExplorerFilenamePrepaintState {
     line: Option<ShapedLine>,
     selection: Option<PaintQuad>,
     cursor: Option<PaintQuad>,
@@ -35,8 +35,9 @@ pub(crate) struct ExplorerFilenamePrepaintState {
 /// Custom element painting the inline filename text, selection, cursor, and
 /// IME composition underline; registers the window input handler while
 /// focused (mirrors `CodeLanguageInputElement`).
-pub(crate) struct ExplorerFilenameInputElement {
-    pub(crate) editor: Entity<Shell>,
+pub struct ExplorerFilenameInputElement {
+    /// The IME host entity registered as this input's window handler.
+    pub ime_host: Entity<ExplorerFilenameImeHost>,
 }
 
 impl IntoElement for ExplorerFilenameInputElement {
@@ -83,7 +84,7 @@ impl Element for ExplorerFilenameInputElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let theme = cx.global::<ThemeManager>().current_arc();
-        let Some(edit) = self.editor.read(cx).panels.explorer.edit.clone() else {
+        let Some(edit) = ExplorerState::global(cx).edit.clone() else {
             return ExplorerFilenamePrepaintState {
                 line: None,
                 selection: None,
@@ -94,8 +95,8 @@ impl Element for ExplorerFilenameInputElement {
         let filename = &edit.filename;
 
         // Remember the bounds for IME hit-testing.
-        self.editor.update(cx, |shell, _cx| {
-            if let Some(edit) = shell.panels.explorer.edit.as_mut() {
+        ExplorerState::update(cx, |state, _cx| {
+            if let Some(edit) = state.edit.as_mut() {
                 edit.filename.last_bounds = Some(bounds);
             }
         });
@@ -206,11 +207,7 @@ impl Element for ExplorerFilenameInputElement {
             window.set_cursor_style(CursorStyle::IBeam, hitbox);
         }
 
-        let focus_handle = self
-            .editor
-            .read(cx)
-            .panels
-            .explorer
+        let focus_handle = ExplorerState::global(cx)
             .edit
             .as_ref()
             .and_then(|edit| edit.filename.focus_handle.clone());
@@ -219,7 +216,7 @@ impl Element for ExplorerFilenameInputElement {
         {
             window.handle_input(
                 &focus_handle,
-                ElementInputHandler::new(bounds, self.editor.clone()),
+                ElementInputHandler::new(bounds, self.ime_host.clone()),
                 cx,
             );
         }

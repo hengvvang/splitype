@@ -8,18 +8,42 @@
 
 use gpui::*;
 
-use crate::app::shell::Shell;
+use crate::state::state::{ExplorerFileMenuState, ExplorerState};
+
 use i18n::I18nManager;
 use theme::Theme;
 use ui::menu_item::{menu_item, menu_item_row};
 use ui::popover::overlay;
 
-impl Shell {
+impl ExplorerState {
+    /// Open the row context menu at `position` (window coordinates); the
+    /// shell renders the overlay at the window root.
+    pub(crate) fn open_explorer_file_context_menu(
+        &mut self,
+        position: Point<Pixels>,
+        path: std::path::PathBuf,
+        is_dir: bool,
+        cx: &mut App,
+    ) {
+        self.file_menu = Some(ExplorerFileMenuState {
+            position,
+            path,
+            is_dir,
+        });
+        cx.refresh_windows();
+    }
+
+    /// Close the row context menu, if open.
+    pub(crate) fn close_explorer_file_menu(&mut self, cx: &mut App) {
+        self.file_menu = None;
+        cx.refresh_windows();
+    }
+
     pub(crate) fn on_dismiss_explorer_file_menu(
         &mut self,
         _event: &MouseDownEvent,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.close_explorer_file_menu(cx);
     }
@@ -28,15 +52,16 @@ impl Shell {
     pub(crate) fn render_explorer_file_context_menu(
         &self,
         theme: &Theme,
-        cx: &Context<Self>,
+        viewport: Size<Pixels>,
+        cx: &App,
     ) -> Option<AnyElement> {
-        let state = self.explorer_file_menu.as_ref()?;
+        let state = self.file_menu.as_ref()?;
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
         let s = cx.global::<I18nManager>().strings().clone();
 
-        let (panel_x, panel_y) = if let Some(viewport) = self.last_viewport {
+        let (panel_x, panel_y) = if viewport.width > px(0.0) {
             let max_x = (viewport.width - px(260.0)).max(px(0.0));
             let max_y = (viewport.height - px(400.0)).max(px(0.0));
             (state.position.x.min(max_x), state.position.y.min(max_y))
@@ -47,19 +72,16 @@ impl Shell {
         let is_dir = state.is_dir;
 
         let is_root = self
-            .panels
-            .explorer
             .worktrees
             .iter()
             .any(|wt| wt.read(cx).root() == path.as_path());
-        let can_undo = self.panels.explorer.undo_history.can_undo();
-        let can_redo = self.panels.explorer.undo_history.can_redo();
-        let has_pasteable = self.panels.explorer.clipboard.is_some();
+        let can_undo = self.undo_history.can_undo();
+        let can_redo = self.undo_history.can_redo();
+        let has_pasteable = self.clipboard.is_some();
         let entry_id = self.explorer_id_for_path(&path);
-        let shell = Some(cx.entity().downgrade());
 
         type ContextMenuItemHandler =
-            Box<dyn Fn(&mut Shell, &mut Window, &mut Context<Shell>) + 'static>;
+            Box<dyn Fn(&mut ExplorerState, &mut Window, &mut App) + 'static>;
 
         // Build a menu row: label only (no icons, no keybindings — matching
         // Zed's context menu), optionally disabled, with a danger variant
@@ -68,7 +90,6 @@ impl Shell {
                          label: String,
                          color: Hsla,
                          enabled: bool,
-                         shell: Option<WeakEntity<Shell>>,
                          handler: ContextMenuItemHandler|
          -> AnyElement {
             if enabled {
@@ -82,11 +103,9 @@ impl Shell {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                         let handler = &handler;
-                        if let Some(shell) = shell.clone() {
-                            let _ = shell.update(cx, move |shell, cx| {
-                                handler(shell, window, cx);
-                            });
-                        }
+                        ExplorerState::update(cx, |state, cx| {
+                            handler(state, window, cx);
+                        });
                         cx.stop_propagation();
                     })
                     .into_any_element()
@@ -126,11 +145,10 @@ impl Shell {
                 s.explorer_new_file.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, window, cx| {
+                Box::new(move |state, window, cx| {
                     let p = p.clone();
-                    shell.close_explorer_file_menu(cx);
-                    shell.begin_inline_create_file(p, window, cx);
+                    state.close_explorer_file_menu(cx);
+                    state.begin_inline_create_file(p, window, cx);
                 }),
             ));
             let p = target_parent;
@@ -139,11 +157,10 @@ impl Shell {
                 s.explorer_new_folder.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, window, cx| {
+                Box::new(move |state, window, cx| {
                     let p = p.clone();
-                    shell.close_explorer_file_menu(cx);
-                    shell.begin_inline_create_folder(p, window, cx);
+                    state.close_explorer_file_menu(cx);
+                    state.begin_inline_create_folder(p, window, cx);
                 }),
             ));
             items.push(separator());
@@ -157,11 +174,10 @@ impl Shell {
                 s.explorer_open_in_split.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, window, cx| {
+                Box::new(move |state, window, cx| {
                     let p = p.clone();
-                    shell.close_explorer_file_menu(cx);
-                    shell.split_explorer_file(p, window, cx);
+                    state.close_explorer_file_menu(cx);
+                    state.split_explorer_file(p, window, cx);
                 }),
             ));
         }
@@ -173,11 +189,10 @@ impl Shell {
             s.explorer_reveal_in_file_manager.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(move |shell, _window, cx| {
+            Box::new(move |state, _window, cx| {
                 let p = p.clone();
-                shell.close_explorer_file_menu(cx);
-                shell.reveal_in_file_explorer(&p);
+                state.close_explorer_file_menu(cx);
+                state.reveal_in_file_explorer(&p);
             }),
         ));
         let p = path.clone();
@@ -186,11 +201,10 @@ impl Shell {
             s.explorer_open_in_default_app.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(move |shell, _window, cx| {
+            Box::new(move |state, _window, cx| {
                 let p = p.clone();
-                shell.close_explorer_file_menu(cx);
-                shell.open_explorer_with_system(&p);
+                state.close_explorer_file_menu(cx);
+                state.open_explorer_with_system(&p);
             }),
         ));
         let p = path.clone();
@@ -199,11 +213,10 @@ impl Shell {
             s.explorer_open_in_terminal.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(move |shell, _window, cx| {
+            Box::new(move |state, _window, cx| {
                 let p = p.clone();
-                shell.close_explorer_file_menu(cx);
-                shell.open_in_terminal(&p);
+                state.close_explorer_file_menu(cx);
+                state.open_in_terminal(&p);
             }),
         ));
         items.push(separator());
@@ -216,10 +229,9 @@ impl Shell {
             s.explorer_cut.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(|shell, _window, cx| {
-                shell.close_explorer_file_menu(cx);
-                shell.explorer_cut(cx);
+            Box::new(|state, _window, cx| {
+                state.close_explorer_file_menu(cx);
+                state.explorer_cut(cx);
             }),
         ));
         items.push(make_item(
@@ -227,10 +239,9 @@ impl Shell {
             s.explorer_copy.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(|shell, _window, cx| {
-                shell.close_explorer_file_menu(cx);
-                shell.explorer_copy(cx);
+            Box::new(|state, _window, cx| {
+                state.close_explorer_file_menu(cx);
+                state.explorer_copy(cx);
             }),
         ));
         items.push(make_item(
@@ -238,10 +249,9 @@ impl Shell {
             s.explorer_duplicate.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(|shell, window, cx| {
-                shell.close_explorer_file_menu(cx);
-                shell.explorer_duplicate(window, cx);
+            Box::new(|state, window, cx| {
+                state.close_explorer_file_menu(cx);
+                state.explorer_duplicate(window, cx);
             }),
         ));
         items.push(make_item(
@@ -249,10 +259,9 @@ impl Shell {
             s.explorer_paste.clone(),
             c.text_default,
             has_pasteable,
-            shell.clone(),
-            Box::new(|shell, window, cx| {
-                shell.close_explorer_file_menu(cx);
-                shell.explorer_paste(window, cx);
+            Box::new(|state, window, cx| {
+                state.close_explorer_file_menu(cx);
+                state.explorer_paste(window, cx);
             }),
         ));
         items.push(make_item(
@@ -260,10 +269,9 @@ impl Shell {
             s.explorer_undo.clone(),
             c.text_default,
             can_undo,
-            shell.clone(),
-            Box::new(|shell, window, cx| {
-                shell.close_explorer_file_menu(cx);
-                shell.explorer_undo(window, cx);
+            Box::new(|state, window, cx| {
+                state.close_explorer_file_menu(cx);
+                state.explorer_undo(window, cx);
             }),
         ));
         items.push(make_item(
@@ -271,10 +279,9 @@ impl Shell {
             s.explorer_redo.clone(),
             c.text_default,
             can_redo,
-            shell.clone(),
-            Box::new(|shell, window, cx| {
-                shell.close_explorer_file_menu(cx);
-                shell.explorer_redo(window, cx);
+            Box::new(|state, window, cx| {
+                state.close_explorer_file_menu(cx);
+                state.explorer_redo(window, cx);
             }),
         ));
         items.push(separator());
@@ -286,11 +293,10 @@ impl Shell {
             s.explorer_copy_path.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(move |shell, _window, cx| {
+            Box::new(move |state, _window, cx| {
                 let p = p.clone();
-                shell.close_explorer_file_menu(cx);
-                shell.copy_path_to_clipboard(&p, cx);
+                state.close_explorer_file_menu(cx);
+                state.copy_path_to_clipboard(&p, cx);
             }),
         ));
         let p = path.clone();
@@ -299,11 +305,10 @@ impl Shell {
             s.explorer_copy_relative_path.clone(),
             c.text_default,
             true,
-            shell.clone(),
-            Box::new(move |shell, _window, cx| {
+            Box::new(move |state, _window, cx| {
                 let p = p.clone();
-                shell.close_explorer_file_menu(cx);
-                shell.copy_explorer_relative_path(&p, cx);
+                state.close_explorer_file_menu(cx);
+                state.copy_explorer_relative_path(&p, cx);
             }),
         ));
 
@@ -316,11 +321,10 @@ impl Shell {
                 s.explorer_rename.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, window, cx| {
+                Box::new(move |state, window, cx| {
                     let p = p.clone();
-                    shell.close_explorer_file_menu(cx);
-                    shell.begin_inline_rename(p, window, cx);
+                    state.close_explorer_file_menu(cx);
+                    state.begin_inline_rename(p, window, cx);
                 }),
             ));
             items.push(make_item(
@@ -328,10 +332,9 @@ impl Shell {
                 s.explorer_trash.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(|shell, window, cx| {
-                    shell.close_explorer_file_menu(cx);
-                    shell.trash_explorer_selections(window, cx);
+                Box::new(|state, window, cx| {
+                    state.close_explorer_file_menu(cx);
+                    state.trash_explorer_selections(window, cx);
                 }),
             ));
             items.push(make_item(
@@ -339,10 +342,9 @@ impl Shell {
                 s.explorer_delete.clone(),
                 c.dialog_danger_button_bg,
                 true,
-                shell.clone(),
-                Box::new(|shell, window, cx| {
-                    shell.close_explorer_file_menu(cx);
-                    shell.delete_explorer_selections(window, cx);
+                Box::new(|state, window, cx| {
+                    state.close_explorer_file_menu(cx);
+                    state.delete_explorer_selections(window, cx);
                 }),
             ));
         } else {
@@ -355,10 +357,9 @@ impl Shell {
                 s.explorer_add_folder.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(|shell, window, cx| {
-                    shell.close_explorer_file_menu(cx);
-                    shell.prompt_open_explorer_folder(window, cx);
+                Box::new(|state, window, cx| {
+                    state.close_explorer_file_menu(cx);
+                    state.prompt_open_explorer_folder(window, cx);
                 }),
             ));
             let p = path.clone();
@@ -367,18 +368,15 @@ impl Shell {
                 s.explorer_remove_folder.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, _window, cx| {
+                Box::new(move |state, _window, cx| {
                     let p = p.clone();
-                    shell.close_explorer_file_menu(cx);
-                    if let Some(index) = shell
-                        .panels
-                        .explorer
+                    state.close_explorer_file_menu(cx);
+                    if let Some(index) = state
                         .worktrees
                         .iter()
                         .position(|worktree| worktree.read(cx).root() == p.as_path())
                     {
-                        shell.remove_explorer_worktree(index, cx);
+                        state.remove_explorer_worktree(index, cx);
                     }
                 }),
             ));
@@ -393,14 +391,13 @@ impl Shell {
                 s.explorer_expand_all.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, _window, cx| {
-                    shell.close_explorer_file_menu(cx);
+                Box::new(move |state, _window, cx| {
+                    state.close_explorer_file_menu(cx);
                     match entry_id {
                         Some(sel) if !is_root => {
-                            shell.expand_all_explorer_for_entry(sel.entry_id, cx);
+                            state.expand_all_explorer_for_entry(sel.entry_id, cx);
                         }
-                        _ => shell.expand_all_explorer_nodes(cx),
+                        _ => state.expand_all_explorer_nodes(cx),
                     }
                 }),
             ));
@@ -409,14 +406,13 @@ impl Shell {
                 s.explorer_collapse_all.clone(),
                 c.text_default,
                 true,
-                shell.clone(),
-                Box::new(move |shell, _window, cx| {
-                    shell.close_explorer_file_menu(cx);
+                Box::new(move |state, _window, cx| {
+                    state.close_explorer_file_menu(cx);
                     match entry_id {
                         Some(sel) if !is_root => {
-                            shell.collapse_all_explorer_for_entry(sel.entry_id, cx);
+                            state.collapse_all_explorer_for_entry(sel.entry_id, cx);
                         }
-                        _ => shell.collapse_all_explorer_nodes(cx),
+                        _ => state.collapse_all_explorer_nodes(cx),
                     }
                 }),
             ));
@@ -426,10 +422,11 @@ impl Shell {
             overlay()
                 .id("explorer-file-context-menu-overlay")
                 .occlude()
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(Self::on_dismiss_explorer_file_menu),
-                )
+                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                    ExplorerState::update(cx, |state, cx| {
+                        state.on_dismiss_explorer_file_menu(event, window, cx);
+                    });
+                })
                 .child(
                     div()
                         .id("explorer-file-context-menu-panel")

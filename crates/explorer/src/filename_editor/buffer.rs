@@ -2,17 +2,48 @@
 
 use std::ops::Range;
 
-use crate::explorer::state::state::ExplorerFilenameEditor;
-use markdown::inline::offsets::ImeConverter;
+use crate::state::state::ExplorerFilenameEditor;
 
-// ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
+// ── UTF-8 / UTF-16 offset conversion (IME bridge) ────────────────────────
+// Local implementation — the explorer must not depend on the markdown
+// world, and this conversion is generic text math.
 
-pub(crate) fn utf16_range_to_utf8_in(text: &str, range: &Range<usize>) -> Range<usize> {
-    ImeConverter::utf16_range_to_utf8_in(text, range)
+fn utf16_to_utf8_in(text: &str, utf16_offset: usize) -> usize {
+    let mut utf16_count = 0;
+    let mut utf8_offset = 0;
+    for ch in text.chars() {
+        if utf16_count >= utf16_offset {
+            break;
+        }
+        utf16_count += ch.len_utf16();
+        utf8_offset += ch.len_utf8();
+    }
+    utf8_offset
 }
 
-pub(crate) fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
-    ImeConverter::utf8_range_to_utf16_in(text, range)
+fn utf8_to_utf16_in(text: &str, utf8_offset: usize) -> usize {
+    let mut utf16_offset = 0;
+    let mut utf8_count = 0;
+    for ch in text.chars() {
+        if utf8_count >= utf8_offset {
+            break;
+        }
+        utf8_count += ch.len_utf8();
+        utf16_offset += ch.len_utf16();
+    }
+    utf16_offset
+}
+
+pub fn utf16_range_to_utf8_in(text: &str, range_utf16: &Range<usize>) -> Range<usize> {
+    utf16_to_utf8_in(text, range_utf16.start)..utf16_to_utf8_in(text, range_utf16.end)
+}
+
+pub fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
+    utf8_to_utf16_in(text, range.start)..utf8_to_utf16_in(text, range.end)
+}
+
+pub fn utf8_to_utf16_in_single(text: &str, utf8_offset: usize) -> usize {
+    utf8_to_utf16_in(text, utf8_offset)
 }
 
 // ── Text buffer operations ──────────────────────────────────────────────

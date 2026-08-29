@@ -49,15 +49,6 @@ impl PanelContent {
 
 }
 
-/// Explorer row right-click menu: a window-level overlay rendered by the
-/// Shell (it must float over every area at window coordinates).
-#[derive(Clone)]
-pub(crate) struct ExplorerFileMenuState {
-    pub(crate) position: Point<Pixels>,
-    pub(crate) path: std::path::PathBuf,
-    pub(crate) is_dir: bool,
-}
-
 /// Scope of an unsaved-changes confirmation dialog.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum UnsavedDialogScope {
@@ -108,8 +99,6 @@ pub struct Shell {
     /// The last rendered viewport size; area rectangles are derived from
     /// it when the layout changes (see [`Self::sync_panel_states`]).
     pub(crate) last_viewport: Option<Size<Pixels>>,
-    /// Explorer row right-click menu state (rendered at window level).
-    pub(crate) explorer_file_menu: Option<ExplorerFileMenuState>,
     /// Informational dialog shown from the Help menu (About / update check).
     pub(crate) info_dialog: Option<InfoDialogKind>,
     /// Unsaved changes confirmation dialog state (Window, Editor Panel, or Single Tab).
@@ -155,6 +144,10 @@ impl Shell {
         let Some(viewport) = self.last_viewport else {
             return;
         };
+        // Keep the explorer's tree selection in sync with the active
+        // editor tab (quiet push — no window refresh).
+        let active_tab_path = self.active_editor_tab(cx).and_then(|tab| tab.file.path.clone());
+        explorer::ExplorerState::set_active_file(cx, active_tab_path);
         let theme = cx.global::<ThemeManager>().current_arc();
         let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
@@ -223,17 +216,19 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         self.dismiss_contextual_overlays(cx);
-        self.explorer_file_menu = Some(ExplorerFileMenuState {
-            position,
-            path,
-            is_dir,
+        explorer::ExplorerState::update(cx, |state, _cx| {
+            state.file_menu = Some(explorer::ExplorerFileMenuState {
+                position,
+                path,
+                is_dir,
+            });
         });
-        cx.notify();
     }
 
     /// Closes the explorer row context menu, if open.
     pub(crate) fn close_explorer_file_menu(&mut self, cx: &mut Context<Self>) {
-        if self.explorer_file_menu.take().is_some() {
+        let was_open = explorer::ExplorerState::update(cx, |state, _cx| state.file_menu.take().is_some());
+        if was_open {
             cx.notify();
         }
     }
@@ -453,10 +448,10 @@ impl Shell {
     /// Sync open document tabs across all panels when a file/directory is moved or renamed.
     pub(crate) fn sync_open_tabs_after_fs_change(
         &self,
-        change: &crate::explorer::state::undo::ExplorerChange,
+        change: &explorer::state::undo::ExplorerChange,
         cx: &mut App,
     ) {
-        use crate::explorer::state::undo::ExplorerChange;
+        use explorer::state::undo::ExplorerChange;
 
         match change {
             ExplorerChange::Moved { from, to } | ExplorerChange::Renamed { from, to } => {
@@ -475,6 +470,22 @@ impl Shell {
             }
             _ => {}
         }
+    }
+
+    /// Update open editor tab paths after an explorer move/rename.
+    fn on_update_open_tab_paths(
+        &mut self,
+        action: &explorer::ops::selection::UpdateOpenTabPaths,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_open_tabs_after_fs_change(
+            &explorer::state::undo::ExplorerChange::Renamed {
+                from: std::path::PathBuf::from(&action.from),
+                to: std::path::PathBuf::from(&action.to),
+            },
+            cx,
+        );
     }
 
     /// Removes the content entity of `panel_id` (if any) and returns its
@@ -687,7 +698,7 @@ impl Shell {
                 Some(workspace::WindowPanelKind::Explorer) => {
                     // The explorer model is window-global: deep-copy it so
                     // the new window shows the same file tree.
-                    cloned_explorer = Some(self.panels.explorer.clone_for_new_window());
+                    cloned_explorer = Some(explorer::ExplorerState::global(cx).clone_for_new_window());
                 }
                 Some(workspace::WindowPanelKind::Settings) | None => {}
             }
@@ -1037,6 +1048,30 @@ impl Shell {
     ) {
         self.close_panel(PanelId(action.panel), cx);
     }
+
+    // ── explorer panel actions ──────────────────────────────────────────
+
+    pub(crate) fn on_toggle_explorer_action(
+        &mut self,
+        _: &crate::app::actions::ToggleExplorer,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.toggle_explorer_drawer(window, cx);
+        });
+    }
+
+    pub(crate) fn on_close_explorer_folder_action(
+        &mut self,
+        _: &crate::app::actions::CloseExplorerFolder,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.close_explorer_folder(cx);
+        });
+    }
 }
 
 impl Render for Shell {
@@ -1070,6 +1105,7 @@ impl Render for Shell {
             .on_action(cx.listener(Self::on_split_panel))
             .on_action(cx.listener(Self::on_toggle_panel_maximized))
             .on_action(cx.listener(Self::on_close_panel))
+            .on_action(cx.listener(Self::on_update_open_tab_paths))
             // A mouse-down anywhere in the window body closes an open
             // menu; titlebar and menu panels are siblings of the body
             // container, so their clicks never reach this listener.
@@ -1099,7 +1135,9 @@ impl Render for Shell {
 
         // The explorer row context menu floats at window level, above every
         // area, so its window-coordinate position stays accurate.
-        if let Some(menu) = self.render_explorer_file_context_menu(&theme, cx) {
+        if let Some(menu) =
+            explorer::render_explorer_file_context_menu(&theme, window.viewport_size(), cx)
+        {
             base = base.child(menu);
         }
 

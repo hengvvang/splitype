@@ -12,12 +12,21 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
-use gpui::{AnyWindowHandle, Bounds, Entity, FocusHandle, Pixels, Task, UniformListScrollHandle};
+use gpui::{AnyWindowHandle, BorrowAppContext, Bounds, Entity, FocusHandle, Global, Pixels, Task, UniformListScrollHandle};
 
 use super::undo::ExplorerUndoHistory;
 use super::worktree::{Worktree, WorktreeEntryKind, WorktreeSnapshot};
 
 pub use super::worktree::{ExplorerEntryId, WorktreeEvent, WorktreeId};
+
+/// Explorer row right-click menu: a window-level overlay rendered by the
+/// Shell (it must float over every area at window coordinates).
+#[derive(Clone)]
+pub struct ExplorerFileMenuState {
+    pub position: gpui::Point<Pixels>,
+    pub path: PathBuf,
+    pub is_dir: bool,
+}
 
 // ── Icons & constants ───────────────────────────────────────────────────
 
@@ -177,6 +186,8 @@ pub struct ExplorerEditState {
     pub filename: ExplorerFilenameEditor,
     pub previously_selected: Option<SelectedEntry>,
     pub processing: bool,
+    /// IME host entity registered as the filename input's window handler.
+    pub ime_host: Option<Entity<crate::filename_editor::ExplorerFilenameImeHost>>,
 }
 
 impl ExplorerEditState {
@@ -315,6 +326,40 @@ pub struct ExplorerState {
     pub rendered_rows: usize,
     pub recent_folders_cache: Vec<PathBuf>,
     pub recent_files_cache: Vec<PathBuf>,
+    /// Open row right-click menu (window-level overlay state).
+    pub file_menu: Option<ExplorerFileMenuState>,
+    /// Path of the file open in the active editor tab (pushed by the shell
+    /// every frame; used to keep the tree selection in sync).
+    pub active_file: Option<PathBuf>,
+}
+
+impl Global for ExplorerState {}
+
+impl ExplorerState {
+    /// The app-wide explorer state; panics when not installed by the app
+    /// bootstrap.
+    pub fn global(cx: &gpui::App) -> &Self {
+        cx.global::<Self>()
+    }
+
+    /// Mutate the app-wide explorer state and notify all windows.
+    ///
+    /// The closure receives the state and the app context (for nested
+    /// global access).
+    pub fn update<R>(
+        cx: &mut gpui::App,
+        f: impl FnOnce(&mut Self, &mut gpui::App) -> R,
+    ) -> R {
+        let result = cx.update_global::<Self, R>(f);
+        cx.refresh_windows();
+        result
+    }
+
+    /// Quietly record the file open in the active editor tab. Called by the
+    /// shell every frame; deliberately does not refresh windows.
+    pub fn set_active_file(cx: &mut gpui::App, path: Option<PathBuf>) {
+        cx.update_global::<Self, _>(|state, _cx| state.active_file = path);
+    }
 }
 
 impl Default for ExplorerState {
@@ -345,6 +390,8 @@ impl Default for ExplorerState {
             rendered_rows: 0,
             recent_folders_cache: Vec::new(),
             recent_files_cache: Vec::new(),
+            file_menu: None,
+            active_file: None,
         };
         state.refresh_recent_cache();
         state
@@ -369,7 +416,7 @@ impl ExplorerState {
     }
 
     /// Deep-copy the explorer content into a fresh window's state.
-    pub(crate) fn clone_for_new_window(&self) -> Self {
+    pub fn clone_for_new_window(&self) -> Self {
         Self {
             is_open: self.is_open,
             worktrees: self.worktrees.clone(),
@@ -396,6 +443,8 @@ impl ExplorerState {
             rendered_rows: 0,
             recent_folders_cache: self.recent_folders_cache.clone(),
             recent_files_cache: self.recent_files_cache.clone(),
+            active_file: None,
+            file_menu: None,
         }
     }
 }
@@ -537,7 +586,7 @@ pub fn build_explorer_rows(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::explorer::state::undo::ExplorerChange;
+    use crate::state::undo::ExplorerChange;
     use std::path::PathBuf;
 
     #[test]
@@ -590,6 +639,7 @@ mod tests {
             filename: ExplorerFilenameEditor::default(),
             previously_selected: None,
             processing: false,
+            ime_host: None,
         });
         state.rendered_rows = 12;
 
@@ -633,6 +683,7 @@ mod tests {
             filename: ExplorerFilenameEditor::default(),
             previously_selected: None,
             processing: false,
+            ime_host: None,
         };
         // Empty snapshots list
         let rows = build_explorer_rows(&[], &HashMap::new(), Some(&edit));

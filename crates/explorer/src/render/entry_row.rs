@@ -2,22 +2,22 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::app::shell::Shell;
+use crate::ExplorerState;
+
 use workspace::PanelId;
-use crate::explorer::ops::drag_and_drop::DraggedExplorerEntryView;
-use crate::explorer::state::state::{
+use crate::ops::drag_and_drop::DraggedExplorerEntryView;
+use crate::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
     ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry,
     file_type_icon,
 };
 use theme::Theme;
 
-impl Shell {
+impl ExplorerState {
     /// The path whose highlight extends to all of its descendants during a
     /// drag (the highlight target of the current drag, if any).
     pub(crate) fn explorer_drag_highlight_path(&self) -> Option<PathBuf> {
-        self.panels
-            .explorer
+        self
             .drag_target
             .and_then(|target| target.highlight_entry_id())
             .and_then(|id| self.explorer_entry_by_id(id))
@@ -33,17 +33,16 @@ impl Shell {
         panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        shell: &WeakEntity<Shell>,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> AnyElement {
         match row {
             ExplorerRow::Entry(entry) if entry.parent_id.is_none() => {
-                self.render_explorer_root_row(entry, panel_id, drag_highlight, theme, shell, cx)
+                self.render_explorer_root_row(entry, panel_id, drag_highlight, theme, cx)
             }
             ExplorerRow::Entry(entry) => {
-                self.render_explorer_entry_row(entry, panel_id, drag_highlight, theme, shell, cx)
+                self.render_explorer_entry_row(entry, panel_id, drag_highlight, theme, cx)
             }
-            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(panel_id, theme, shell, cx),
+            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(panel_id, theme, cx),
         }
     }
 
@@ -54,33 +53,29 @@ impl Shell {
         panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        shell: &WeakEntity<Shell>,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let mark_selection = crate::explorer::state::state::SelectedEntry {
+        let mark_selection = crate::state::state::SelectedEntry {
             worktree_id: entry.worktree_id,
             entry_id: entry.id,
         };
-        let selected = self.panels.explorer.selected == Some(mark_selection);
-        let is_marked = self.panels.explorer.marked.contains(&mark_selection);
+        let selected = self.selected == Some(mark_selection);
+        let is_marked = self.marked.contains(&mark_selection);
         let is_drag_target = drag_highlight
             .is_some_and(|highlight| entry.path == *highlight || entry.path.starts_with(highlight));
         let node_id = entry.id;
-        let click_shell = shell.clone();
         let click_kind = entry.kind;
         let click_path = entry.path.clone();
         let click_worktree_id = entry.worktree_id;
-        let right_click_shell = shell.clone();
         let right_click_path = entry.path.clone();
         let right_click_is_dir = entry.kind == ExplorerEntryKind::Directory;
         let arrow_node_id = entry.id;
-        let arrow_shell = shell.clone();
         // Drag payload: the row where the drag started first, then the
         // marked entries it carries along (mirrors Zed's DraggedSelection).
         let mut drag_selections = vec![mark_selection];
-        for selection in &self.panels.explorer.marked {
+        for selection in &self.marked {
             if !drag_selections.contains(selection) {
                 drag_selections.push(*selection);
             }
@@ -133,8 +128,8 @@ impl Shell {
                         .text_color(c.dialog_muted),
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                    let _ = arrow_shell.update(cx, |shell, cx| {
-                        shell.toggle_explorer_node(arrow_node_id, cx);
+                    ExplorerState::update(cx, |state, cx| {
+                        state.toggle_explorer_node(arrow_node_id, cx);
                     });
                     cx.stop_propagation();
                 });
@@ -190,17 +185,17 @@ impl Shell {
                     let path = right_click_path.clone();
                     let is_dir = right_click_is_dir;
                     let selection = right_click_selection.clone();
-                    let _ = right_click_shell.update(cx, |shell, cx| {
+                    ExplorerState::update(cx, |state, cx| {
                         // Right-click selects the row (indicator feedback,
                         // mirroring Zed's deploy_context_menu); marked
                         // entries are cleared when the target is not one of
                         // them, so menu actions never surprise multi-selects.
-                        shell.panels.explorer.selected = Some(selection.clone());
-                        if !shell.panels.explorer.marked.contains(&selection) {
-                            shell.panels.explorer.marked.clear();
+                        state.selected = Some(selection.clone());
+                        if !state.marked.contains(&selection) {
+                            state.marked.clear();
                         }
-                        shell.open_explorer_file_context_menu(event.position, path, is_dir, cx);
-                        cx.notify();
+                        state.open_explorer_file_context_menu(event.position, path, is_dir, cx);
+                        cx.refresh_windows();
                     });
                     cx.stop_propagation();
                 }
@@ -214,38 +209,38 @@ impl Shell {
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
                 let secondary = event.modifiers().secondary();
-                let _ = click_shell.update(cx, |shell, cx| {
+                ExplorerState::update(cx, |state, cx| {
                     if shift {
-                        shell.select_explorer_range(id, cx);
+                        state.select_explorer_range(id, cx);
                         return;
                     }
                     if secondary {
                         if click_count > 1 {
                             // Ctrl/Cmd+double-click: open in a split area.
-                            shell.split_explorer_file(path, window, cx);
+                            state.split_explorer_file(path, window, cx);
                         } else {
-                            shell.toggle_explorer_mark(selection, cx);
+                            state.toggle_explorer_mark(selection, cx);
                         }
                         return;
                     }
-                    shell.panels.explorer.marked.clear();
+                    state.marked.clear();
                     match kind {
                         ExplorerEntryKind::Directory => {
                             // Select the directory so a click always gives
                             // feedback, even when it is empty and there is
                             // nothing to expand.
-                            shell.panels.explorer.selected = Some(crate::explorer::state::state::SelectedEntry {
+                            state.selected = Some(crate::state::state::SelectedEntry {
                                 worktree_id: click_worktree_id,
                                 entry_id: id,
                             });
                             if alt {
-                                shell.toggle_explorer_subtree(id, cx);
+                                state.toggle_explorer_subtree(id, cx);
                             } else {
-                                shell.toggle_explorer_node(id, cx);
+                                state.toggle_explorer_node(id, cx);
                             }
                         }
                         ExplorerEntryKind::MarkdownFile | ExplorerEntryKind::File => {
-                            shell.open_explorer_file_click(path, click_count > 1, window, cx);
+                            state.open_explorer_file_click(path, click_count > 1, window, cx);
                         }
                     }
                 });
@@ -258,24 +253,28 @@ impl Shell {
             // bubble up to the panel background for cursor/scroll handling;
             // drops stop propagation so the background does not handle the
             // same drop twice.
-            .on_drag_move::<ExternalPaths>(cx.listener(move |shell, event, window, cx| {
-                shell.explorer_drag_hover_entry_external(event, drag_entry_id, window, cx);
-            }))
-            .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(
-                move |shell, paths, window, cx| {
-                    shell.on_explorer_drop_external(paths.paths(), drag_entry_id, window, cx);
-                    cx.stop_propagation();
-                },
-            ))
-            .on_drag_move::<DraggedExplorerSelection>(cx.listener(
-                move |shell, event, window, cx| {
-                    shell.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
-                },
-            ))
-            .on_drop::<DraggedExplorerSelection>(cx.listener(move |shell, payload, window, cx| {
-                shell.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
+            .on_drag_move::<ExternalPaths>(move |event, window, cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.explorer_drag_hover_entry_external(event, drag_entry_id, window, cx);
+                });
+            })
+            .on_drop::<ExternalPaths>(move |paths, window, cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.on_explorer_drop_external(paths.paths(), drag_entry_id, window, cx);
+                });
                 cx.stop_propagation();
-            }))
+            })
+            .on_drag_move::<DraggedExplorerSelection>(move |event, window, cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
+                });
+            })
+            .on_drop::<DraggedExplorerSelection>(move |payload, window, cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
+                });
+                cx.stop_propagation();
+            })
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();
                 let count = payload.selections.len();

@@ -447,7 +447,7 @@ impl Shell {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => {
-                    self.render_explorer_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
+                    explorer::render_explorer_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
                 }
                 WindowPanelKind::Settings => {
                     settings::render_settings_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
@@ -458,7 +458,7 @@ impl Shell {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
-                WindowPanelKind::Explorer => self.render_explorer_body(panel_id, theme, strings, cx),
+                WindowPanelKind::Explorer => explorer::render_explorer_body(panel_id, theme, strings, cx),
                 WindowPanelKind::Settings => settings::render_settings_body(panel_id, theme, strings, cx),
             };
 
@@ -467,7 +467,7 @@ impl Shell {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => {
-                    Some(self.render_explorer_bottombar(panel_id, theme, cx))
+                    Some(explorer::render_explorer_bottombar(panel_id, theme, cx))
                 }
                 WindowPanelKind::Settings => {
                     Some(settings::render_settings_bottombar(panel_id, theme, cx))

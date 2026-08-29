@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::document::protocol::{BlockEvent, PastedImageSource, UndoCaptureKind};
-use crate::editor::input::actions::{Copy, Cut, Paste};
+use workspace::actions::{Copy, Cut, Paste};
 use crate::editor::input::paste::should_split_plain_multiline_paste;
 use crate::editor::document::block::Block;
 use markdown::inline::text::BlockText;

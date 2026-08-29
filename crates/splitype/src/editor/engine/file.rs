@@ -50,11 +50,9 @@ impl Editor {
         self.tab_mut().file.pending_close_after_save = false;
         self.tab_mut().file.close_dialog_restore_focus = None;
         crate::app::menus::record_recent_file_from_editor(&path, cx);
-        if let Some(shell) = self.shell.clone() {
-            let _ = shell.update(cx, |shell, cx| {
-                shell.sync_explorer_after_document_path_change(cx);
-            });
-        }
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.sync_explorer_after_document_path_change(cx);
+        });
         cx.notify();
     }
 

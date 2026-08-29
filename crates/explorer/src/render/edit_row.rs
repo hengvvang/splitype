@@ -1,24 +1,24 @@
 use gpui::*;
 
-use crate::app::shell::Shell;
+use crate::ExplorerState;
+
 use workspace::PanelId;
-use crate::explorer::filename_editor::ExplorerFilenameInputElement;
-use crate::explorer::state::state::{
+use crate::filename_editor::ExplorerFilenameInputElement;
+use crate::state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
 };
 use theme::Theme;
 
-impl Shell {
+impl ExplorerState {
     /// Render the inline create/rename row: a filename input with keyboard
     /// handling, IME bridge, and live validation feedback.
     pub(crate) fn render_explorer_edit_row(
         &self,
         panel_id: PanelId,
         theme: &Theme,
-        _shell: &WeakEntity<Shell>,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> AnyElement {
-        let Some(edit) = self.panels.explorer.edit.as_ref() else {
+        let Some(edit) = self.edit.as_ref() else {
             return div().into_any_element();
         };
         let c = &theme.colors;
@@ -82,18 +82,38 @@ impl Shell {
                     .min_w(px(0.0))
                     .flex()
                     .items_center()
-                    .on_key_down(cx.listener(Self::on_explorer_filename_key_down))
+                    .on_key_down(move |event, window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            state.on_explorer_filename_key_down(event, window, cx);
+                        });
+                    })
                     // The global keymap binds escape to DismissTransientUi;
                     // GPUI dispatches matched actions BEFORE raw key
                     // listeners, so Esc must be handled as an action here
                     // (the focused node runs first) — on_key_down would
                     // never see it.
-                    .on_action(cx.listener(Self::on_explorer_escape))
-                    .on_action(cx.listener(Self::on_explorer_filename_copy))
-                    .on_action(cx.listener(Self::on_explorer_filename_cut))
-                    .on_action(cx.listener(Self::on_explorer_filename_paste))
+                    .on_action(move |action: &workspace::DismissTransientUi, window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            state.on_explorer_escape(action, window, cx);
+                        });
+                    })
+                    .on_action(move |action: &workspace::Copy, _window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            state.on_explorer_filename_copy(action, _window, cx);
+                        });
+                    })
+                    .on_action(move |action: &workspace::Cut, _window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            state.on_explorer_filename_cut(action, _window, cx);
+                        });
+                    })
+                    .on_action(move |action: &workspace::Paste, window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            state.on_explorer_filename_paste(action, window, cx);
+                        });
+                    })
                     .child(ExplorerFilenameInputElement {
-                        editor: cx.entity(),
+                        ime_host: edit.ime_host.clone().expect("ime host set on edit start"),
                     }),
             )
             .children(validation_label.map(|(message, color)| {

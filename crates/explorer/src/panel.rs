@@ -5,43 +5,23 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::app::shell::Shell;
-
-use crate::app::actions::{CloseExplorerFolder, ToggleExplorer};
-use crate::explorer::state::state::*;
-use crate::explorer::state::worktree::Worktree;
+use crate::state::state::*;
+use crate::state::worktree::Worktree;
 use config::settings::SettingsStore;
 
-impl Shell {
-    pub(crate) fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.panels.explorer.is_open {
-            self.panels.explorer.is_open = false;
+impl ExplorerState {
+    pub fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut App) {
+        if self.is_open {
+            self.is_open = false;
         } else {
-            self.dismiss_contextual_overlays(cx);
-            self.panels.explorer.is_open = true;
+            self.is_open = true;
             self.sync_explorer_models(cx);
             window.activate_window();
         }
-        cx.notify();
+        cx.refresh_windows();
     }
-    pub(crate) fn on_toggle_explorer_action(
-        &mut self,
-        _: &ToggleExplorer,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.toggle_explorer_drawer(window, cx);
-    }
-    pub(crate) fn on_close_explorer_folder_action(
-        &mut self,
-        _: &CloseExplorerFolder,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.close_explorer_folder(cx);
-    }
-    pub(crate) fn close_explorer_folder(&mut self, cx: &mut Context<Self>) {
-        let explorer = &mut self.panels.explorer;
+    pub fn close_explorer_folder(&mut self, cx: &mut App) {
+        let explorer = &mut *self;
         explorer.worktrees.clear();
         explorer.snapshots.clear();
         explorer.expanded.clear();
@@ -61,13 +41,13 @@ impl Shell {
         explorer.previous_drag_position = None;
         explorer.refresh_recent_cache();
         self.rebuild_explorer_entries();
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Add a project root as a new worktree (mirrors Zed's
     /// `WorktreeStore::create_worktree`). The root row starts expanded.
-    pub(crate) fn add_explorer_worktree(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-        let explorer = &mut self.panels.explorer;
+    pub(crate) fn add_explorer_worktree(&mut self, path: PathBuf, cx: &mut App) {
+        let explorer = &mut *self;
         if explorer
             .worktrees
             .iter()
@@ -92,8 +72,8 @@ impl Shell {
             .entry(worktree_id)
             .or_default()
             .insert(root_id);
-        cx.subscribe(&worktree, Self::on_explorer_worktree_event)
-            .detach();
+        // The worktree notifies the explorer global itself when its
+        // snapshots change (no shell subscription needed).
         explorer.worktrees.push(worktree);
         explorer.snapshots = explorer
             .worktrees
@@ -102,13 +82,13 @@ impl Shell {
             .collect();
         explorer.file_error = None;
         self.rebuild_explorer_entries();
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Remove the worktree at `index` (mirrors Zed's `remove_worktree`);
     /// wired to the root row's "Remove from Explorer" context menu item.
-    pub(crate) fn remove_explorer_worktree(&mut self, index: usize, cx: &mut Context<Self>) {
-        let explorer = &mut self.panels.explorer;
+    pub(crate) fn remove_explorer_worktree(&mut self, index: usize, cx: &mut App) {
+        let explorer = &mut *self;
         if index >= explorer.worktrees.len() {
             return;
         }
@@ -129,7 +109,7 @@ impl Shell {
         explorer.edit = None;
         explorer.pending_select = None;
         self.rebuild_explorer_entries();
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Reorder worktrees by dragging a root row onto another root
@@ -139,9 +119,9 @@ impl Shell {
         &mut self,
         from: usize,
         to: usize,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let explorer = &mut self.panels.explorer;
+        let explorer = &mut *self;
         let len = explorer.worktrees.len();
         if from == to || from >= len || to >= len {
             return;
@@ -156,7 +136,7 @@ impl Shell {
             .collect();
         explorer.edit = None;
         self.rebuild_explorer_entries();
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Handle a worktree scan event: refresh the tree cache and rebuild the
@@ -166,11 +146,9 @@ impl Shell {
         &mut self,
         _worktree: Entity<Worktree>,
         _event: &WorktreeEvent,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        self.panels.explorer.snapshots = self
-            .panels
-            .explorer
+        self.snapshots = self
             .worktrees
             .iter()
             .map(|wt| wt.read(cx).snapshot())
@@ -181,32 +159,30 @@ impl Shell {
         // Start the pending rename editor now that the copied entry is in
         // the scanned tree (the editor needs window access, so it runs in a
         // spawned task).
-        if let Some((window_handle, path)) = self.panels.explorer.pending_rename.take()
+        if let Some((window_handle, path)) = self.pending_rename.take()
             && self.explorer_id_for_path(&path).is_some()
         {
-            let weak_editor = cx.entity().downgrade();
-            cx.spawn(async move |_this, cx: &mut AsyncApp| {
+            cx.spawn(async move |cx: &mut AsyncApp| {
                 let _ = cx.update_window(window_handle, |_, window, cx| {
-                    let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.begin_inline_rename(path.to_path_buf(), window, cx);
-
+                    ExplorerState::update(cx, |state, cx| {
+                        state.begin_inline_rename(path.to_path_buf(), window, cx);
                     });
                 });
             })
             .detach();
         }
-        cx.notify();
+        cx.refresh_windows();
     }
 
-    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut App) {
         self.add_explorer_worktree(path, cx);
     }
-    pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
-        if self.panels.explorer.is_open && !self.panels.explorer.worktrees.is_empty() {
+    pub fn sync_explorer_after_document_path_change(&mut self, cx: &mut App) {
+        if self.is_open && !self.worktrees.is_empty() {
             self.sync_explorer_models(cx);
         }
     }
-    pub(crate) fn sync_explorer_models(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn sync_explorer_models(&mut self, cx: &mut App) {
         // The file tree only needs a root directory, so it syncs even in
         // the welcome state (no tabs). Each Editor entity syncs its own
         // outline from its active document when it renders.
@@ -215,7 +191,7 @@ impl Shell {
     pub(crate) fn prompt_open_explorer_folder(
         &mut self,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let prompt = cx.prompt_for_paths(PathPromptOptions {
             files: true,
@@ -223,8 +199,7 @@ impl Shell {
             multiple: false,
             prompt: None,
         });
-        let weak_shell = cx.entity().downgrade();
-        cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
+        cx.spawn(async move |cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
                 Ok(Ok(None)) | Err(_) => return,
@@ -241,9 +216,11 @@ impl Shell {
             {
                 tracing::warn!(path = %path.display(), error = %err, "failed to update recent folder history");
             }
-            let _ = weak_shell.update(cx, |shell, cx| {
-                shell.open_explorer_folder_path(path, cx);
-                cx.notify();
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.open_explorer_folder_path(path, cx);
+                    cx.refresh_windows();
+                });
             });
         })
         .detach();
@@ -251,33 +228,33 @@ impl Shell {
     /// Request a full background rescan of every worktree (panel-driven
     /// disk operations call this; the worktree entities coalesce rescans
     /// while one is in flight).
-    pub(crate) fn rescan_explorer_worktrees(&mut self, cx: &mut Context<Self>) {
-        let worktrees = self.panels.explorer.worktrees.clone();
+    pub(crate) fn rescan_explorer_worktrees(&mut self, cx: &mut App) {
+        let worktrees = self.worktrees.clone();
         for worktree in worktrees {
             worktree.update(cx, |worktree, cx| worktree.rescan(cx));
         }
     }
 
-    pub(crate) fn rescan_and_sync_explorer(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn rescan_and_sync_explorer(&mut self, cx: &mut App) {
         self.rescan_explorer_worktrees(cx);
         self.sync_explorer_models(cx);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Toggle dotfile visibility. Persists to settings and rescans.
-    pub(crate) fn toggle_explorer_hidden(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn toggle_explorer_hidden(&mut self, cx: &mut App) {
         let _ = SettingsStore::update(cx, |s| {
             s.explorer.hide_hidden = !s.explorer.hide_hidden;
         });
         let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
-        let worktrees = self.panels.explorer.worktrees.clone();
+        let worktrees = self.worktrees.clone();
         for worktree in worktrees {
             worktree.update(cx, |worktree, cx| {
                 worktree.set_hide_hidden(hide_hidden, cx);
             });
         }
         self.sync_explorer_models(cx);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Replace the worktree at `index` with a folder picked by the user
@@ -287,7 +264,7 @@ impl Shell {
         &mut self,
         index: usize,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let prompt = cx.prompt_for_paths(PathPromptOptions {
             files: true,
@@ -295,8 +272,7 @@ impl Shell {
             multiple: false,
             prompt: None,
         });
-        let weak_shell = cx.entity().downgrade();
-        cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
+        cx.spawn(async move |cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
                 Ok(Ok(None)) | Err(_) => return,
@@ -308,12 +284,14 @@ impl Shell {
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            let _ = weak_shell.update(cx, |shell, cx| {
-                if index < shell.panels.explorer.worktrees.len() {
-                    shell.remove_explorer_worktree(index, cx);
-                }
-                shell.add_explorer_worktree(path, cx);
-                cx.notify();
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    if index < state.worktrees.len() {
+                        state.remove_explorer_worktree(index, cx);
+                    }
+                    state.add_explorer_worktree(path, cx);
+                    cx.refresh_windows();
+                });
             });
         })
         .detach();
@@ -355,7 +333,7 @@ impl Shell {
                 .arg(&dir_str)
                 .spawn()
                 .or_else(|_| {
-                    std::process::Command::new("powershell.exe")
+                    std::process::Command::new("powerstate.exe")
                         .current_dir(&dir)
                         .spawn()
                 })
@@ -388,7 +366,7 @@ impl Shell {
         &mut self,
         parent: PathBuf,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.begin_explorer_create(parent, false, window, cx);
     }
@@ -396,7 +374,7 @@ impl Shell {
         &mut self,
         parent: PathBuf,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.expand_to_path(&parent);
         self.begin_explorer_create(parent, true, window, cx);
@@ -405,11 +383,11 @@ impl Shell {
         &mut self,
         target: PathBuf,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.begin_explorer_rename(target, window, cx);
     }
-    pub(crate) fn copy_path_to_clipboard(&self, path: &Path, cx: &mut Context<Self>) {
+    pub(crate) fn copy_path_to_clipboard(&self, path: &Path, cx: &mut App) {
         cx.write_to_clipboard(ClipboardItem::new_string(
             path.to_string_lossy().to_string(),
         ));
@@ -417,10 +395,8 @@ impl Shell {
 
     /// Copy the path of `path` relative to the explorer root (falls back to
     /// the absolute path when it is outside every root).
-    pub(crate) fn copy_explorer_relative_path(&self, path: &Path, cx: &mut Context<Self>) {
+    pub(crate) fn copy_explorer_relative_path(&self, path: &Path, cx: &mut App) {
         let relative = self
-            .panels
-            .explorer
             .worktrees
             .iter()
             .find_map(|wt| path.strip_prefix(wt.read(cx).root()).ok())

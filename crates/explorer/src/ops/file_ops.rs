@@ -7,22 +7,21 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::app::shell::Shell;
-use crate::explorer::state::state::*;
-use crate::explorer::state::undo::{
+use crate::state::state::*;
+use crate::state::undo::{
     ExplorerChange, execute_explorer_change, execute_explorer_change_inverse,
     explorer_change_destination,
 };
-use crate::explorer::state::utils::execute_entry_ops;
+use crate::state::utils::execute_entry_ops;
 
-impl Shell {
+impl ExplorerState {
     /// Delete the effective selection with a confirmation prompt; after the
     /// background deletion the selection moves to the next surviving sibling
     /// (Zed's trash/delete flow, without the OS-trash variant).
     pub(crate) fn delete_explorer_selections(
         &mut self,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let selections = self.effective_explorer_entries();
         if selections.is_empty() {
@@ -47,20 +46,18 @@ impl Shell {
             &["Delete", "Cancel"],
             cx,
         );
-
-        let weak_shell = cx.entity().downgrade();
-        let _ = cx.spawn(async move |_this, cx| {
+        let _ = cx.spawn(async move |cx| {
             if prompt.await != Ok(0) {
                 return;
             }
-            let paths: Vec<PathBuf> = weak_shell
-                .update(cx, |shell, _cx| {
+            let paths: Vec<PathBuf> = cx.update(|cx| {
+                ExplorerState::update(cx, |state, _cx| {
                     selections
                         .iter()
-                        .filter_map(|sel| shell.explorer_path_for_id(sel.entry_id))
-                        .collect()
+                        .filter_map(|sel| state.explorer_path_for_id(sel.entry_id))
+                        .collect::<Vec<PathBuf>>()
                 })
-                .unwrap_or_default();
+            });
             cx.background_executor()
                 .spawn(async move {
                     for path in &paths {
@@ -70,15 +67,17 @@ impl Shell {
                     }
                 })
                 .await;
-            let _ = weak_shell.update(cx, |shell, cx| {
-                shell.panels.explorer.marked.clear();
-                shell.rescan_explorer_worktrees(cx);
-                if let Some(next) = shell.next_explorer_selection_after_deletion(&selections) {
-                    shell.panels.explorer.selected = Some(next);
-                }
-                shell.sync_explorer_models(cx);
-                shell.autoscroll_explorer_selection();
-                cx.notify();
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.marked.clear();
+                    state.rescan_explorer_worktrees(cx);
+                    if let Some(next) = state.next_explorer_selection_after_deletion(&selections) {
+                        state.selected = Some(next);
+                    }
+                    state.sync_explorer_models(cx);
+                    state.autoscroll_explorer_selection();
+                    cx.refresh_windows();
+                });
             });
         });
     }
@@ -88,7 +87,7 @@ impl Shell {
     pub(crate) fn trash_explorer_selections(
         &mut self,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let selections = self.effective_explorer_entries();
         if selections.is_empty() {
@@ -98,8 +97,7 @@ impl Shell {
             .iter()
             .filter_map(|sel| self.explorer_path_for_id(sel.entry_id))
             .collect();
-        let weak_shell = cx.entity().downgrade();
-        let _ = cx.spawn(async move |_this, cx| {
+        let _ = cx.spawn(async move |cx| {
             cx.background_executor()
                 .spawn(async move {
                     for path in &paths {
@@ -109,22 +107,24 @@ impl Shell {
                     }
                 })
                 .await;
-            let _ = weak_shell.update(cx, |shell, cx| {
-                shell.panels.explorer.marked.clear();
-                shell.rescan_explorer_worktrees(cx);
-                if let Some(next) = shell.next_explorer_selection_after_deletion(&selections) {
-                    shell.panels.explorer.selected = Some(next);
-                }
-                shell.sync_explorer_models(cx);
-                shell.autoscroll_explorer_selection();
-                cx.notify();
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.marked.clear();
+                    state.rescan_explorer_worktrees(cx);
+                    if let Some(next) = state.next_explorer_selection_after_deletion(&selections) {
+                        state.selected = Some(next);
+                    }
+                    state.sync_explorer_models(cx);
+                    state.autoscroll_explorer_selection();
+                    cx.refresh_windows();
+                });
             });
         });
     }
 
     /// Copy the effective selection: absolute paths go to the system
     /// clipboard, entry ids are remembered for in-panel paste.
-    pub(crate) fn explorer_copy(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn explorer_copy(&mut self, cx: &mut App) {
         let selections = self.effective_explorer_entries();
         if selections.is_empty() {
             return;
@@ -139,12 +139,12 @@ impl Shell {
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
         let mut set = BTreeSet::new();
         set.extend(selections);
-        self.panels.explorer.clipboard = Some(ExplorerClipboard::Copied(set));
-        cx.notify();
+        self.clipboard = Some(ExplorerClipboard::Copied(set));
+        cx.refresh_windows();
     }
 
     /// Cut the effective selection (same dual-clipboard behavior as copy).
-    pub(crate) fn explorer_cut(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn explorer_cut(&mut self, cx: &mut App) {
         let selections = self.effective_explorer_entries();
         if selections.is_empty() {
             return;
@@ -159,12 +159,12 @@ impl Shell {
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
         let mut set = BTreeSet::new();
         set.extend(selections);
-        self.panels.explorer.clipboard = Some(ExplorerClipboard::Cut(set));
-        cx.notify();
+        self.clipboard = Some(ExplorerClipboard::Cut(set));
+        cx.refresh_windows();
     }
 
     /// Duplicate = copy + paste (Zed's `duplicate`).
-    pub(crate) fn explorer_duplicate(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn explorer_duplicate(&mut self, window: &mut Window, cx: &mut App) {
         self.explorer_copy(cx);
         self.explorer_paste(window, cx);
     }
@@ -172,7 +172,7 @@ impl Shell {
     /// Target directory for a paste: the selected directory, the parent of a
     /// selected file, or the last worktree root.
     fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
-        match self.panels.explorer.selected {
+        match self.selected {
             Some(sel) => {
                 let path = self.explorer_path_for_id(sel.entry_id)?;
                 if path.is_dir() {
@@ -190,8 +190,8 @@ impl Shell {
     /// background operation the last successful result is selected, a
     /// disambiguated copy opens the inline rename editor, and a rescan is
     /// scheduled.
-    pub(crate) fn explorer_paste(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(clipboard) = self.panels.explorer.clipboard.clone() else {
+    pub(crate) fn explorer_paste(&mut self, window: &mut Window, cx: &mut App) {
+        let Some(clipboard) = self.clipboard.clone() else {
             return;
         };
         let Some(target_dir) = self.explorer_paste_target_dir() else {
@@ -206,56 +206,62 @@ impl Shell {
             return;
         }
         let is_cut = clipboard.is_cut();
-        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
-        let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&items, &target_dir, is_cut, true) })
                 .await;
-            let _ = weak_shell.update(cx, |shell, cx| {
-                if is_cut {
-                    shell.panels.explorer.clipboard = shell
-                        .panels
-                        .explorer
-                        .clipboard
-                        .take()
-                        .map(ExplorerClipboard::into_copied);
-                }
-                shell.panels.explorer.marked.clear();
-                shell.rescan_explorer_worktrees(cx);
-                if result.len() > 1 {
-                    shell.record_explorer_change(ExplorerChange::Batch(result.clone()));
-                } else if let Some(change) = result.first() {
-                    shell.record_explorer_change(change.clone());
-                }
-                if let Some(path) = result
-                    .last()
-                    .and_then(explorer_change_destination)
-                    .map(Path::to_path_buf)
-                {
-                    if let Some(sel) = shell.explorer_id_for_path(&path) {
-                        shell.panels.explorer.pending_select = Some((sel.worktree_id, path.clone()));
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    if is_cut {
+                        state.clipboard = state
+                            .clipboard
+                            .take()
+                            .map(ExplorerClipboard::into_copied);
                     }
-                    let weak_shell_for_open = weak_shell.clone();
-                    let _ = cx.update_window(window_handle, move |_, _window, cx| {
-                        let _ = weak_shell_for_open.update(cx, |shell, _cx| {
-                            shell.expand_to_path(&path);
-                            shell.rebuild_explorer_entries();
-                            shell.autoscroll_explorer_selection();
-                        });
-                    });
-                    if !is_cut
-                        && result.len() == 1
-                        && let Some(change) = result.first()
-                        && let ExplorerChange::Copied { source, dest } = change
-                        && source.file_name() != dest.file_name()
+                    state.marked.clear();
+                    state.rescan_explorer_worktrees(cx);
+                    if result.len() > 1 {
+                        state.record_explorer_change(ExplorerChange::Batch(result.clone()));
+                    } else if let Some(change) = result.first() {
+                        state.record_explorer_change(change.clone());
+                    }
+                    if let Some(path) = result
+                        .last()
+                        .and_then(explorer_change_destination)
+                        .map(Path::to_path_buf)
                     {
-                        shell.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
+                        if let Some(sel) = state.explorer_id_for_path(&path) {
+                            state.pending_select = Some((sel.worktree_id, path.clone()));
+                        }
+                        if !is_cut
+                            && result.len() == 1
+                            && let Some(change) = result.first()
+                            && let ExplorerChange::Copied { source, dest } = change
+                            && source.file_name() != dest.file_name()
+                        {
+                            state.pending_rename = Some((window_handle, dest.clone()));
+                        }
                     }
-                }
-                shell.sync_explorer_models(cx);
-                cx.notify();
+                    state.sync_explorer_models(cx);
+                    cx.refresh_windows();
+                });
+                // Window-scoped work must run after the global lease above
+                // ends (nested global leases panic).
+                let _ = cx.update_window(window_handle, move |_, _window, cx| {
+                    ExplorerState::update(cx, |state, _cx| {
+                        if let Some(path) = result
+                            .last()
+                            .and_then(explorer_change_destination)
+                            .map(Path::to_path_buf)
+                        {
+                            state.expand_to_path(&path);
+                            state.rebuild_explorer_entries();
+                            state.autoscroll_explorer_selection();
+                        }
+                    });
+                });
             });
         });
     }
@@ -264,51 +270,53 @@ impl Shell {
 
     /// Record a reversible file operation (create / rename / move / copy).
     pub(crate) fn record_explorer_change(&mut self, change: ExplorerChange) {
-        self.panels.explorer.undo_history.record(change);
+        self.undo_history.record(change);
     }
 
     /// Undo the most recent file operation, then rescan.
-    pub(crate) fn explorer_undo(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        let Some(change) = self.panels.explorer.undo_history.undo_stack.pop() else {
+    pub(crate) fn explorer_undo(&mut self, _window: &mut Window, cx: &mut App) {
+        let Some(change) = self.undo_history.undo_stack.pop() else {
             return;
         };
-        let weak_shell = cx.entity().downgrade();
         let change_for_execution = change.clone();
-        let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx.background_executor()
                 .spawn(async move { execute_explorer_change_inverse(&change_for_execution) })
                 .await;
             if let Err(err) = result {
                 tracing::error!(error = %err, "failed to execute explorer undo");
             }
-            let _ = weak_shell.update(cx, |shell, cx| {
-                shell.panels.explorer.undo_history.redo_stack.push(change);
-                shell.rescan_explorer_worktrees(cx);
-                shell.sync_explorer_models(cx);
-                cx.notify();
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.undo_history.redo_stack.push(change);
+                    state.rescan_explorer_worktrees(cx);
+                    state.sync_explorer_models(cx);
+                    cx.refresh_windows();
+                });
             });
         });
     }
 
     /// Redo the most recently undone operation, then rescan.
-    pub(crate) fn explorer_redo(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        let Some(change) = self.panels.explorer.undo_history.redo_stack.pop() else {
+    pub(crate) fn explorer_redo(&mut self, _window: &mut Window, cx: &mut App) {
+        let Some(change) = self.undo_history.redo_stack.pop() else {
             return;
         };
-        let weak_shell = cx.entity().downgrade();
         let change_for_execution = change.clone();
-        let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx.background_executor()
                 .spawn(async move { execute_explorer_change(&change_for_execution) })
                 .await;
             if let Err(err) = result {
                 tracing::error!(error = %err, "failed to execute explorer redo");
             }
-            let _ = weak_shell.update(cx, |shell, cx| {
-                shell.panels.explorer.undo_history.undo_stack.push(change);
-                shell.rescan_explorer_worktrees(cx);
-                shell.sync_explorer_models(cx);
-                cx.notify();
+            let _ = cx.update(|cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    state.undo_history.undo_stack.push(change);
+                    state.rescan_explorer_worktrees(cx);
+                    state.sync_explorer_models(cx);
+                    cx.refresh_windows();
+                });
             });
         });
     }

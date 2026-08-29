@@ -1,0 +1,31 @@
+[package]
+name = "explorer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/explorer.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+config = { path = "../config" }
+explorer_fs = { path = "../explorer_fs" }
+theme = { path = "../theme" }
+i18n = { path = "../i18n" }
+ui = { path = "../ui" }
+workspace = { path = "../workspace" }
+splitter = { path = "../splitter" }
+gpui = { workspace = true }
+futures = "0.3"
+notify = "8"
+tracing = "0.1"
+serde = { workspace = true }
+schemars = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }

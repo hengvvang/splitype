@@ -18,6 +18,8 @@ use gpui::*;
 #[cfg(not(test))]
 use notify::Watcher as _;
 
+use crate::ExplorerState;
+
 // ── Identifiers ─────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -135,6 +137,10 @@ pub struct Worktree {
     next_entry_id: Arc<AtomicU64>,
     /// Skip dotfiles in scans (persisted explorer setting).
     hide_hidden: bool,
+    /// Handle to this entity, captured at construction so background
+    /// tasks can wake and re-enter the worktree (the explorer global
+    /// owns no `Context` to derive it from).
+    self_weak: WeakEntity<Worktree>,
     #[cfg_attr(test, allow(dead_code))]
     fs_watch_task: Option<Task<()>>,
     scan_task: Option<Task<()>>,
@@ -164,6 +170,7 @@ impl Worktree {
                 snapshot: Arc::new(snapshot),
                 next_entry_id,
                 hide_hidden,
+                self_weak: cx.weak_entity(),
                 fs_watch_task: None,
                 scan_task: None,
                 fs_refresh_task: None,
@@ -196,7 +203,7 @@ impl Worktree {
     }
 
     /// Update the dotfile-visibility setting and re-scan when it changed.
-    pub fn set_hide_hidden(&mut self, hide_hidden: bool, cx: &mut Context<Self>) {
+    pub fn set_hide_hidden(&mut self, hide_hidden: bool, cx: &mut App) {
         if self.hide_hidden == hide_hidden {
             return;
         }
@@ -207,7 +214,7 @@ impl Worktree {
     /// Request a full background rescan. While one is in flight, further
     /// requests are coalesced via `needs_rescan` (a scan must never be
     /// starved by render-driven calls).
-    pub fn rescan(&mut self, cx: &mut Context<Self>) {
+    pub fn rescan(&mut self, cx: &mut App) {
         if self.scan_task.is_some() {
             self.needs_rescan = true;
             return;
@@ -220,8 +227,8 @@ impl Worktree {
         let old_snapshot = self.snapshot.clone();
         let hide_hidden = self.hide_hidden;
         let root_id = self.root_id;
-        let weak = cx.weak_entity();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let weak = self.self_weak.clone();
+        let task = cx.spawn(async move |cx: &mut AsyncApp| {
             let scanned = cx
                 .background_executor()
                 .spawn(async move { scan_worktree_dir(&root_for_scan, hide_hidden) })
@@ -242,6 +249,16 @@ impl Worktree {
                         this.snapshot = Arc::new(snapshot);
                         this.needs_rescan = false;
                         cx.emit(WorktreeEvent::UpdatedEntries);
+                        // Refresh the explorer's visible tree from the new
+                        // snapshot (the explorer owns no subscription).
+                        let worktree_entity = cx.entity();
+                        ExplorerState::update(cx, |explorer, cx| {
+                            explorer.on_explorer_worktree_event(
+                                worktree_entity,
+                                &WorktreeEvent::UpdatedEntries,
+                                cx,
+                            );
+                        });
                     }
                     Ok(_) | Err(_) => {
                         tracing::warn!(root = %root_for_log.display(), "[explorer] failed to scan worktree");
@@ -258,7 +275,7 @@ impl Worktree {
         self.scan_task = Some(task);
     }
 
-    fn start_fs_watch(&mut self, cx: &mut Context<Self>) {
+    fn start_fs_watch(&mut self, cx: &mut App) {
         #[cfg(test)]
         {
             let _ = cx;
@@ -266,8 +283,8 @@ impl Worktree {
         #[cfg(not(test))]
         {
             let root = self.root.clone();
-            let weak = cx.weak_entity();
-            let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+            let weak = self.self_weak.clone();
+            let task = cx.spawn(async move |cx: &mut AsyncApp| {
                 let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
                 let mut watcher =
                     match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
@@ -295,12 +312,12 @@ impl Worktree {
 
     /// Debounce filesystem events into a single background rescan.
     #[cfg_attr(test, allow(dead_code))]
-    fn on_fs_event(&mut self, cx: &mut Context<Self>) {
+    fn on_fs_event(&mut self, cx: &mut App) {
         if self.fs_refresh_task.is_some() {
             return;
         }
-        let weak = cx.weak_entity();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        let weak = self.self_weak.clone();
+        let task = cx.spawn(async move |cx: &mut AsyncApp| {
             cx.background_executor()
                 .timer(std::time::Duration::from_millis(250))
                 .await;

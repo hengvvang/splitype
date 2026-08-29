@@ -93,11 +93,9 @@ impl Editor {
         self.tab_mut().undo.last_selection_snapshot = Self::empty_selection_snapshot();
         self.tab_mut().undo.restore_in_progress = false;
         self.refresh_stable_document_snapshot(cx);
-        if let Some(shell) = self.shell.clone() {
-            let _ = shell.update(cx, |shell, cx| {
-                shell.sync_explorer_after_document_path_change(cx);
-            });
-        }
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.sync_explorer_after_document_path_change(cx);
+        });
         cx.notify();
     }
 }

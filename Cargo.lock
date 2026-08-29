@@ -1827,6 +1827,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "explorer"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "explorer_fs",
+ "futures",
+ "gpui",
+ "i18n",
+ "notify",
+ "schemars",
+ "serde",
+ "splitter",
+ "theme",
+ "tracing",
+ "ui",
+ "windows 0.61.3",
+ "workspace",
+]
+
+[[package]]
 name = "explorer_fs"
 version = "0.0.1"
 dependencies = [
@@ -6021,6 +6041,7 @@ dependencies = [
  "anyhow",
  "config",
  "embed-resource",
+ "explorer",
  "explorer_fs",
  "export",
  "futures",

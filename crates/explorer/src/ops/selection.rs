@@ -7,8 +7,22 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::app::shell::Shell;
-use crate::explorer::state::state::*;
+use schemars::JsonSchema;
+use serde::Deserialize;
+
+use crate::state::state::*;
+
+/// Update the paths of open editor tabs after a filesystem move/rename
+/// (dispatched by the explorer; handled by the shell).
+#[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
+#[action(namespace = explorer)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateOpenTabPaths {
+    /// Old absolute path.
+    pub from: String,
+    /// New absolute path.
+    pub to: String,
+}
 
 // Explorer navigation actions.
 actions!(
@@ -39,12 +53,12 @@ actions!(
     ]
 );
 
-impl Shell {
+impl ExplorerState {
     // ── Selection resolution ─────────────────────────────────────────────
 
     /// Locate `path` across all worktrees; returns the strongly-typed `SelectedEntry`.
     pub(crate) fn explorer_id_for_path(&self, path: &Path) -> Option<SelectedEntry> {
-        for snap in &self.panels.explorer.snapshots {
+        for snap in &self.snapshots {
             if let Some(id) = snap.id_for_path.get(path) {
                 return Some(SelectedEntry {
                     worktree_id: snap.id(),
@@ -57,7 +71,7 @@ impl Shell {
 
     /// Look up the absolute path for an entry by its stable ID across all worktrees.
     pub(crate) fn explorer_path_for_id(&self, id: ExplorerEntryId) -> Option<PathBuf> {
-        for snap in &self.panels.explorer.snapshots {
+        for snap in &self.snapshots {
             if let Some(path) = snap.path_for_id.get(&id) {
                 return Some(path.clone());
             }
@@ -79,21 +93,18 @@ impl Shell {
     /// move / copy) can never target a root row.
     pub(crate) fn effective_explorer_entries(&self) -> Vec<SelectedEntry> {
         let root_ids: HashSet<ExplorerEntryId> = self
-            .panels
-            .explorer
             .snapshots
             .iter()
             .filter_map(|snap| snap.root_entry().map(|e| e.id))
             .collect();
         let filter = |sel: &SelectedEntry| !root_ids.contains(&sel.entry_id);
-        if self.panels.explorer.marked.is_empty() {
-            return match self.panels.explorer.selected {
+        if self.marked.is_empty() {
+            return match self.selected {
                 Some(sel) if filter(&sel) => vec![sel],
                 _ => Vec::new(),
             };
         }
-        self.panels
-            .explorer
+        self
             .marked
             .iter()
             .filter(|sel| filter(sel))
@@ -106,8 +117,7 @@ impl Shell {
         &self,
         id: ExplorerEntryId,
     ) -> Option<&VisibleExplorerEntry> {
-        self.panels
-            .explorer
+        self
             .entries
             .iter()
             .find_map(|row| match row {
@@ -120,26 +130,26 @@ impl Shell {
     pub(crate) fn toggle_explorer_mark(
         &mut self,
         selection: SelectedEntry,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if !self.panels.explorer.marked.remove(&selection) {
-            self.panels.explorer.marked.insert(selection);
+        if !self.marked.remove(&selection) {
+            self.marked.insert(selection);
         }
-        self.panels.explorer.selected = Some(selection);
-        cx.notify();
+        self.selected = Some(selection);
+        cx.refresh_windows();
     }
 
     /// Range-select from the current selection to `target_id` (Shift+click).
     pub(crate) fn select_explorer_range(
         &mut self,
         target_id: ExplorerEntryId,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let anchor = match self.panels.explorer.selected {
+        let anchor = match self.selected {
             Some(sel) => sel.entry_id,
             _ => target_id,
         };
-        let rows = &self.panels.explorer.entries;
+        let rows = &self.entries;
         let anchor_index = rows
             .iter()
             .position(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == anchor));
@@ -149,7 +159,7 @@ impl Shell {
         let (Some(anchor_index), Some(target_index)) = (anchor_index, target_index) else {
             return;
         };
-        self.panels.explorer.marked.clear();
+        self.marked.clear();
         let mut target_worktree_id = None;
         for row in &rows[anchor_index.min(target_index)..=anchor_index.max(target_index)] {
             if let ExplorerRow::Entry(entry) = row {
@@ -160,17 +170,17 @@ impl Shell {
                 if entry.id == target_id {
                     target_worktree_id = Some(entry.worktree_id);
                 }
-                self.panels.explorer.marked.insert(selection);
+                self.marked.insert(selection);
             }
         }
         if let Some(worktree_id) = target_worktree_id {
-            self.panels.explorer.selected = Some(SelectedEntry {
+            self.selected = Some(SelectedEntry {
                 worktree_id,
                 entry_id: target_id,
             });
         }
         self.autoscroll_explorer_selection();
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Choose the next selection after deleting `deleted_ids` (mirrors Zed's
@@ -184,7 +194,7 @@ impl Shell {
             .iter()
             .map(|sel| sel.entry_id)
             .collect();
-        let rows = &self.panels.explorer.entries;
+        let rows = &self.entries;
         let last_deleted = rows.iter().rposition(
             |row| matches!(row, ExplorerRow::Entry(entry) if deleted.contains(&entry.id)),
         )?;
@@ -221,8 +231,7 @@ impl Shell {
 
     /// Whether `id` is a worktree root.
     pub(crate) fn is_explorer_root_entry(&self, id: ExplorerEntryId) -> bool {
-        self.panels
-            .explorer
+        self
             .snapshots
             .iter()
             .any(|snap| snap.root_entry().map(|e| e.id) == Some(id))
@@ -232,9 +241,9 @@ impl Shell {
 
     /// Row index of the currently selected file entry, if visible.
     fn explorer_selected_row_index(&self) -> Option<usize> {
-        match self.panels.explorer.selected {
+        match self.selected {
             Some(sel) => {
-                self.panels.explorer.entries.iter().position(
+                self.entries.iter().position(
                     |row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == sel.entry_id),
                 )
             }
@@ -248,9 +257,9 @@ impl Shell {
         &mut self,
         index: usize,
         extend: bool,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
         let selection = SelectedEntry {
@@ -258,22 +267,21 @@ impl Shell {
             entry_id: entry.id,
         };
         if extend {
-            self.panels.explorer.marked.insert(selection);
+            self.marked.insert(selection);
         }
-        self.panels.explorer.selected = Some(selection);
-        self.panels
-            .explorer
+        self.selected = Some(selection);
+        self
             .scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Move the selection by `delta` rows (signed), clamping to the list.
-    fn explorer_move_selection(&mut self, delta: i32, extend: bool, cx: &mut Context<Self>) {
-        if self.panels.explorer.edit.is_some() {
+    fn explorer_move_selection(&mut self, delta: i32, extend: bool, cx: &mut App) {
+        if self.edit.is_some() {
             return;
         }
-        let len = self.panels.explorer.entries.len();
+        let len = self.entries.len();
         if len == 0 {
             return;
         }
@@ -286,9 +294,9 @@ impl Shell {
         &mut self,
         action: &SelectPrevious,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let extend = window.modifiers().shift;
@@ -300,9 +308,9 @@ impl Shell {
         &mut self,
         action: &SelectNext,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let extend = window.modifiers().shift;
@@ -314,15 +322,15 @@ impl Shell {
         &mut self,
         _: &SelectParent,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
         let Some(parent_id) = entry.parent_id else {
@@ -330,8 +338,6 @@ impl Shell {
             return;
         };
         let Some(parent_index) = self
-            .panels
-            .explorer
             .entries
             .iter()
             .position(|row| matches!(row, ExplorerRow::Entry(e) if e.id == parent_id))
@@ -346,7 +352,7 @@ impl Shell {
         &mut self,
         _: &SelectFirst,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.explorer_move_selection(i32::MIN, false, cx);
     }
@@ -355,7 +361,7 @@ impl Shell {
         &mut self,
         _: &SelectLast,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.explorer_move_selection(i32::MAX, false, cx);
     }
@@ -366,9 +372,9 @@ impl Shell {
         &mut self,
         _: &ScrollUp,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let half = self.panels.explorer.rendered_rows.saturating_div(2).max(1) as i32;
+        let half = self.rendered_rows.saturating_div(2).max(1) as i32;
         self.explorer_move_selection(-half, false, cx);
     }
 
@@ -376,9 +382,9 @@ impl Shell {
         &mut self,
         _: &ScrollDown,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let half = self.panels.explorer.rendered_rows.saturating_div(2).max(1) as i32;
+        let half = self.rendered_rows.saturating_div(2).max(1) as i32;
         self.explorer_move_selection(half, false, cx);
     }
 
@@ -388,48 +394,45 @@ impl Shell {
         &mut self,
         _: &ScrollCursorCenter,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        self.panels
-            .explorer
+        self
             .scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Center);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     pub(crate) fn on_explorer_scroll_cursor_top(
         &mut self,
         _: &ScrollCursorTop,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        self.panels
-            .explorer
+        self
             .scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Top);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     pub(crate) fn on_explorer_scroll_cursor_bottom(
         &mut self,
         _: &ScrollCursorBottom,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        self.panels
-            .explorer
+        self
             .scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Bottom);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Expand the selected entry (if collapsed directory, expands it; if already expanded, selects first child).
@@ -437,15 +440,15 @@ impl Shell {
         &mut self,
         _: &ExpandSelectedEntry,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
         let entry_id = entry.id;
@@ -466,15 +469,15 @@ impl Shell {
         &mut self,
         _: &CollapseSelectedEntry,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
         let entry_id = entry.id;
@@ -485,8 +488,6 @@ impl Shell {
             self.toggle_explorer_node(entry_id, cx);
         } else if let Some(parent_id) = parent_id {
             if let Some(parent_index) = self
-                .panels
-                .explorer
                 .entries
                 .iter()
                 .position(|row| matches!(row, ExplorerRow::Entry(e) if e.id == parent_id))
@@ -500,12 +501,12 @@ impl Shell {
         &mut self,
         _: &ExpandSelectedEntryAndChildren,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
-        if let Some(sel) = self.panels.explorer.selected {
+        if let Some(sel) = self.selected {
             self.expand_all_explorer_for_entry(sel.entry_id, cx);
         }
     }
@@ -514,12 +515,12 @@ impl Shell {
         &mut self,
         _: &CollapseSelectedEntryAndChildren,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
-        if let Some(sel) = self.panels.explorer.selected {
+        if let Some(sel) = self.selected {
             self.collapse_all_explorer_for_entry(sel.entry_id, cx);
         }
     }
@@ -528,7 +529,7 @@ impl Shell {
         &mut self,
         _: &ExpandAllEntries,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.expand_all_explorer_nodes(cx);
     }
@@ -537,7 +538,7 @@ impl Shell {
         &mut self,
         _: &CollapseAllEntries,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         self.collapse_all_explorer_nodes(cx);
     }
@@ -546,15 +547,15 @@ impl Shell {
         &mut self,
         _: &OpenSelectedEntry,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
         let entry_id = entry.id;
@@ -565,7 +566,7 @@ impl Shell {
         } else {
             self.open_explorer_file(
                 path,
-                crate::editor::engine::controller::OpenFileMode::Persistent,
+                true,
                 window,
                 cx,
             );
@@ -576,15 +577,15 @@ impl Shell {
         &mut self,
         _: &RenameSelectedEntry,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
         let path = entry.path.clone();
@@ -595,9 +596,9 @@ impl Shell {
         &mut self,
         _: &DeleteSelectedEntry,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         self.delete_explorer_selections(window, cx);
@@ -607,9 +608,9 @@ impl Shell {
         &mut self,
         _: &TrashSelectedEntry,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             return;
         }
         self.trash_explorer_selections(window, cx);
@@ -619,9 +620,9 @@ impl Shell {
         &mut self,
         _: &NewFile,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let parent = match self.panels.explorer.selected {
+        let parent = match self.selected {
             Some(sel) => {
                 if let Some(node) = self.explorer_entry_by_id(sel.entry_id) {
                     if node.kind == ExplorerEntryKind::Directory {
@@ -644,9 +645,9 @@ impl Shell {
         &mut self,
         _: &NewDirectory,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let parent = match self.panels.explorer.selected {
+        let parent = match self.selected {
             Some(sel) => {
                 if let Some(node) = self.explorer_entry_by_id(sel.entry_id) {
                     if node.kind == ExplorerEntryKind::Directory {

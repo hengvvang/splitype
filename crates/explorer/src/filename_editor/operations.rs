@@ -4,19 +4,21 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::app::shell::Shell;
-use crate::editor::input::actions::{Copy, Cut, DismissTransientUi, Paste};
-use crate::explorer::state::state::{
+use crate::ExplorerState;
+
+use crate::filename_editor::ExplorerFilenameImeHost;
+use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
+use crate::state::state::{
     ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
 };
-use crate::explorer::state::undo::ExplorerChange;
+use crate::state::undo::ExplorerChange;
 
-impl Shell {
+impl ExplorerState {
     /// Real-time validation of the inline filename (mirrors Zed's
     /// `populate_validation_error`): whitespace warns, illegal characters and
     /// name collisions error.
-    pub(crate) fn populate_explorer_validation(&mut self, cx: &mut Context<Self>) {
-        let Some(edit) = self.panels.explorer.edit.as_ref() else {
+    pub(crate) fn populate_explorer_validation(&mut self, cx: &mut App) {
+        let Some(edit) = self.edit.as_ref() else {
             return;
         };
         let filename = edit.filename.text.clone();
@@ -50,7 +52,7 @@ impl Shell {
             self.explorer_duplicate_name_error(&filename, cx)
         };
 
-        if let Some(edit) = self.panels.explorer.edit.as_mut() {
+        if let Some(edit) = self.edit.as_mut() {
             edit.validation = validation;
         }
     }
@@ -60,10 +62,8 @@ impl Shell {
         filename: &str,
         _cx: &App,
     ) -> Option<ExplorerValidation> {
-        let edit = self.panels.explorer.edit.as_ref()?;
+        let edit = self.edit.as_ref()?;
         let snapshot = self
-            .panels
-            .explorer
             .snapshots
             .iter()
             .find(|snap| snap.id() == edit.worktree_id)?;
@@ -103,7 +103,7 @@ impl Shell {
         parent: PathBuf,
         is_dir: bool,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         // Reveal the parent directory and rebuild the flat list BEFORE
         // computing the edit-row depth: the expanded parent row must exist
@@ -117,18 +117,14 @@ impl Shell {
             .map(|sel| (sel.worktree_id, Some(sel.entry_id)))
             .unwrap_or_else(|| {
                 let last_id = self
-                    .panels
-                    .explorer
                     .snapshots
                     .last()
                     .map(|snap| snap.id())
-                    .unwrap_or(crate::explorer::state::worktree::WorktreeId(0));
+                    .unwrap_or(crate::state::worktree::WorktreeId(0));
                 (last_id, None)
             });
         let depth = match parent_id {
             Some(parent_id) => self
-                .panels
-                .explorer
                 .entries
                 .iter()
                 .find(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == parent_id))
@@ -150,8 +146,9 @@ impl Shell {
                 path: parent,
                 validation: None,
                 filename: ExplorerFilenameEditor::default(),
-                previously_selected: self.panels.explorer.selected,
+                previously_selected: self.selected,
                 processing: false,
+                ime_host: None,
             },
             window,
             cx,
@@ -164,11 +161,9 @@ impl Shell {
         &mut self,
         target_path: PathBuf,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         if self
-            .panels
-            .explorer
             .snapshots
             .iter()
             .any(|snap| snap.root_entry().is_some_and(|e| e.path == target_path))
@@ -179,8 +174,6 @@ impl Shell {
             return;
         };
         let Some(snapshot) = self
-            .panels
-            .explorer
             .snapshots
             .iter()
             .find(|snap| snap.id() == sel.worktree_id)
@@ -191,8 +184,6 @@ impl Shell {
             return;
         };
         let depth = self
-            .panels
-            .explorer
             .entries
             .iter()
             .find(|row| matches!(row, ExplorerRow::Entry(e) if e.id == sel.entry_id))
@@ -209,7 +200,7 @@ impl Shell {
             .unwrap_or("")
             .to_string();
         let selection_end =
-            if entry.kind == crate::explorer::state::worktree::WorktreeEntryKind::Directory {
+            if entry.kind == crate::state::worktree::WorktreeEntryKind::Directory {
                 file_name.len()
             } else if let Some(last_dot) = file_name.rfind('.') {
                 if last_dot > 0 {
@@ -229,13 +220,14 @@ impl Shell {
                 worktree_id: sel.worktree_id,
                 parent_id: None,
                 target_id: Some(sel.entry_id),
-                is_dir: entry.kind == crate::explorer::state::worktree::WorktreeEntryKind::Directory,
+                is_dir: entry.kind == crate::state::worktree::WorktreeEntryKind::Directory,
                 depth,
                 path: target_path,
                 validation: None,
                 filename,
-                previously_selected: self.panels.explorer.selected,
+                previously_selected: self.selected,
                 processing: false,
+                ime_host: None,
             },
             window,
             cx,
@@ -246,53 +238,60 @@ impl Shell {
         &mut self,
         mut edit: ExplorerEditState,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         edit.filename.focus_handle = Some(cx.focus_handle());
         let focus_handle = edit.filename.focus_handle.clone().unwrap();
-        self.panels.explorer.selected = None;
-        self.panels.explorer.edit = Some(edit);
-        self.rebuild_explorer_entries();
-        self.autoscroll_explorer_edit(window, cx);
-
+        // IME host: the filename input element registers this entity as its
+        // window input handler.
+        let ime_host = cx.new(|_| ExplorerFilenameImeHost);
+        edit.ime_host = Some(ime_host.clone());
         // Blur auto-commits when possible and discards otherwise, mirroring
         // Zed: `EditorEvent::Blurred` -> confirm; an empty, duplicate, or
         // unchanged name drops the edit. Window deactivation never commits
         // nor cancels.
-        cx.on_blur(&focus_handle, window, |shell, window, cx| {
-            if !window.is_window_active() {
-                return;
-            }
-            if shell.panels.explorer.edit.is_some() && !shell.confirm_explorer_edit(window, cx) {
-                shell.discard_explorer_edit(cx);
-            }
-        })
-        .detach();
+        ime_host
+            .update(cx, |_host, cx| {
+                let focus_handle = focus_handle.clone();
+                cx.on_blur(&focus_handle, window, move |_host, window, cx| {
+                    ExplorerState::update(cx, |state, cx| {
+                        if !window.is_window_active() {
+                            return;
+                        }
+                        if state.edit.is_some() && !state.confirm_explorer_edit(window, cx) {
+                            state.discard_explorer_edit(cx);
+                        }
+                    });
+                })
+                .detach();
+            });
+        self.selected = None;
+        self.edit = Some(edit);
+        self.rebuild_explorer_entries();
+        self.autoscroll_explorer_edit(window, cx);
         window.focus(&focus_handle, cx);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Scroll the edit row into view and keep it visible while typing.
     pub(crate) fn autoscroll_explorer_edit(
         &mut self,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
         let Some(index) = self.explorer_edit_row_index() else {
             return;
         };
-        self.panels
-            .explorer
+        self
             .scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Row index of the inline edit row in the flat list, if any.
     pub(crate) fn explorer_edit_row_index(&self) -> Option<usize> {
-        self.panels.explorer.edit.as_ref().and_then(|_| {
-            self.panels
-                .explorer
+        self.edit.as_ref().and_then(|_| {
+            self
                 .entries
                 .iter()
                 .position(|row| matches!(row, ExplorerRow::Edit { .. }))
@@ -310,9 +309,9 @@ impl Shell {
     pub(crate) fn confirm_explorer_edit(
         &mut self,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) -> bool {
-        let Some(edit) = self.panels.explorer.edit.as_ref() else {
+        let Some(edit) = self.edit.as_ref() else {
             return false;
         };
         if edit.processing {
@@ -325,7 +324,7 @@ impl Shell {
         // Re-check duplicate names at commit time.
         if self.explorer_duplicate_name_error(&filename, cx).is_some() {
             self.populate_explorer_validation(cx);
-            cx.notify();
+            cx.refresh_windows();
             return false;
         }
 
@@ -348,26 +347,22 @@ impl Shell {
         };
         let missing_dirs = if is_create {
             if let Some(snapshot) = self
-                .panels
-                .explorer
                 .snapshots
                 .iter()
                 .find(|snap| snap.id() == worktree_id)
             {
-                crate::explorer::state::worktree::missing_parent_dirs(snapshot, &new_path)
+                crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
             } else {
                 Vec::new()
             }
         } else {
             Vec::new()
         };
-        self.panels.explorer.edit.as_mut().unwrap().processing = true;
-
-        let weak_shell = cx.entity().downgrade();
+        self.edit.as_mut().unwrap().processing = true;
         let window_handle = window.window_handle();
         let new_path_for_update = new_path.clone();
         let old_path_for_record = old_path.clone();
-        cx.spawn(async move |_this, cx: &mut AsyncApp| {
+        cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
                 .spawn(async move {
@@ -395,10 +390,11 @@ impl Shell {
                     }
                 })
                 .await;
-            let _ = weak_shell.update(cx, |shell, cx| {
-                match result {
-                    Ok(()) => {
-                        shell.panels.explorer.edit = None;
+            let _ = cx.update(|cx| {
+                let path_for_open = ExplorerState::update(cx, |state, cx| {
+                    match result {
+                        Ok(()) => {
+                            state.edit = None;
                         // Record the operation for panel undo/redo.
                         let change = if is_create {
                             if !missing_dirs.is_empty() {
@@ -423,49 +419,51 @@ impl Shell {
                                 to: new_path_for_update.clone(),
                             }
                         };
-                        shell.record_explorer_change(change);
-                        shell.panels.explorer.pending_select =
+                        state.record_explorer_change(change);
+                        state.pending_select =
                             Some((worktree_id, new_path_for_update.clone()));
-                        shell.expand_to_path(&new_path_for_update);
-                        shell.rescan_explorer_worktrees(cx);
-                        shell.sync_explorer_models(cx);
+                        state.expand_to_path(&new_path_for_update);
+                        state.rescan_explorer_worktrees(cx);
+                        state.sync_explorer_models(cx);
                         if is_create && !is_dir {
-                            let weak_shell_for_open = weak_shell.clone();
-                            let path_for_open = new_path_for_update.clone();
-                            let _ = cx.update_window(window_handle, move |_, window, cx| {
-                                let _ = weak_shell_for_open.update(cx, |shell, cx| {
-                                    shell.open_explorer_file(
-                                        path_for_open,
-                                        crate::editor::engine::controller::OpenFileMode::Persistent,
-                                        window,
-                                        cx,
-                                    );
-                                });
-                            });
+                            Some(new_path_for_update.clone())
+                        } else {
+                            None
                         }
                     }
                     Err(err) => {
-                        if let Some(edit) = shell.panels.explorer.edit.as_mut() {
+                        if let Some(edit) = state.edit.as_mut() {
                             edit.processing = false;
                             edit.validation = Some(ExplorerValidation::Error(err));
                         }
+                        None
                     }
                 }
-                cx.notify();
-            });
-        })
+                });
+                // Window-scoped work must run after the global lease above
+                // ends (nested global leases panic).
+                if let Some(path_for_open) = path_for_open {
+                    let _ = cx.update_window(window_handle, move |_, window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            state.open_explorer_file(path_for_open, true, window, cx);
+                        });
+                    });
+                }
+                cx.refresh_windows();
+                });
+            })
         .detach();
         true
     }
 
     /// Cancel the inline edit, restoring the previous selection.
-    pub(crate) fn discard_explorer_edit(&mut self, cx: &mut Context<Self>) {
-        let Some(edit) = self.panels.explorer.edit.take() else {
+    pub(crate) fn discard_explorer_edit(&mut self, cx: &mut App) {
+        let Some(edit) = self.edit.take() else {
             return;
         };
-        self.panels.explorer.selected = edit.previously_selected;
+        self.selected = edit.previously_selected;
         self.rebuild_explorer_entries();
-        cx.notify();
+        cx.refresh_windows();
     }
 
     /// Esc during an inline edit cancels it. The global keymap binds escape
@@ -476,9 +474,9 @@ impl Shell {
         &mut self,
         _: &DismissTransientUi,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if self.panels.explorer.edit.is_some() {
+        if self.edit.is_some() {
             self.discard_explorer_edit(cx);
             cx.stop_propagation();
         }
@@ -489,9 +487,9 @@ impl Shell {
         &mut self,
         event: &KeyDownEvent,
         window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let Some(edit) = self.panels.explorer.edit.as_mut() else {
+        let Some(edit) = self.edit.as_mut() else {
             return;
         };
         let keystroke = &event.keystroke;
@@ -545,9 +543,9 @@ impl Shell {
         &mut self,
         _: &Copy,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if let Some(edit) = &self.panels.explorer.edit {
+        if let Some(edit) = &self.edit {
             if !edit.filename.selection_range().is_empty() {
                 cx.write_to_clipboard(ClipboardItem::new_string(
                     edit.filename.selected_text().to_string(),
@@ -560,16 +558,16 @@ impl Shell {
         &mut self,
         _: &Cut,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        if let Some(edit) = &mut self.panels.explorer.edit {
+        if let Some(edit) = &mut self.edit {
             if !edit.filename.selection_range().is_empty() {
                 let text = edit.filename.selected_text().to_string();
                 edit.filename
                     .replace_range(edit.filename.selection_range(), "");
                 cx.write_to_clipboard(ClipboardItem::new_string(text));
                 self.populate_explorer_validation(cx);
-                cx.notify();
+                cx.refresh_windows();
             }
         }
     }
@@ -578,9 +576,9 @@ impl Shell {
         &mut self,
         _: &Paste,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        cx: &mut App,
     ) {
-        let Some(edit) = &mut self.panels.explorer.edit else {
+        let Some(edit) = &mut self.edit else {
             return;
         };
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
@@ -589,7 +587,7 @@ impl Shell {
         let sanitized = text.replace(['\r', '\n'], "");
         edit.filename.insert_at_selection(&sanitized);
         self.populate_explorer_validation(cx);
-        cx.notify();
+        cx.refresh_windows();
     }
 }
 

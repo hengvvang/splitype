@@ -5,10 +5,10 @@ use gpui::*;
 
 use crate::editor::document::protocol::BlockEvent;
 use crate::editor::input::actions::{
-    Copy, Cut, Delete, DeleteBackward, DismissTransientUi, End, FocusNext, FocusPrevious, Home,
-    IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectLeft,
-    SelectRight,
+    Delete, DeleteBackward, End, FocusNext, FocusPrevious, Home, IndentBlock, MoveLeft, MoveRight,
+    Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
 };
+use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
 use syntax::options::code_language_options_matching;
 use crate::editor::document::block::Block;
 impl Block {

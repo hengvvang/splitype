@@ -17,6 +17,7 @@ members = [
     "crates/explorer_fs",
     "crates/workspace",
     "crates/settings",
+    "crates/explorer",
     "crates/splitype",
     "xtask",
 ]
@@ -47,6 +48,7 @@ ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
 workspace = { path = "crates/workspace" }
 settings = { path = "crates/settings" }
+explorer = { path = "crates/explorer" }
 splitype = { path = "crates/splitype" }
 
 # Third-party shared dependencies

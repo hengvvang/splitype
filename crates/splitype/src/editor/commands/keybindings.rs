@@ -18,13 +18,14 @@ use crate::editor::commands::actions::{
 };
 
 use crate::editor::input::actions::{
-    BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBackward,
-    DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
-    ItalicSelection, JumpToBottom, JumpToTop, MoveLeft, MoveRight, Newline, OutdentBlock, PageDown,
-    PageUp, Paste, Redo, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,
-    StrikethroughSelection, UnderlineSelection, Undo, WordDeleteBackward, WordDeleteForward,
-    WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
+    BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
+    FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, JumpToBottom, JumpToTop,
+    MoveLeft, MoveRight, Newline, OutdentBlock, PageDown, PageUp, Redo, SelectAll, SelectEnd,
+    SelectHome, SelectLeft, SelectRight, StrikethroughSelection, UnderlineSelection, Undo,
+    WordDeleteBackward, WordDeleteForward, WordMoveLeft, WordMoveRight, WordSelectLeft,
+    WordSelectRight,
 };
+use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
 use config::keybindings::{
     SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
 };

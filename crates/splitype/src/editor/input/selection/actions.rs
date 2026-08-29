@@ -3,7 +3,8 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
-use crate::editor::input::actions::{Copy, Cut, Delete, DeleteBackward};
+use crate::editor::input::actions::{Delete, DeleteBackward};
+use workspace::actions::{Copy, Cut};
 use crate::editor::document::block::Block;
 
 impl Editor {

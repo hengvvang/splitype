@@ -272,12 +272,16 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        let _ = with_active_window(cx, |shell, window, cx| {
-            shell.toggle_explorer_drawer(window, cx);
+        let _ = with_active_window(cx, |_shell, window, cx| {
+            explorer::ExplorerState::update(cx, |state, cx| {
+                state.toggle_explorer_drawer(window, cx);
+            });
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        let _ = with_active_window(cx, |shell, _window, cx| {
-            shell.close_explorer_folder(cx);
+        let _ = with_active_window(cx, |_shell, _window, cx| {
+            explorer::ExplorerState::update(cx, |state, cx| {
+                state.close_explorer_folder(cx);
+            });
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -399,28 +403,20 @@ pub(crate) fn dispatch_menu_action_for_editor(
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        let shell = target
-            .read_with(cx, |editor, _cx| editor.shell.clone())
-            .ok()
-            .flatten();
-        if let Some(shell) = shell {
-            let _ = shell.update(cx, |shell, cx| {
-                shell.toggle_explorer_drawer(window, cx);
-            });
-        } else if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |shell, window, cx| {
-                shell.toggle_explorer_drawer(window, cx);
+        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |_shell, window, cx| {
+                explorer::ExplorerState::update(cx, |state, cx| {
+                    state.toggle_explorer_drawer(window, cx);
+                });
             });
         }
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        let shell = target
-            .read_with(cx, |editor, _cx| editor.shell.clone())
-            .ok()
-            .flatten();
-        if let Some(shell) = shell {
-            let _ = shell.update(cx, |shell, cx| shell.close_explorer_folder(cx));
-        } else if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |shell, _window, cx| shell.close_explorer_folder(cx));
+        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |_shell, _window, cx| {
+                explorer::ExplorerState::update(cx, |state, cx| {
+                    state.close_explorer_folder(cx);
+                });
+            });
         }
     }
 }

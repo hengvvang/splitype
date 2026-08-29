@@ -1,13 +1,27 @@
-//! Window-level layout actions.
+//! Window-level layout actions and generic editing actions.
 //!
 //! Panels (explorer, settings, editor chrome) dispatch these actions from
 //! their topbar controls; the shell (`crates/app`) handles them against
 //! its window layout tree. This keeps the panel crates free of any shell
 //! dependency.
 
+use gpui::*;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use splitter::tree::{NodeId, SplitAxis};
+
+// Generic editing actions shared by every editing surface (editor panes,
+// explorer filename editor). Defined here so panels never depend on the
+// editor family.
+actions!(
+    splitype,
+    [
+        Copy,
+        Cut,
+        Paste,
+        DismissTransientUi,
+    ]
+);
 
 /// Toggle the panel-kind dropdown of the given window panel.
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
@@ -45,4 +59,25 @@ pub struct TogglePanelMaximized {
 pub struct ClosePanel {
     /// The window panel (split-tree leaf) to close.
     pub panel: NodeId,
+}
+
+/// Open a path in the active editor panel (explorer row clicks).
+#[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
+#[action(namespace = splitype)]
+#[serde(deny_unknown_fields)]
+pub struct OpenInEditor {
+    /// Absolute path of the file to open.
+    pub path: String,
+    /// True for double-click (permanent tab + focus editor); false for
+    /// single click (transient preview tab).
+    pub persistent: bool,
+}
+
+/// Open a path in a freshly split editor area (explorer Ctrl/Cmd+double-click).
+#[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
+#[action(namespace = splitype)]
+#[serde(deny_unknown_fields)]
+pub struct OpenInSplit {
+    /// Absolute path of the file to open.
+    pub path: String,
 }
