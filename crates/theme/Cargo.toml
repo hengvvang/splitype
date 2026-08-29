@@ -12,7 +12,6 @@ workspace = true
 [dependencies]
 primitives = { path = "../primitives" }
 config = { path = "../config" }
-markdown = { path = "../markdown" }
 gpui = { workspace = true }
 
 

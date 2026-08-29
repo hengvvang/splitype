@@ -16,7 +16,6 @@ html-native = []
 [dependencies]
 primitives = { path = "../primitives" }
 sum_tree = { path = "../sum_tree" }
-gpui = { workspace = true }
 regex = "1.10"
 uuid = { workspace = true }
 serde = { workspace = true }

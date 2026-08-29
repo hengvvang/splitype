@@ -1,9 +1,9 @@
 //! Editor commands — save/export, view-mode switching, undo/redo, and
 //! dirty tracking.
 //!
-//! Action handlers wired in the editor's render flow
-//! (`src/editor/view/`) delegate to these methods. Window/app-level
-//! commands (quit, CLI tooling, explorer) live in `crate::app`.
+//! Action handlers wired in the editor's render flow delegate to these
+//! methods. Window/app-level commands (quit, CLI tooling, explorer) live
+//! in `crate::app`.
 
 use std::path::Path;
 

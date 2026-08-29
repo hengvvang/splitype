@@ -1827,6 +1827,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "explorer_fs"
+version = "0.0.1"
+dependencies = [
+ "thiserror 2.0.18",
+ "trash",
+]
+
+[[package]]
 name = "export"
 version = "0.0.1"
 dependencies = [
@@ -3561,7 +3569,6 @@ name = "markdown"
 version = "0.0.1"
 dependencies = [
  "cssparser",
- "gpui",
  "primitives",
  "regex",
  "serde",
@@ -5996,6 +6003,7 @@ dependencies = [
  "anyhow",
  "config",
  "embed-resource",
+ "explorer_fs",
  "export",
  "futures",
  "gpui",
@@ -6019,7 +6027,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "trash",
  "ui",
  "unicode-segmentation",
  "url",
@@ -6290,7 +6297,6 @@ version = "0.0.1"
 dependencies = [
  "gpui",
  "lazy_static",
- "markdown",
  "primitives",
  "theme",
  "tree-sitter",
@@ -6411,7 +6417,6 @@ dependencies = [
  "directories",
  "gpui",
  "gpui_platform",
- "markdown",
  "primitives",
  "schemars",
  "serde",

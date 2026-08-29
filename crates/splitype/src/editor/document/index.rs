@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use markdown::block::CalloutKind;
+use primitives::CalloutKind;
 use markdown::parse::{BlockId, BlockKind};
 
 /// A block together with its position in the flattened document (DFS) order.

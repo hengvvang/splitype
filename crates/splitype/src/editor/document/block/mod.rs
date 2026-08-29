@@ -27,7 +27,7 @@ use crate::editor::input::table_grid::TableGrid;
 use syntax::highlight::CodeHighlightResult;
 use mermaid::MermaidSvgRender;
 use crate::editor::projection::ExpandedInlineProjection;
-use markdown::block::CalloutKind;
+use primitives::CalloutKind;
 use markdown::block::image::ImageReferenceDefinitions;
 use markdown::block::link::LinkReferenceDefinitions;
 use markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};

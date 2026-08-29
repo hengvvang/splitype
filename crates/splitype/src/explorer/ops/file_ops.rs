@@ -64,9 +64,7 @@ impl Shell {
             cx.background_executor()
                 .spawn(async move {
                     for path in &paths {
-                        if let Err(err) =
-                            crate::explorer::state::undo::remove_path_symlink_safe(path)
-                        {
+                        if let Err(err) = explorer_fs::remove_symlink_safe(path) {
                             tracing::error!(path = %path.display(), error = %err, "failed to delete path");
                         }
                     }
@@ -105,7 +103,7 @@ impl Shell {
             cx.background_executor()
                 .spawn(async move {
                     for path in &paths {
-                        if let Err(err) = trash::delete(path) {
+                        if let Err(err) = explorer_fs::trash(path) {
                             tracing::error!(path = %path.display(), error = %err, "failed to trash path");
                         }
                     }

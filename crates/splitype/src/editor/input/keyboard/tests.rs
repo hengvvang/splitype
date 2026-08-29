@@ -8,7 +8,7 @@ use crate::editor::engine::controller::Editor;
 use crate::editor::input::actions::ExitCodeBlock;
 use crate::editor::input::actions::{Delete, DeleteBackward, Newline};
 use crate::editor::document::block::Block;
-use markdown::block::CalloutKind;
+use primitives::CalloutKind;
 use markdown::inline::text::BlockText;
 use markdown::parse::{BlockData, BlockKind};
 use gpui::{App, AppContext, Entity, EntityInputHandler, TestAppContext};

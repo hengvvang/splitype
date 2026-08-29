@@ -505,7 +505,7 @@ impl Block {
             return false;
         }
 
-        let parsed_callout = markdown::block::CalloutKind::parse_header_line(&source);
+        let parsed_callout = primitives::CalloutKind::parse_header_line(&source);
         if is_blockquote && parsed_callout.is_none() {
             return false;
         }

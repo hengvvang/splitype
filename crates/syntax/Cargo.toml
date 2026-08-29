@@ -23,7 +23,6 @@ code-highlight-config = ["code-highlight-core"]
 
 [dependencies]
 primitives = { path = "../primitives" }
-markdown = { path = "../markdown" }
 theme = { path = "../theme" }
 gpui = { workspace = true }
 tree-sitter = { workspace = true }

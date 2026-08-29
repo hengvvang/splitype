@@ -11,7 +11,7 @@ use crate::editor::panes::wysiwyg::render::layout::{
     RowSpacingInfo, callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
 };
 use theme::{Theme, ThemeDimensions, ThemeManager};
-use markdown::block::CalloutKind;
+use primitives::CalloutKind;
 
 enum PlannedInnerSegment {
     /// A single block row with its leading `mt` gap.

@@ -6,7 +6,7 @@ use super::code_and_text::{
 use super::footnotes::build_native_footnote_definition_block;
 use super::helpers::*;
 use super::lists::collect_list_blocks;
-use crate::block::callout::CalloutKind;
+use primitives::CalloutKind;
 use crate::block::table::{
     collect_table_candidate_region, is_table_candidate_line, parse_table_region,
 };

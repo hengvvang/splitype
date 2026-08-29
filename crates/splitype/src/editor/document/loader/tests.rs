@@ -6,7 +6,7 @@
 use gpui::{AppContext, TestAppContext};
 
     use crate::editor::engine::controller::Editor;
-    use markdown::block::CalloutKind;
+    use primitives::CalloutKind;
     use markdown::inline::html::HtmlCssColor;
     use markdown::parse::BlockKind;
 

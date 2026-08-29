@@ -376,29 +376,22 @@ impl Shell {
                             if new_path.exists() {
                                 Err("A folder with this name already exists".to_string())
                             } else {
-                                std::fs::create_dir_all(&new_path)
+                                explorer_fs::create_dir_all(&new_path)
                                     .map_err(|err| err.to_string())
-                                    .map(|_| ())
                             }
                         } else {
-                            if let Some(parent) = new_path.parent() {
-                                std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
-                            }
-                            std::fs::OpenOptions::new()
-                                .write(true)
-                                .create_new(true)
-                                .open(&new_path)
-                                .map(|_| ())
-                                .map_err(|err| {
-                                    if err.kind() == std::io::ErrorKind::AlreadyExists {
-                                        "A file with this name already exists".to_string()
-                                    } else {
-                                        err.to_string()
-                                    }
-                                })
+                            explorer_fs::create_new_file(&new_path).map_err(|err| {
+                                if let explorer_fs::FsError::WriteFailed { source, .. } = &err
+                                    && source.kind() == std::io::ErrorKind::AlreadyExists
+                                {
+                                    "A file with this name already exists".to_string()
+                                } else {
+                                    err.to_string()
+                                }
+                            })
                         }
                     } else {
-                        std::fs::rename(&old_path, &new_path).map_err(|err| err.to_string())
+                        explorer_fs::rename(&old_path, &new_path).map_err(|err| err.to_string())
                     }
                 })
                 .await;

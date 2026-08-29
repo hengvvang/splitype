@@ -3,42 +3,11 @@
 //! The history stores the forward operation; undoing executes its inverse
 //! and pushes the same record onto the redo stack (so redo simply
 //! re-executes it). Only reversible operations are recorded — permanent
-//! deletes are not.
+//! deletes are not. All filesystem execution delegates to `explorer_fs`.
 
 use std::path::{Path, PathBuf};
 
-use super::utils::copy_dir_all;
-
-#[derive(Debug, thiserror::Error)]
-pub enum ExplorerError {
-    #[error("Failed to create directory at {path:?}: {source}")]
-    CreateDirFailed {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    #[error("Failed to write file at {path:?}: {source}")]
-    WriteFailed {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    #[error("Failed to rename/move from {from:?} to {to:?}: {source}")]
-    RenameFailed {
-        from: PathBuf,
-        to: PathBuf,
-        source: std::io::Error,
-    },
-    #[error("Failed to delete {path:?}: {source}")]
-    DeleteFailed {
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    #[error("Symlink error for {path:?}: {message}")]
-    SymlinkError {
-        path: PathBuf,
-        message: String,
-    },
-}
-
+use explorer_fs::FsError;
 
 /// One reversible file-tree operation recorded in the undo history.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -95,101 +64,32 @@ pub fn explorer_change_destination(change: &ExplorerChange) -> Option<&Path> {
     }
 }
 
-pub fn remove_path_symlink_safe(path: &Path) -> std::io::Result<()> {
-    let is_symlink = path
-        .symlink_metadata()
-        .map(|m| m.file_type().is_symlink())
-        .unwrap_or(false);
-    if is_symlink {
-        #[cfg(windows)]
-        if path.is_dir() {
-            std::fs::remove_dir(path)
-        } else {
-            std::fs::remove_file(path)
-        }
-        #[cfg(not(windows))]
-        std::fs::remove_file(path)
-    } else if path.is_dir() {
-        std::fs::remove_dir_all(path)
-    } else {
-        std::fs::remove_file(path)
-    }
-}
-
-pub fn remove_empty_dir_only(path: &Path) -> std::io::Result<()> {
-    if path.is_dir() && std::fs::read_dir(path)?.next().is_none() {
-        std::fs::remove_dir(path)?;
-    }
-    Ok(())
-}
-
 /// Execute a recorded file operation (redo).
-pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerError> {
+pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), FsError> {
     match change {
         ExplorerChange::Created { path, is_dir } => {
             if *is_dir {
-                std::fs::create_dir_all(path).map_err(|source| ExplorerError::CreateDirFailed {
-                    path: path.clone(),
-                    source,
-                })?;
-            } else if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent).map_err(|source| ExplorerError::CreateDirFailed {
-                    path: parent.to_path_buf(),
-                    source,
-                })?;
-                std::fs::write(path, "").map_err(|source| ExplorerError::WriteFailed {
-                    path: path.clone(),
-                    source,
-                })?;
+                explorer_fs::create_dir_all(path)?;
+            } else {
+                explorer_fs::write_file(path, "")?;
             }
             Ok(())
         }
         ExplorerChange::DirCreated(path) => {
-            std::fs::create_dir_all(path).map_err(|source| ExplorerError::CreateDirFailed {
-                path: path.clone(),
-                source,
-            })?;
+            explorer_fs::create_dir_all(path)?;
             Ok(())
         }
         ExplorerChange::DirRemoved(path) => {
-            let _ = remove_empty_dir_only(path);
+            let _ = explorer_fs::remove_empty_dir_only(path);
             Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            if std::fs::rename(from, to).is_err() {
-                // Fallback for cross-device moves: copy then delete source
-                if from.is_dir() {
-                    copy_dir_all(from, to).map_err(|source| ExplorerError::RenameFailed {
-                        from: from.clone(),
-                        to: to.clone(),
-                        source,
-                    })?;
-                    let _ = remove_path_symlink_safe(from);
-                } else {
-                    std::fs::copy(from, to).map_err(|source| ExplorerError::RenameFailed {
-                        from: from.clone(),
-                        to: to.clone(),
-                        source,
-                    })?;
-                    let _ = std::fs::remove_file(from);
-                }
-            }
+            explorer_fs::rename(from, to)?;
             Ok(())
         }
         ExplorerChange::Copied { source, dest } => {
-            if source.is_dir() {
-                copy_dir_all(source, dest).map_err(|source_err| ExplorerError::WriteFailed {
-                    path: dest.clone(),
-                    source: source_err,
-                })
-            } else {
-                std::fs::copy(source, dest)
-                    .map(|_| ())
-                    .map_err(|source_err| ExplorerError::WriteFailed {
-                        path: dest.clone(),
-                        source: source_err,
-                    })
-            }
+            explorer_fs::copy(source, dest)?;
+            Ok(())
         }
         ExplorerChange::Batch(changes) => {
             for change in changes {
@@ -201,55 +101,34 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerEr
 }
 
 /// Execute the inverse of a recorded operation (undo).
-pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), ExplorerError> {
+pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), FsError> {
     match change {
         ExplorerChange::Created { path, .. } => {
             // First try trash (recoverable), fallback to delete
-            if let Err(_) = trash::delete(path) {
-                remove_path_symlink_safe(path).map_err(|source| ExplorerError::DeleteFailed {
-                    path: path.clone(),
-                    source,
-                })?;
-            }
-            Ok(())
-        }
-        ExplorerChange::DirCreated(path) => {
-            let _ = remove_empty_dir_only(path);
-            Ok(())
-        }
-        ExplorerChange::DirRemoved(path) => {
-            std::fs::create_dir_all(path).map_err(|source| ExplorerError::CreateDirFailed {
+            explorer_fs::trash(path).map_err(|source| FsError::DeleteFailed {
                 path: path.clone(),
                 source,
             })?;
             Ok(())
         }
+        ExplorerChange::DirCreated(path) => {
+            let _ = explorer_fs::remove_empty_dir_only(path);
+            Ok(())
+        }
+        ExplorerChange::DirRemoved(path) => {
+            explorer_fs::create_dir_all(path)?;
+            Ok(())
+        }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            if std::fs::rename(to, from).is_err() {
-                // Fallback for cross-device moves: copy then delete source
-                if to.is_dir() {
-                    copy_dir_all(to, from).map_err(|source| ExplorerError::RenameFailed {
-                        from: to.clone(),
-                        to: from.clone(),
-                        source,
-                    })?;
-                    let _ = remove_path_symlink_safe(to);
-                } else {
-                    std::fs::copy(to, from).map_err(|source| ExplorerError::RenameFailed {
-                        from: to.clone(),
-                        to: from.clone(),
-                        source,
-                    })?;
-                    let _ = std::fs::remove_file(to);
-                }
-            }
+            explorer_fs::rename(to, from)?;
             Ok(())
         }
         ExplorerChange::Copied { dest, .. } => {
-            remove_path_symlink_safe(dest).map_err(|source| ExplorerError::DeleteFailed {
+            explorer_fs::remove_symlink_safe(dest).map_err(|source| FsError::DeleteFailed {
                 path: dest.clone(),
                 source,
-            })
+            })?;
+            Ok(())
         }
         ExplorerChange::Batch(changes) => {
             for change in changes.iter().rev() {

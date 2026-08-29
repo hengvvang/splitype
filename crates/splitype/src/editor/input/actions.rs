@@ -1,10 +1,10 @@
 //! Block-editing action definitions — the block-editing action protocol.
 //!
-//! Actions are scoped to the `"BlockEditor"` key context on each block. Window
-//! and menu command actions live in `crate::app::actions`; document
-//! commands live in `crate::actions`; the keybinding
-//! configuration table lives in `crate::keybindings`.
-//! Handlers for these actions live in [`super::block_actions`].
+//! Actions are scoped to the `"BlockEditor"` key context on each block.
+//! Window and menu command actions live in `crate::app::actions`; document
+//! commands live in `crate::editor::commands::actions`; the keybinding
+//! configuration table lives in `crate::editor::commands::keybindings`.
+//! Handlers for these actions live in `crate::editor::input::block_events`.
 
 use gpui::*;
 

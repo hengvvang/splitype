@@ -1,11 +1,10 @@
 //! Visual theme system — color tokens, dimensions, typography, and the
 //! theme manager service.
 //!
-//! Lives inside `infra` (rather than at the crate root) because theme
-//! persistence reads configuration through `infra::config`; keeping the two
+//! Theme persistence reads configuration through `config`; keeping the two
 //! in one layer makes the dependency direction unambiguous. `ThemeManager`
 //! is an app-level gpui `Global`: it loads, switches, and persists themes.
-//! The UI component layer (`crate::ui`) consumes this module exclusively.
+//! The UI component layer (`ui`) consumes this module exclusively.
 
 pub mod colors;
 pub mod dimensions;

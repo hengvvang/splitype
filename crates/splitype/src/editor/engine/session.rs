@@ -3,7 +3,7 @@
 //!
 //! The pane layout is a [`SplitterRoot`] — the same generic split root
 //! the window-level panel layout uses — so both levels share one split
-//! model and one set of interactions (see `splitype-splitter`).
+//! model and one set of interactions (see `splitter`).
 
 use splitter::root::SplitterRoot;
 

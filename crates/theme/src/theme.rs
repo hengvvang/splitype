@@ -126,26 +126,26 @@ impl Theme {
     }
 
     /// Returns the unified callout colors for a given callout kind.
-    pub fn callout_style(&self, variant: markdown::block::CalloutKind) -> CalloutStyle {
+    pub fn callout_style(&self, variant: primitives::CalloutKind) -> CalloutStyle {
         let c = &self.colors;
         match variant {
-            markdown::block::CalloutKind::Note => CalloutStyle {
+            primitives::CalloutKind::Note => CalloutStyle {
                 border_color: c.callout_note_border,
                 background_color: c.callout_note_bg,
             },
-            markdown::block::CalloutKind::Tip => CalloutStyle {
+            primitives::CalloutKind::Tip => CalloutStyle {
                 border_color: c.callout_tip_border,
                 background_color: c.callout_tip_bg,
             },
-            markdown::block::CalloutKind::Important => CalloutStyle {
+            primitives::CalloutKind::Important => CalloutStyle {
                 border_color: c.callout_important_border,
                 background_color: c.callout_important_bg,
             },
-            markdown::block::CalloutKind::Warning => CalloutStyle {
+            primitives::CalloutKind::Warning => CalloutStyle {
                 border_color: c.callout_warning_border,
                 background_color: c.callout_warning_bg,
             },
-            markdown::block::CalloutKind::Caution => CalloutStyle {
+            primitives::CalloutKind::Caution => CalloutStyle {
                 border_color: c.callout_caution_border,
                 background_color: c.callout_caution_bg,
             },

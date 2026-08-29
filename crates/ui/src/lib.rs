@@ -1,7 +1,8 @@
 //! Reusable UI components — small, business-free building blocks.
 //!
-//! Components here must not depend on `editor` or `model`; they only consume
-//! `infra::theme`, `platform`, and gpui so any view can reuse them.
+//! Components here must not depend on any editor-family crate; they only
+//! consume `theme`, `i18n`, `config`, `splitter`, and gpui so any view can
+//! reuse them.
 
 pub mod bottombar;
 pub mod button;

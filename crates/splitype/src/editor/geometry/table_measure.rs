@@ -6,7 +6,7 @@
 //! `markdown::block::table` data model. The layout *math*
 //! (`from_preferred_widths`) stays in the model, keeping the model testable
 //! without a runtime. It is a free function (not an `impl` on
-//! `TableColumnLayout`) because the type is defined in `splitype-model`.
+//! `TableColumnLayout`) because the type is defined in `markdown::block::table`.
 
 use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 

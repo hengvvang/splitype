@@ -193,7 +193,7 @@ impl BlockData {
                 )
             }
             BlockKind::Blockquote => prefixed_multiline(
-                &crate::block::callout::CalloutKind::escape_plain_quote_header(&text_markdown),
+                &primitives::CalloutKind::escape_plain_quote_header(&text_markdown),
                 &format!("{indentation}> "),
                 &format!("{indentation}> "),
             ),

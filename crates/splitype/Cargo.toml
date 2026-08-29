@@ -32,6 +32,7 @@ latex = { path = "../latex" }
 mermaid = { path = "../mermaid" }
 export = { path = "../export" }
 ui = { path = "../ui" }
+explorer_fs = { path = "../explorer_fs" }
 
 gpui = { workspace = true }
 gpui_platform = { workspace = true }
@@ -46,7 +47,6 @@ url = "2"
 unicode-segmentation = "1.13"
 regex = "1.10"
 notify = "8"
-trash = "5"
 futures = "0.3"
 uuid = { workspace = true }
 schemars = "1"

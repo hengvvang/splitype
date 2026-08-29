@@ -1,7 +1,7 @@
 //! Markdown-to-editor-tree deserialization.
 //!
-//! Raw Markdown is parsed by `model::parse` into `BlockData` records, then
-//! converted into the runtime tree of GPUI `Entity<Block>` values.
+//! Raw Markdown is parsed by `markdown::parse` into `BlockData` records,
+//! then converted into the runtime tree of GPUI `Entity<Block>` values.
 
 use std::collections::HashMap;
 

@@ -5,7 +5,7 @@
 //! determines both how the block is parsed from Markdown and how it is rendered.
 
 use super::fence::CodeFenceOpening;
-use crate::block::callout::CalloutKind;
+use primitives::CalloutKind;
 
 /// The semantic kind of a block.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

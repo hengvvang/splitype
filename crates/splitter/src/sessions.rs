@@ -2,9 +2,9 @@
 //!
 //! These are pure state records; the gesture handling that drives them
 //! and every policy decision (what a drag means, whether to render an
-//! indicator) lives in the hosts' render layer (`src/app/window_layout`
-//! drives the mouse gestures for both the outer panels and the inner
-//! editor panes; `src/editor/view` renders the panes).
+//! indicator) lives in the hosts' render layer (the window layout drives
+//! the mouse gestures for both the outer panels and the inner editor
+//! panes; the editor renders the panes).
 
 use gpui::{Pixels, Point};
 

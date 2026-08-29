@@ -1,7 +1,7 @@
 //! WYSIWYG panel — the rendered block view.
 //!
 //! Row layout and spacing helpers used by the main render pass; the render
-//! orchestration itself lives in `crate::view`.
+//! orchestration itself lives in `crate::editor::panes::wysiwyg::render`.
 
 use gpui::*;
 
@@ -19,7 +19,7 @@ pub struct RowSpacingInfo {
     pub quote_group_id: Option<BlockId>,
     pub visible_quote_group_id: Option<BlockId>,
     pub callout_group_id: Option<BlockId>,
-    pub callout_variant: Option<markdown::block::CalloutKind>,
+    pub callout_variant: Option<primitives::CalloutKind>,
     pub is_callout_header: bool,
     pub footnote_group_id: Option<BlockId>,
     pub is_footnote_header: bool,
@@ -100,7 +100,7 @@ pub fn footnote_row_top_gap(previous: Option<RowSpacingInfo>, default_gap: f32) 
 }
 
 /// Callout accent border + background colours from the theme.
-pub fn callout_colors(variant: markdown::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
+pub fn callout_colors(variant: primitives::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
     let style = theme.callout_style(variant);
     (style.border_color, style.background_color)
 }

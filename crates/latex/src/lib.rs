@@ -1,6 +1,6 @@
 //! RaTeX SVG rendering helpers for LaTeX math.
 //!
-//! Display-math source parsing lives in `model::block::math`; this module
+//! Display-math source parsing lives in `markdown::block::math`; this module
 //! only owns the SVG rendering pipeline and its cache.
 
 use std::collections::HashMap;

@@ -12,11 +12,6 @@ pub mod panes;
 pub mod projection;
 pub mod search;
 
-pub use export;
-pub use syntax;
-pub use latex;
-pub use mermaid;
-
 pub use commands::actions;
 pub use commands::keybindings;
 pub use commands::registry as command_registry;
