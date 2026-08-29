@@ -1,4 +1,4 @@
-﻿//! Window panel module — the panel-kind vocabulary, the window-level split
+//! Window panel module — the panel-kind vocabulary, the window-level split
 //! root, and the window panel state aggregate.
 //!
 //! - [`WindowPanelKind`] — the top-level panel types of the tiled split
@@ -27,7 +27,7 @@ pub enum WindowPanelKind {
     /// Application settings panel.
     Settings,
     /// Editor container – hosts its own pane tree (SourceCode, Wysiwyg,
-    /// Preview, Outline).
+    /// Preview).
     Editor,
 }
 
@@ -56,7 +56,7 @@ pub enum EditorPanelMode {
     /// to start editing) instead of any pane.
     Welcome,
     /// At least one document tab: the panel renders its pane tree
-    /// (Wysiwyg / Source Code / Preview / Outline).
+    /// (Wysiwyg / Source Code / Preview).
     Editing,
 }
 

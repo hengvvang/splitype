@@ -1,6 +1,6 @@
 //! Editor pane layout — rendering and gesture driving for the
-//! `EditorPaneKind` split tree (Wysiwyg / Source Code / Preview /
-//! Outline panes) inside each Editor panel.
+//! `EditorPaneKind` split tree (Wysiwyg / Source Code / Preview
+//! panes) inside each Editor panel.
 
 pub(crate) mod border_menu;
 pub(crate) mod drag_drop;

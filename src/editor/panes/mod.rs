@@ -1,4 +1,4 @@
-//! Editor panes: WYSIWYG, source code editor, preview, outline, and document pane container.
+//! Editor panes (WYSIWYG, Source Code, Preview), Floating Outline HUD, and document pane container.
 
 pub(crate) mod document_pane;
 pub(crate) mod outline;

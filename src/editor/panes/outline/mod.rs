@@ -9,7 +9,7 @@ use crate::editor::document::Document;
 use crate::model::parse::BlockKind;
 
 #[allow(unused_imports)]
-pub(crate) use state::{OutlineNode, OutlinePaneState};
+pub(crate) use state::{OutlineHudState, OutlineNode};
 
 /// Extract all heading items from raw Markdown text.
 pub(crate) fn build_outline_headings_from_markdown(markdown: &str) -> Vec<OutlineNode> {

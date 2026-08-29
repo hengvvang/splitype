@@ -20,7 +20,7 @@ pub(crate) use crate::app::shell::Shell;
 pub(crate) use crate::app::window::panels::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use crate::app::window::panels::WindowPanelKind;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
-pub(crate) use crate::editor::panes::outline::state::OutlinePaneState;
+pub(crate) use crate::editor::panes::outline::state::OutlineHudState;
 pub use crate::editor::engine::session::{
     EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, TabKind,
 };
@@ -47,7 +47,7 @@ pub(crate) use crate::splitter::tree::NodeId;
 pub(crate) use splitype_splitter::root::SplitterRoot;
 pub use crate::app::window::panels::PanelId;
 
-/// The strongly-typed identifier representing an inner tiled editor pane (WYSIWYG, SourceCode, Preview, Outline).
+/// The strongly-typed identifier representing an inner tiled editor pane (WYSIWYG, SourceCode, Preview).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PaneId(pub NodeId);
 
@@ -444,9 +444,9 @@ pub struct Editor {
     /// hides the maximize/close controls when only one area exists. Pushed
     /// by the Shell alongside `panel_rect`.
     pub(crate) leaf_count: usize,
-    /// This editor's outline pane state (heading tree of its own active
+    /// This editor's floating outline HUD state (heading list of its own active
     /// document). Synced during render from the active tab.
-    pub(crate) outline: OutlinePaneState,
+    pub(crate) outline: OutlineHudState,
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
@@ -684,7 +684,7 @@ impl Editor {
             is_active_panel: false,
             is_maximized: false,
             leaf_count: 1,
-            outline: OutlinePaneState::default(),
+            outline: OutlineHudState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             context_menu_submenu_close_token: 0,
@@ -716,7 +716,7 @@ impl Editor {
             is_active_panel: false,
             is_maximized: false,
             leaf_count: 1,
-            outline: OutlinePaneState::default(),
+            outline: OutlineHudState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             context_menu_submenu_close_token: 0,
@@ -1079,7 +1079,7 @@ impl Editor {
     /// Select the pane at `pane_id` as the focused pane AND transfer the
     /// keyboard edit focus to that pane's editing target: a source pane
     /// focuses its own block, a Wysiwyg pane resumes editing the shared
-    /// document at the last position. Preview / Outline panes only update
+    /// document at the last position. Preview pane only updates
     /// the bottombar focus.
     ///
     /// Two focus systems stay in sync here: `focused_pane_id`
@@ -1087,7 +1087,7 @@ impl Editor {
     /// (input routing, moved to the pane's edit target). The keyboard
     /// focus is the single source of truth for *who edits*; the custom
     /// focus is its projection plus the explicit selection for panes
-    /// without an edit target (Preview / Outline).
+    /// without an edit target (Preview).
     pub(crate) fn focus_pane(
         &mut self,
         pane_id: impl Into<PaneId>,

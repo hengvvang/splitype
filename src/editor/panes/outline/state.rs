@@ -16,7 +16,7 @@ pub struct OutlineNode {
 
 /// Outline HUD state attached to an Editor.
 #[derive(Clone, Debug, Default)]
-pub struct OutlinePaneState {
+pub struct OutlineHudState {
     pub headings: Vec<OutlineNode>,
     /// Last synced tab index for cache validation.
     pub synced_tab_index: Option<usize>,
