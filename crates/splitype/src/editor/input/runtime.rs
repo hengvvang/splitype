@@ -133,101 +133,18 @@ impl Editor {
         base_dir: Option<&Path>,
         cx: &mut Context<Self>,
     ) {
-        let next_base_dir = base_dir.map(Path::to_path_buf);
-        let image_reference_definitions = self.tab().references.image.clone();
-        let link_reference_definitions = self.tab().references.link.clone();
-        let footnote_registry = self.tab().references.footnotes.clone();
-        block.update(cx, move |block, cx| {
-            // Only repaint blocks whose reference context actually changed;
-            // with the registries now reused by value comparison, most blocks
-            // keep their old context on any given edit.
-            if block.set_reference_context(
-                next_base_dir.clone(),
-                image_reference_definitions.clone(),
-                link_reference_definitions.clone(),
-                footnote_registry.clone(),
-            ) {
-                cx.notify();
-            }
-        });
+        editor_wysiwyg::document::references::sync_reference_context_for_block(
+            block,
+            base_dir,
+            self.tab().references.image.clone(),
+            self.tab().references.link.clone(),
+            self.tab().references.footnotes.clone(),
+            cx,
+        );
     }
 
     pub(crate) fn rebuild_footnote_registry(&mut self, cx: &App) -> FootnoteMap {
-        let mut definitions = HashMap::new();
-        for entry in self.doc().blocks() {
-            let block = entry.entity.read(cx);
-            if block.kind() != BlockKind::FootnoteDefinition {
-                continue;
-            }
-
-            let allow_definition = self
-                .doc()
-                .find_block_location(entry.entity.entity_id())
-                .is_some_and(|location| {
-                    location.parent.is_none()
-                        || location
-                            .parent
-                            .as_ref()
-                            .is_some_and(|parent| parent.read(cx).kind().is_quote_container())
-                });
-            if !allow_definition {
-                continue;
-            }
-
-            definitions
-                .entry(
-                    markdown::block::footnote::split_footnote_definition_text(
-                        &block.data.text.plain_text(),
-                    )
-                    .0
-                    .to_string(),
-                )
-                .or_insert(entry.entity.entity_id());
-        }
-
-        let mut bindings = HashMap::<String, FootnoteDefinitionBinding>::new();
-        for (id, entity_id) in definitions {
-            bindings.insert(
-                id,
-                FootnoteDefinitionBinding {
-                    definition_entity_id: entity_id,
-                    first_reference: None,
-                },
-            );
-        }
-
-        let mut occurrence_index = 0usize;
-        let mut block_occurrences = HashMap::<BlockId, Vec<FootnoteResolvedOccurrence>>::new();
-        for entry in self.doc().blocks() {
-            let block = entry.entity.read(cx);
-            let block_id = block.data.id;
-            for fragment in &block.data.text.fragments {
-                let Some(footnote) = fragment.footnote() else {
-                    continue;
-                };
-                if let Some(binding) = bindings.get_mut(&footnote.id)
-                    && binding.first_reference.is_none()
-                {
-                    binding.first_reference = Some(FootnoteReferenceLocation {
-                        entity_id: entry.entity.entity_id(),
-                        occurrence_index,
-                    });
-                }
-                block_occurrences
-                    .entry(block_id)
-                    .or_default()
-                    .push(FootnoteResolvedOccurrence {
-                        id: footnote.id.clone(),
-                        occurrence_index,
-                    });
-                occurrence_index += 1;
-            }
-        }
-
-        FootnoteMap {
-            bindings,
-            block_occurrences,
-        }
+        editor_wysiwyg::document::references::rebuild_footnote_registry(self.doc(), cx)
     }
 
     /// Whether this block could contribute reference definitions
@@ -238,41 +155,18 @@ impl Editor {
     /// kinds or in text containing `]:`; footnote bindings need `[^` markers;
     /// standalone images start with `![`. Code-block text is fence-suppressed
     fn block_has_registry_candidates(block: &Block) -> bool {
-        if block.data.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition {
-            return true;
-        }
-        if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
-            return false;
-        }
-        if block
-            .data
-            .text
-            .fragments
-            .iter()
-            .any(|f| f.link().is_some() || f.footnote().is_some())
-        {
-            return true;
-        }
-        let plain_text = block.data.text.plain_text();
-        plain_text.contains("]:") || plain_text.contains("[^") || plain_text.contains("![")
+        editor_wysiwyg::document::references::block_has_registry_candidates(block)
     }
 
     /// Entity ids of every block and table cell whose text could contribute
     /// reference definitions, footnote content, or standalone-image syntax to
     /// the document-wide registries.
     fn collect_registry_candidates(&self, cx: &App) -> HashSet<EntityId> {
-        let mut candidates = HashSet::new();
-        for entries in self.doc().blocks() {
-            if Self::block_has_registry_candidates(entries.entity.read(cx)) {
-                candidates.insert(entries.entity.entity_id());
-            }
-        }
-        for binding in self.tab().tables.cells.values() {
-            if Self::block_has_registry_candidates(binding.cell.read(cx)) {
-                candidates.insert(binding.cell.entity_id());
-            }
-        }
-        candidates
+        editor_wysiwyg::document::references::collect_registry_candidates(
+            self.doc(),
+            &self.tab().tables,
+            cx,
+        )
     }
 
     /// Per-edit entry point: run the document-wide registry rebuild only

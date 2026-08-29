@@ -10,6 +10,7 @@ pub mod index;
 pub mod mutations;
 pub mod protocol;
 pub mod queries;
+pub mod references;
 pub mod serialize;
 
 pub use index::*;
