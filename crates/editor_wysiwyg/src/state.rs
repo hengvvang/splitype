@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use gpui::{Entity, EntityId, Point, Pixels, Size};
+use gpui::{Entity, EntityId, Point, Pixels};
 
 use crate::document::block::{Block, footnotes::FootnoteMap};
 use crate::history::delta::Transaction;

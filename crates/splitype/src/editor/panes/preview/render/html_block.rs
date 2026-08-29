@@ -5,7 +5,7 @@
 
 use gpui::*;
 
-use crate::editor::panes::preview::node::PreviewBlock;
+use editor_preview::node::PreviewBlock;
 use editor_wysiwyg::render::html_document::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };

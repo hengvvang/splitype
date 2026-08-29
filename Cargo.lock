@@ -1698,6 +1698,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor_preview"
+version = "0.0.1"
+dependencies = [
+ "editor",
+ "editor_wysiwyg",
+ "gpui",
+ "markdown",
+ "uuid",
+]
+
+[[package]]
 name = "editor_search"
 version = "0.0.1"
 dependencies = [
@@ -6098,6 +6109,7 @@ dependencies = [
  "config",
  "editor",
  "editor_outline",
+ "editor_preview",
  "editor_search",
  "editor_source_code",
  "editor_wysiwyg",

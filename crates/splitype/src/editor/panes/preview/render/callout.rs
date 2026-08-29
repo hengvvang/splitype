@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::panes::preview::node::PreviewBlock;
+use editor_preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
 use theme::Theme;
 use primitives::CalloutKind;

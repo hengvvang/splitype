@@ -16,7 +16,7 @@ use markdown::parse::{BlockData, BlockId, BlockKind};
 /// A pure-Rust lightweight snapshot block for read-only preview rendering.
 /// Holds zero `FocusHandle`, zero cursor blink tasks, and zero interactive editor state.
 #[derive(Clone, Debug)]
-pub(crate) struct PreviewBlock {
+pub struct PreviewBlock {
     pub data: BlockData,
     pub children: Vec<PreviewBlock>,
     pub search_matches: Vec<(Range<usize>, bool)>,
@@ -113,7 +113,7 @@ impl PreviewBlock {
 }
 
 /// Convert a flat list of `BlockData` into a tree of pure `PreviewBlock`s.
-pub(crate) fn blocks_to_preview_tree(data: Vec<BlockData>) -> Vec<PreviewBlock> {
+pub fn blocks_to_preview_tree(data: Vec<BlockData>) -> Vec<PreviewBlock> {
     let block_count = data.len();
     let mut blocks: HashMap<uuid::Uuid, PreviewBlock> = HashMap::with_capacity(block_count);
     for block in &data {

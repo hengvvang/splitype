@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::editor::panes::preview::node::PreviewBlock;
+use editor_preview::node::PreviewBlock;
 use theme::Theme;
 
 /// Renders a footnote definition block read-only.

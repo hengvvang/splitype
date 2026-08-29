@@ -4,7 +4,7 @@
 use gpui::*;
 
 use latex::{display_math_font_size, render_display_math_svg};
-use crate::editor::panes::preview::node::PreviewBlock;
+use editor_preview::node::PreviewBlock;
 use theme::Theme;
 use markdown::block::math::parse_display_math_source;
 

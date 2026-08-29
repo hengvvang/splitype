@@ -38,12 +38,8 @@ pub(crate) use editor_wysiwyg::state::{
 };
 pub(crate) use crate::editor::panes::document_pane::context_menu::{ContextMenuState, FootnoteTooltipState};
 pub(crate) use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
-pub(crate) use markdown::block::image::{
-    ImageReferenceDefinitions, parse_image_reference_definitions,
-};
-pub(crate) use markdown::block::link::{
-    LinkReferenceDefinitions, parse_link_reference_definitions,
-};
+pub(crate) use markdown::block::image::parse_image_reference_definitions;
+pub(crate) use markdown::block::link::parse_link_reference_definitions;
 pub(crate) use markdown::block::table::TableCellPosition;
 pub(crate) use markdown::block::table::{
     TableColumnAlignment, serialize_table_cell_markdown,

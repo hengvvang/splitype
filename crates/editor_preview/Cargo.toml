@@ -1,0 +1,22 @@
+[package]
+name = "editor_preview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/preview.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+gpui = { workspace = true }
+markdown = { path = "../markdown" }
+editor = { path = "../editor" }
+# The read-only render world consumes the WYSIWYG world's public
+# services: block data types, footnote registry and image handles.
+editor_wysiwyg = { path = "../editor_wysiwyg" }
+uuid = { workspace = true }

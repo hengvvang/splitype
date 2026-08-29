@@ -26,7 +26,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use crate::editor::panes::preview::node::PreviewBlock;
+use editor_preview::node::PreviewBlock;
 use i18n::I18nStrings;
 use theme::Theme;
 use markdown::parse::BlockKind;

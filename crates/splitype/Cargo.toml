@@ -39,6 +39,7 @@ editor_source_code = { path = "../editor_source_code" }
 editor_search = { path = "../editor_search" }
 editor_outline = { path = "../editor_outline" }
 editor_wysiwyg = { path = "../editor_wysiwyg" }
+editor_preview = { path = "../editor_preview" }
 settings = { path = "../settings" }
 explorer = { path = "../explorer" }
 

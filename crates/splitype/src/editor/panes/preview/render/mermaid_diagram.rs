@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::panes::preview::node::PreviewBlock;
+use editor_preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::preview_centered_column_width;
 use mermaid::render_mermaid_svg_for_display;
 use theme::Theme;

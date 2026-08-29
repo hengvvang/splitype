@@ -1,11 +1,9 @@
 //! Preview panel — read-only rendered snapshot of the document.
 
-pub(crate) mod node;
 pub(crate) mod render;
 pub(crate) mod selection;
 
-pub(crate) use node::{PreviewBlock, blocks_to_preview_tree};
-pub(crate) use selection::{PreviewEndpoint, PreviewSelectionRange};
+pub(crate) use editor_preview::{PreviewBlock, PreviewState, blocks_to_preview_tree};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -20,18 +18,6 @@ use editor_wysiwyg::document::block::footnotes::{
 use markdown::block::image::ImageReferenceDefinitions;
 use markdown::block::link::LinkReferenceDefinitions;
 use markdown::parse::{BlockData, BlockId, BlockKind};
-
-/// Read-only block tree shown in the preview panel.
-#[derive(Default)]
-pub(crate) struct PreviewState {
-    pub(crate) blocks: Vec<PreviewBlock>,
-    pub(crate) selection: Option<PreviewSelectionRange>,
-    pub(crate) drag_anchor: Option<PreviewEndpoint>,
-    pub(crate) source_hash: u64,
-    /// Document revision the preview tree was last synced at; `None` until
-    /// the first build.
-    pub(crate) synced_revision: Option<u64>,
-}
 
 impl Editor {
     /// Rebuild the preview block tree of ONE pane whenever the document
@@ -224,27 +210,3 @@ impl Editor {
     }
 }
 
-// ── Pane plugin contract ─────────────────────────────────────────────────
-
-use std::ops::Range;
-
-use crate::editor::engine::session::EditorPaneKind;
-use editor_core::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
-
-impl Pane for PreviewState {
-    fn kind(&self) -> EditorPaneKind {
-        EditorPaneKind::Preview
-    }
-
-    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String {
-        doc.serialize_markdown(cx)
-    }
-
-    fn set_search_matches(&mut self, _matches: &[(Range<usize>, bool)]) {
-        // Preview is a read-only render; there is nothing to highlight.
-    }
-
-    fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
-        outline_headings_from_markdown(&doc.serialize_markdown(cx))
-    }
-}
