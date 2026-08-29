@@ -3,13 +3,13 @@
 use gpui::*;
 
 use crate::editor::document::block::{Block, ImageHandle};
-use splitype_infra::i18n::I18nManager;
-use splitype_infra::theme::Theme;
-use splitype_model::block::html::{
+use i18n::I18nManager;
+use theme::Theme;
+use markdown::block::html::{
     HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
 };
-use splitype_model::block::image::resolve_image_source;
-use splitype_model::inline::html::HtmlCssColor;
+use markdown::block::image::resolve_image_source;
+use markdown::inline::html::HtmlCssColor;
 
 /// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.
 pub(crate) fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
@@ -232,7 +232,7 @@ impl Block {
                 .h(px(d.separator_thickness))
                 .my(px(d.separator_margin_y))
                 .bg(c.separator)
-                .rounded(px(splitype_infra::theme::dimensions::FULL_CORNER_RADIUS))
+                .rounded(px(theme::dimensions::FULL_CORNER_RADIUS))
                 .into_any_element(),
             "blockquote" => {
                 let mut element =

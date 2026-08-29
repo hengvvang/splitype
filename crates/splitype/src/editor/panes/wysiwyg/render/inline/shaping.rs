@@ -2,10 +2,10 @@
 
 use gpui::*;
 
-use splitype_render::plugins::code_highlight::highlight::code_highlight_color;
+use syntax::highlight::code_highlight_color;
 use crate::editor::document::block::Block;
 use crate::editor::panes::wysiwyg::render::html_document::html_css_color_to_hsla;
-use splitype_infra::theme::ThemeColors;
+use theme::ThemeColors;
 
 /// The block's text-style line height without gpui's internal .round().
 pub fn unrounded_line_height(window: &Window) -> Pixels {
@@ -33,8 +33,8 @@ pub fn build_text_runs(
         boundaries.push(span.range.end);
         if let Some(math) = span.math.as_ref() {
             let delim_len = match math.delimiter {
-                splitype_model::inline::latex::InlineLatexDelimiter::Dollar => 1,
-                splitype_model::inline::latex::InlineLatexDelimiter::Paren => 2,
+                markdown::inline::latex::InlineLatexDelimiter::Dollar => 1,
+                markdown::inline::latex::InlineLatexDelimiter::Paren => 2,
             };
             if span.range.len() >= delim_len * 2 {
                 boundaries.push(span.range.start + delim_len);
@@ -66,7 +66,7 @@ pub fn build_text_runs(
     }
 
     let callout_prefix_ranges =
-        if matches!(input.kind(), splitype_model::parse::BlockKind::Callout(_)) {
+        if matches!(input.kind(), markdown::parse::BlockKind::Callout(_)) {
             if display_text.starts_with("[!") && let Some(marker_end) = display_text.find(']') {
                 Some((0..2, 2..marker_end, marker_end..marker_end + 1))
             } else {
@@ -121,8 +121,8 @@ pub fn build_text_runs(
             .unwrap_or(false);
         let is_math_delim = if let Some(math) = active_span.and_then(|s| s.math.as_ref()) {
             let delim_len = match math.delimiter {
-                splitype_model::inline::latex::InlineLatexDelimiter::Dollar => 1,
-                splitype_model::inline::latex::InlineLatexDelimiter::Paren => 2,
+                markdown::inline::latex::InlineLatexDelimiter::Dollar => 1,
+                markdown::inline::latex::InlineLatexDelimiter::Paren => 2,
             };
             let span_range = &active_span.unwrap().range;
             (start >= span_range.start && end <= span_range.start + delim_len)
@@ -141,7 +141,7 @@ pub fn build_text_runs(
             .unwrap_or(false);
 
         let mut font = if inline_style.code {
-            splitype_infra::theme::TypographyStore::default_font(splitype_infra::theme::TypographyScope::Code)
+            theme::TypographyStore::default_font(theme::TypographyScope::Code)
         } else {
             base_run.font.clone()
         };
@@ -255,8 +255,8 @@ pub fn build_code_text_runs(
             .map(|span| code_highlight_color(colors, span.class))
             .unwrap_or(base_run.color);
 
-        let code_font = splitype_infra::theme::TypographyStore::default_font(
-            splitype_infra::theme::TypographyScope::Code,
+        let code_font = theme::TypographyStore::default_font(
+            theme::TypographyScope::Code,
         );
         runs.push(TextRun {
             len: end - start,

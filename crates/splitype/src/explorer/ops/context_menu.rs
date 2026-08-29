@@ -9,10 +9,10 @@
 use gpui::*;
 
 use crate::app::shell::Shell;
-use splitype_infra::i18n::I18nManager;
-use splitype_infra::theme::Theme;
-use splitype_ui::menu_item::{menu_item, menu_item_row};
-use splitype_ui::popover::overlay;
+use i18n::I18nManager;
+use theme::Theme;
+use ui::menu_item::{menu_item, menu_item_row};
+use ui::popover::overlay;
 
 impl Shell {
     pub(crate) fn on_dismiss_explorer_file_menu(

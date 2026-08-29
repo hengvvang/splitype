@@ -16,14 +16,14 @@ use futures::channel::oneshot;
 use crate::app::shell::Shell;
 use crate::editor::engine::controller::{Editor, InfoDialogKind};
 use crate::editor::panes::document_pane::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
-use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::infra::net::update_checker::{
+use i18n::{I18nManager, I18nStrings};
+use net::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
 };
-use crate::infra::theme::Theme;
-use crate::ui::button::{compact_danger_button, compact_primary_button, compact_secondary_button};
-use crate::ui::dialog::dialog_card;
-use crate::ui::popover::overlay;
+use theme::Theme;
+use ui::button::{compact_danger_button, compact_primary_button, compact_secondary_button};
+use ui::dialog::dialog_card;
+use ui::popover::overlay;
 
 pub(crate) const ABOUT_EMOJIS: &[&str] = &[
     "icons/emoji/1.svg",
@@ -52,6 +52,7 @@ impl Shell {
         &self,
         cx: &App,
         show: fn(&crate::editor::engine::controller::FileState) -> bool,
+
     ) -> Option<Entity<Editor>> {
         self.panel_contents
             .values()

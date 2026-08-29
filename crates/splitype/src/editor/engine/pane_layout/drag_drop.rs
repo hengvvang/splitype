@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_splitter::SplitAxis;
+use splitter::SplitAxis;
 
 impl Editor {
     pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, _window: &Window) -> bool {

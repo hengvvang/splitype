@@ -5,10 +5,10 @@ use gpui::*;
 use crate::editor::engine::controller::Editor;
 use crate::editor::document::block::{Block, ImageHandle};
 use crate::editor::panes::wysiwyg::render::visible_quote_guides;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::{Theme, ThemeDimensions};
-use splitype_model::block::image::ImageResolvedSource;
-use splitype_model::parse::BlockKind;
+use i18n::I18nStrings;
+use theme::{Theme, ThemeDimensions};
+use markdown::block::image::ImageResolvedSource;
+use markdown::parse::BlockKind;
 
 pub(crate) fn render_image_placeholder(
     runtime: &ImageHandle,

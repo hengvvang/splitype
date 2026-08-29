@@ -14,8 +14,8 @@ use crate::app::window::panels::PanelId;
 use crate::explorer::state::state::{
     DragExplorerTarget, DraggedExplorerSelection,
 };
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
+use i18n::I18nStrings;
+use theme::Theme;
 
 impl Shell {
     pub(crate) fn render_explorer_files_tree(

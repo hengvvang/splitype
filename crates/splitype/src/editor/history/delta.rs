@@ -7,8 +7,8 @@
 
 use crate::editor::document::protocol::UndoCaptureKind;
 use crate::editor::engine::controller::UndoSelectionSnapshot;
-use splitype_model::inline::text::BlockText;
-use splitype_model::parse::{BlockData, BlockId};
+use markdown::inline::text::BlockText;
+use markdown::parse::{BlockData, BlockId};
 
 /// Atomic mutation applied to the document block tree.
 #[derive(Clone, Debug)]

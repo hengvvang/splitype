@@ -7,8 +7,38 @@
 
 use std::path::{Path, PathBuf};
 
-use splitype_infra::error::ExplorerError;
 use super::utils::copy_dir_all;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ExplorerError {
+    #[error("Failed to create directory at {path:?}: {source}")]
+    CreateDirFailed {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("Failed to write file at {path:?}: {source}")]
+    WriteFailed {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("Failed to rename/move from {from:?} to {to:?}: {source}")]
+    RenameFailed {
+        from: PathBuf,
+        to: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("Failed to delete {path:?}: {source}")]
+    DeleteFailed {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("Symlink error for {path:?}: {message}")]
+    SymlinkError {
+        path: PathBuf,
+        message: String,
+    },
+}
+
 
 /// One reversible file-tree operation recorded in the undo history.
 #[derive(Clone, Debug, PartialEq, Eq)]

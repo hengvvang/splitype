@@ -12,8 +12,8 @@ use crate::editor::engine::controller::{
 };
 use crate::editor::input::selection::state::NormalizedCrossBlockSelection;
 use crate::editor::document::block::Block;
-use splitype_model::block::table::serialize_table_markdown_lines;
-use splitype_model::parse::BlockKind;
+use markdown::block::table::serialize_table_markdown_lines;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn cross_block_source_selection_snapshot(

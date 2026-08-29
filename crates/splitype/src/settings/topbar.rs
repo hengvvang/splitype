@@ -3,10 +3,10 @@ use gpui::*;
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
 use crate::app::window::layout::panel_topbar_icon;
-use splitype_infra::theme::Theme;
-use crate::splitter::SplitAxis;
-use splitype_ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
-use splitype_ui::topbar::topbar_container;
+use theme::Theme;
+use splitter::SplitAxis;
+use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
+use ui::topbar::topbar_container;
 
 impl Shell {
     /// Top bar of a Settings area: type selector and split/close controls.

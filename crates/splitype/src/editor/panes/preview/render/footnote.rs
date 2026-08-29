@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::panes::preview::node::PreviewBlock;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Renders a footnote definition block read-only.
 pub(crate) fn render_preview_footnote_definition(
@@ -18,7 +18,7 @@ pub(crate) fn render_preview_footnote_definition(
 
     let plain_text = block.data.text.plain_text();
     let (id, content) =
-        splitype_model::block::footnote::split_footnote_definition_text(&plain_text);
+        markdown::block::footnote::split_footnote_definition_text(&plain_text);
     let mut header = base
         .w_full()
         .flex()

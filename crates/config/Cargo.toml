@@ -1,0 +1,27 @@
+[package]
+name = "config"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+primitives = { path = "../primitives" }
+gpui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = "1"
+directories = "6"
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+toml = "1"
+tracing = "0.1"
+uuid = { workspace = true }
+sys-locale = "0.3"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

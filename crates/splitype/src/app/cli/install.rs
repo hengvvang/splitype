@@ -6,7 +6,7 @@
 
 use gpui::*;
 
-use crate::infra::i18n::I18nManager;
+use i18n::I18nManager;
 #[cfg(target_os = "macos")]
 use crate::platform::cli_tool::applescript_string_literal;
 #[cfg(target_os = "macos")]

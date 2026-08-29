@@ -4,11 +4,11 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::engine::controller::Editor;
-use splitype_model::block::image::{
+use markdown::block::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 use std::path::PathBuf;
 
 #[gpui::test]

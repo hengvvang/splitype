@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use crate::editor::panes::document_pane::context_menu::ContextMenuState;
-use splitype_model::block::table::{TableAxis, TableColumnAlignment};
+use markdown::block::table::{TableAxis, TableColumnAlignment};
 impl Editor {
     pub(crate) fn active_axis_menu_selection(&self) -> Option<TableAxisSelection> {
         match self.context_menu.as_ref() {
@@ -315,7 +315,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let _ = splitype_infra::config::settings::SettingsStore::update(cx, |s| {
+        let _ = config::settings::SettingsStore::update(cx, |s| {
             s.markdown.show_table_headers = !s.markdown.show_table_headers;
         });
         self.close_context_menu(cx);

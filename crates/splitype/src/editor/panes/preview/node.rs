@@ -9,9 +9,9 @@ use gpui::*;
 
 use crate::editor::document::block::footnotes::FootnoteMap;
 use crate::editor::document::block::state::ImageHandle;
-use splitype_model::block::image::{ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
-use splitype_model::block::link::LinkReferenceDefinitions;
-use splitype_model::parse::{BlockData, BlockId, BlockKind};
+use markdown::block::image::{ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
+use markdown::block::link::LinkReferenceDefinitions;
+use markdown::parse::{BlockData, BlockId, BlockKind};
 
 /// A pure-Rust lightweight snapshot block for read-only preview rendering.
 /// Holds zero `FocusHandle`, zero cursor blink tasks, and zero interactive editor state.
@@ -81,7 +81,7 @@ impl PreviewBlock {
 
     pub fn has_footnote_definition_backref(&self) -> bool {
         let plain_text = self.data.text.plain_text();
-        let (id, _) = splitype_model::block::footnote::split_footnote_definition_text(&plain_text);
+        let (id, _) = markdown::block::footnote::split_footnote_definition_text(&plain_text);
         self.footnote_registry
             .bindings
             .get(id)
@@ -104,7 +104,7 @@ impl PreviewBlock {
 
     pub fn is_standalone_image(&self) -> bool {
         let plain = self.data.text.plain_text();
-        splitype_model::block::image::parse_standalone_image(&plain).is_some()
+        markdown::block::image::parse_standalone_image(&plain).is_some()
     }
 
     pub fn index_for_mouse_position(&self, _position: Point<Pixels>) -> usize {

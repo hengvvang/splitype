@@ -5,8 +5,8 @@ use gpui::*;
 
 use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::{paragraph, preview_centered_column_width};
-use splitype_infra::theme::Theme;
-use splitype_model::block::image::{ImageResolvedSource, parse_standalone_image};
+use theme::Theme;
+use markdown::block::image::{ImageResolvedSource, parse_standalone_image};
 
 /// Renders a paragraph/list-item block that holds a lone image read-only.
 /// Falls back to the paragraph renderer when the block is not an image.

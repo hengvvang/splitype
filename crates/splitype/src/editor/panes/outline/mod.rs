@@ -6,7 +6,7 @@ pub(crate) mod state;
 use gpui::App;
 
 use crate::editor::document::Document;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 #[allow(unused_imports)]
 pub(crate) use state::{OutlineHudState, OutlineNode};

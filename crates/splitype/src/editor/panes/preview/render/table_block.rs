@@ -8,7 +8,7 @@ use crate::editor::geometry::table_measure::measure_table_column_layout;
 use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
 use crate::editor::panes::preview::render::preview_centered_column_width;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Renders a native table block read-only with content-measured column
 /// widths, mirroring the WYSIWYG table layout.
@@ -90,7 +90,7 @@ pub(crate) fn render_preview_table(
 
 /// Renders one table cell with the header/body background styles.
 fn render_preview_table_cell(
-    cell: &splitype_model::inline::text::BlockText,
+    cell: &markdown::inline::text::BlockText,
     is_header: bool,
     fraction: f32,
     theme: &Theme,

@@ -4,12 +4,13 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
-use splitype_infra::config::settings::*;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::{Theme, ThemeManager};
+use config::settings::*;
+use i18n::{apply_configured_language, I18nStrings};
+use theme::{apply_configured_theme, Theme, ThemeManager};
 use crate::settings::components::*;
+
 use crate::settings::state::SettingsTab;
-use splitype_ui::tab::nav_tab;
+use ui::tab::nav_tab;
 
 impl Shell {
     pub(crate) fn render_settings_body(

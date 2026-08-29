@@ -8,8 +8,8 @@ use crate::editor::document::protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::projection::{ExpandedInlineSegmentKind, ExpandedLinkSpan};
 use crate::editor::document::block::Block;
 use crate::editor::document::block::CollapsedCaretAffinity;
-use splitype_model::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
-use splitype_model::parse::BlockKind;
+use markdown::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
+use markdown::parse::BlockKind;
 use std::time::Instant;
 
 impl Block {
@@ -372,7 +372,7 @@ impl Block {
             .text
             .fragments
             .iter()
-            .any(|f| f.style != splitype_model::inline::style::InlineStyle::default() || f.extra.is_some());
+            .any(|f| f.style != markdown::inline::style::InlineStyle::default() || f.extra.is_some());
         if self.edit_mode.supports_inline_projection()
             && (keep_projection || caret_may_have_closed_span || has_styled_spans)
         {
@@ -505,7 +505,7 @@ impl Block {
             return false;
         }
 
-        let parsed_callout = splitype_model::block::CalloutKind::parse_header_line(&source);
+        let parsed_callout = markdown::block::CalloutKind::parse_header_line(&source);
         if is_blockquote && parsed_callout.is_none() {
             return false;
         }

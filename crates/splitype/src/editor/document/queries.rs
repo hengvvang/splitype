@@ -11,7 +11,7 @@ impl Document {
     pub(crate) fn new(roots: Vec<Entity<Block>>) -> Self {
         Self {
             roots,
-            tree: splitype_model::tree::SumTree::new(),
+            tree: sum_tree::SumTree::new(),
             index: BlockIndex::default(),
             structure_version: 0,
             metadata_rebuild_version: 0,
@@ -100,7 +100,7 @@ impl Document {
 
     pub(crate) fn find_entity_by_block_id(
         &self,
-        block_id: splitype_model::parse::BlockId,
+        block_id: markdown::parse::BlockId,
         cx: &App,
     ) -> Option<Entity<Block>> {
         self.index

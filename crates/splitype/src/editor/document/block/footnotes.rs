@@ -20,7 +20,7 @@ pub struct FootnoteDefinitionBinding {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FootnoteMap {
     pub bindings: HashMap<String, FootnoteDefinitionBinding>,
-    pub block_occurrences: HashMap<splitype_model::parse::BlockId, Vec<FootnoteResolvedOccurrence>>,
+    pub block_occurrences: HashMap<markdown::parse::BlockId, Vec<FootnoteResolvedOccurrence>>,
 }
 
 impl FootnoteMap {
@@ -30,7 +30,7 @@ impl FootnoteMap {
 
     pub fn occurrences_for_block(
         &self,
-        block_id: splitype_model::parse::BlockId,
+        block_id: markdown::parse::BlockId,
     ) -> Option<&[FootnoteResolvedOccurrence]> {
         self.block_occurrences.get(&block_id).map(Vec::as_slice)
     }

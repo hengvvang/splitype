@@ -2,9 +2,9 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
-use splitype_infra::theme::Theme;
-use splitype_ui::bottombar::bottombar_container;
-use splitype_ui::button::{icon_chip_button, toolbar_icon_size};
+use theme::Theme;
+use ui::bottombar::bottombar_container;
+use ui::button::{icon_chip_button, toolbar_icon_size};
 
 impl Shell {
     /// Bottom bar of an Explorer area: add-folder button plus the worktree

@@ -8,8 +8,8 @@ use super::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use crate::editor::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
 use crate::editor::document::block::CollapsedCaretAffinity;
-use splitype_model::block::table::TableCellPosition;
-use splitype_model::parse::BlockKind;
+use markdown::block::table::TableCellPosition;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
@@ -500,7 +500,7 @@ impl Editor {
         }
 
         let Some((variant, text)) =
-            splitype_model::block::CalloutKind::parse_header_line(&text_markdown)
+            markdown::block::CalloutKind::parse_header_line(&text_markdown)
         else {
             return None;
         };

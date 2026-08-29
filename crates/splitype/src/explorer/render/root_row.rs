@@ -9,8 +9,8 @@ use crate::explorer::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind,
     FOLDER_ICON, VisibleExplorerEntry, file_type_icon,
 };
-use splitype_infra::theme::Theme;
-use splitype_ui::button::icon_chip_button;
+use theme::Theme;
+use ui::button::icon_chip_button;
 
 impl Shell {
     /// Render the root row: the folder name plus the title buttons (new
@@ -105,7 +105,7 @@ impl Shell {
         let shell_hidden = shell.clone();
         let worktree_id = entry.worktree_id;
         let hide_hidden =
-            splitype_infra::config::settings::SettingsStore::get(cx).explorer.hide_hidden;
+            config::settings::SettingsStore::get(cx).explorer.hide_hidden;
 
         // Title buttons: visible only while the root row is expanded. The
         // set mirrors the panel toolbar: replace folder, toggle hidden

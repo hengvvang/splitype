@@ -6,7 +6,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn collect_single_block_source_mappings(
@@ -184,7 +184,7 @@ impl Editor {
             BlockKind::FootnoteDefinition => {
                 let footnote_source = text.expect("footnote text").source().to_string();
                 let (footnote_id, first_line) =
-                    splitype_model::block::footnote::split_footnote_definition_text(&footnote_source);
+                    markdown::block::footnote::split_footnote_definition_text(&footnote_source);
                 Self::push_footnote_definition_full_mapping(
                     block,
                     footnote_id,

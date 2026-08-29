@@ -4,15 +4,15 @@ use gpui::*;
 
 use crate::editor::engine::controller::*;
 use crate::editor::engine::session::EditorPaneKind;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
-use splitype_splitter::SplitAxis;
-use splitype_splitter::tree::SplitTree;
+use i18n::I18nStrings;
+use theme::Theme;
+use splitter::SplitAxis;
+use splitter::tree::SplitTree;
 
 impl Editor {
     pub(crate) fn render_editor_pane_node(
         &mut self,
-        node: &splitype_splitter::tree::SplitTree<crate::editor::engine::session::EditorPaneKind>,
+        node: &splitter::tree::SplitTree<crate::editor::engine::session::EditorPaneKind>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -20,7 +20,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let overlay_style = splitype_splitter::interaction::OverlayStyle {
+        let overlay_style = splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
             tile_radius: d.panel_tile_radius,
             border: c.dialog_border,
@@ -67,7 +67,7 @@ impl Editor {
                     self.render_welcome_prompt(pane_id, theme, cx)
                 };
 
-                let corner_handles = splitype_splitter::interaction::corner_drag_handles(
+                let corner_handles = splitter::interaction::corner_drag_handles(
                     "inner-corner",
                     pane_id.0,
                     d.pane_gap,
@@ -200,7 +200,7 @@ impl Editor {
                                     .child(second_elem),
                             )
                             .child(
-                                splitype_splitter::interaction::splitter_bar_h(
+                                splitter::interaction::splitter_bar_h(
                                     ("inner-root-bar-h", split_id),
                                     r,
                                     bar_active,
@@ -217,7 +217,7 @@ impl Editor {
                                             .map(|rect| start_pos - f32::from(rect.origin.x))
                                             .unwrap_or(start_pos);
                                         let session = ed.session_mut();
-                                        splitype_splitter::interaction::start_splitter_drag(
+                                        splitter::interaction::start_splitter_drag(
                                             &mut session.root,
                                             split_id,
                                             SplitAxis::Horizontal,
@@ -233,7 +233,7 @@ impl Editor {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
                                             let session = ed.session_mut();
-                                            splitype_splitter::interaction::open_border_menu(
+                                            splitter::interaction::open_border_menu(
                                                 &mut session.root,
                                                 split_id,
                                                 split_axis,
@@ -286,7 +286,7 @@ impl Editor {
                                     .child(second_elem),
                             )
                             .child(
-                                splitype_splitter::interaction::splitter_bar_v(
+                                splitter::interaction::splitter_bar_v(
                                     ("inner-root-bar-v", split_id),
                                     r,
                                     bar_active,
@@ -302,7 +302,7 @@ impl Editor {
                                             .map(|rect| start_pos - f32::from(rect.origin.y))
                                             .unwrap_or(start_pos);
                                         let session = ed.session_mut();
-                                        splitype_splitter::interaction::start_splitter_drag(
+                                        splitter::interaction::start_splitter_drag(
                                             &mut session.root,
                                             split_id,
                                             SplitAxis::Vertical,
@@ -318,7 +318,7 @@ impl Editor {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
                                             let session = ed.session_mut();
-                                            splitype_splitter::interaction::open_border_menu(
+                                            splitter::interaction::open_border_menu(
                                                 &mut session.root,
                                                 split_id,
                                                 split_axis,

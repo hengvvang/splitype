@@ -1,0 +1,28 @@
+[package]
+name = "markdown"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["html-native"]
+html-native = []
+
+[dependencies]
+primitives = { path = "../primitives" }
+sum_tree = { path = "../sum_tree" }
+gpui = { workspace = true }
+regex = "1.10"
+uuid = { workspace = true }
+serde = { workspace = true }
+taffy = "0.7"
+smallvec = { version = "1", features = ["serde"] }
+unicode-segmentation = "1.13"
+cssparser = "0.37"
+tree-sitter = { workspace = true }
+tree-sitter-html = { workspace = true }

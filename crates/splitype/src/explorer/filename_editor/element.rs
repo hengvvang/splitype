@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 use crate::explorer::state::state::EXPLORER_NODE_HEIGHT;
-use splitype_infra::theme::ThemeManager;
+use theme::ThemeManager;
 
 pub(crate) fn shape_filename_line(window: &mut Window, text: &str) -> ShapedLine {
     let display_text: SharedString = text.to_string().into();

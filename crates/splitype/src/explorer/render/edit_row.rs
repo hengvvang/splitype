@@ -6,7 +6,7 @@ use crate::explorer::filename_editor::ExplorerFilenameInputElement;
 use crate::explorer::state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
 };
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 impl Shell {
     /// Render the inline create/rename row: a filename input with keyboard

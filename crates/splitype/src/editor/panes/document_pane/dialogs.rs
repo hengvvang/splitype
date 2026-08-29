@@ -7,12 +7,12 @@
 //! this module keeps the per-tab state those dialogs show and the editor
 //! actions their buttons route to.
 
-use splitype_ui::popover::overlay;
+use ui::popover::overlay;
 
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// State for the table insertion dialog opened from the context menu.
 pub(crate) struct TableInsertDialogState {
@@ -146,7 +146,7 @@ impl Editor {
             .unwrap_or(dialog.columns)
             .clamp(1, max_matrix_cols);
 
-        use splitype_ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+        use ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
         let colors = MatrixCellColors::from_theme(theme);
         let top_indicator = render_matrix_dimension_indicator(display_rows, display_cols, "Row", "Column", theme);
 

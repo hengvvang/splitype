@@ -7,7 +7,7 @@ use gpui::*;
 use crate::app::shell::Shell;
 use crate::explorer::filename_editor::buffer::{utf8_range_to_utf16_in, utf16_range_to_utf8_in};
 use crate::explorer::filename_editor::element::shape_filename_line;
-use crate::model::inline::offsets::ImeConverter;
+use markdown::inline::offsets::ImeConverter;
 
 impl EntityInputHandler for Shell {
     fn text_for_range(

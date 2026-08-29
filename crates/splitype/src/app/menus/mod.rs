@@ -30,10 +30,10 @@ use crate::editor::export::ExportFormat;
 use crate::editor::panes::document_pane::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
-use crate::infra::config::settings::{apply_configured_language, apply_configured_theme};
-use crate::infra::i18n::I18nManager;
-use crate::infra::theme::ThemeManager;
+use i18n::{apply_configured_language, I18nManager};
+use theme::{apply_configured_theme, ThemeManager};
 use crate::settings::open_settings_window;
+
 
 pub(crate) mod build;
 pub(crate) mod prompts;

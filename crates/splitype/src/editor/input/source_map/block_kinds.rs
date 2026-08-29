@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn push_inline_block_mapping(
@@ -184,10 +184,10 @@ impl Editor {
             };
             let (serialized, body_range) = match block_ref.kind() {
                 BlockKind::MathBlock => {
-                    splitype_model::block::math::serialize_display_math_source(&body)
+                    markdown::block::math::serialize_display_math_source(&body)
                 }
                 BlockKind::MermaidBlock => {
-                    splitype_model::block::mermaid::serialize_mermaid_source(&body)
+                    markdown::block::mermaid::serialize_mermaid_source(&body)
                 }
                 _ => (body, 0..0),
             };

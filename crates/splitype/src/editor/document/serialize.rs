@@ -4,11 +4,11 @@ use gpui::*;
 
 use super::Document;
 use crate::editor::document::block::Block;
-use splitype_model::block::CalloutKind;
-use splitype_model::block::image::parse_standalone_image;
-use splitype_model::block::table::serialize_table_markdown_lines;
-use splitype_model::parse::BlockKind;
-pub(crate) use splitype_model::parse::fence::safe_code_fence_with_info;
+use markdown::block::CalloutKind;
+use markdown::block::image::parse_standalone_image;
+use markdown::block::table::serialize_table_markdown_lines;
+use markdown::parse::BlockKind;
+pub(crate) use markdown::parse::fence::safe_code_fence_with_info;
 
 impl Document {
     pub(crate) fn serialize_markdown(&self, cx: &App) -> String {
@@ -120,7 +120,7 @@ impl Document {
                 let indentation = "  ".repeat(list_depth);
                 let full_text = block_ref.data.text_markdown();
                 let (id, first_line) =
-                    splitype_model::block::footnote::split_footnote_definition_text(&full_text);
+                    markdown::block::footnote::split_footnote_definition_text(&full_text);
                 if first_line.is_empty() && block_ref.children.is_empty() {
                     lines.push(format!("{indentation}[^{id}]:"));
                     return;
@@ -240,7 +240,7 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
 
     use crate::editor::engine::controller::Editor;
-    use splitype_model::parse::{BlockData, BlockKind};
+    use markdown::parse::{BlockData, BlockKind};
 
     #[gpui::test]
     async fn snapshot_tracks_nested_visible_order(cx: &mut TestAppContext) {

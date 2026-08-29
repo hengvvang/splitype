@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use splitype_infra::theme::{ThemeColors, ThemeDimensions};
+use theme::{ThemeColors, ThemeDimensions};
 use crate::settings::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use crate::settings::components::shortcuts_data::ShortcutItem;
 

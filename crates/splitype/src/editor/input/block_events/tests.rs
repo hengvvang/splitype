@@ -9,9 +9,9 @@ mod tests {
     use crate::editor::engine::controller::Editor;
     use crate::editor::input::actions::ExitCodeBlock;
     use crate::editor::input::actions::{DeleteBackward, Newline};
-    use splitype_model::block::CalloutKind;
-    use splitype_model::inline::text::BlockText;
-    use splitype_model::parse::{BlockData, BlockKind};
+    use markdown::block::CalloutKind;
+    use markdown::inline::text::BlockText;
+    use markdown::parse::{BlockData, BlockKind};
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

@@ -10,7 +10,7 @@ use crate::app::shell::Shell;
 use crate::app::actions::{CloseExplorerFolder, ToggleExplorer};
 use crate::explorer::state::state::*;
 use crate::explorer::state::worktree::Worktree;
-use splitype_infra::config::settings::SettingsStore;
+use config::settings::SettingsStore;
 
 impl Shell {
     pub(crate) fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -188,7 +188,8 @@ impl Shell {
             cx.spawn(async move |_this, cx: &mut AsyncApp| {
                 let _ = cx.update_window(window_handle, |_, window, cx| {
                     let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.begin_inline_rename(path, window, cx);
+                        editor.begin_inline_rename(path.to_path_buf(), window, cx);
+
                     });
                 });
             })
@@ -236,7 +237,7 @@ impl Shell {
                 return;
             };
             if path.is_dir()
-                && let Err(err) = splitype_infra::config::recent::record_recent_folder(&path)
+                && let Err(err) = config::recent::record_recent_folder(&path)
             {
                 tracing::warn!(path = %path.display(), error = %err, "failed to update recent folder history");
             }

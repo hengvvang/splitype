@@ -6,7 +6,7 @@ use crate::editor::document::block::Block;
 use crate::editor::panes::wysiwyg::render::{
     effective_list_item_image_width, numbered_list_marker, render_custom_bullet_marker,
 };
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Render an unordered (bulleted) list item.
 pub(crate) fn render_bulleted_list_item(
@@ -270,8 +270,8 @@ pub(crate) fn render_numbered_list_item(
 }
 
 /// Helper to get I18n strings from the global context.
-fn strings_from_context(cx: &mut Context<Block>) -> splitype_infra::i18n::I18nStrings {
-    cx.global::<splitype_infra::i18n::I18nManager>()
+fn strings_from_context(cx: &mut Context<Block>) -> i18n::I18nStrings {
+    cx.global::<i18n::I18nManager>()
         .strings_arc()
         .as_ref()
         .clone()

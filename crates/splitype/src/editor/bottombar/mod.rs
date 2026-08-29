@@ -6,18 +6,18 @@
 
 pub(crate) mod words;
 
-use splitype_ui::bottombar::bottombar_container;
+use ui::bottombar::bottombar_container;
 
-use splitype_ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
+use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 
 use gpui::prelude::*;
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use splitype_infra::config::settings::{SettingsStore, StatusBarSettings};
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
-use splitype_splitter::SplitAxis;
+use config::settings::{SettingsStore, StatusBarSettings};
+use i18n::I18nStrings;
+use theme::Theme;
+use splitter::SplitAxis;
 
 use words::count_words;
 

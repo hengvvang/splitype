@@ -9,9 +9,9 @@
 use crate::app::window::panels::EditorPanelMode;
 use crate::editor::engine::controller::{Editor, PaneId};
 use crate::editor::engine::session::{EditorPaneKind, EditorSession};
-use splitype_splitter::NodeId;
+use splitter::NodeId;
 use gpui::Context;
-use splitype_splitter::tree::SplitAxis;
+use splitter::tree::SplitAxis;
 
 impl Editor {
     /// This editor's session, mutably (always present).

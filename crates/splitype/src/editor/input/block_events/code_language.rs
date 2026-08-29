@@ -9,7 +9,7 @@ use crate::editor::input::actions::{
     IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectLeft,
     SelectRight,
 };
-use splitype_render::plugins::code_highlight::options::code_language_options_matching;
+use syntax::options::code_language_options_matching;
 use crate::editor::document::block::Block;
 impl Block {
     pub(crate) fn on_code_block_hover(

@@ -17,8 +17,8 @@ use crate::app::actions::{
 #[cfg(target_os = "macos")]
 use crate::app::actions::{InstallCliTool, UninstallCliTool};
 use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use crate::infra::i18n::I18nManager;
-use crate::infra::theme::ThemeManager;
+use i18n::I18nManager;
+use theme::ThemeManager;
 #[cfg(target_os = "macos")]
 use crate::platform::cli_tool::is_cli_symlink_current_app;
 
@@ -190,8 +190,8 @@ mod tests {
         OpenFeatureRequest, OpenRecentFile, OpenSplitypeRepository, SelectLanguage, SelectTheme,
     };
     use crate::editor::actions::{ExportHtml, ExportPdf};
-    use crate::infra::i18n::I18nManager;
-    use crate::infra::theme::ThemeManager;
+    use i18n::I18nManager;
+    use theme::ThemeManager;
     use gpui::{Action, MenuItem};
     use std::path::PathBuf;
 

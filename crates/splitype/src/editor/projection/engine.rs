@@ -2,12 +2,12 @@
 
 use std::ops::Range;
 
-use splitype_model::inline::footnote::InlineFootnoteReference;
-use splitype_model::inline::link::InlineLink;
-use splitype_model::inline::render_cache::InlineRenderCache;
-use splitype_model::inline::serialize::can_use_markdown_script_delimiters;
-use splitype_model::inline::style::{InlineScript, InlineStyle};
-use splitype_model::inline::text::{BlockText, InlineAttributes, InlineFragment};
+use markdown::inline::footnote::InlineFootnoteReference;
+use markdown::inline::link::InlineLink;
+use markdown::inline::render_cache::InlineRenderCache;
+use markdown::inline::serialize::can_use_markdown_script_delimiters;
+use markdown::inline::style::{InlineScript, InlineStyle};
+use markdown::inline::text::{BlockText, InlineAttributes, InlineFragment};
 
 use crate::editor::document::block::CollapsedCaretAffinity;
 

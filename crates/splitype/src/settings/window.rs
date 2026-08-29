@@ -4,15 +4,16 @@ use std::collections::HashSet;
 
 use gpui::*;
 
-use splitype_infra::config::settings::*;
-use splitype_infra::i18n::manager::I18nManager;
-use splitype_infra::theme::{Theme, ThemeManager};
+use config::settings::*;
+use i18n::{apply_configured_language, manager::I18nManager};
+use theme::{apply_configured_theme, Theme, ThemeManager};
 use crate::settings::components::*;
+
 use crate::settings::state::SettingsTab;
-use splitype_ui::custom_titlebar::{
+use ui::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
-use splitype_ui::tab::nav_tab;
+use ui::tab::nav_tab;
 
 /// Independent standalone settings window view.
 pub(crate) struct SettingsWindow {
@@ -1082,7 +1083,7 @@ pub(crate) fn open_settings_window(cx: &mut App) -> Option<WindowHandle<Settings
 #[cfg(test)]
 mod tests {
     use super::AppSettings;
-    use splitype_infra::config::settings::StartupOpenSetting;
+    use config::settings::StartupOpenSetting;
 
     #[test]
     fn test_app_settings_default() {

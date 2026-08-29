@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_infra::i18n::{I18nManager, I18nStrings};
+use i18n::{I18nManager, I18nStrings};
 
 impl Editor {
     /// Apply the pane's pending focus to the window keyboard focus. Only

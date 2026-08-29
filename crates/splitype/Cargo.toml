@@ -11,21 +11,27 @@ default-run = "splitype"
 workspace = true
 
 [features]
-default = ["splitype-render/default", "splitype-model/default", "code-highlight-core"]
-code-highlight-core = ["splitype-render/code-highlight-core"]
-
+default = ["syntax/default", "markdown/default"]
+code-highlight-core = ["syntax/code-highlight-core"]
 
 [[bin]]
 name = "splitype"
 path = "src/main.rs"
 
 [dependencies]
-splitype-core = { workspace = true }
-splitype-model = { workspace = true }
-splitype-splitter = { workspace = true }
-splitype-infra = { workspace = true }
-splitype-render = { workspace = true }
-splitype-ui = { workspace = true }
+primitives = { path = "../primitives" }
+sum_tree = { path = "../sum_tree" }
+markdown = { path = "../markdown" }
+splitter = { path = "../splitter" }
+theme = { path = "../theme" }
+i18n = { path = "../i18n" }
+config = { path = "../config" }
+net = { path = "../net" }
+syntax = { path = "../syntax" }
+latex = { path = "../latex" }
+mermaid = { path = "../mermaid" }
+export = { path = "../export" }
+ui = { path = "../ui" }
 
 gpui = { workspace = true }
 gpui_platform = { workspace = true }

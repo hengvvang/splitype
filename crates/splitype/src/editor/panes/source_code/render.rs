@@ -2,7 +2,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::*;
 use crate::editor::panes::source_code::element::SourceCodeViewElement;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 impl Editor {
     pub(crate) fn render_source_pane(
@@ -48,8 +48,8 @@ impl Editor {
             .h_full()
             .relative()
             .bg(c.editor_background)
-            .font(splitype_infra::theme::TypographyStore::default_font(
-                splitype_infra::theme::TypographyScope::Code,
+            .font(theme::TypographyStore::default_font(
+                theme::TypographyScope::Code,
             ))
             .on_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
                 if this.handle_source_key_down(pane_id, event, window, cx) {

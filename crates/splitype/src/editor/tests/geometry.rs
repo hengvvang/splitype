@@ -2,7 +2,7 @@
 //! mapping, and the visible row band.
 
 use crate::editor::engine::controller::Editor;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 #[test]
 fn centered_column_ratio_stays_full_before_shrink_start() {
@@ -74,7 +74,7 @@ fn centered_column_width_calculation() {
 
 #[test]
 fn test_toolbar_dynamic_button_and_icon_size() {
-    use splitype_ui::button::{toolbar_button_size, toolbar_icon_size};
+    use ui::button::{toolbar_button_size, toolbar_icon_size};
 
     // Default bar height 28.0px
     assert_eq!(toolbar_button_size(28.0), 20.0);

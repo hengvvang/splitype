@@ -1,6 +1,6 @@
 use gpui::*;
 
-use splitype_infra::theme::{Theme, TypographyScope, TypographyStore};
+use theme::{Theme, TypographyScope, TypographyStore};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GraphicKind {

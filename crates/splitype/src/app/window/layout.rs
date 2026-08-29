@@ -3,23 +3,23 @@
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor.s pane layout rendering lives in
-//! `crate::editor::panel_layout`. The window panel state aggregate lives in
+//! `editor::panel_layout`. The window panel state aggregate lives in
 //! `crate::app::window::panels`.
 
-use crate::ui::menu_item::menu_item;
-use crate::ui::popover::menu_panel;
+use ui::menu_item::menu_item;
+use ui::popover::menu_panel;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
 
 use crate::app::window::panels::WindowPanelKind;
-use crate::ui::corner_drag_preview::render_corner_drag_preview;
-use crate::infra::i18n::I18nStrings;
-use crate::infra::theme::{Theme, ThemeManager};
-use splitype_splitter::policy::CornerDragResult;
-use splitype_splitter::sessions::CornerDragModifier;
-use splitype_splitter::tree::{NodeId, SplitAxis, SplitTree};
+use ui::corner_drag_preview::render_corner_drag_preview;
+use i18n::I18nStrings;
+use theme::{Theme, ThemeManager};
+use splitter::policy::CornerDragResult;
+use splitter::sessions::CornerDragModifier;
+use splitter::tree::{NodeId, SplitAxis, SplitTree};
 
 /// Icon path for a window-panel top-bar button, per panel kind.
 ///
@@ -39,11 +39,11 @@ pub(crate) fn panel_topbar_icon(kind: WindowPanelKind, name: &str) -> SharedStri
 ///
 /// Shared by the outer window-panel border menu and the editor.s pane
 /// border menu so both render identically.
-pub(crate) fn border_menu_style(theme: &Theme) -> crate::splitter::interaction::MenuStyle {
+pub(crate) fn border_menu_style(theme: &Theme) -> splitter::interaction::MenuStyle {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
-    crate::splitter::interaction::MenuStyle {
+    splitter::interaction::MenuStyle {
         surface: c.dialog_surface,
         border: c.dialog_border,
         border_width: d.dialog_border_width,
@@ -93,7 +93,7 @@ impl Shell {
         let root_shell_up = cx.entity().downgrade();
         let root_shell_up_out = cx.entity().downgrade();
 
-        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
             Decorations::Server,
             &theme.dimensions,
@@ -115,7 +115,7 @@ impl Shell {
                     let body_height = (f32::from(viewport.height) - titlebar_height).max(0.0);
                     let body_size = size(viewport.width, px(body_height));
                     let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
-                    if splitype_splitter::interaction::update_splitter_drag(
+                    if splitter::interaction::update_splitter_drag(
                         &mut shell.panels.layout,
                         body_pos,
                         body_size,
@@ -151,7 +151,7 @@ impl Shell {
             .child(layout_tree);
 
         // Build the preview overlay for corner drag gestures.
-        let overlay_style = splitype_splitter::interaction::OverlayStyle {
+        let overlay_style = splitter::interaction::OverlayStyle {
             accent: theme.colors.split_indicator,
             tile_radius: theme.dimensions.panel_tile_radius,
             border: theme.colors.dialog_border,
@@ -199,7 +199,7 @@ impl Shell {
         }
 
         let theme = cx.global::<ThemeManager>().current_arc();
-        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
             Decorations::Server,
             &theme.dimensions,
@@ -238,7 +238,7 @@ impl Shell {
 
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &crate::splitter::SplitTree<crate::app::window::panels::WindowPanelKind>,
+        node: &splitter::SplitTree<crate::app::window::panels::WindowPanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -246,7 +246,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
-        let overlay_style = splitype_splitter::interaction::OverlayStyle {
+        let overlay_style = splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
             tile_radius: theme.dimensions.panel_tile_radius,
             border: c.dialog_border,
@@ -330,7 +330,7 @@ impl Shell {
                             )
                             .child(
                                 // Splitter bar between the two seamless panel_contents.
-                                splitype_splitter::interaction::splitter_bar_h(
+                                splitter::interaction::splitter_bar_h(
                                     ("tiled-root-bar-h", split_id),
                                     r,
                                     bar_active,
@@ -339,7 +339,7 @@ impl Shell {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_shell.update(cx, |shell, cx| {
-                                        splitype_splitter::interaction::start_splitter_drag(
+                                        splitter::interaction::start_splitter_drag(
                                             &mut shell.panels.layout,
                                             split_id,
                                             SplitAxis::Horizontal,
@@ -354,7 +354,7 @@ impl Shell {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_shell.update(cx, |shell, cx| {
-                                            splitype_splitter::interaction::open_border_menu(
+                                            splitter::interaction::open_border_menu(
                                                 &mut shell.panels.layout,
                                                 split_id,
                                                 split_axis,
@@ -410,7 +410,7 @@ impl Shell {
                             )
                             .child(
                                 // Splitter bar between the two seamless panel_contents.
-                                splitype_splitter::interaction::splitter_bar_v(
+                                splitter::interaction::splitter_bar_v(
                                     ("tiled-root-bar-v", split_id),
                                     r,
                                     bar_active,
@@ -419,7 +419,7 @@ impl Shell {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_shell.update(cx, |shell, cx| {
-                                        splitype_splitter::interaction::start_splitter_drag(
+                                        splitter::interaction::start_splitter_drag(
                                             &mut shell.panels.layout,
                                             split_id,
                                             SplitAxis::Vertical,
@@ -434,7 +434,7 @@ impl Shell {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_shell.update(cx, |shell, cx| {
-                                            splitype_splitter::interaction::open_border_menu(
+                                            splitter::interaction::open_border_menu(
                                                 &mut shell.panels.layout,
                                                 split_id,
                                                 split_axis,
@@ -571,7 +571,7 @@ impl Shell {
             })
             .child(panel_card);
 
-        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
             Decorations::Server,
             &theme.dimensions,
@@ -579,7 +579,7 @@ impl Shell {
 
         // Corner drag handles positioned at the four outer corners of the tile card.
         let shell_corner = cx.entity().downgrade();
-        let corner_handles = splitype_splitter::interaction::corner_drag_handles(
+        let corner_handles = splitter::interaction::corner_drag_handles(
             "panel-corner",
             leaf_id,
             gap,
@@ -672,7 +672,7 @@ impl Shell {
     }
     pub(crate) fn render_window_panel_border_menu(
         &mut self,
-        border_menu: crate::splitter::BorderMenuState,
+        border_menu: splitter::BorderMenuState,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -717,22 +717,22 @@ impl Shell {
             });
         });
 
-        crate::splitter::interaction::render_border_menu(
+        splitter::interaction::render_border_menu(
             border_menu.position,
             vec![
-                crate::splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Split Horizontally",
                     on_activate: split_h,
                 },
-                crate::splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Split Vertically",
                     on_activate: split_v,
                 },
-                crate::splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Swap Panels",
                     on_activate: swap,
                 },
-                crate::splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Close Panel",
                     on_activate: close,
                 },

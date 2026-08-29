@@ -24,16 +24,16 @@ use gpui::*;
 
 use crate::editor::document::protocol::BlockEvent;
 use crate::editor::input::table_grid::TableGrid;
-use splitype_render::plugins::code_highlight::highlight::CodeHighlightResult;
-use splitype_render::plugins::mermaid_render::MermaidSvgRender;
+use syntax::highlight::CodeHighlightResult;
+use mermaid::MermaidSvgRender;
 use crate::editor::projection::ExpandedInlineProjection;
-use splitype_model::block::CalloutKind;
-use splitype_model::block::image::ImageReferenceDefinitions;
-use splitype_model::block::link::LinkReferenceDefinitions;
-use splitype_model::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
-use splitype_model::inline::render_cache::InlineRenderCache;
-use splitype_model::parse::BlockId;
-use splitype_model::parse::{BlockData, BlockKind};
+use markdown::block::CalloutKind;
+use markdown::block::image::ImageReferenceDefinitions;
+use markdown::block::link::LinkReferenceDefinitions;
+use markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
+use markdown::inline::render_cache::InlineRenderCache;
+use markdown::parse::BlockId;
+use markdown::parse::{BlockData, BlockKind};
 
 impl EventEmitter<BlockEvent> for Block {}
 

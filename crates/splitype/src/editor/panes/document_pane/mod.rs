@@ -22,8 +22,8 @@ pub(crate) mod viewport;
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_infra::i18n::I18nManager;
-use splitype_infra::theme::ThemeManager;
+use i18n::I18nManager;
+use theme::ThemeManager;
 
 pub(crate) const SPLITYPE_REPOSITORY_URL: &str = "https://github.com/hengvvang/splitype";
 pub(crate) const SPLITYPE_BUG_REPORT_URL: &str =
@@ -111,7 +111,7 @@ impl Render for Editor {
             .border(px(d.dialog_border_width))
             .border_color(c.dialog_border)
             .shadow_lg()
-            .font(splitype_infra::theme::TypographyStore::prose_font(cx))
+            .font(theme::TypographyStore::prose_font(cx))
             .on_modifiers_changed(move |event, window, _| {
                 if event.modifiers.secondary() != follow_modifier_active {
                     window.refresh();

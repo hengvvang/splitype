@@ -11,7 +11,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::document::block::Block;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn is_block_quote_structure_related(&self, block: &Entity<Block>, cx: &App) -> bool {

@@ -4,14 +4,14 @@ use gpui::*;
 
 use crate::editor::engine::controller::*;
 use crate::editor::engine::session::EditorPaneKind;
-use splitype_infra::theme::Theme;
-use splitype_splitter::SplitAxis;
-use splitype_ui::popover::menu_panel;
+use theme::Theme;
+use splitter::SplitAxis;
+use ui::popover::menu_panel;
 
 impl Editor {
     pub(crate) fn render_editor_pane_border_menu(
         &mut self,
-        border_menu: splitype_splitter::BorderMenuState,
+        border_menu: splitter::BorderMenuState,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -58,22 +58,22 @@ impl Editor {
             });
         });
 
-        splitype_splitter::interaction::render_border_menu(
+        splitter::interaction::render_border_menu(
             border_menu.position,
             vec![
-                splitype_splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Split Horizontally",
                     on_activate: split_h,
                 },
-                splitype_splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Split Vertically",
                     on_activate: split_v,
                 },
-                splitype_splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Swap Panels",
                     on_activate: swap,
                 },
-                splitype_splitter::interaction::BorderMenuItem {
+                splitter::interaction::BorderMenuItem {
                     label: "Close Panel",
                     on_activate: close,
                 },

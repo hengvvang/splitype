@@ -7,11 +7,11 @@
 
 use gpui::*;
 
-use splitype_render::plugins::latex_render::{inline_math_font_size, render_inline_math_svg};
-use splitype_infra::theme::Theme;
-use splitype_model::inline::render_cache::InlineSpan;
-use splitype_model::inline::style::InlineScript;
-use splitype_model::inline::text::BlockText;
+use latex::{inline_math_font_size, render_inline_math_svg};
+use theme::Theme;
+use markdown::inline::render_cache::InlineSpan;
+use markdown::inline::style::InlineScript;
+use markdown::inline::text::BlockText;
 
 use std::ops::Range;
 
@@ -237,8 +237,8 @@ pub(crate) fn render_preview_span(
         element = element.bg(bg);
     } else if span.style.code {
         element = element
-            .font(splitype_infra::theme::TypographyStore::default_font(
-                splitype_infra::theme::TypographyScope::Code,
+            .font(theme::TypographyStore::default_font(
+                theme::TypographyScope::Code,
             ))
             .rounded(px(theme.dimensions.code_bg_radius))
             .px(px(theme.dimensions.code_bg_pad_x))

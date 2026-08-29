@@ -2,7 +2,7 @@
 //! key bindings for the block editor and window commands.
 //!
 //! The shortcut schema (definition table, defaults, normalization) lives in
-//! `splitype_infra::config::keybindings`; this module maps `ShortcutCommand`s
+//! `config::keybindings`; this module maps `ShortcutCommand`s
 //! to the concrete gpui action types and installs them.
 
 use std::collections::BTreeMap;
@@ -12,10 +12,11 @@ use gpui::*;
 use crate::app::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
-use crate::editor::actions::{
+use crate::editor::commands::actions::{
     FindNext, FindPrevious, SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind,
     ToggleReplace, ToggleSearch,
 };
+
 use crate::editor::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBackward,
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
@@ -24,7 +25,7 @@ use crate::editor::input::actions::{
     StrikethroughSelection, UnderlineSelection, Undo, WordDeleteBackward, WordDeleteForward,
     WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
 };
-use splitype_infra::config::keybindings::{
+use config::keybindings::{
     SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
 };
 

@@ -1,0 +1,46 @@
+[package]
+name = "syntax"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["code-highlight-core"]
+code-highlight-core = [
+    "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-c-sharp", "tree-sitter-css",
+    "tree-sitter-go", "tree-sitter-html", "tree-sitter-java", "tree-sitter-javascript",
+    "tree-sitter-json", "tree-sitter-python", "tree-sitter-rust", "tree-sitter-typescript",
+    "tree-sitter-yaml"
+]
+code-highlight-official = ["code-highlight-core"]
+code-highlight-config = ["code-highlight-core"]
+
+
+[dependencies]
+primitives = { path = "../primitives" }
+markdown = { path = "../markdown" }
+theme = { path = "../theme" }
+gpui = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-highlight = "0.26.9"
+lazy_static = "1.5"
+
+# Languages
+tree-sitter-c = { version = "0.23", optional = true }
+tree-sitter-cpp = { version = "0.23", optional = true }
+tree-sitter-c-sharp = { version = "0.23", optional = true }
+tree-sitter-css = { version = "0.23", optional = true }
+tree-sitter-go = { version = "0.23", optional = true }
+tree-sitter-html = { workspace = true, optional = true }
+tree-sitter-java = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.23", optional = true }
+tree-sitter-json = { version = "0.24", optional = true }
+tree-sitter-python = { version = "0.23", optional = true }
+tree-sitter-rust = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-yaml = { version = "0.7", optional = true }

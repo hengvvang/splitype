@@ -3,7 +3,7 @@
 //! Owned by the Editor entity (`WindowPanels::settings`) and shared with
 //! the standalone settings window. Pure view state only (active tab, expanded
 //! sections, dropdown states, search queries, inline editing buffers).
-//! Canonical configuration lives in `SettingsStore` (`splitype_infra::config::settings`).
+//! Canonical configuration lives in `SettingsStore` (`config::settings`).
 
 use std::collections::HashSet;
 

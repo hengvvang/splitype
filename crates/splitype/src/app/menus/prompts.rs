@@ -11,11 +11,10 @@ use gpui::*;
 
 use super::{install_menus, show_window_prompt, with_active_window};
 use crate::app::window::{open_file_in_new_window, record_recent_file_and_refresh};
-use crate::infra::config::recent::{read_recent_files, remove_recent_file};
-use crate::infra::config::settings::{
-    import_language_config_and_select, import_theme_config_and_select,
-};
-use crate::infra::i18n::I18nManager;
+use config::recent::{read_recent_files, remove_recent_file};
+use i18n::{import_language_config_and_select, I18nManager};
+use theme::import_theme_config_and_select;
+
 
 pub(super) fn open_recent_file(cx: &mut App, path: PathBuf) {
     let error_window = cx.active_window();

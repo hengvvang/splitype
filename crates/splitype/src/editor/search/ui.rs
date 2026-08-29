@@ -5,7 +5,7 @@ use gpui::*;
 use crate::editor::engine::controller::Editor;
 use crate::editor::search::input_element::SearchInputElement;
 use crate::editor::search::state::{SearchActiveField, SearchScope};
-use splitype_infra::theme::{Theme, TypographyScope, TypographyStore};
+use theme::{Theme, TypographyScope, TypographyStore};
 
 impl Editor {
     /// Renders the floating Search and Replace overlay panel in the top-right corner.

@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn on_table_event(
@@ -58,10 +58,10 @@ impl Editor {
                 self.reorder_table_axis(block, *kind, *from, *to, cx);
             }
             BlockEvent::RequestInsertTableAxisAt { kind, index } => match kind {
-                splitype_model::block::table::TableAxis::Column => {
+                markdown::block::table::TableAxis::Column => {
                     self.insert_table_column_at(block, *index, cx);
                 }
-                splitype_model::block::table::TableAxis::Row => {
+                markdown::block::table::TableAxis::Row => {
                     self.insert_table_row_at(block, *index, cx);
                 }
             },

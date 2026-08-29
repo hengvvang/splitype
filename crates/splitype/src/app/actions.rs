@@ -2,8 +2,8 @@
 //! app-level commands (windows, menus, settings, explorer, CLI, links).
 //!
 //! Document-level actions (save / export / view mode) live in
-//! `crate::editor::actions`; text-editing actions live in
-//! `crate::editor::input::actions`.
+//! `editor::actions`; text-editing actions live in
+//! `editor::input::actions`.
 
 use gpui::*;
 use schemars::JsonSchema;

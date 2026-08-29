@@ -6,12 +6,12 @@ use gpui::*;
 
 use crate::app::window::layout::panel_topbar_icon;
 use crate::app::window::panels::WindowPanelKind;
-use splitype_infra::theme::Theme;
-use splitype_splitter::SplitAxis;
-use splitype_ui::button::{
+use theme::Theme;
+use splitter::SplitAxis;
+use ui::button::{
     icon_chip_button, small_pill_button, toolbar_button_size, toolbar_icon_size,
 };
-use splitype_ui::topbar::topbar_container;
+use ui::topbar::topbar_container;
 
 impl crate::editor::engine::controller::Editor {
     /// Top bar of an Editor area: type selector and split/close controls

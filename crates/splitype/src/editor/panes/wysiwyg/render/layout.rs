@@ -6,7 +6,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_infra::theme::*;
+use ::theme::*;
 
 // ── Spacing helpers ─────────────────────────────────────────────────────
 
@@ -19,7 +19,7 @@ pub struct RowSpacingInfo {
     pub quote_group_id: Option<BlockId>,
     pub visible_quote_group_id: Option<BlockId>,
     pub callout_group_id: Option<BlockId>,
-    pub callout_variant: Option<splitype_model::block::CalloutKind>,
+    pub callout_variant: Option<markdown::block::CalloutKind>,
     pub is_callout_header: bool,
     pub footnote_group_id: Option<BlockId>,
     pub is_footnote_header: bool,
@@ -37,7 +37,7 @@ impl RowSpacingInfo {
             is_callout_header: block.kind().is_callout(),
             footnote_group_id: block.footnote_group_id,
             is_footnote_header: block.kind().is_footnote_definition(),
-            is_empty_paragraph: block.kind() == splitype_model::parse::BlockKind::Paragraph
+            is_empty_paragraph: block.kind() == markdown::parse::BlockKind::Paragraph
                 && block.data.text.plain_text().is_empty()
                 && block.children.is_empty(),
         }
@@ -100,7 +100,7 @@ pub fn footnote_row_top_gap(previous: Option<RowSpacingInfo>, default_gap: f32) 
 }
 
 /// Callout accent border + background colours from the theme.
-pub fn callout_colors(variant: splitype_model::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
+pub fn callout_colors(variant: markdown::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
     let style = theme.callout_style(variant);
     (style.border_color, style.background_color)
 }
@@ -113,8 +113,8 @@ mod tests {
         RowSpacingInfo, callout_row_top_gap,
         row_top_gap,
     };
-    use splitype_infra::theme::{Theme, TypographyScope, TypographyStore};
-    use splitype_model::parse::BlockId;
+    use theme::{Theme, TypographyScope, TypographyStore};
+    use markdown::parse::BlockId;
     use uuid::Uuid;
 
     #[test]

@@ -354,13 +354,13 @@ impl Default for ExplorerState {
 impl ExplorerState {
     /// Refreshes the cached recent folders and files for empty state rendering.
     pub fn refresh_recent_cache(&mut self) {
-        self.recent_folders_cache = splitype_infra::config::recent::read_recent_folders()
+        self.recent_folders_cache = config::recent::read_recent_folders()
             .unwrap_or_default()
             .into_iter()
             .filter(|path| path.is_dir())
             .take(5)
             .collect();
-        self.recent_files_cache = splitype_infra::config::recent::read_recent_files()
+        self.recent_files_cache = config::recent::read_recent_files()
             .unwrap_or_default()
             .into_iter()
             .filter(|path| path.is_file())

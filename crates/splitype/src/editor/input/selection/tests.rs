@@ -9,9 +9,9 @@ mod tests {
         CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorSelection,
     };
     use crate::editor::input::actions::{Cut, Undo};
-    use splitype_infra::i18n::I18nManager;
-    use splitype_infra::theme::ThemeManager;
-    use splitype_model::parse::BlockKind;
+    use i18n::I18nManager;
+    use theme::ThemeManager;
+    use markdown::parse::BlockKind;
 
     fn init_editor_test_app(cx: &mut TestAppContext) {
         cx.update(|cx| {
@@ -432,7 +432,7 @@ mod tests {
             // Append a trailing empty paragraph, exactly as inserting a table at
             // the end of a document does.
             let empty =
-                Editor::new_block(cx, splitype_model::parse::BlockData::paragraph(String::new()));
+                Editor::new_block(cx, markdown::parse::BlockData::paragraph(String::new()));
             let index = editor.doc().root_count();
             editor
                 .doc_mut()
@@ -464,7 +464,7 @@ mod tests {
             // to abort deletion (the user's "drag up from the text below into an
             // empty block above the table" case).
             let empty =
-                Editor::new_block(cx, splitype_model::parse::BlockData::paragraph(String::new()));
+                Editor::new_block(cx, markdown::parse::BlockData::paragraph(String::new()));
             editor.doc_mut().insert_blocks_at(None, 0, vec![empty], cx);
 
             let entries = editor.doc().blocks().to_vec();

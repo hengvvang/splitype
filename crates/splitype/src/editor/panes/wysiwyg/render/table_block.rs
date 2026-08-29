@@ -6,10 +6,10 @@ use crate::editor::geometry::table_measure::measure_table_column_layout;
 use crate::editor::document::block::Block;
 use crate::editor::document::block::edit_mode::BlockEditMode;
 use crate::editor::panes::wysiwyg::render::effective_table_width;
-use splitype_infra::theme::Theme;
-use splitype_model::block::table::TableCellPosition;
-use splitype_model::block::table::TableColumnAlignment;
-use splitype_model::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
+use theme::Theme;
+use markdown::block::table::TableCellPosition;
+use markdown::block::table::TableColumnAlignment;
+use markdown::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
 
 /// Visual highlight priority state for table row and column axes: Dragging > Selected > Hovered > Editing > None.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

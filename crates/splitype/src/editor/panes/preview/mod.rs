@@ -17,9 +17,9 @@ use crate::editor::engine::controller::{Editor, PaneId};
 use crate::editor::document::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-use splitype_model::block::image::ImageReferenceDefinitions;
-use splitype_model::block::link::LinkReferenceDefinitions;
-use splitype_model::parse::{BlockData, BlockId, BlockKind};
+use markdown::block::image::ImageReferenceDefinitions;
+use markdown::block::link::LinkReferenceDefinitions;
+use markdown::parse::{BlockData, BlockId, BlockKind};
 
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]
@@ -66,7 +66,7 @@ impl Editor {
             .and_then(|state| state.as_preview())
             .is_none_or(|p| p.source_hash != hash || p.blocks.is_empty());
         if needs_rebuild {
-            let data = splitype_model::parse::parser::parse_preview_document(&source);
+            let data = markdown::parse::parser::parse_preview_document(&source);
             let mut roots = blocks_to_preview_tree(data);
             if roots.is_empty() {
                 roots.push(PreviewBlock::new(BlockData::paragraph(String::new())));
@@ -171,7 +171,7 @@ impl Editor {
             if block.kind() == BlockKind::FootnoteDefinition && allowed {
                 definitions
                     .entry(
-                        splitype_model::block::footnote::split_footnote_definition_text(
+                        markdown::block::footnote::split_footnote_definition_text(
                             &block.data.text.plain_text(),
                         )
                         .0

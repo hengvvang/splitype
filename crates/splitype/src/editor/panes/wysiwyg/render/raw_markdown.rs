@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Render a raw Markdown fallback block (identical to paragraph rendering).
 pub(crate) fn render_raw_markdown(

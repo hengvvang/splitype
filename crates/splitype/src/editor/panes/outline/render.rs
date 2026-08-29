@@ -8,7 +8,7 @@ use crate::editor::engine::controller::{Editor, EditorPaneKind, PaneId};
 use crate::editor::panes::outline::{
     build_outline_headings_from_doc, build_outline_headings_from_markdown,
 };
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 impl Editor {
     /// Rebuilds this editor's outline headings list from the active tab and current pane mode.

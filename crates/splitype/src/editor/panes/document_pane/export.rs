@@ -5,10 +5,10 @@ use futures::channel::oneshot;
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use splitype_render::export::{self as document_export, ExportFormat};
-use splitype_infra::error::ExportError;
-use splitype_infra::i18n::I18nManager;
-use splitype_infra::theme::{Theme, ThemeManager};
+use export::{self as document_export, ExportFormat};
+use export::ExportError;
+use i18n::I18nManager;
+use theme::{Theme, ThemeManager};
 
 impl Editor {
     pub(crate) fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
@@ -73,10 +73,7 @@ impl Editor {
         source_base_dir: Option<&Path>,
     ) -> Result<(), ExportError> {
         let bytes = Self::render_export_bytes(format, markdown, theme, title, source_base_dir)?;
-        std::fs::write(path, bytes).map_err(|source| ExportError::IoFailed {
-            path: path.to_path_buf(),
-            source,
-        })
+        std::fs::write(path, bytes).map_err(ExportError::Io)
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -152,7 +149,7 @@ impl Editor {
                 });
 
             if let Err(err) = spawn_result {
-                let detail = ExportError::TaskSpawnFailed(err.to_string()).to_string();
+                let detail = ExportError::Render(err.to_string()).to_string();
                 let _ = cx.update_window(
                     window_handle,
                     move |_view: AnyView, window: &mut Window, cx: &mut App| {
@@ -164,7 +161,9 @@ impl Editor {
 
             let result = receiver
                 .await
-                .unwrap_or(Err(ExportError::TaskAborted));
+                .unwrap_or_else(|_| Err(ExportError::Render("export task aborted".to_string())));
+
+
             if let Err(err) = result {
                 let detail = err.to_string();
                 let _ = cx.update_window(

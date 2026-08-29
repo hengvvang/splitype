@@ -56,7 +56,7 @@ impl Editor {
     /// shrinks to `centered_min_ratio` at `centered_shrink_end`.
     pub(crate) fn centered_column_ratio(
         viewport_width: f32,
-        dimensions: &splitype_infra::theme::ThemeDimensions,
+        dimensions: &theme::ThemeDimensions,
     ) -> f32 {
         if viewport_width <= dimensions.centered_shrink_start {
             return 1.0;
@@ -70,7 +70,7 @@ impl Editor {
 
     pub(crate) fn centered_column_width(
         viewport_width: f32,
-        dimensions: &splitype_infra::theme::ThemeDimensions,
+        dimensions: &theme::ThemeDimensions,
     ) -> f32 {
         let available_content_width = (viewport_width - dimensions.editor_padding * 2.0).max(1.0);
         let centered_ratio = Self::centered_column_ratio(viewport_width, dimensions);

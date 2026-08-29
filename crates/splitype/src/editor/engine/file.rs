@@ -11,7 +11,7 @@ use anyhow::Result;
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, OpenFileMode};
-use splitype_infra::i18n::I18nManager;
+use i18n::I18nManager;
 
 impl Editor {
     pub(crate) fn serialized_document_text(&self, cx: &App) -> String {

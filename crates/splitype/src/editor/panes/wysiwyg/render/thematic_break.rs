@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Render a thematic break (horizontal rule) when the block is not focused:
 /// a full-width line (matching the editing column), vertically centered on

@@ -3,17 +3,17 @@
 //!
 //! Text shaping requires a live `Window` and theme dimensions, so this
 //! presentation logic lives in `editor::geometry` instead of the pure
-//! `splitype_model::block::table` data model. The layout *math*
+//! `markdown::block::table` data model. The layout *math*
 //! (`from_preferred_widths`) stays in the model, keeping the model testable
 //! without a runtime. It is a free function (not an `impl` on
 //! `TableColumnLayout`) because the type is defined in `splitype-model`.
 
 use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
-use splitype_infra::theme::Theme;
-use splitype_model::block::table::{TableColumnLayout, TableData};
-use splitype_model::inline::render_cache::InlineRenderCache;
-use splitype_model::inline::text::BlockText;
+use theme::Theme;
+use markdown::block::table::{TableColumnLayout, TableData};
+use markdown::inline::render_cache::InlineRenderCache;
+use markdown::inline::text::BlockText;
 
 /// Measure preferred column widths with the window's text system and
 /// normalize them to fractions of the available table width.

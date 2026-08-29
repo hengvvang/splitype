@@ -1,17 +1,17 @@
 //! Rendering of the editor's context menus: the axis menu items and the
 //! overlay panel. The table-insert dialog moved to `dialogs.rs`.
 
-use splitype_ui::menu_item::menu_item;
-use splitype_ui::popover::menu_panel;
-use splitype_ui::popover::overlay;
+use ui::menu_item::menu_item;
+use ui::popover::menu_panel;
+use ui::popover::overlay;
 
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::panes::document_pane::context_menu::ContextMenuState;
-use splitype_infra::i18n::I18nManager;
-use splitype_infra::theme::Theme;
-use splitype_model::block::table::TableAxis;
+use i18n::I18nManager;
+use theme::Theme;
+use markdown::block::table::TableAxis;
 impl Editor {
     pub(crate) fn render_axis_menu_item(
         theme: &Theme,
@@ -282,13 +282,13 @@ impl Editor {
                     let p = !h1 && !h2 && !h3 && !h4 && !h5 && !h6;
                     (h1, h2, h3, h4, h5, h6, p)
                 } else {
-                    let h1 = matches!(active_kind, Some(splitype_model::parse::BlockKind::Heading { level: 1 }));
-                    let h2 = matches!(active_kind, Some(splitype_model::parse::BlockKind::Heading { level: 2 }));
-                    let h3 = matches!(active_kind, Some(splitype_model::parse::BlockKind::Heading { level: 3 }));
-                    let h4 = matches!(active_kind, Some(splitype_model::parse::BlockKind::Heading { level: 4 }));
-                    let h5 = matches!(active_kind, Some(splitype_model::parse::BlockKind::Heading { level: 5 }));
-                    let h6 = matches!(active_kind, Some(splitype_model::parse::BlockKind::Heading { level: 6 }));
-                    let p = matches!(active_kind, Some(splitype_model::parse::BlockKind::Paragraph)) || active_kind.is_none();
+                    let h1 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 1 }));
+                    let h2 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 2 }));
+                    let h3 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 3 }));
+                    let h4 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 4 }));
+                    let h5 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 5 }));
+                    let h6 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 6 }));
+                    let p = matches!(active_kind, Some(markdown::parse::BlockKind::Paragraph)) || active_kind.is_none();
                     (h1, h2, h3, h4, h5, h6, p)
                 };
 
@@ -621,7 +621,7 @@ impl Editor {
                         // menu, with its Header Row styling toggle added on top.
                         if selection.index == 0 {
                             let headers_shown =
-                                splitype_infra::config::settings::SettingsStore::get(cx)
+                                config::settings::SettingsStore::get(cx)
                                     .markdown
                                     .show_table_headers;
                             items.push(
@@ -771,7 +771,7 @@ impl Editor {
             .unwrap_or(picker.current_cols)
             .clamp(1, max_matrix_cols);
 
-        use splitype_ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+        use ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
         let colors = MatrixCellColors::from_theme(theme);
         let top_indicator = render_matrix_dimension_indicator(display_rows, display_cols, "Row", "Column", theme);
 

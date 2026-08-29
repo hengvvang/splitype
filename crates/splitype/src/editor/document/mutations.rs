@@ -6,7 +6,7 @@ use super::Document;
 use super::index::{BlockEntry, BlockIndex, BlockLocation, TreeInheritanceScope};
 use crate::editor::engine::controller::Editor;
 use crate::editor::document::block::{Block, BlockStructureContext};
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Document {
     pub(crate) fn insert_blocks_at(
@@ -51,7 +51,7 @@ impl Document {
             &mut self.index,
         );
         let items = self.index.entries.iter().map(|entry| entry.entity.read(cx).data.clone());
-        self.tree = splitype_model::tree::SumTree::from_items(items, &());
+        self.tree = sum_tree::SumTree::from_items(items, &());
         self.metadata_rebuild_version = self.structure_version;
     }
 

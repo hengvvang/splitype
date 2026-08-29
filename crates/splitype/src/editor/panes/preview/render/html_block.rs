@@ -9,11 +9,11 @@ use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::wysiwyg::render::html_document::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
-use splitype_infra::theme::Theme;
-use splitype_model::block::html::{
+use theme::Theme;
+use markdown::block::html::{
     HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };
-use splitype_model::block::image::resolve_image_source;
+use markdown::block::image::resolve_image_source;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
@@ -141,7 +141,7 @@ fn render_preview_html_node(
             .h(px(d.separator_thickness))
             .my(px(d.separator_margin_y))
             .bg(c.separator)
-            .rounded(px(splitype_infra::theme::dimensions::FULL_CORNER_RADIUS))
+            .rounded(px(theme::dimensions::FULL_CORNER_RADIUS))
             .into_any_element(),
         "blockquote" => {
             let mut element = div()
@@ -367,8 +367,8 @@ fn render_preview_html_image(
         .unwrap_or(1.0);
 
     let image = match resolve_image_source(src, None) {
-        splitype_model::block::image::ImageResolvedSource::Local(path) => img(path),
-        splitype_model::block::image::ImageResolvedSource::Remote(uri) => img(uri),
+        markdown::block::image::ImageResolvedSource::Local(path) => img(path),
+        markdown::block::image::ImageResolvedSource::Remote(uri) => img(uri),
     }
     .max_w(Length::Definite(relative(zoom)))
     .max_h(px(theme.dimensions.image_root_max_height * zoom))

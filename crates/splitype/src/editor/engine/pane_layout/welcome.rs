@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 impl Editor {
     pub(crate) fn render_welcome_prompt(

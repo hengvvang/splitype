@@ -18,7 +18,7 @@ impl Editor {
             None
         } else if let Some(text) = content {
             let (_, pure_content) =
-                splitype_model::block::footnote::split_footnote_definition_text(&text);
+                markdown::block::footnote::split_footnote_definition_text(&text);
             Some(FootnoteTooltipState {
                 content: pure_content.to_string().into(),
                 position,
@@ -32,7 +32,7 @@ impl Editor {
                 .map(|entity| {
                     let plain = entity.read(cx).data.text.plain_text();
                     let (_, pure_content) =
-                        splitype_model::block::footnote::split_footnote_definition_text(&plain);
+                        markdown::block::footnote::split_footnote_definition_text(&plain);
                     FootnoteTooltipState {
                         content: pure_content.to_string().into(),
                         position,

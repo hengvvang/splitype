@@ -4,9 +4,9 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
-use splitype_ui::empty_state::empty_state_container;
+use i18n::I18nStrings;
+use theme::Theme;
+use ui::empty_state::empty_state_container;
 
 impl Shell {
     pub(crate) fn render_explorer_empty_state(

@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::document::block::Block;
-use splitype_model::parse::BlockData;
+use markdown::parse::BlockData;
 
 impl Editor {
     /// Parse a Markdown string into a tree of block entities using WYSIWYG (1:1 line) mode.
@@ -17,7 +17,7 @@ impl Editor {
         cx: &mut Context<Self>,
         markdown: &str,
     ) -> Vec<Entity<Block>> {
-        let blocks = splitype_model::parse::parser::parse_wysiwyg_document(markdown);
+        let blocks = markdown::parse::parser::parse_wysiwyg_document(markdown);
         blocks_to_entity_tree(blocks, cx)
     }
 
@@ -26,7 +26,7 @@ impl Editor {
         cx: &mut Context<Self>,
         lines: &[String],
     ) -> Vec<Entity<Block>> {
-        let blocks = splitype_model::parse::parser::build_wysiwyg_blocks_from_lines(lines);
+        let blocks = markdown::parse::parser::build_wysiwyg_blocks_from_lines(lines);
         blocks_to_entity_tree(blocks, cx)
     }
 

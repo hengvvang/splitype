@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use splitype_infra::theme::ThemeManager;
+use theme::ThemeManager;
 
 /// Single-line text element used to edit a fenced code block's info string.
 pub struct CodeLanguageInputElement {

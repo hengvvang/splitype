@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 use std::ops::Range;
 

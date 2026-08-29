@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::search::state::SearchActiveField;
-use splitype_infra::theme::ThemeManager;
+use theme::ThemeManager;
 
 pub(crate) struct SearchInputPrepaintState {
     line: Option<ShapedLine>,

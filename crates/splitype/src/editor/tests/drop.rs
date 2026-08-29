@@ -3,8 +3,8 @@
 use std::fs;
 
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
-use splitype_model::inline::text::BlockText;
-use splitype_model::parse::BlockKind;
+use markdown::inline::text::BlockText;
+use markdown::parse::BlockKind;
 
 use super::*;
 

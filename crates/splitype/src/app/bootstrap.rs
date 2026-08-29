@@ -19,13 +19,13 @@ use crate::app::window::open_editor_window;
 #[cfg(target_os = "macos")]
 use crate::app::window::open_file_in_new_window;
 use crate::editor::keybindings::init_with_keybindings as init_editor;
-use crate::infra::config::settings::{
+use config::settings::{
     SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
-use crate::infra::i18n::I18nManager;
-use crate::infra::net::http_client::install_http_client;
-use crate::infra::theme::ThemeManager;
+use i18n::I18nManager;
+use net::http_client::install_http_client;
+use theme::ThemeManager;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;
 
@@ -118,7 +118,7 @@ pub fn run(args: Args) {
         SettingsStore::init(cx, settings.clone());
         I18nManager::init_with_language_id(cx, &settings.interface.language_id);
         ThemeManager::init_with_theme_id(cx, &settings.interface.theme_id);
-        crate::infra::theme::TypographyStore::init(cx, settings.typography.clone());
+        theme::TypographyStore::init(cx, settings.typography.clone());
         install_http_client(cx);
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
@@ -130,8 +130,8 @@ pub fn run(args: Args) {
             .name("splitype-prewarm".to_string())
             .spawn(|| {
                 crate::editor::plugins::code_highlight::highlight::prewarm_code_highlight_registry();
-                let _ = crate::infra::theme::TypographyStore::default_font(
-                    crate::infra::theme::TypographyScope::Prose,
+                let _ = theme::TypographyStore::default_font(
+                    theme::TypographyScope::Prose,
                 );
             })
             .ok();
@@ -183,7 +183,7 @@ pub fn run(args: Args) {
             let markdown = match std::fs::read_to_string(&absolute_path) {
                 Ok(content) => {
                     if let Err(err) =
-                        crate::infra::config::recent::record_recent_file(&absolute_path)
+                        config::recent::record_recent_file(&absolute_path)
                     {
                         tracing::warn!(path = %absolute_path.display(), error = %err, "failed to update recent file history");
                     }

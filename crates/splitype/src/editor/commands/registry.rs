@@ -7,9 +7,10 @@
 
 use std::path::Path;
 
-use crate::editor::actions::{
+use crate::editor::commands::actions::{
     ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind,
 };
+
 use crate::editor::engine::controller::*;
 use crate::editor::input::actions::{Redo, Undo};
 
@@ -19,7 +20,7 @@ impl Editor {
     pub(crate) fn window_title(
         file_path: Option<&Path>,
         is_dirty: bool,
-        strings: &splitype_infra::i18n::I18nStrings,
+        strings: &i18n::I18nStrings,
     ) -> String {
         let base_title = file_path
             .and_then(|p| p.file_name())
@@ -114,7 +115,7 @@ impl Editor {
             return;
         }
         self.export_document_via_prompt(
-            splitype_render::export::ExportFormat::Html,
+            export::ExportFormat::Html,
             window,
             cx,
         );
@@ -130,7 +131,7 @@ impl Editor {
             return;
         }
         self.export_document_via_prompt(
-            splitype_render::export::ExportFormat::Pdf,
+            export::ExportFormat::Pdf,
             window,
             cx,
         );

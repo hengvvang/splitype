@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
 use crate::editor::input::actions::{FocusNext, Newline};
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 use super::*;
 
@@ -442,12 +442,12 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         let blocks = editor.doc().blocks();
         assert_eq!(
             blocks[0].entity.read(cx).kind(),
-            splitype_model::parse::BlockKind::Paragraph
+            markdown::parse::BlockKind::Paragraph
         );
         assert_eq!(blocks[0].entity.read(cx).display_text(), "");
         assert_eq!(
             blocks[1].entity.read(cx).kind(),
-            splitype_model::parse::BlockKind::Heading { level: 2 }
+            markdown::parse::BlockKind::Heading { level: 2 }
         );
         assert_eq!(blocks[1].entity.read(cx).display_text(), "1111");
     });
@@ -837,7 +837,7 @@ async fn callout_header_unfocused_label_and_focus_projection_offset(cx: &mut Tes
     editor.update(cx, |editor, cx| {
         let callout = editor.doc().first_root().expect("callout root").clone();
         callout.update(cx, |block, _cx| {
-            assert_eq!(block.kind(), BlockKind::Callout(splitype_model::block::CalloutKind::Warning));
+            assert_eq!(block.kind(), BlockKind::Callout(markdown::block::CalloutKind::Warning));
             // In transparent delimiter design, text remains "[!warning]" in both unfocused and focused states
             // with [! and ] rendered transparently in unfocused mode
             assert_eq!(block.display_text(), "[!warning]");
@@ -873,7 +873,7 @@ async fn callout_header_with_custom_title_projection_offset(cx: &mut TestAppCont
     editor.update(cx, |editor, cx| {
         let callout = editor.doc().first_root().expect("callout root").clone();
         callout.update(cx, |block, _cx| {
-            assert_eq!(block.kind(), BlockKind::Callout(splitype_model::block::CalloutKind::Warning));
+            assert_eq!(block.kind(), BlockKind::Callout(markdown::block::CalloutKind::Warning));
             // When unfocused, displays custom title
             assert_eq!(block.display_text(), "Custom Title");
 
@@ -910,7 +910,7 @@ async fn callout_header_prefix_editing_updates_variant(cx: &mut TestAppContext) 
 
             // Edit "warning" to "note" (replace range 2..9 with "note")
             block.replace_text_in_display_range(2..9, "note", None, false, cx);
-            assert_eq!(block.kind(), BlockKind::Callout(splitype_model::block::CalloutKind::Note));
+            assert_eq!(block.kind(), BlockKind::Callout(markdown::block::CalloutKind::Note));
             assert_eq!(block.display_text(), "[!note]");
         });
 
@@ -993,7 +993,7 @@ async fn callout_break_and_retype_syntax_reenters_callout(cx: &mut TestAppContex
         callout.update(cx, |block, cx| {
             block.sync_inline_projection_for_focus(true);
             assert_eq!(block.display_text(), "[!warning] Watch out!");
-            assert_eq!(block.kind(), BlockKind::Callout(splitype_model::block::CalloutKind::Warning));
+            assert_eq!(block.kind(), BlockKind::Callout(markdown::block::CalloutKind::Warning));
 
             // 1. Break syntax by deleting 'g' at offset 8..9 -> "[!warnin] Watch out!"
             block.replace_text_in_display_range(8..9, "", None, false, cx);
@@ -1002,12 +1002,12 @@ async fn callout_break_and_retype_syntax_reenters_callout(cx: &mut TestAppContex
 
             // 2. Type 'g' back at offset 8..8 -> "[!warning] Watch out!"
             block.replace_text_in_display_range(8..8, "g", None, false, cx);
-            assert_eq!(block.kind(), BlockKind::Callout(splitype_model::block::CalloutKind::Warning));
+            assert_eq!(block.kind(), BlockKind::Callout(markdown::block::CalloutKind::Warning));
             assert_eq!(block.display_text(), "[!warning] Watch out!");
 
             // 3. Change 'warning' to 'tip' (range 2..9 replaced by 'tip')
             block.replace_text_in_display_range(2..9, "tip", None, false, cx);
-            assert_eq!(block.kind(), BlockKind::Callout(splitype_model::block::CalloutKind::Tip));
+            assert_eq!(block.kind(), BlockKind::Callout(markdown::block::CalloutKind::Tip));
             assert_eq!(block.display_text(), "[!tip] Watch out!");
         });
 

@@ -10,8 +10,8 @@ pub(crate) mod welcome;
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
+use i18n::I18nStrings;
+use theme::Theme;
 
 impl Editor {
     /// Render one Editor area's pane layout. One Editor entity serves
@@ -60,8 +60,8 @@ impl Editor {
         let maximized_pane = inner_tree.find_maximized_leaf();
         let is_maximized = maximized_pane.is_some();
         let inner_rendered = if let Some(maximized_pane) = maximized_pane {
-            let single = splitype_splitter::tree::SplitTree::Leaf(
-                splitype_splitter::container::SplitterContainer::new(
+            let single = splitter::tree::SplitTree::Leaf(
+                splitter::container::SplitterContainer::new(
                     maximized_pane.id,
                     maximized_pane.kind,
                 ),
@@ -103,7 +103,7 @@ impl Editor {
             // layout's initialization region (topbar/bottombar excluded). Host
             // policy: only plain (no-modifier) drags show an indicator.
             let d = &theme.dimensions;
-            let overlay_style = splitype_splitter::interaction::OverlayStyle {
+            let overlay_style = splitter::interaction::OverlayStyle {
                 accent: c.split_indicator,
                 tile_radius: d.panel_tile_radius,
                 border: c.dialog_border,
@@ -127,12 +127,12 @@ impl Editor {
                     .unwrap()
                     .active_corner_drag
                     .unwrap();
-                if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None
-                    || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Ctrl
-                    || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Shift
+                if drag.modifier == splitter::sessions::CornerDragModifier::None
+                    || drag.modifier == splitter::sessions::CornerDragModifier::Ctrl
+                    || drag.modifier == splitter::sessions::CornerDragModifier::Shift
                 {
                     if let Some(preview) =
-                        splitype_ui::render_corner_drag_preview(
+                        ui::render_corner_drag_preview(
                             &self.session_mut().root,
                             &drag,
                             inner_size,

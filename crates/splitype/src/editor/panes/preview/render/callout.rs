@@ -5,8 +5,8 @@ use gpui::*;
 
 use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
-use splitype_infra::theme::Theme;
-use splitype_model::block::CalloutKind;
+use theme::Theme;
+use markdown::block::CalloutKind;
 
 use std::ops::Range;
 

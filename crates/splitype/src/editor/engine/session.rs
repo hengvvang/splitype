@@ -5,7 +5,7 @@
 //! the window-level panel layout uses — so both levels share one split
 //! model and one set of interactions (see `splitype-splitter`).
 
-use splitype_splitter::root::SplitterRoot;
+use splitter::root::SplitterRoot;
 
 /// Lifecycle retention kind of a document tab in an editor pane.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]

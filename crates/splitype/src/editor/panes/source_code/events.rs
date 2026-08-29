@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, PaneId};
-use splitype_infra::theme::{ThemeManager, TypographyScope, TypographyStore};
+use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 impl Editor {
     /// Dispatches key-down events for a Source Code pane.

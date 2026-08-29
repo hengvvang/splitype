@@ -31,20 +31,20 @@ pub(crate) use crate::editor::document::block::footnotes::{
 };
 pub(crate) use crate::editor::panes::document_pane::context_menu::{ContextMenuState, FootnoteTooltipState};
 pub(crate) use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
-pub(crate) use splitype_model::block::image::{
+pub(crate) use markdown::block::image::{
     ImageReferenceDefinitions, parse_image_reference_definitions,
 };
-pub(crate) use splitype_model::block::link::{
+pub(crate) use markdown::block::link::{
     LinkReferenceDefinitions, parse_link_reference_definitions,
 };
-pub(crate) use splitype_model::block::table::TableCellPosition;
-pub(crate) use splitype_model::block::table::{
+pub(crate) use markdown::block::table::TableCellPosition;
+pub(crate) use markdown::block::table::{
     TableAxis, TableColumnAlignment, serialize_table_cell_markdown,
 };
-pub(crate) use splitype_model::inline::text::BlockText;
-pub(crate) use splitype_model::parse::{BlockData, BlockId, BlockKind};
-pub(crate) use splitype_splitter::tree::NodeId;
-pub(crate) use splitype_splitter::root::SplitterRoot;
+pub(crate) use markdown::inline::text::BlockText;
+pub(crate) use markdown::parse::{BlockData, BlockId, BlockKind};
+pub(crate) use splitter::tree::NodeId;
+pub(crate) use splitter::root::SplitterRoot;
 pub use crate::app::window::panels::PanelId;
 
 /// The strongly-typed identifier representing an inner tiled editor pane (WYSIWYG, SourceCode, Preview).
@@ -556,9 +556,9 @@ pub(crate) struct HistoryEntry {
 #[derive(Clone, Debug)]
 pub(crate) struct PendingUndoCapture {
     pub(crate) snapshot: HistoryEntry,
-    pub(crate) target_block_id: Option<splitype_model::parse::BlockId>,
-    pub(crate) initial_text: Option<splitype_model::inline::text::BlockText>,
-    pub(crate) initial_roots: Option<Vec<splitype_model::parse::BlockData>>,
+    pub(crate) target_block_id: Option<markdown::parse::BlockId>,
+    pub(crate) initial_text: Option<markdown::inline::text::BlockText>,
+    pub(crate) initial_roots: Option<Vec<markdown::parse::BlockData>>,
 }
 
 /// Cross-block selection endpoint in visible block order.

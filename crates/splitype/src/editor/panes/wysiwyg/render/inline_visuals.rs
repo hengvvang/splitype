@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use splitype_render::plugins::latex_render::{inline_math_font_size, render_inline_math_svg};
+use latex::{inline_math_font_size, render_inline_math_svg};
 use crate::editor::document::block::{Block, ImageHandle};
 use crate::editor::panes::wysiwyg::render::LinkFollowCursor;
 use crate::editor::panes::wysiwyg::render::html_document::html_css_color_to_hsla;
@@ -10,12 +10,12 @@ use crate::editor::panes::wysiwyg::render::inline::text_element::BlockTextElemen
 use crate::editor::panes::wysiwyg::render::inline_word_chunks;
 use crate::editor::panes::wysiwyg::render::render_image_placeholder;
 use crate::editor::panes::wysiwyg::render::render_loading_placeholder;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
-use splitype_model::block::image::{
+use i18n::I18nStrings;
+use theme::Theme;
+use markdown::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
-use splitype_model::inline::style::InlineScript;
+use markdown::inline::style::InlineScript;
 
 impl Block {
     pub(crate) fn render_text_or_mixed_inline_visuals(
@@ -62,7 +62,7 @@ impl Block {
 
     pub(crate) fn render_inline_tree_runs(
         &self,
-        tree: &splitype_model::inline::text::BlockText,
+        tree: &markdown::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -91,7 +91,7 @@ impl Block {
 
     pub(crate) fn render_inline_tree_children(
         &self,
-        tree: &splitype_model::inline::text::BlockText,
+        tree: &markdown::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -105,9 +105,9 @@ impl Block {
 
         for span in cache.spans() {
             if cursor < span.range.start {
-                let fallback_span = splitype_model::inline::render_cache::InlineSpan {
+                let fallback_span = markdown::inline::render_cache::InlineSpan {
                     range: cursor..span.range.start,
-                    style: splitype_model::inline::style::InlineStyle::default(),
+                    style: markdown::inline::style::InlineStyle::default(),
                     html_style: None,
                     link: None,
                     footnote: None,
@@ -144,9 +144,9 @@ impl Block {
         }
 
         if cursor < text.len() {
-            let fallback_span = splitype_model::inline::render_cache::InlineSpan {
+            let fallback_span = markdown::inline::render_cache::InlineSpan {
                 range: cursor..text.len(),
-                style: splitype_model::inline::style::InlineStyle::default(),
+                style: markdown::inline::style::InlineStyle::default(),
                 html_style: None,
                 link: None,
                 footnote: None,
@@ -176,7 +176,7 @@ impl Block {
     pub(crate) fn render_inline_text_word_segments(
         &self,
         text: &str,
-        span: &splitype_model::inline::render_cache::InlineSpan,
+        span: &markdown::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -205,7 +205,7 @@ impl Block {
     pub(crate) fn render_inline_text_segment(
         &self,
         text: &str,
-        span: &splitype_model::inline::render_cache::InlineSpan,
+        span: &markdown::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -353,8 +353,8 @@ impl Block {
 
     pub(crate) fn render_inline_math_segment(
         &self,
-        math: &splitype_model::inline::latex::InlineLatex,
-        span: &splitype_model::inline::render_cache::InlineSpan,
+        math: &markdown::inline::latex::InlineLatex,
+        span: &markdown::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -479,7 +479,7 @@ impl Block {
                     if let Some(runtime) = self.image_handle_for_syntax(syntax) {
                         children.push(self.render_inline_image_content(&runtime, theme, strings));
                     } else {
-                        let tree = splitype_model::inline::text::BlockText::plain(markdown);
+                        let tree = markdown::inline::text::BlockText::plain(markdown);
                         children.extend(self.render_inline_tree_children(
                             &tree,
                             theme,

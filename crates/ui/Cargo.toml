@@ -1,0 +1,18 @@
+[package]
+name = "ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+primitives = { path = "../primitives" }
+splitter = { path = "../splitter" }
+theme = { path = "../theme" }
+i18n = { path = "../i18n" }
+config = { path = "../config" }
+gpui = { workspace = true }

@@ -10,7 +10,7 @@ use crate::explorer::state::state::{
     ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry,
     file_type_icon,
 };
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 impl Shell {
     /// The path whose highlight extends to all of its descendants during a

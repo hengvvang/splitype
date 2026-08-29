@@ -5,8 +5,8 @@ use gpui::*;
 use crate::editor::document::protocol::UndoCaptureKind;
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use crate::editor::document::block::Block;
-use splitype_model::block::table::{TableAxis, TableCellPosition};
-use splitype_model::parse::BlockData;
+use markdown::block::table::{TableAxis, TableCellPosition};
+use markdown::parse::BlockData;
 
 impl Editor {
     pub(crate) fn append_table_row(&mut self, table_block: &Entity<Block>, cx: &mut Context<Self>) {

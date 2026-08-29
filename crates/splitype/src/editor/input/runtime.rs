@@ -150,7 +150,7 @@ impl Editor {
 
             definitions
                 .entry(
-                    splitype_model::block::footnote::split_footnote_definition_text(
+                    markdown::block::footnote::split_footnote_definition_text(
                         &block.data.text.plain_text(),
                     )
                     .0

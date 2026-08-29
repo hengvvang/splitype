@@ -10,8 +10,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use gpui::TestAppContext;
 
 use crate::editor::engine::controller::Editor;
-use splitype_infra::i18n::I18nManager;
-use splitype_infra::theme::ThemeManager;
+use i18n::I18nManager;
+use theme::ThemeManager;
 
 mod about;
 mod drop;
@@ -34,7 +34,8 @@ fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
         ThemeManager::init(cx);
-        crate::keybindings::init(cx);
+        crate::editor::commands::keybindings::init(cx);
+
     });
 }
 

@@ -21,7 +21,7 @@ impl Editor {
             return 0;
         };
 
-        let lines = splitype_model::block::table::serialize_table_markdown_lines(&table);
+        let lines = markdown::block::table::serialize_table_markdown_lines(&table);
         let indentation = "  ".repeat(list_depth);
         let quote_prefix = "> ".repeat(quote_depth);
         let line_prefix_len = indentation.len() + quote_prefix.len();

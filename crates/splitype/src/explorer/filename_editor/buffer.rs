@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use crate::explorer::state::state::ExplorerFilenameEditor;
-use crate::model::inline::offsets::ImeConverter;
+use markdown::inline::offsets::ImeConverter;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
 

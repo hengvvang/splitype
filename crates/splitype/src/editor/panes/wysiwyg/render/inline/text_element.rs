@@ -9,7 +9,7 @@ pub use super::code_input::CodeLanguageInputElement;
 use super::shaping::{build_code_text_runs, build_text_runs, unrounded_line_height};
 use crate::editor::geometry::text_layout::*;
 use crate::editor::document::block::Block;
-use splitype_infra::theme::ThemeManager;
+use theme::ThemeManager;
 
 /// Interactive GPUI element that paints and handles mouse/keyboard events
 /// for a block's text content.
@@ -509,9 +509,9 @@ mod tests {
         source_text_bounds, wrapped_line_height,
     };
     use crate::editor::document::block::Block;
-    use splitype_model::block::table::TableCellPosition;
-    use splitype_model::inline::text::BlockText;
-    use splitype_model::parse::{BlockData, BlockKind};
+    use markdown::block::table::TableCellPosition;
+    use markdown::inline::text::BlockText;
+    use markdown::parse::{BlockData, BlockKind};
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
         TestAppContext, TextAlign, TextRun, VisualTestContext, point, px, rgba, size,
@@ -530,8 +530,8 @@ mod tests {
                     px(16.0),
                     &[TextRun {
                         len: text.len(),
-                        font: splitype_infra::theme::TypographyStore::default_font(
-                            splitype_infra::theme::TypographyScope::Prose,
+                        font: theme::TypographyStore::default_font(
+                            theme::TypographyScope::Prose,
                         ),
                         color: Hsla::from(rgba(0xffffffff)),
                         background_color: None,
@@ -708,7 +708,7 @@ mod tests {
             );
             block.set_table_cell_mode(
                 TableCellPosition { row: 0, column: 0 },
-                splitype_model::block::table::TableColumnAlignment::Center,
+                markdown::block::table::TableColumnAlignment::Center,
             );
             block
         });
@@ -763,8 +763,8 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: splitype_infra::theme::TypographyStore::default_font(
-                            splitype_infra::theme::TypographyScope::Prose,
+                font: theme::TypographyStore::default_font(
+                            theme::TypographyScope::Prose,
                         ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
@@ -814,8 +814,8 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: splitype_infra::theme::TypographyStore::default_font(
-                            splitype_infra::theme::TypographyScope::Prose,
+                font: theme::TypographyStore::default_font(
+                            theme::TypographyScope::Prose,
                         ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
@@ -870,8 +870,8 @@ mod tests {
             assert_eq!(display_text.as_ref(), "引用[^note]");
             let base_run = TextRun {
                 len: display_text.len(),
-                font: splitype_infra::theme::TypographyStore::default_font(
-                            splitype_infra::theme::TypographyScope::Prose,
+                font: theme::TypographyStore::default_font(
+                            theme::TypographyScope::Prose,
                         ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
@@ -927,8 +927,8 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: splitype_infra::theme::TypographyStore::default_font(
-                            splitype_infra::theme::TypographyScope::Prose,
+                font: theme::TypographyStore::default_font(
+                            theme::TypographyScope::Prose,
                         ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,

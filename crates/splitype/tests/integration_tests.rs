@@ -1,18 +1,18 @@
 //! Workspace Integration Tests for Splitype.
 //!
-//! Validates end-to-end interactions across:
-//! - `splitype_core` (IDs & Primitives)
-//! - `splitype_model` (Markdown AST & SumTree)
-//! - `splitype_splitter` (Multi-pane Tiled Splitter Engine)
-//! - `splitype_infra` (Configuration, Themes, and I18n)
-//! - `splitype_render` (Syntax Highlighting & HTML Export)
+//! Validates end-to-end interactions across the decoupled micro-crates:
+//! - `core` (IDs & Primitives)
+//! - `markdown` (AST & 1:1 Parser)
+//! - `splitter` (Multi-pane Tiled Splitter Engine)
+//! - `config` & `theme` & `i18n`
+//! - `export` (Document generation)
 
-use splitype::core::{BlockId, DocumentId};
-use splitype::infra::config::settings::AppSettings;
-use splitype::infra::theme::Theme;
-use splitype::model::parse::parser::parse_wysiwyg_document;
-use splitype::model::parse::BlockKind;
-use splitype::render::export::html::render_html;
+use splitype::primitives::{BlockId, DocumentId};
+use splitype::config::settings::AppSettings;
+use splitype::theme::Theme;
+use splitype::markdown::parse::parser::parse_wysiwyg_document;
+use splitype::markdown::parse::BlockKind;
+use splitype::export::html::render_html;
 use splitype::splitter::{SplitAxis, SplitterRoot};
 
 #[test]

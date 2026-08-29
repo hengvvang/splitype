@@ -504,9 +504,9 @@ fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
     let titlebar_height = window
         .update(&mut cx.cx, |_shell, window, _cx| {
             let theme = _cx
-                .global::<splitype_infra::theme::ThemeManager>()
+                .global::<theme::ThemeManager>()
                 .current_arc();
-            splitype_ui::custom_titlebar::custom_titlebar_height(window, &theme.dimensions)
+            ui::custom_titlebar::custom_titlebar_height(window, &theme.dimensions)
         })
         .expect("window update");
 
@@ -568,16 +568,16 @@ fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
         .expect("window update");
     let dims = cx.cx.read(|cx| {
         let theme = cx
-            .global::<splitype_infra::theme::ThemeManager>()
+            .global::<theme::ThemeManager>()
             .current_arc();
         theme.dimensions.clone()
     });
     let titlebar_height = window
         .update(&mut cx.cx, |_shell, window, cx| {
             let theme = cx
-                .global::<splitype_infra::theme::ThemeManager>()
+                .global::<theme::ThemeManager>()
                 .current_arc();
-            splitype_ui::custom_titlebar::custom_titlebar_height(window, &theme.dimensions)
+            ui::custom_titlebar::custom_titlebar_height(window, &theme.dimensions)
         })
         .expect("window update");
     let settings_y = titlebar_height
@@ -622,7 +622,7 @@ fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppCont
         .update(cx, |shell, _window, cx| {
             let split_id = shell.split_panel(
                 DEFAULT_EDITOR_PANEL_ID,
-                splitype_splitter::SplitAxis::Horizontal,
+                splitter::SplitAxis::Horizontal,
                 0.5,
                 false,
                 cx,
@@ -664,7 +664,7 @@ fn window_close_prompts_window_scope_and_discards_all_panels(cx: &mut TestAppCon
         .update(cx, |shell, _window, cx| {
             shell.split_panel(
                 DEFAULT_EDITOR_PANEL_ID,
-                splitype_splitter::SplitAxis::Horizontal,
+                splitter::SplitAxis::Horizontal,
                 0.5,
                 true,
                 cx,
@@ -724,7 +724,7 @@ fn editor_panel_close_prompts_editor_panel_scope_and_discards_panel_only(
         .update(cx, |shell, _window, cx| {
             shell.split_panel(
                 DEFAULT_EDITOR_PANEL_ID,
-                splitype_splitter::SplitAxis::Horizontal,
+                splitter::SplitAxis::Horizontal,
                 0.5,
                 true,
                 cx,

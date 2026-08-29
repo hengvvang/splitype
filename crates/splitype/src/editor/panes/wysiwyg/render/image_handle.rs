@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use crate::editor::document::block::{Block, ImageHandle};
-use splitype_model::block::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
-use splitype_model::parse::BlockKind;
+use markdown::block::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
+use markdown::parse::BlockKind;
 
 impl Block {
     pub(crate) fn image_handle(&self) -> Option<&ImageHandle> {

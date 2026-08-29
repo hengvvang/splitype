@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use gpui::{Bounds, FocusHandle, Pixels};
 
-use splitype_render::plugins::code_highlight::highlight::{
+use syntax::highlight::{
     CodeHighlightResult, highlight_code_block,
 };
 

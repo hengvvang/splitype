@@ -9,8 +9,8 @@ use gpui::*;
 
 use crate::editor::document::protocol::PastedImageSource;
 use crate::editor::engine::controller::*;
-use splitype_infra::config::settings::{ImagePasteBehavior, read_app_settings};
-use splitype_model::parse::BlockKind;
+use config::settings::{ImagePasteBehavior, read_app_settings};
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn current_image_paste_behavior() -> ImagePasteBehavior {
@@ -221,7 +221,7 @@ impl Editor {
 
     pub(crate) fn show_image_paste_error(&self, err: anyhow::Error, cx: &mut Context<Self>) {
         let strings = cx
-            .global::<splitype_infra::i18n::I18nManager>()
+            .global::<i18n::I18nManager>()
             .strings()
             .clone();
         if let Some(window) = cx.active_window() {

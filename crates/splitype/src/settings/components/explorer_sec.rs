@@ -2,11 +2,11 @@
 
 use gpui::*;
 
-use splitype_infra::config::settings::{ExplorerSortMode, ExplorerSortOrder};
-use splitype_infra::theme::{ThemeColors, ThemeDimensions};
+use config::settings::{ExplorerSortMode, ExplorerSortOrder};
+use theme::{ThemeColors, ThemeDimensions};
 use crate::settings::ui_helpers::{SettingsClickHandler, make_row, make_section};
-use splitype_ui::select::{select_option, select_panel, select_trigger};
-use splitype_ui::switch::Switch;
+use ui::select::{select_option, select_panel, select_trigger};
+use ui::switch::Switch;
 
 pub(crate) struct ExplorerProps {
     pub hide_hidden: bool,

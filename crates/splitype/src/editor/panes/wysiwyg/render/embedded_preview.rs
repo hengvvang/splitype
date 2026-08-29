@@ -2,15 +2,15 @@
 
 use gpui::*;
 
-use splitype_render::plugins::latex_render::{display_math_font_size, render_display_math_svg};
-use splitype_render::plugins::mermaid_render::{
+use latex::{display_math_font_size, render_display_math_svg};
+use mermaid::{
     mermaid_content_fingerprint, render_mermaid_svg_for_display,
 };
 use crate::editor::document::block::Block;
 use crate::editor::panes::wysiwyg::render::media_placeholder::effective_image_width;
-use splitype_infra::theme::{Theme, ThemeDimensions};
-use splitype_model::block::math::parse_display_math_source;
-use splitype_model::block::mermaid::parse_mermaid_fence_source;
+use theme::{Theme, ThemeDimensions};
+use markdown::block::math::parse_display_math_source;
+use markdown::block::mermaid::parse_mermaid_fence_source;
 
 impl Block {
     pub(crate) fn render_math_content(&self, theme: &Theme) -> (AnyElement, bool) {
@@ -32,7 +32,7 @@ impl Block {
                 .unwrap_or(raw.trim())
                 .trim()
                 .to_string();
-            splitype_model::block::math::DisplayMathSource {
+            markdown::block::math::DisplayMathSource {
                 source: raw.to_string(),
                 body,
             }
@@ -99,7 +99,7 @@ impl Block {
             } else {
                 trimmed.to_string()
             };
-            splitype_model::block::mermaid::MermaidSource {
+            markdown::block::mermaid::MermaidSource {
                 source: raw.to_string(),
                 body,
                 info: "mermaid".to_string(),
@@ -162,7 +162,7 @@ impl Block {
     }
 
     pub(crate) fn render_mermaid_svg_element(
-        rendered: splitype_render::plugins::mermaid_render::MermaidSvgRender,
+        rendered: mermaid::MermaidSvgRender,
         available_width: f32,
         block: &Block,
         d: &ThemeDimensions,

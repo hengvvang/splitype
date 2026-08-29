@@ -2,7 +2,7 @@
 
 use gpui::{AppContext, TestAppContext};
 
-use splitype_infra::i18n::I18nStrings;
+use i18n::I18nStrings;
 
 #[test]
 fn about_dialog_body_lines_include_repository_and_star_message() {

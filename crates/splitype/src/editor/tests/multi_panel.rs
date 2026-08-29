@@ -5,8 +5,8 @@ use gpui::{AppContext, TestAppContext, VisualTestContext};
 
 use crate::editor::engine::controller::{Editor, PaneId};
 use crate::editor::engine::session::EditorPaneKind;
-use splitype_model::inline::text::BlockText;
-use splitype_model::parse::BlockKind;
+use markdown::inline::text::BlockText;
+use markdown::parse::BlockKind;
 
 use super::*;
 
@@ -221,7 +221,7 @@ async fn two_wysiwyg_panes_map_clicks_in_each_pane_to_the_correct_caret(cx: &mut
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
     editor.update(cx, |editor, _cx| {
-        editor.split_pane_with_ratio(1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        editor.split_pane_with_ratio(1, splitter::SplitAxis::Horizontal, 0.5);
     });
     // The panes share one scroll handle: the first frame windows against the
     // window viewport (handle unbound), the second frame against the pane
@@ -235,7 +235,7 @@ async fn two_wysiwyg_panes_map_clicks_in_each_pane_to_the_correct_caret(cx: &mut
     // centering.
     let (window_width, pane_gap) = cx.update(|window, cx| {
         let theme = cx
-            .global::<splitype_infra::theme::ThemeManager>()
+            .global::<theme::ThemeManager>()
             .current_arc();
         (window.viewport_size().width, theme.dimensions.pane_gap)
     });
@@ -373,7 +373,7 @@ async fn wysiwyg_panes_scroll_independently(cx: &mut TestAppContext) {
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
     editor.update(cx, |editor, _cx| {
-        editor.split_pane_with_ratio(1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        editor.split_pane_with_ratio(1, splitter::SplitAxis::Horizontal, 0.5);
     });
     redraw(cx);
     redraw(cx);
@@ -421,7 +421,7 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
     editor.update(cx, |editor, _cx| {
-        editor.split_pane_with_ratio(1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        editor.split_pane_with_ratio(1, splitter::SplitAxis::Horizontal, 0.5);
     });
     redraw(cx);
     redraw(cx);
@@ -606,7 +606,7 @@ async fn initial_tab_render_does_not_collapse_column_width(cx: &mut TestAppConte
         "first frame of new tab must sync real viewport width"
     );
     let theme = editor.read_with(cx, |_, cx| {
-        cx.global::<splitype_infra::theme::ThemeManager>().current_arc()
+        cx.global::<theme::ThemeManager>().current_arc()
     });
     let centered_width =
         Editor::centered_column_width(f32::from(viewport_size.unwrap().width), &theme.dimensions);
@@ -672,7 +672,7 @@ async fn border_menu_split_and_close_actions_operate_on_divider_split_id(cx: &mu
 
     // 2. Split leaf 1 horizontally.
     editor.update(cx, |ed, _cx| {
-        ed.split_pane_with_ratio(1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        ed.split_pane_with_ratio(1, splitter::SplitAxis::Horizontal, 0.5);
     });
     assert_eq!(
         editor.read_with(cx, |ed, _cx| ed.session().root.tree.count_leaves()),
@@ -681,13 +681,13 @@ async fn border_menu_split_and_close_actions_operate_on_divider_split_id(cx: &mu
 
     // 3. Get the internal Split node ID (the divider ID passed by border menu).
     let split_id = editor.read_with(cx, |ed, _cx| match &ed.session().root.tree {
-        splitype_splitter::SplitTree::Split { id, .. } => *id,
+        splitter::SplitTree::Split { id, .. } => *id,
         _ => panic!("expected split tree"),
     });
 
     // 4. Trigger split_pane_with_ratio using split_id (divider right-click action).
     editor.update(cx, |ed, _cx| {
-        ed.split_pane_with_ratio(split_id, splitype_splitter::SplitAxis::Vertical, 0.5);
+        ed.split_pane_with_ratio(split_id, splitter::SplitAxis::Vertical, 0.5);
     });
     assert_eq!(
         editor.read_with(cx, |ed, _cx| ed.session().root.tree.count_leaves()),
@@ -718,7 +718,7 @@ async fn switching_pane_focus_syncs_bottombar_dropdown_and_clears_stale_dropdown
 
     // 1. Split leaf 1 into 2 panes.
     editor.update(cx, |ed, _cx| {
-        ed.split_pane_with_ratio(1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        ed.split_pane_with_ratio(1, splitter::SplitAxis::Horizontal, 0.5);
     });
 
     let mut ids = Vec::new();
@@ -770,7 +770,7 @@ fn editor_pane_maximize_and_restore_and_unmaximize_on_split(cx: &mut gpui::TestA
 
     // 1. Split leaf 1 into 2 panes.
     editor.update(cx, |ed, _cx| {
-        ed.split_pane_with_ratio(1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        ed.split_pane_with_ratio(1, splitter::SplitAxis::Horizontal, 0.5);
     });
 
     let mut ids = Vec::new();
@@ -803,7 +803,7 @@ fn editor_pane_maximize_and_restore_and_unmaximize_on_split(cx: &mut gpui::TestA
     assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().maximized));
 
     editor.update(cx, |ed, _cx| {
-        ed.split_pane_with_ratio(pane_2, splitype_splitter::SplitAxis::Vertical, 0.5);
+        ed.split_pane_with_ratio(pane_2, splitter::SplitAxis::Vertical, 0.5);
     });
     assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().maximized));
 
@@ -846,7 +846,8 @@ fn test_active_tab_word_count_caching(cx: &mut gpui::TestAppContext) {
 
 #[gpui::test]
 fn test_toggle_maximize_pane_action(cx: &mut gpui::TestAppContext) {
-    use crate::editor::actions::ToggleMaximizePane;
+    use crate::editor::commands::actions::ToggleMaximizePane;
+
 
     init_editor_test_app(cx);
 
@@ -858,7 +859,7 @@ fn test_toggle_maximize_pane_action(cx: &mut gpui::TestAppContext) {
 
     let pane_1 = editor.read_with(cx, |ed, _cx| ed.active_pane_id());
     editor.update(cx, |ed, _cx| {
-        ed.split_pane_with_ratio(pane_1, splitype_splitter::SplitAxis::Horizontal, 0.5);
+        ed.split_pane_with_ratio(pane_1, splitter::SplitAxis::Horizontal, 0.5);
     });
     redraw(cx);
 

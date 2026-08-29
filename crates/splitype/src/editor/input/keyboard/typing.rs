@@ -4,9 +4,9 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use splitype_model::block::table::*;
-use splitype_model::inline::text::BlockText;
-use splitype_model::parse::BlockKind;
+use markdown::block::table::*;
+use markdown::inline::text::BlockText;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn jump_to_footnote_definition(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
@@ -71,8 +71,8 @@ impl Editor {
             block.cursor_blink_epoch = std::time::Instant::now();
             let supports_projection = block.edit_mode.supports_inline_projection();
             let kind_key = match block.kind() {
-                splitype_model::parse::BlockKind::Heading { level } => Some(level),
-                splitype_model::parse::BlockKind::Callout(variant) => Some(10 + variant as u8),
+                markdown::parse::BlockKind::Heading { level } => Some(level),
+                markdown::parse::BlockKind::Callout(variant) => Some(10 + variant as u8),
                 _ => None,
             };
             block.projection_cache_key = Some((supports_projection, kind_key, plain_range, None));

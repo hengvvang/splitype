@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Render a heading block at the given level (1–6).
 pub(crate) fn render_heading(

@@ -25,10 +25,10 @@ use crate::explorer::state::state::*;
 
 fn init_explorer_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        splitype_infra::i18n::I18nManager::init(cx);
-        splitype_infra::theme::ThemeManager::init(cx);
+        i18n::I18nManager::init(cx);
+        theme::ThemeManager::init(cx);
         crate::editor::keybindings::init(cx);
-        splitype_infra::config::settings::SettingsStore::init_default(cx);
+        config::settings::SettingsStore::init_default(cx);
     });
 }
 

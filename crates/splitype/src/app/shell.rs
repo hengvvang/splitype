@@ -16,10 +16,10 @@ use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::{PanelId, WindowPanelKind, WindowPanels};
 use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind, OpenFileMode};
 use crate::editor::engine::session::EditorSession;
-use crate::infra::i18n::I18nManager;
-use crate::infra::theme::ThemeManager;
-use crate::splitter::NodeId;
-use splitype_splitter::tree::SplitAxis;
+use i18n::I18nManager;
+use theme::ThemeManager;
+use splitter::NodeId;
+use splitter::tree::SplitAxis;
 
 /// The polymorphic content of one area in the outer layout tree.
 #[derive(Clone)]
@@ -155,7 +155,7 @@ impl Shell {
             return;
         };
         let theme = cx.global::<ThemeManager>().current_arc();
-        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
             Decorations::Server,
             &theme.dimensions,
@@ -432,7 +432,8 @@ impl Shell {
     ) -> Entity<Editor> {
         let panel_id = panel_id.into();
         let shell = cx.entity().downgrade();
-        let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
+        let editor = cx.new(|cx| crate::editor::Editor::with_session(panel_id, session, cx));
+
         editor.update(cx, |editor, cx| {
             editor.shell = Some(shell);
             if editor.session.has_tabs() {
@@ -455,6 +456,7 @@ impl Shell {
         cx: &mut App,
     ) {
         use crate::explorer::state::undo::ExplorerChange;
+
         match change {
             ExplorerChange::Moved { from, to } | ExplorerChange::Renamed { from, to } => {
                 for content in self.panel_contents.values() {
@@ -536,7 +538,7 @@ impl Shell {
         source_id: impl Into<PanelId>,
         target_id: impl Into<PanelId>,
         new_leaf_id: impl Into<PanelId>,
-        dock_target: splitype_splitter::sessions::AreaDockTarget,
+        dock_target: splitter::sessions::AreaDockTarget,
         cx: &mut Context<Self>,
     ) {
         let source_id = source_id.into();
@@ -549,8 +551,8 @@ impl Shell {
 
         let source_first = matches!(
             dock_target,
-            splitype_splitter::sessions::AreaDockTarget::Left
-                | splitype_splitter::sessions::AreaDockTarget::Top
+            splitter::sessions::AreaDockTarget::Left
+                | splitter::sessions::AreaDockTarget::Top
         );
 
         if source_first {
@@ -666,7 +668,7 @@ impl Shell {
     /// (pane layout + tab list) and the explorer state is cloned.
     pub(crate) fn clone_container_into_new_window(
         &mut self,
-        cloned: crate::splitter::policy::ClonedContainer<
+        cloned: splitter::policy::ClonedContainer<
             crate::app::window::panels::WindowPanelKind,
         >,
         cx: &mut Context<Self>,
@@ -1015,7 +1017,7 @@ impl Render for Shell {
             .flex_col()
             .relative()
             .bg(theme.colors.editor_background)
-            .font(crate::infra::theme::TypographyStore::ui_font(cx))
+            .font(theme::TypographyStore::ui_font(cx))
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_toggle_maximize_area_action))

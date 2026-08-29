@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::editor::document::block::Block;
 use crate::editor::panes::wysiwyg::render::layout::callout_colors;
-use splitype_infra::theme::Theme;
-use splitype_model::block::CalloutKind;
+use theme::Theme;
+use markdown::block::CalloutKind;
 
 /// Render a callout (admonition) block.
 pub(crate) fn render_callout(

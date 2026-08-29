@@ -5,9 +5,9 @@
 
 use gpui::*;
 
-use splitype_infra::theme::{ThemeColors, ThemeDimensions};
+use theme::{ThemeColors, ThemeDimensions};
 use crate::settings::ui_helpers::SettingsClickHandler;
-use splitype_ui::select::{select_option, select_panel, select_trigger};
+use ui::select::{select_option, select_panel, select_trigger};
 
 pub(crate) struct SearchableFontPickerProps {
     pub id_prefix: &'static str,

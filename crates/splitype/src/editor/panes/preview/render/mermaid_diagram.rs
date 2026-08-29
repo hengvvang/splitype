@@ -5,9 +5,9 @@ use gpui::*;
 
 use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::preview_centered_column_width;
-use splitype_render::plugins::mermaid_render::render_mermaid_svg_for_display;
-use splitype_infra::theme::Theme;
-use splitype_model::block::mermaid::parse_mermaid_fence_source;
+use mermaid::render_mermaid_svg_for_display;
+use theme::Theme;
+use markdown::block::mermaid::parse_mermaid_fence_source;
 
 /// Renders a Mermaid diagram block read-only.
 pub(crate) fn render_preview_mermaid_diagram(
@@ -36,7 +36,7 @@ pub(crate) fn render_preview_mermaid_diagram(
         } else {
             trimmed.to_string()
         };
-        splitype_model::block::mermaid::MermaidSource {
+        markdown::block::mermaid::MermaidSource {
             source: raw.to_string(),
             body,
             info: "mermaid".to_string(),

@@ -7,11 +7,11 @@ use gpui::*;
 use unicode_segmentation::*;
 
 use crate::editor::document::protocol::{BlockEvent, UndoCaptureKind};
-use splitype_render::plugins::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
+use syntax::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::editor::document::block::Block;
 use crate::editor::document::block::normalize_code_language_input;
-use splitype_model::inline::offsets::ImeConverter;
-use splitype_model::parse::BlockKind;
+use markdown::inline::offsets::ImeConverter;
+use markdown::parse::BlockKind;
 
 impl Block {
     pub(crate) fn code_highlight_result(&self) -> Option<&CodeHighlightResult> {

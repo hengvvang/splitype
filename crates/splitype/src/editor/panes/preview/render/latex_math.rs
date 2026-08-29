@@ -3,10 +3,10 @@
 
 use gpui::*;
 
-use splitype_render::plugins::latex_render::{display_math_font_size, render_display_math_svg};
+use latex::{display_math_font_size, render_display_math_svg};
 use crate::editor::panes::preview::node::PreviewBlock;
-use splitype_infra::theme::Theme;
-use splitype_model::block::math::parse_display_math_source;
+use theme::Theme;
+use markdown::block::math::parse_display_math_source;
 
 /// Renders a LaTeX math block read-only.
 pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
@@ -31,7 +31,7 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
             .unwrap_or(raw.trim())
             .trim()
             .to_string();
-        splitype_model::block::math::DisplayMathSource {
+        markdown::block::math::DisplayMathSource {
             source: raw.to_string(),
             body,
         }

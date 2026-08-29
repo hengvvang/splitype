@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use splitype_infra::theme::{ThemeColors, ThemeDimensions};
-use splitype_ui::section::{section_card, section_header, settings_row};
+use theme::{ThemeColors, ThemeDimensions};
+use ui::section::{section_card, section_header, settings_row};
 
 pub(crate) type SettingsClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 

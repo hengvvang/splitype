@@ -10,8 +10,8 @@ use crate::editor::document::BlockEntry;
 use crate::editor::panes::wysiwyg::render::layout::{
     RowSpacingInfo, callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
 };
-use splitype_infra::theme::{Theme, ThemeDimensions, ThemeManager};
-use splitype_model::block::CalloutKind;
+use theme::{Theme, ThemeDimensions, ThemeManager};
+use markdown::block::CalloutKind;
 
 enum PlannedInnerSegment {
     /// A single block row with its leading `mt` gap.
@@ -104,7 +104,7 @@ impl Editor {
         self.sync_scroll_viewport(pane_id, viewport_size, cx);
 
         if self.doc().blocks().iter().any(|entry| {
-            entry.entity.read(cx).kind() == splitype_model::parse::BlockKind::Table
+            entry.entity.read(cx).kind() == markdown::parse::BlockKind::Table
                 && entry.entity.read(cx).table_grid.is_none()
         }) {
             self.rebuild_table_grids(cx);
@@ -371,7 +371,7 @@ impl Editor {
                     .right(px(d.scrollbar_right))
                     .w(px(d.scrollbar_width))
                     .h(px(thumb_height))
-                    .rounded(px(splitype_infra::theme::dimensions::FULL_CORNER_RADIUS))
+                    .rounded(px(theme::dimensions::FULL_CORNER_RADIUS))
                     .bg(theme.colors.scrollbar_thumb)
                     .cursor_pointer()
                     .on_hover(cx.listener(move |this, hovered, window, cx| {

@@ -14,10 +14,10 @@ use gpui::Entity;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::document::block::Block;
-use splitype_model::block::html::is_inline_tag;
-use splitype_model::block::table::collect_pipeless_table_region;
-use splitype_model::inline::text::BlockText;
-use splitype_model::parse::{BlockData, BlockKind};
+use markdown::block::html::is_inline_tag;
+use markdown::block::table::collect_pipeless_table_region;
+use markdown::inline::text::BlockText;
+use markdown::parse::{BlockData, BlockKind};
 
 impl Editor {
     /// Build one paragraph block per non-empty physical line, with a single

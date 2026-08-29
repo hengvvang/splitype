@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::editor::document::protocol::BlockEvent;
 use crate::editor::document::block::{Block, TableHoverRegion};
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Block {
     fn schedule_table_append_column_close(&mut self, cx: &mut Context<Self>) {
@@ -179,7 +179,7 @@ impl Block {
 mod tests {
     use super::Block;
     use crate::editor::document::block::TableHoverRegion;
-    use splitype_model::parse::BlockData;
+    use markdown::parse::BlockData;
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

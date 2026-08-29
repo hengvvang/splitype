@@ -3,19 +3,20 @@
 //!
 //! - [`WindowPanelKind`] — the top-level panel types of the tiled split
 //!   layout (Explorer / Settings / Editor). The editor's inner panes use
-//!   their own kind (`crate::editor::engine::session::EditorPaneKind`) on the same
+//!   their own kind (`editor::engine::session::EditorPaneKind`) on the same
 //!   split engine.
 //! - [`WindowLayout`] / [`default_layout`] — the window-level split root.
 //! - [`WindowPanels`] — the sidebar and tiled-layout state owned by the
 //!   Shell (pure state records; rendering lives in `crate::explorer`,
 //!   `crate::settings`, and the editor's own render flow).
 
-use splitype_splitter::container::SplitterContainer;
-use splitype_splitter::root::SplitterRoot;
-use splitype_splitter::tree::NodeId;
+use splitter::container::SplitterContainer;
+use splitter::root::SplitterRoot;
+use splitter::tree::NodeId;
 
 use crate::explorer::state::state::ExplorerState;
 use crate::settings::state::SettingsUiState;
+
 
 /// Top-level panel types in the tiled split layout: the window-level
 /// panels (each a split-tree leaf). The editor's inner panes are a
@@ -123,14 +124,14 @@ pub const DEFAULT_EDITOR_PANEL_ID: NodeId = 2;
 /// `SplitterRoot<WindowPanelKind>` even with the local kind.
 pub fn default_layout() -> WindowLayout {
     SplitterRoot {
-        tree: splitype_splitter::tree::SplitTree::Split {
+        tree: splitter::tree::SplitTree::Split {
             id: DEFAULT_EDITOR_PANEL_ID,
-            axis: splitype_splitter::tree::SplitAxis::Horizontal,
+            axis: splitter::tree::SplitAxis::Horizontal,
             ratio: 0.3,
-            first: Box::new(splitype_splitter::tree::SplitTree::Leaf(
+            first: Box::new(splitter::tree::SplitTree::Leaf(
                 SplitterContainer::new(ROOT_PANEL_ID, WindowPanelKind::Explorer),
             )),
-            second: Box::new(splitype_splitter::tree::SplitTree::Leaf(
+            second: Box::new(splitter::tree::SplitTree::Leaf(
                 SplitterContainer::new(DEFAULT_EDITOR_PANEL_ID, WindowPanelKind::Editor),
             )),
         },

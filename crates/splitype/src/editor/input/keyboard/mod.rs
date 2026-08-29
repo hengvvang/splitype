@@ -28,7 +28,7 @@ use gpui::*;
 
 use super::actions::{IndentBlock, OutdentBlock};
 use crate::editor::engine::controller::Editor;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn focused_block_for_tab_key(

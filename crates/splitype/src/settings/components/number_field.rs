@@ -6,9 +6,9 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use splitype_infra::theme::{ThemeColors, ThemeDimensions};
+use theme::{ThemeColors, ThemeDimensions};
 use crate::settings::ui_helpers::SettingsClickHandler;
-use splitype_ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
+use ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
 
 pub struct NumberFieldProps {
     pub id_prefix: &'static str,

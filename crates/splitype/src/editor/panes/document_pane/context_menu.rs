@@ -831,7 +831,7 @@ mod tests {
 
     #[gpui::test]
     async fn context_menu_paragraph_and_quote_kind_switches(cx: &mut TestAppContext) {
-        use splitype_model::parse::BlockKind;
+        use markdown::parse::BlockKind;
         let editor = cx.new(|cx| Editor::from_markdown(cx, "my heading".to_string(), None));
 
         editor.update(cx, |editor, cx| {
@@ -1054,8 +1054,8 @@ mod tests {
     async fn test_source_code_table_insertion(cx: &mut TestAppContext) {
         use crate::editor::engine::controller::EditorPaneKind;
         cx.update(|cx| {
-            splitype_infra::i18n::I18nManager::init(cx);
-            splitype_infra::theme::ThemeManager::init(cx);
+            i18n::I18nManager::init(cx);
+            theme::ThemeManager::init(cx);
         });
         let (editor, cx) = cx.add_window_view(|_window, cx| {
             Editor::from_markdown(cx, "above\n\nbelow".to_string(), None)
@@ -1093,10 +1093,10 @@ mod tests {
     #[gpui::test]
     async fn test_wysiwyg_quote_and_guides(cx: &mut TestAppContext) {
         use crate::editor::panes::wysiwyg::render::visible_quote_guides;
-        use splitype_model::parse::BlockKind;
+        use markdown::parse::BlockKind;
         cx.update(|cx| {
-            splitype_infra::i18n::I18nManager::init(cx);
-            splitype_infra::theme::ThemeManager::init(cx);
+            i18n::I18nManager::init(cx);
+            theme::ThemeManager::init(cx);
         });
         let (editor, cx) = cx.add_window_view(|_window, cx| {
             Editor::from_markdown(cx, "Quote text".to_string(), None)
@@ -1117,8 +1117,8 @@ mod tests {
     #[gpui::test]
     async fn test_wysiwyg_math_and_mermaid_insert(cx: &mut TestAppContext) {
         cx.update(|cx| {
-            splitype_infra::i18n::I18nManager::init(cx);
-            splitype_infra::theme::ThemeManager::init(cx);
+            i18n::I18nManager::init(cx);
+            theme::ThemeManager::init(cx);
         });
         let (editor, cx) = cx.add_window_view(|_window, cx| {
             Editor::from_markdown(cx, String::new(), None)
@@ -1142,8 +1142,8 @@ mod tests {
     async fn test_source_code_paragraph_and_prefix_transforms(cx: &mut TestAppContext) {
         use crate::editor::engine::controller::EditorPaneKind;
         cx.update(|cx| {
-            splitype_infra::i18n::I18nManager::init(cx);
-            splitype_infra::theme::ThemeManager::init(cx);
+            i18n::I18nManager::init(cx);
+            theme::ThemeManager::init(cx);
         });
         let (editor, cx) = cx.add_window_view(|_window, cx| {
             Editor::from_markdown(cx, "Heading line".to_string(), None)
@@ -1233,8 +1233,8 @@ mod tests {
         use crate::editor::engine::controller::EditorPaneKind;
 
         cx.update(|cx| {
-            splitype_infra::i18n::I18nManager::init(cx);
-            splitype_infra::theme::ThemeManager::init(cx);
+            i18n::I18nManager::init(cx);
+            theme::ThemeManager::init(cx);
         });
 
         // 1. WYSIWYG mode test

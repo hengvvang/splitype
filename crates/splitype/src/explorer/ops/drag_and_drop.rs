@@ -28,7 +28,7 @@ use crate::app::shell::Shell;
 use crate::explorer::state::state::*;
 use crate::explorer::state::undo::{ExplorerChange, explorer_change_destination};
 use crate::explorer::state::utils::{execute_entry_ops, explorer_is_copy_modifier};
-use splitype_infra::theme::ThemeManager;
+use theme::ThemeManager;
 
 impl Shell {
     // ── Panel-level drag handling (cursor style + hover scroll) ─────────

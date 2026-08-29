@@ -8,7 +8,7 @@
 //!
 //! The menu-tree data and action dispatch live in `crate::app::menus`;
 //! this module only renders and drives that data. The pure geometry lives
-//! in `crate::ui::menu_bar` so both the Shell chrome and the Editor can
+//! in `ui::menu_bar` so both the Shell chrome and the Editor can
 //! share it.
 
 use std::time::Duration;
@@ -22,18 +22,18 @@ use crate::app::actions::{
 use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::app::shell::Shell;
 use crate::editor::engine::controller::Editor;
-use crate::infra::i18n::I18nManager;
-use crate::infra::theme::{Theme, ThemeManager};
-use crate::ui::button::menu_bar_button;
-use crate::ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
-use crate::ui::menu_bar::{
+use i18n::I18nManager;
+use theme::{Theme, ThemeManager};
+use ui::button::menu_bar_button;
+use ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
+use ui::menu_bar::{
     TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width, menu_items_visual_height_with_gaps,
     menu_panel_left, menu_panel_width_for_labels, owned_menu_item_labels,
     scrollable_import_menu_scroll_height, submenu_bridge_geometry, submenu_panel_top,
     supports_in_window_menu,
 };
-use crate::ui::menu_item::{menu_item, menu_item_row};
-use crate::ui::popover::overlay;
+use ui::menu_item::{menu_item, menu_item_row};
+use ui::popover::overlay;
 
 /// Open/hover state for the in-window titlebar menu bar.
 #[derive(Default)]

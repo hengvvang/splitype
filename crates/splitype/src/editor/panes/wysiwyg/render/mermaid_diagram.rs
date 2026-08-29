@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::editor::document::block::Block;
 use crate::editor::panes::wysiwyg::render::embedded_preview::render_graphic_preview_box;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
+use i18n::I18nStrings;
+use theme::Theme;
 
 /// Render a Mermaid diagram block.
 pub(crate) fn render_mermaid_diagram(

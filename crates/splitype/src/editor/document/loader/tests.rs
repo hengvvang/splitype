@@ -6,9 +6,9 @@
 use gpui::{AppContext, TestAppContext};
 
     use crate::editor::engine::controller::Editor;
-    use splitype_model::block::CalloutKind;
-    use splitype_model::inline::html::HtmlCssColor;
-    use splitype_model::parse::BlockKind;
+    use markdown::block::CalloutKind;
+    use markdown::inline::html::HtmlCssColor;
+    use markdown::parse::BlockKind;
 
     #[gpui::test]
     async fn imports_setext_headings_and_grouped_paragraphs(cx: &mut TestAppContext) {

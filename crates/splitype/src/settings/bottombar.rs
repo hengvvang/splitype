@@ -9,8 +9,8 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
-use splitype_infra::theme::Theme;
-use splitype_ui::bottombar::bottombar_container;
+use theme::Theme;
+use ui::bottombar::bottombar_container;
 
 impl Shell {
     /// Bottom bar of a Settings area. Renders the shared bar shell with no

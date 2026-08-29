@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Render a blockquote.
 pub(crate) fn render_blockquote(

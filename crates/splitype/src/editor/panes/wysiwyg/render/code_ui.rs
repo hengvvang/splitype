@@ -1,20 +1,20 @@
 //! Code block UI — editor section, toolbar, and language picker.
 
-use splitype_ui::menu_item::menu_item;
+use ui::menu_item::menu_item;
 
 use gpui::*;
 
 use super::BLOCK_EDITOR_CONTEXT;
 
-use splitype_render::plugins::code_highlight::options::{
+use syntax::options::{
     code_language_display_name, code_language_options_matching,
 };
 use crate::editor::document::block::Block;
 use crate::editor::panes::wysiwyg::render::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,
 };
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
+use i18n::I18nStrings;
+use theme::Theme;
 
 impl Block {
     pub(crate) fn render_code_editor_section(

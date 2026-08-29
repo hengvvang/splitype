@@ -3,11 +3,11 @@
 
 use gpui::*;
 
-use splitype_render::plugins::code_highlight::highlight::{
+use syntax::highlight::{
     code_highlight_color, highlight_code_block,
 };
 use crate::editor::panes::preview::node::PreviewBlock;
-use splitype_infra::theme::Theme;
+use theme::Theme;
 
 /// Extracts the fence language tag from the raw source (e.g. `rust` from
 /// ```rust ... ```), mirroring the WYSIWYG language resolution.
@@ -55,8 +55,8 @@ pub(crate) fn render_preview_fenced_code(block: &PreviewBlock, base: Div, theme:
         .child(
             div()
                 .w_full()
-                .font(splitype_infra::theme::TypographyStore::default_font(
-                    splitype_infra::theme::TypographyScope::Code,
+                .font(theme::TypographyStore::default_font(
+                    theme::TypographyScope::Code,
                 ))
                 .bg(c.code_bg)
                 .rounded(px(d.code_block_radius))
@@ -92,7 +92,7 @@ pub(crate) fn render_preview_fenced_code(block: &PreviewBlock, base: Div, theme:
 /// Renders each source line with per-span highlight colors.
 fn render_highlighted_lines(
     source: &str,
-    result: &splitype_render::plugins::code_highlight::highlight::CodeHighlightResult,
+    result: &syntax::highlight::CodeHighlightResult,
     default_color: Hsla,
     theme: &Theme,
 ) -> AnyElement {

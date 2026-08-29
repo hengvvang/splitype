@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableCellBinding};
 use crate::editor::document::block::Block;
-use splitype_model::block::table::{TableCellPosition, TableColumnAlignment, TableData};
-use splitype_model::parse::{BlockData, BlockKind};
+use markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
+use markdown::parse::{BlockData, BlockKind};
 
 #[derive(Clone)]
 pub struct TableGrid {

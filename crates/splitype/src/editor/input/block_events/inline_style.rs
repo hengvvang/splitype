@@ -9,7 +9,7 @@ use crate::editor::input::actions::{
     UnderlineSelection,
 };
 use crate::editor::document::block::{Block, InlineFormat};
-use splitype_model::inline::text::BlockText;
+use markdown::inline::text::BlockText;
 impl Block {
     pub(crate) fn on_bold_selection(
         &mut self,

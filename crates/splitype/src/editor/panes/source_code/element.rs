@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::{Editor, PaneId};
 use crate::editor::panes::source_code::highlight::build_line_text_runs;
-use splitype_infra::theme::{ThemeManager, TypographyScope, TypographyStore};
+use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 pub(crate) struct SourceCodeViewElement {
     pub(crate) editor: Entity<Editor>,

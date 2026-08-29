@@ -17,11 +17,13 @@ use crate::app::window::panels::{
 };
 use crate::editor::engine::controller::Editor;
 use crate::editor::engine::session::EditorSession;
+
 use crate::explorer::state::state::ExplorerState;
-use crate::infra::config::recent::record_recent_file;
-use crate::splitter::NodeId;
-use crate::ui::custom_titlebar::splitype_window_options;
-use splitype_splitter::tree::SplitTree;
+
+use config::recent::record_recent_file;
+use splitter::NodeId;
+use ui::custom_titlebar::splitype_window_options;
+use splitter::tree::SplitTree;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {
@@ -60,10 +62,11 @@ pub(crate) fn open_editor_window(
                 let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        Editor::empty(cx)
+                        crate::editor::Editor::empty(cx)
                     } else {
-                        Editor::from_markdown(cx, markdown, file_path)
+                        crate::editor::Editor::from_markdown(cx, markdown, file_path)
                     }
+
                 });
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
@@ -129,7 +132,8 @@ pub(crate) fn open_cloned_window(
                 // Materialize one Editor entity per cloned session.
                 let mut panel_contents = HashMap::new();
                 for (panel_id, session) in sessions {
-                    let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
+                    let editor = cx.new(|cx| crate::editor::Editor::with_session(panel_id, session, cx));
+
                     panel_contents.insert(panel_id, PanelContent::Editor(editor));
                 }
                 // The Shell owns the cloned outer layout and explorer state.

@@ -3,7 +3,7 @@
 use gpui::{AppContext, Point, TestAppContext, px};
 
 use crate::editor::engine::controller::Editor;
-use splitype_model::parse::BlockKind;
+use markdown::parse::BlockKind;
 
 #[gpui::test]
 async fn footnote_tooltip_resolves_definition_content_only_when_bound(cx: &mut TestAppContext) {
@@ -230,7 +230,7 @@ async fn footnote_tooltip_anchors_to_reference_and_renders_compact_element(cx: &
         move |_window, cx| Editor::from_markdown(cx, markdown.clone(), None)
     });
 
-    let theme = splitype_infra::theme::Theme::default_theme();
+    let theme = theme::Theme::default_theme();
 
     editor.update_in(cx, |editor, window, cx| {
         let anchor_position = Point::new(px(150.0), px(80.0));

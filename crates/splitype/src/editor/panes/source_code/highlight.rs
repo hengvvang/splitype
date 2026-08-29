@@ -2,10 +2,10 @@ use std::ops::Range;
 
 use gpui::{Font, TextRun};
 
-use splitype_render::plugins::code_highlight::highlight::{
+use syntax::highlight::{
     CodeHighlightSpan, code_highlight_color,
 };
-use splitype_infra::theme::ThemeColors;
+use theme::ThemeColors;
 
 /// Builds a sequence of `TextRun`s for a single line using Tree-sitter highlight spans.
 pub(crate) fn build_line_text_runs(

@@ -1,12 +1,19 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/splitype-core",
-    "crates/splitype-model",
-    "crates/splitype-splitter",
-    "crates/splitype-infra",
-    "crates/splitype-render",
-    "crates/splitype-ui",
+    "crates/primitives",
+    "crates/sum_tree",
+    "crates/markdown",
+    "crates/splitter",
+    "crates/theme",
+    "crates/i18n",
+    "crates/config",
+    "crates/net",
+    "crates/syntax",
+    "crates/latex",
+    "crates/mermaid",
+    "crates/export",
+    "crates/ui",
     "crates/splitype",
     "xtask",
 ]
@@ -21,12 +28,19 @@ rust-version = "1.91"
 
 [workspace.dependencies]
 # Member crates
-splitype-core = { path = "crates/splitype-core" }
-splitype-model = { path = "crates/splitype-model" }
-splitype-splitter = { path = "crates/splitype-splitter" }
-splitype-infra = { path = "crates/splitype-infra" }
-splitype-render = { path = "crates/splitype-render" }
-splitype-ui = { path = "crates/splitype-ui" }
+primitives = { path = "crates/primitives" }
+sum_tree = { path = "crates/sum_tree" }
+markdown = { path = "crates/markdown" }
+splitter = { path = "crates/splitter" }
+theme = { path = "crates/theme" }
+i18n = { path = "crates/i18n" }
+config = { path = "crates/config" }
+net = { path = "crates/net" }
+syntax = { path = "crates/syntax" }
+latex = { path = "crates/latex" }
+mermaid = { path = "crates/mermaid" }
+export = { path = "crates/export" }
+ui = { path = "crates/ui" }
 splitype = { path = "crates/splitype" }
 
 # Third-party shared dependencies

@@ -27,9 +27,9 @@ use gpui::*;
 
 use crate::editor::engine::controller::*;
 use crate::editor::panes::preview::node::PreviewBlock;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
-use splitype_model::parse::BlockKind;
+use i18n::I18nStrings;
+use theme::Theme;
+use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn render_preview_pane(
@@ -214,7 +214,7 @@ pub(crate) fn render_preview_block(
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
         BlockKind::CodeBlock { ref language } => {
-            if splitype_model::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+            if markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
                 mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
             } else if language.as_deref().map_or(false, |l| {
                 l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
@@ -301,7 +301,7 @@ pub(crate) fn render_preview_block(
 /// depths are structural).
 pub(crate) fn preview_centered_column_width(
     viewport_width: f32,
-    d: &splitype_infra::theme::ThemeDimensions,
+    d: &theme::ThemeDimensions,
 ) -> f32 {
     let available_content_width = (viewport_width - d.editor_padding * 2.0).max(1.0);
     let ratio = if viewport_width <= d.centered_shrink_start {

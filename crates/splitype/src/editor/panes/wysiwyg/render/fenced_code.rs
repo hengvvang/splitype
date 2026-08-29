@@ -3,8 +3,8 @@
 use gpui::*;
 
 use crate::editor::document::block::Block;
-use splitype_infra::i18n::I18nStrings;
-use splitype_infra::theme::Theme;
+use i18n::I18nStrings;
+use theme::Theme;
 
 /// Render a fenced code block with optional toolbar and language picker.
 pub(crate) fn render_fenced_code(
