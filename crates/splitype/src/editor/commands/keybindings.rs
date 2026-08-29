@@ -17,7 +17,7 @@ use crate::editor::commands::actions::{
     ToggleReplace, ToggleSearch,
 };
 
-use crate::editor::input::actions::{
+use editor_wysiwyg::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
     FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, JumpToBottom, JumpToTop,
     MoveLeft, MoveRight, Newline, OutdentBlock, PageDown, PageUp, Redo, SelectAll, SelectEnd,

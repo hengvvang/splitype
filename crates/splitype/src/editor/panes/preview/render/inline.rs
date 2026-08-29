@@ -191,7 +191,7 @@ pub(crate) fn render_preview_span(
     if let Some(style) = span.html_style
         && let Some(html_color) = style.color
     {
-        color = crate::editor::panes::wysiwyg::render::html_document::html_css_color_to_hsla(
+        color = editor_wysiwyg::render::html_document::html_css_color_to_hsla(
             html_color, color,
         );
     }
@@ -253,7 +253,7 @@ pub(crate) fn render_preview_span(
         && let Some(bg_color) = style.background_color
     {
         element = element.bg(
-            crate::editor::panes::wysiwyg::render::html_document::html_css_color_to_hsla(bg_color, color),
+            editor_wysiwyg::render::html_document::html_css_color_to_hsla(bg_color, color),
         );
     }
 

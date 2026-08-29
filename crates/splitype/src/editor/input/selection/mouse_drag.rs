@@ -3,7 +3,7 @@ use gpui::*;
 use crate::editor::engine::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, PaneId,
 };
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 
 impl Editor {
     pub(crate) fn begin_cross_block_drag_at_point(

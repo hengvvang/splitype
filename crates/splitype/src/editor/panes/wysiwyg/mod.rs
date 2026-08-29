@@ -4,7 +4,6 @@
 //! behavior is re-normalizing quote/container structure after edits. The
 //! row layout helpers live in `render`.
 
-pub(crate) mod render;
 
 use std::ops::Range;
 

@@ -1,0 +1,31 @@
+[package]
+name = "editor_wysiwyg"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/wysiwyg.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+gpui = { workspace = true }
+markdown = { path = "../markdown" }
+sum_tree = { path = "../sum_tree" }
+primitives = { path = "../primitives" }
+theme = { path = "../theme" }
+editor = { path = "../editor" }
+# Migration-only dependencies (stage 3h folds these into this crate).
+syntax = { path = "../syntax" }
+mermaid = { path = "../mermaid" }
+i18n = { path = "../i18n" }
+ui = { path = "../ui" }
+latex = { path = "../latex" }
+config = { path = "../config" }
+workspace = { path = "../workspace" }
+url = "2"
+unicode-segmentation = "1.13"

@@ -5,4 +5,4 @@ pub(crate) mod columns;
 pub(crate) mod grid;
 pub(crate) mod rows;
 
-pub use grid::TableGrid;
+pub use editor_wysiwyg::table_grid::TableGrid;

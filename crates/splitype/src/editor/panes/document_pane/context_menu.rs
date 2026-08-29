@@ -15,7 +15,7 @@ use crate::editor::commands::edit_command::{
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use workspace::actions::DismissTransientUi;
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 
 /// Active secondary submenu in the context menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1092,7 +1092,7 @@ mod tests {
 
     #[gpui::test]
     async fn test_wysiwyg_quote_and_guides(cx: &mut TestAppContext) {
-        use crate::editor::panes::wysiwyg::render::visible_quote_guides;
+        use editor_wysiwyg::render::visible_quote_guides;
         use markdown::parse::BlockKind;
         cx.update(|cx| {
             i18n::I18nManager::init(cx);

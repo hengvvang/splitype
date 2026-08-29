@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 use markdown::block::table::{TableAxis, TableAxisMarker};
 use markdown::parse::BlockKind;
 
@@ -75,7 +75,7 @@ impl Editor {
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                 cx,
             );
             true

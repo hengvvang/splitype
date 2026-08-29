@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, anyhow};
 use gpui::*;
 
-use crate::editor::document::protocol::PastedImageSource;
+use editor_wysiwyg::document::protocol::PastedImageSource;
 use crate::editor::engine::controller::*;
 use config::settings::{ImagePasteBehavior, read_app_settings};
 use markdown::parse::BlockKind;
@@ -238,7 +238,7 @@ impl Editor {
     }
 
     pub(crate) fn inserted_image_tree_for_block(
-        block: &crate::editor::document::block::Block,
+        block: &editor_wysiwyg::document::block::Block,
         markdown: &str,
     ) -> BlockText {
         if block.edits_verbatim_text() || block.kind().is_code_block() {
@@ -250,7 +250,7 @@ impl Editor {
 
     pub(crate) fn replace_current_block_selection_with_image_text(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         leading: &BlockText,
         markdown: &str,
         trailing: &BlockText,
@@ -273,7 +273,7 @@ impl Editor {
 
     pub(crate) fn insert_image_block_after_paragraph(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         leading: &BlockText,
         markdown: &str,
         trailing: &BlockText,
@@ -332,7 +332,7 @@ impl Editor {
 
     pub(crate) fn on_paste_image_request(
         &mut self,
-        block: Entity<crate::editor::document::block::Block>,
+        block: Entity<editor_wysiwyg::document::block::Block>,
         leading: &BlockText,
         source: &PastedImageSource,
         trailing: &BlockText,
@@ -350,14 +350,14 @@ impl Editor {
             &markdown,
             None,
             false,
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         ) {
             return;
         }
 
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
         let can_insert_image_block = self.is_wysiwyg()

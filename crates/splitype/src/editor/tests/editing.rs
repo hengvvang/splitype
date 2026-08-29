@@ -2,7 +2,7 @@ use gpui::{AppContext, KeyDownEvent, Keystroke, TestAppContext};
 use std::time::{Duration, Instant};
 
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
-use crate::editor::input::actions::{FocusNext, Newline};
+use editor_wysiwyg::actions::{FocusNext, Newline};
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 use markdown::parse::BlockKind;
 
@@ -431,7 +431,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         });
         editor.on_block_event(
             block,
-            &crate::editor::document::protocol::BlockEvent::RequestNewlineAbove,
+            &editor_wysiwyg::document::protocol::BlockEvent::RequestNewlineAbove,
             cx,
         );
     });
@@ -958,7 +958,7 @@ async fn callout_header_text_runs_have_purple_delimiters_and_accent_type(cx: &mu
                 strikethrough: None,
             };
 
-            let runs = crate::editor::panes::wysiwyg::render::inline::shaping::build_text_runs(
+            let runs = editor_wysiwyg::render::inline::shaping::build_text_runs(
                 block,
                 &display_text,
                 &base_run,
@@ -1040,7 +1040,7 @@ async fn image_focus_expands_to_source_syntax_with_markers(cx: &mut TestAppConte
             };
 
             let display_text = gpui::SharedString::from(block.display_text().to_string());
-            let runs = crate::editor::panes::wysiwyg::render::inline::shaping::build_text_runs(
+            let runs = editor_wysiwyg::render::inline::shaping::build_text_runs(
                 block,
                 &display_text,
                 &base_run,

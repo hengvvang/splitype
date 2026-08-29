@@ -4,10 +4,10 @@
 
 use gpui::*;
 
-use super::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
-use crate::editor::document::protocol::BlockEvent;
+use editor_wysiwyg::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
+use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
-use crate::editor::document::block::CollapsedCaretAffinity;
+use editor_wysiwyg::document::block::CollapsedCaretAffinity;
 use markdown::block::table::TableCellPosition;
 use markdown::parse::BlockKind;
 
@@ -107,7 +107,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_position(
         &mut self,
-        table_block: &Entity<crate::editor::document::block::Block>,
+        table_block: &Entity<editor_wysiwyg::document::block::Block>,
         position: TableCellPosition,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -130,7 +130,7 @@ impl Editor {
     /// header when the table has no body rows.
     pub(crate) fn focus_table_entry_cell(
         &mut self,
-        table_block: &Entity<crate::editor::document::block::Block>,
+        table_block: &Entity<editor_wysiwyg::document::block::Block>,
         from_top: bool,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -163,7 +163,7 @@ impl Editor {
     /// (Move Up/Down semantics).
     pub(crate) fn focus_block_adjacent_to_table(
         &mut self,
-        table_block: &Entity<crate::editor::document::block::Block>,
+        table_block: &Entity<editor_wysiwyg::document::block::Block>,
         delta: i32,
         to_block_start: bool,
         cx: &mut Context<Self>,
@@ -208,7 +208,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_horizontal_neighbor(
         &mut self,
-        table_block: &Entity<crate::editor::document::block::Block>,
+        table_block: &Entity<editor_wysiwyg::document::block::Block>,
         position: TableCellPosition,
         delta: i32,
         cx: &mut Context<Self>,
@@ -258,7 +258,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_vertical_neighbor(
         &mut self,
-        table_block: &Entity<crate::editor::document::block::Block>,
+        table_block: &Entity<editor_wysiwyg::document::block::Block>,
         position: TableCellPosition,
         delta: i32,
         cx: &mut Context<Self>,
@@ -350,7 +350,7 @@ impl Editor {
                 self.clear_table_axis_selection(cx);
                 self.sync_table_data_from_grid(&binding.table_block, cx);
                 self.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 let new_block = Self::new_block(cx, BlockData::paragraph(String::new()));
@@ -408,7 +408,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<Entity<crate::editor::document::block::Block>> {
+    ) -> Option<Entity<editor_wysiwyg::document::block::Block>> {
         let mut current = self.focusable_entity_by_id(entity_id)?;
         loop {
             if current.read(cx).kind().is_quote_container() {
@@ -423,7 +423,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<Entity<crate::editor::document::block::Block>> {
+    ) -> Option<Entity<editor_wysiwyg::document::block::Block>> {
         let mut current = self.nearest_quote_ancestor(entity_id, cx)?;
         loop {
             let Some(location) = self.doc().find_block_location(current.entity_id()) else {
@@ -444,7 +444,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<(Option<Entity<crate::editor::document::block::Block>>, usize)> {
+    ) -> Option<(Option<Entity<editor_wysiwyg::document::block::Block>>, usize)> {
         let quote_block = self.nearest_quote_ancestor(entity_id, cx)?;
         let location = self.doc().find_block_location(quote_block.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
@@ -454,7 +454,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<(Option<Entity<crate::editor::document::block::Block>>, usize)> {
+    ) -> Option<(Option<Entity<editor_wysiwyg::document::block::Block>>, usize)> {
         let callout_root = self.topmost_quote_ancestor(entity_id, cx)?;
         let location = self.doc().find_block_location(callout_root.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
@@ -462,9 +462,9 @@ impl Editor {
 
     pub(crate) fn ensure_callout_body_entry(
         &mut self,
-        callout: &Entity<crate::editor::document::block::Block>,
+        callout: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
-    ) -> Option<Entity<crate::editor::document::block::Block>> {
+    ) -> Option<Entity<editor_wysiwyg::document::block::Block>> {
         if !matches!(callout.read(cx).kind(), BlockKind::Callout(_)) {
             return None;
         }
@@ -481,7 +481,7 @@ impl Editor {
 
     pub(crate) fn materialize_empty_callout_shortcut(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
     ) -> Option<EntityId> {
         if !self.is_wysiwyg() {
@@ -519,7 +519,7 @@ impl Editor {
 
     pub(crate) fn downgrade_empty_callout_body_to_quote(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let Some(location) = self.doc().find_block_location(block.entity_id()) else {
@@ -548,7 +548,7 @@ impl Editor {
         }
 
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
         self.doc_mut().with_structure_mutation(cx, |document, cx| {

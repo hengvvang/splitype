@@ -10,7 +10,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 use markdown::parse::BlockKind;
 
 impl Editor {

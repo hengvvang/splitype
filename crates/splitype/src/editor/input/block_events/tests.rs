@@ -5,10 +5,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::editor::document::protocol::BlockEvent;
+    use editor_wysiwyg::document::protocol::BlockEvent;
     use crate::editor::engine::controller::Editor;
-    use crate::editor::input::actions::ExitCodeBlock;
-    use crate::editor::input::actions::{DeleteBackward, Newline};
+    use editor_wysiwyg::actions::ExitCodeBlock;
+    use editor_wysiwyg::actions::{DeleteBackward, Newline};
     use primitives::CalloutKind;
     use markdown::inline::text::BlockText;
     use markdown::parse::{BlockData, BlockKind};
@@ -48,7 +48,7 @@ mod tests {
             let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_display_range(0..0, "> ", None, false, cx);
@@ -181,7 +181,7 @@ mod tests {
             let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_display_range(0..0, "> [!NOTE]", None, false, cx);
@@ -230,7 +230,7 @@ mod tests {
             assert!(separator.read(cx).list_group_separator_candidate);
             separator.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_display_range(0..0, "1. ", None, false, cx);
@@ -314,7 +314,7 @@ mod tests {
                 let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
-                        crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                        editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
                     block.replace_text_in_display_range(
@@ -352,7 +352,7 @@ mod tests {
                 let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
-                        crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                        editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
                     block.replace_text_in_display_range(

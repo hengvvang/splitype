@@ -97,7 +97,7 @@ impl Editor {
     }
 
     pub(crate) fn set_block_text_and_kind(
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         kind: BlockKind,
         text: BlockText,
         cursor: usize,
@@ -122,7 +122,7 @@ impl Editor {
     /// A block that a setext underline below it can promote into a heading: a
     /// non-empty, single-line, plain paragraph with no children.
     pub(crate) fn is_setext_heading_target(
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &App,
     ) -> bool {
         let block = block.read(cx);
@@ -139,7 +139,7 @@ impl Editor {
     /// true when it consumed the newline.
     pub(crate) fn try_form_setext_heading_on_newline(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let text = block.read(cx).display_text().to_string();
@@ -173,7 +173,7 @@ impl Editor {
         // event (nothing had changed yet), so start a fresh one here that spans
         // the heading/separator conversion. prepare is a no-op if one is pending.
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
 
@@ -228,7 +228,7 @@ impl Editor {
     /// be typed. Returns true when it consumed the newline.
     pub(crate) fn try_form_or_extend_table_on_newline(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let text = block.read(cx).display_text().to_string();
@@ -264,7 +264,7 @@ impl Editor {
         };
 
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
         // Remove the lower (delimiter) block first so the header index is stable.
@@ -293,8 +293,8 @@ impl Editor {
 
     pub(crate) fn extend_table_with_typed_row(
         &mut self,
-        table_block: &Entity<crate::editor::document::block::Block>,
-        row_block: &Entity<crate::editor::document::block::Block>,
+        table_block: &Entity<editor_wysiwyg::document::block::Block>,
+        row_block: &Entity<editor_wysiwyg::document::block::Block>,
         text: &str,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -308,7 +308,7 @@ impl Editor {
         };
 
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
         table.rows.push(row);
@@ -347,7 +347,7 @@ impl Editor {
     /// follows the block or it is not a stranding structure.
     pub(crate) fn ensure_trailing_paragraph_after_structural(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
     ) {
         let strands = {

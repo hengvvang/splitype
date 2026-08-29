@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 
 impl Editor {
     pub(crate) fn current_edit_target_entity_id_from_state(&self, cx: &App) -> Option<EntityId> {
@@ -71,7 +71,7 @@ impl Editor {
     }
 
     /// Creates a new block entity and subscribes this editor to its
-    /// [`BlockEvent`](crate::editor::document::protocol::BlockEvent) stream.
+    /// [`BlockEvent`](editor_wysiwyg::document::protocol::BlockEvent) stream.
     pub(crate) fn new_block(cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
         let block = cx.new(|cx| Block::with_data(cx, data));
         cx.subscribe(&block, Self::on_block_event).detach();

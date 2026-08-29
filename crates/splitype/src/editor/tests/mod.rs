@@ -87,7 +87,7 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
 /// register its input handler.
 fn focus_block(
     editor: &gpui::Entity<Editor>,
-    block: &gpui::Entity<crate::editor::document::block::Block>,
+    block: &gpui::Entity<editor_wysiwyg::document::block::Block>,
     cx: &mut gpui::VisualTestContext,
 ) {
     cx.cx

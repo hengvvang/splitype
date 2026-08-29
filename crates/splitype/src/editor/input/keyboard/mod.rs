@@ -18,7 +18,6 @@
 //!     └─ Main match: handle each variant
 //! ```
 
-pub mod ime;
 pub mod typing;
 
 #[cfg(test)]
@@ -26,7 +25,7 @@ mod tests;
 
 use gpui::*;
 
-use super::actions::{IndentBlock, OutdentBlock};
+use editor_wysiwyg::actions::{IndentBlock, OutdentBlock};
 use crate::editor::engine::controller::Editor;
 use markdown::parse::BlockKind;
 
@@ -35,8 +34,8 @@ impl Editor {
         &self,
         window: &mut Window,
         cx: &App,
-    ) -> Option<Entity<crate::editor::document::block::Block>> {
-        let is_focused = |block: &Entity<crate::editor::document::block::Block>| {
+    ) -> Option<Entity<editor_wysiwyg::document::block::Block>> {
+        let is_focused = |block: &Entity<editor_wysiwyg::document::block::Block>| {
             let block = block.read(cx);
             block.focus_handle.is_focused(window)
                 || block.code_language_focus_handle.is_focused(window)

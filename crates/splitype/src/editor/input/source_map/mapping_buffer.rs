@@ -4,7 +4,7 @@ use crate::editor::engine::controller::*;
 
 impl Editor {
     pub(crate) fn is_empty_root_paragraph(block: &Block) -> bool {
-        crate::editor::document::Document::is_empty_root_paragraph(block)
+        editor_wysiwyg::document::Document::is_empty_root_paragraph(block)
     }
 
     pub(crate) fn build_prefixed_content_mapping(
@@ -53,7 +53,7 @@ impl Editor {
         indentation: &str,
         language: Option<&str>,
     ) -> (String, Vec<usize>, Vec<usize>) {
-        let fence = crate::editor::document::serialize::safe_code_fence_with_info(content, language);
+        let fence = editor_wysiwyg::document::serialize::safe_code_fence_with_info(content, language);
         let mut full = String::new();
         let mut content_to_source = vec![0; content.len() + 1];
         let mut source_to_content = vec![0];

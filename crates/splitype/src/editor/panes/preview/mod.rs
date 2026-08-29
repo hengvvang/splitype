@@ -14,7 +14,7 @@ use std::sync::Arc;
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, PaneId};
-use crate::editor::document::block::footnotes::{
+use editor_wysiwyg::document::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 use markdown::block::image::ImageReferenceDefinitions;

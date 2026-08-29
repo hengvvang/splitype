@@ -3,11 +3,11 @@
 //! Split from `keyboard.rs` so the implementation file stays small;
 //! these tests drive the whole block-editing pipeline.
 
-use crate::editor::document::protocol::BlockEvent;
+use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::Editor;
-use crate::editor::input::actions::ExitCodeBlock;
-use crate::editor::input::actions::{Delete, DeleteBackward, Newline};
-use crate::editor::document::block::Block;
+use editor_wysiwyg::actions::ExitCodeBlock;
+use editor_wysiwyg::actions::{Delete, DeleteBackward, Newline};
+use editor_wysiwyg::document::block::Block;
 use primitives::CalloutKind;
 use markdown::inline::text::BlockText;
 use markdown::parse::{BlockData, BlockKind};
@@ -47,7 +47,7 @@ async fn typing_quote_shortcut_immediately_refreshes_rendered_quote_metadata(
         let paragraph = editor.doc().first_root().expect("root paragraph").clone();
         paragraph.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(0..0, "> ", None, false, cx);
@@ -177,7 +177,7 @@ async fn typing_callout_shortcut_materializes_body_and_focuses_it(cx: &mut TestA
         let paragraph = editor.doc().first_root().expect("root paragraph").clone();
         paragraph.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(0..0, "> [!NOTE]", None, false, cx);
@@ -225,7 +225,7 @@ async fn typing_numbered_list_shortcut_after_separator_preserves_group_boundary(
         assert!(separator.read(cx).list_group_separator_candidate);
         separator.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(0..0, "1. ", None, false, cx);
@@ -308,7 +308,7 @@ async fn empty_list_child_paragraph_backspace_outdents_to_root(cx: &mut TestAppC
             let child = editor.doc().blocks()[1].entity.clone();
             child.update(cx, |block, block_cx| {
                 block.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     block_cx,
                 );
                 block.replace_text_in_display_range(
@@ -346,7 +346,7 @@ async fn empty_list_child_paragraph_enter_continues_same_level(cx: &mut TestAppC
             let child = editor.doc().blocks()[1].entity.clone();
             child.update(cx, |block, block_cx| {
                 block.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     block_cx,
                 );
                 block.replace_text_in_display_range(
@@ -1906,7 +1906,7 @@ async fn shortcut_created_leaf_quote_backspace_twice_downgrades_to_text_block(
         let paragraph = editor.doc().first_root().expect("root paragraph").clone();
         paragraph.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(0..0, "> ", None, false, cx);
@@ -2124,7 +2124,7 @@ async fn quote_newline_inside_title_stays_in_one_source_authoritative_group(
         let quote = editor.doc().first_root().expect("root quote").clone();
         quote.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                 cx,
             );
             block.replace_text_in_display_range(5..5, "\n", None, false, cx);
@@ -2175,7 +2175,7 @@ async fn multiline_edit_inside_quote_reparses_into_child_blocks(cx: &mut TestApp
         let quote = editor.doc().first_root().expect("root quote").clone();
         quote.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                 cx,
             );
             block.replace_text_in_display_range(5..5, "\n- item", None, false, cx);

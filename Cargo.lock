@@ -1717,6 +1717,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor_wysiwyg"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "editor",
+ "gpui",
+ "i18n",
+ "latex",
+ "markdown",
+ "mermaid",
+ "primitives",
+ "sum_tree 0.0.1",
+ "syntax",
+ "theme",
+ "ui",
+ "unicode-segmentation",
+ "url",
+ "workspace",
+]
+
+[[package]]
 name = "either"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6079,6 +6100,7 @@ dependencies = [
  "editor_outline",
  "editor_search",
  "editor_source_code",
+ "editor_wysiwyg",
  "embed-resource",
  "explorer",
  "explorer_fs",

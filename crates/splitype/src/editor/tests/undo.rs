@@ -13,7 +13,7 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
         editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(5..5, " beta", None, false, cx);
@@ -38,14 +38,14 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
 
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(1..1, "b", None, false, cx);
         });
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(2..2, "c", None, false, cx);
@@ -70,7 +70,7 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
         editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(5..5, " beta", None, false, cx);
@@ -97,7 +97,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(5..5, " beta", None, false, cx);
@@ -112,7 +112,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::CoalescibleText,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
             block.replace_text_in_display_range(5..5, " gamma", None, false, cx);

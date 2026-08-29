@@ -10,7 +10,7 @@
 
 pub(crate) use std::time::{Duration, Instant};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -19,15 +19,22 @@ pub(crate) use gpui::*;
 pub(crate) use editor_core::EditorHost;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
-pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
+pub(crate) use editor_wysiwyg::document::protocol::UndoCaptureKind;
 pub(crate) use editor_outline::OutlineHudState;
 pub use crate::editor::engine::session::{
     EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, TabKind,
 };
-pub(crate) use crate::editor::document::block::Block;
-pub(crate) use crate::editor::document::Document;
-pub(crate) use crate::editor::document::block::footnotes::{
+pub(crate) use editor_wysiwyg::document::block::Block;
+pub(crate) use editor_wysiwyg::document::Document;
+pub(crate) use editor_wysiwyg::document::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
+};
+pub(crate) use editor_wysiwyg::state::{
+    AutoscrollStrategy, BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,
+    CrossBlockSelectionEndpoint, EditorSelection, FocusState, HistoryEntry, PendingUndoCapture,
+    ReferenceRegistries, SelectionState, SourceTargetMapping, TableAxisSelection,
+    TableCellBinding, TableGrids, TableSizePickerState, UndoHistory, UndoSelectionSnapshot,
+    WysiwygSelectAllCycle, EMPTY_FOCUS_STATE, EMPTY_SELECTION_STATE,
 };
 pub(crate) use crate::editor::panes::document_pane::context_menu::{ContextMenuState, FootnoteTooltipState};
 pub(crate) use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
@@ -39,7 +46,7 @@ pub(crate) use markdown::block::link::{
 };
 pub(crate) use markdown::block::table::TableCellPosition;
 pub(crate) use markdown::block::table::{
-    TableAxis, TableColumnAlignment, serialize_table_cell_markdown,
+    TableColumnAlignment, serialize_table_cell_markdown,
 };
 pub(crate) use markdown::inline::text::BlockText;
 pub(crate) use markdown::parse::{BlockData, BlockId, BlockKind};
@@ -77,97 +84,6 @@ pub(crate) struct FileState {
     pub(crate) show_drop_replace_dialog: bool,
     pub(crate) pending_drop_replace_after_save: bool,
     pub(crate) drop_replace_restore_focus: Option<EntityId>,
-}
-
-/// Algebraic autoscroll intent (mirrors Zed's AutoscrollStrategy).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum AutoscrollStrategy {
-    /// Scroll the minimal amount necessary to bring the active block / caret into view (with safe margin).
-    Fit { margin: Pixels },
-    /// Vertically center the active block / caret in the viewport.
-    Center,
-    /// Align the target block near the top of the viewport.
-    Top { margin: Pixels },
-    /// Align the target block near the bottom of the viewport.
-    #[allow(dead_code)]
-    Bottom { margin: Pixels },
-}
-
-/// Focus routing and deferred focus targets.
-#[derive(Default)]
-pub(crate) struct FocusState {
-    pub(crate) pending: Option<EntityId>,
-    pub(crate) active_entity: Option<EntityId>,
-}
-
-/// Editor-level selection spanning rendered blocks.
-#[derive(Default)]
-pub(crate) struct SelectionState {
-    pub(crate) cross_block: Option<CrossBlockSelection>,
-    pub(crate) cross_block_drag: Option<CrossBlockDrag>,
-    pub(crate) select_all_cycle: Option<WysiwygSelectAllCycle>,
-}
-
-impl SelectionState {
-    /// Returns true if cross-block selection or drag is active.
-    #[inline]
-    pub(crate) const fn has_cross_block(&self) -> bool {
-        self.cross_block.is_some() || self.cross_block_drag.is_some()
-    }
-
-    /// Clears cross-block selection and drag session.
-    #[inline]
-    pub(crate) fn clear_cross_block(&mut self) -> bool {
-        let had_cross = self.cross_block.take().is_some();
-        self.cross_block_drag = None;
-        had_cross
-    }
-
-    /// Clears all active selection and multi-press cycle state.
-    #[inline]
-    pub(crate) fn clear_all(&mut self) {
-        self.cross_block = None;
-        self.cross_block_drag = None;
-        self.select_all_cycle = None;
-    }
-}
-
-/// Undo/redo stacks, coalescing state, and delta transaction history.
-#[derive(Default)]
-pub(crate) struct UndoHistory {
-    pub(crate) undo_entries: Vec<HistoryEntry>,
-    pub(crate) redo_entries: Vec<HistoryEntry>,
-    pub(crate) pending_capture: Option<PendingUndoCapture>,
-    pub(crate) last_selection_snapshot: UndoSelectionSnapshot,
-    pub(crate) restore_in_progress: bool,
-}
-
-/// Document-wide reference registries (images, links, footnotes).
-#[derive(Default)]
-pub(crate) struct ReferenceRegistries {
-    pub(crate) image: Arc<ImageReferenceDefinitions>,
-    pub(crate) link: Arc<LinkReferenceDefinitions>,
-    pub(crate) footnotes: Arc<FootnoteMap>,
-    /// Base directory the registries were last synced against; blocks
-    /// re-resolve image sources whenever this changes.
-    pub(crate) base_dir: Option<PathBuf>,
-    /// Document structure version at the time every current block last
-    /// received its reference context. A mismatch means blocks were added
-    /// or replaced since, so the per-block sync cannot be skipped.
-    pub(crate) synced_structure_version: u64,
-    /// Blocks and table cells that could contribute reference definitions,
-    /// footnote content, or standalone-image syntax, cached at the last full
-    /// registry sync. A block edit outside this set cannot change the
-    /// registries, so the per-keystroke rebuild is skipped.
-    pub(crate) candidate_blocks: HashSet<EntityId>,
-}
-
-/// Native table cell bindings and axis selections.
-#[derive(Default)]
-pub(crate) struct TableGrids {
-    pub(crate) cells: HashMap<EntityId, TableCellBinding>,
-    pub(crate) axis_preview: Option<TableAxisSelection>,
-    pub(crate) axis_selection: Option<TableAxisSelection>,
 }
 
 /// Scroll handle, layout anchoring, and autoscroll interaction state.
@@ -246,16 +162,6 @@ pub(crate) struct PaneState {
     pub(crate) kind_state: PaneKindState,
 }
 
-static EMPTY_FOCUS_STATE: FocusState = FocusState {
-    pending: None,
-    active_entity: None,
-};
-
-static EMPTY_SELECTION_STATE: SelectionState = SelectionState {
-    cross_block: None,
-    cross_block_drag: None,
-    select_all_cycle: None,
-};
 
 #[allow(dead_code)]
 impl PaneState {
@@ -375,7 +281,7 @@ impl PaneState {
 /// Top-level controller that owns editor-wide state and delegates tree
 /// mutations to [`Document`].
 ///
-/// The editor subscribes to every [`BlockEvent`](crate::editor::document::protocol::BlockEvent)
+/// The editor subscribes to every [`BlockEvent`](editor_wysiwyg::document::protocol::BlockEvent)
 /// emitted by child blocks. Structural changes are handled centrally so focus,
 /// scrolling, dirty tracking, and serialization stay synchronized. Documents
 /// live in [`DocumentTab`]s, grouped per Editor area in the window layout:
@@ -438,33 +344,6 @@ pub struct Editor {
     pub(crate) search: crate::editor::search::SearchPanelState,
 }
 
-/// Binding between a table block and one cell editor.
-#[derive(Clone)]
-pub(crate) struct TableCellBinding {
-    pub(crate) table_block: Entity<Block>,
-    pub(crate) cell: Entity<Block>,
-    pub(crate) position: TableCellPosition,
-}
-
-/// Selected row or column in a rendered native table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct TableAxisSelection {
-    pub(crate) table_block_id: EntityId,
-    pub(crate) kind: TableAxis,
-    pub(crate) index: usize,
-}
-
-/// State for the interactive Table Size Matrix Picker popup.
-#[derive(Clone, Debug)]
-pub(crate) struct TableSizePickerState {
-    pub(crate) table_block_id: EntityId,
-    pub(crate) position: Point<Pixels>,
-    pub(crate) current_rows: usize,
-    pub(crate) current_cols: usize,
-    pub(crate) hovered_rows: Option<usize>,
-    pub(crate) hovered_cols: Option<usize>,
-}
-
 /// Pixel geometry for the custom editor scrollbar.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ScrollbarGeometry {
@@ -483,115 +362,6 @@ pub(crate) struct ScrollbarDragSession {
     pub(crate) max_scroll_y: f32,
 }
 
-/// A block-local selection captured as a path through the block tree.
-///
-/// Undo restores rebuild every block entity, so the anchor addresses the
-/// block structurally (root index + sibling index per level) instead of by
-/// entity id. The range is the block's current (projected) content range.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct BlockSelectionAnchor {
-    /// Root index followed by the sibling index of each child level.
-    pub(crate) path: Vec<usize>,
-    /// Current (projected) content range inside the anchored block.
-    pub(crate) content_range: std::ops::Range<usize>,
-}
-
-/// Selection snapshot used by undo/redo to restore the caret.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) struct UndoSelectionSnapshot {
-    /// Global source range. Only meaningful for cross-block selections and
-    /// source-mode selections; block-local snapshots carry [`Self::block_anchor`]
-    /// instead and leave this empty.
-    pub(crate) range: std::ops::Range<usize>,
-    pub(crate) reversed: bool,
-    /// Block-local caret anchor, when the selection lives inside one block.
-    pub(crate) block_anchor: Option<BlockSelectionAnchor>,
-}
-
-/// One undo history entry containing transactional deltas and selection state.
-#[derive(Clone, Debug)]
-pub(crate) struct HistoryEntry {
-    pub(crate) transaction: crate::editor::history::delta::Transaction,
-    pub(crate) selection_before: UndoSelectionSnapshot,
-    pub(crate) selection_after: UndoSelectionSnapshot,
-    pub(crate) timestamp: Instant,
-    pub(crate) kind: UndoCaptureKind,
-}
-
-/// Deferred undo capture used to coalesce adjacent typing edits.
-#[derive(Clone, Debug)]
-pub(crate) struct PendingUndoCapture {
-    pub(crate) snapshot: HistoryEntry,
-    pub(crate) target_block_id: Option<markdown::parse::BlockId>,
-    pub(crate) initial_text: Option<markdown::inline::text::BlockText>,
-    pub(crate) initial_roots: Option<Vec<markdown::parse::BlockData>>,
-}
-
-/// Cross-block selection endpoint in visible block order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CrossBlockSelectionEndpoint {
-    pub(crate) entity_id: EntityId,
-    pub(crate) offset: usize,
-}
-
-/// Editor-level selection spanning two visible block endpoints.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CrossBlockSelection {
-    pub(crate) anchor: CrossBlockSelectionEndpoint,
-    pub(crate) focus: CrossBlockSelectionEndpoint,
-}
-
-/// Drag state while creating or extending a cross-block selection.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CrossBlockDrag {
-    pub(crate) anchor: CrossBlockSelectionEndpoint,
-}
-
-/// Short-lived Ctrl/Cmd+A press counter for rendered-mode selection upgrade.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WysiwygSelectAllCycle {
-    pub(crate) entity_id: EntityId,
-    pub(crate) count: u8,
-    pub(crate) last_pressed_at: Instant,
-}
-
-/// Mapping from one visible block's text range to canonical Markdown offsets.
-#[derive(Clone)]
-pub(crate) struct SourceTargetMapping {
-    pub(crate) entity: Entity<Block>,
-    pub(crate) full_source_range: std::ops::Range<usize>,
-    pub(crate) content_to_source: Vec<usize>,
-    pub(crate) source_to_content: Vec<usize>,
-}
-
-impl SourceTargetMapping {
-    pub(crate) fn content_to_source_offset(&self, content_offset: usize) -> usize {
-        let max_content = self.content_to_source.len().saturating_sub(1);
-        self.content_to_source[content_offset.min(max_content)]
-    }
-
-    pub(crate) fn source_to_content_offset(&self, source_offset: usize) -> usize {
-        let max_source = self.source_to_content.len().saturating_sub(1);
-        self.source_to_content[source_offset.min(max_source)]
-    }
-}
-
-/// Unified description of the active selection in the editor.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum EditorSelection {
-    /// No selection active.
-    None,
-    /// Selection confined within a single focused block.
-    IntraBlock {
-        block_id: EntityId,
-        range: std::ops::Range<usize>,
-        reversed: bool,
-    },
-    /// Selection spanning multiple distinct blocks.
-    CrossBlock(CrossBlockSelection),
-    /// Selection of a table row or column.
-    TableAxis(TableAxisSelection),
-}
 
 /// The informational dialogs that can be shown from the Help menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

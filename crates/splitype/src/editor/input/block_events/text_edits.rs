@@ -2,16 +2,16 @@
 
 use gpui::*;
 
-use crate::editor::document::protocol::BlockEvent;
+use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
 
 impl Editor {
     pub(crate) fn on_text_edit_event(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         event: &BlockEvent,
         current_entry_index: usize,
-        entries_before: &[crate::editor::document::BlockEntry],
+        entries_before: &[editor_wysiwyg::document::BlockEntry],
         cx: &mut Context<Self>,
     ) {
         match event {
@@ -35,7 +35,7 @@ impl Editor {
                 };
                 if !source_already_mutated {
                     self.prepare_undo_capture(
-                        crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                        editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                         cx,
                     );
                 }
@@ -67,7 +67,7 @@ impl Editor {
                     return;
                 };
                 self.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 let new_block = Self::new_block(
@@ -97,7 +97,7 @@ impl Editor {
                 let quote_related = self.is_block_quote_structure_related(block, cx)
                     || self.is_block_quote_structure_related(&prev, cx);
                 self.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
@@ -115,7 +115,7 @@ impl Editor {
 
                 let is_task_list_item = block.read(cx).kind().is_task_list_item();
                 let adopted_children =
-                    crate::editor::document::Document::take_children(block, cx);
+                    editor_wysiwyg::document::Document::take_children(block, cx);
                 let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     let (_, location) = document.remove_block_unindexed(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {
@@ -163,7 +163,7 @@ impl Editor {
                 }
                 let quote_related = self.is_block_quote_structure_related(block, cx);
                 self.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 

@@ -40,9 +40,9 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
     if source.body.is_empty() {
         return base
             .w_full()
-            .child(crate::editor::panes::wysiwyg::render::embedded_preview::render_graphic_preview_box(
-                crate::editor::panes::wysiwyg::render::graphic_state::render_empty_graphic_placeholder(
-                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::LatexMath,
+            .child(editor_wysiwyg::render::embedded_preview::render_graphic_preview_box(
+                editor_wysiwyg::render::graphic_state::render_empty_graphic_placeholder(
+                    editor_wysiwyg::render::graphic_state::GraphicKind::LatexMath,
                     theme,
                 ),
                 theme,
@@ -65,9 +65,9 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
             .into_any_element(),
         Err(err) => base
             .w_full()
-            .child(crate::editor::panes::wysiwyg::render::embedded_preview::render_graphic_preview_box(
-                crate::editor::panes::wysiwyg::render::graphic_state::render_graphic_error_card(
-                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::LatexMath,
+            .child(editor_wysiwyg::render::embedded_preview::render_graphic_preview_box(
+                editor_wysiwyg::render::graphic_state::render_graphic_error_card(
+                    editor_wysiwyg::render::graphic_state::GraphicKind::LatexMath,
                     &err.to_string(),
                     raw,
                     theme,

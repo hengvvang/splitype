@@ -12,7 +12,7 @@ use crate::editor::commands::actions::{
 };
 
 use crate::editor::engine::controller::*;
-use crate::editor::input::actions::{Redo, Undo};
+use editor_wysiwyg::actions::{Redo, Undo};
 
 impl Editor {
     /// Builds the OS window title, including the dirty marker when the

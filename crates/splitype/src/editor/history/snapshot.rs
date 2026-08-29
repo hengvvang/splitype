@@ -7,7 +7,7 @@ use gpui::*;
 use crate::editor::engine::controller::{
     BlockSelectionAnchor, Editor, EditorPaneKind, UndoSelectionSnapshot,
 };
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 
 impl Editor {
     pub(crate) fn empty_selection_snapshot() -> UndoSelectionSnapshot {
@@ -272,7 +272,7 @@ impl Editor {
                 mapping.entity.update(cx, move |block, cx| {
                     block.assign_collapsed_selection_offset(
                         display_offset,
-                        crate::editor::document::block::CollapsedCaretAffinity::Default,
+                        editor_wysiwyg::document::block::CollapsedCaretAffinity::Default,
                         None,
                     );
                     block.marked_range = None;

@@ -5,7 +5,7 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, HistoryEntry, UndoCaptureKind, UndoSelectionSnapshot};
-use crate::editor::history::delta::Transaction;
+use editor_wysiwyg::history::delta::Transaction;
 
 impl Editor {
     pub(crate) fn prepare_undo_capture(&mut self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
@@ -85,7 +85,7 @@ impl Editor {
                 let inserted = current_roots[prefix_len..ins_end].to_vec();
 
                 pending.snapshot.transaction.ops.push(
-                    crate::editor::history::delta::DocDelta::SpliceRoots {
+                    editor_wysiwyg::history::delta::DocDelta::SpliceRoots {
                         index: prefix_len,
                         deleted,
                         inserted,
@@ -97,7 +97,7 @@ impl Editor {
                 let current_text = target.read(cx).data.text.clone();
                 if current_text != old_text {
                     pending.snapshot.transaction.ops.push(
-                        crate::editor::history::delta::DocDelta::UpdateBlockText {
+                        editor_wysiwyg::history::delta::DocDelta::UpdateBlockText {
                             block_id,
                             old_text,
                             new_text: current_text,
@@ -128,7 +128,7 @@ impl Editor {
             if let Some(last) = self.tab_mut().undo.undo_entries.last_mut() {
                 for new_op in pending.snapshot.transaction.ops {
                     match new_op {
-                        crate::editor::history::delta::DocDelta::UpdateBlockText {
+                        editor_wysiwyg::history::delta::DocDelta::UpdateBlockText {
                             block_id,
                             old_text,
                             new_text,
@@ -151,7 +151,7 @@ impl Editor {
 
                             if let Some(existing) =
                                 last.transaction.ops.iter_mut().find_map(|op| match op {
-                                    crate::editor::history::delta::DocDelta::UpdateBlockText {
+                                    editor_wysiwyg::history::delta::DocDelta::UpdateBlockText {
                                         block_id: b,
                                         new_text: nt,
                                         ..
@@ -162,7 +162,7 @@ impl Editor {
                                 *existing = new_text;
                             } else {
                                 last.transaction.ops.push(
-                                    crate::editor::history::delta::DocDelta::UpdateBlockText {
+                                    editor_wysiwyg::history::delta::DocDelta::UpdateBlockText {
                                         block_id,
                                         old_text,
                                         new_text,

@@ -1,6 +1,5 @@
 //! Input processing: keyboard, mouse, IME, clipboard, selection, table grid, and block events.
 
-pub mod actions;
 pub mod block_events;
 pub mod focus;
 pub mod keyboard;

@@ -1,15 +1,8 @@
 //! Block event router and dispatcher — coordinates mutations and undo tracking.
 
-pub(crate) mod clipboard;
-pub(crate) mod code_language;
-pub(crate) mod inline_style;
 pub(crate) mod interactions;
-pub(crate) mod mouse;
-pub(crate) mod navigation;
 pub(crate) mod structure_ops;
 pub(crate) mod table_events;
-pub(crate) mod table_grow;
-pub(crate) mod text_edit;
 pub(crate) mod text_edits;
 
 #[cfg(test)]
@@ -17,13 +10,13 @@ mod tests;
 
 use gpui::*;
 
-use crate::editor::document::protocol::BlockEvent;
+use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
 
 impl Editor {
     pub(crate) fn on_block_event(
         &mut self,
-        block: Entity<crate::editor::document::block::Block>,
+        block: Entity<editor_wysiwyg::document::block::Block>,
         event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
@@ -88,28 +81,28 @@ impl Editor {
         }
 
         match event.category() {
-            crate::editor::document::protocol::BlockEventCategory::ContentChange => {
+            editor_wysiwyg::document::protocol::BlockEventCategory::ContentChange => {
                 self.on_content_change_event(&block, cx);
             }
-            crate::editor::document::protocol::BlockEventCategory::TextEdit => {
+            editor_wysiwyg::document::protocol::BlockEventCategory::TextEdit => {
                 let entries_before = self.doc().cloned_entries();
                 let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_text_edit_event(&block, event, current_entry_index, &entries_before, cx);
             }
-            crate::editor::document::protocol::BlockEventCategory::Structure => {
+            editor_wysiwyg::document::protocol::BlockEventCategory::Structure => {
                 let entries_before = self.doc().cloned_entries();
                 let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_structure_event(&block, event, current_entry_index, &entries_before, cx);
             }
-            crate::editor::document::protocol::BlockEventCategory::Table => {
+            editor_wysiwyg::document::protocol::BlockEventCategory::Table => {
                 self.on_table_event(&block, event, cx);
             }
-            crate::editor::document::protocol::BlockEventCategory::Interaction => {
+            editor_wysiwyg::document::protocol::BlockEventCategory::Interaction => {
                 let entries_before = self.doc().cloned_entries();
                 let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_interaction_event(&block, event, current_entry_index, &entries_before, cx);
             }
-            crate::editor::document::protocol::BlockEventCategory::Lifecycle => {
+            editor_wysiwyg::document::protocol::BlockEventCategory::Lifecycle => {
                 if let BlockEvent::PrepareUndo {
                     kind,
                     target_block_id,
@@ -129,7 +122,7 @@ impl Editor {
 
     fn on_content_change_event(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         cx: &mut Context<Self>,
     ) {
         let should_restart_numbered_list = block.update(cx, |block, _cx| {

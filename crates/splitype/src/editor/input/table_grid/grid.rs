@@ -3,28 +3,12 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableCellBinding};
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
+use editor_wysiwyg::table_grid::TableGrid;
 use markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
 use markdown::parse::{BlockData, BlockKind};
 
-#[derive(Clone)]
-pub struct TableGrid {
-    pub header: Vec<Entity<Block>>,
-    pub rows: Vec<Vec<Entity<Block>>>,
-}
 
-impl TableGrid {
-    pub fn cell(&self, position: TableCellPosition) -> Option<Entity<Block>> {
-        if position.is_header() {
-            self.header.get(position.column).cloned()
-        } else {
-            self.rows
-                .get(position.body_row_index()?)
-                .and_then(|row| row.get(position.column))
-                .cloned()
-        }
-    }
-}
 
 impl Editor {
     pub(crate) fn new_table_block(cx: &mut Context<Self>, table: TableData) -> Entity<Block> {
@@ -175,7 +159,7 @@ impl Editor {
         let mut table = table_block.read(cx).data.table.clone()?;
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(
-                crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                 cx,
             );
             true

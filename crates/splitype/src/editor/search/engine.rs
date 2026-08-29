@@ -794,7 +794,7 @@ impl Editor {
         let range = match_item.byte_range.clone();
 
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
 
@@ -832,7 +832,7 @@ impl Editor {
         let replace_str = self.search.replace_query().to_string();
 
         self.prepare_undo_capture(
-            crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+            editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
 

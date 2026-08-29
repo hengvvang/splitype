@@ -8,7 +8,7 @@ pub(crate) mod render;
 
 use gpui::App;
 
-use crate::editor::document::Document;
+use editor_wysiwyg::document::Document;
 use crate::editor::engine::controller::Editor;
 use markdown::parse::BlockKind;
 use editor_core::{EditorDocument, OutlineNode};

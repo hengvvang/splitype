@@ -63,14 +63,14 @@ impl Editor {
                 }
                 "z" | "Z" => {
                     if shift {
-                        self.on_redo(&crate::editor::input::actions::Redo, _window, cx);
+                        self.on_redo(&editor_wysiwyg::actions::Redo, _window, cx);
                     } else {
-                        self.on_undo(&crate::editor::input::actions::Undo, _window, cx);
+                        self.on_undo(&editor_wysiwyg::actions::Undo, _window, cx);
                     }
                     return true;
                 }
                 "y" | "Y" => {
-                    self.on_redo(&crate::editor::input::actions::Redo, _window, cx);
+                    self.on_redo(&editor_wysiwyg::actions::Redo, _window, cx);
                     return true;
                 }
                 "home" => {

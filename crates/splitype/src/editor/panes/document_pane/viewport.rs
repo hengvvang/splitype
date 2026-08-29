@@ -6,8 +6,8 @@ use gpui::*;
 
 use workspace::PanelId;
 use crate::editor::engine::controller::*;
-use crate::editor::document::BlockEntry;
-use crate::editor::panes::wysiwyg::render::layout::{
+use editor_wysiwyg::document::BlockEntry;
+use editor_wysiwyg::render::layout::{
     RowSpacingInfo, callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
 };
 use theme::{Theme, ThemeDimensions, ThemeManager};
@@ -119,7 +119,7 @@ impl Editor {
         let viewport_width = f32::from(viewport_size.width.max(px(1.0)));
         let has_overflow = max_scroll_y > 0.5;
 
-        let centered_width = Self::centered_column_width(viewport_width, &theme.dimensions);
+        let centered_width = editor_wysiwyg::render::layout::centered_column_width(viewport_width, &theme.dimensions);
         let current_scroll_y = self
             .pane_state_ref(pane_id)
             .map(|state| (-f32::from(state.scroll.handle.offset().y)).clamp(0.0, max_scroll_y))

@@ -9,7 +9,7 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 
 impl Editor {
     pub(crate) fn focus_block(&mut self, entity_id: EntityId) {

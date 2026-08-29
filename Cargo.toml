@@ -20,6 +20,7 @@ members = [
     "crates/editor_source_code",
     "crates/editor_search",
     "crates/editor_outline",
+    "crates/editor_wysiwyg",
     "crates/settings",
     "crates/explorer",
     "crates/splitype",
@@ -55,6 +56,7 @@ editor = { path = "crates/editor" }
 editor_source_code = { path = "crates/editor_source_code" }
 editor_search = { path = "crates/editor_search" }
 editor_outline = { path = "crates/editor_outline" }
+editor_wysiwyg = { path = "crates/editor_wysiwyg" }
 settings = { path = "crates/settings" }
 explorer = { path = "crates/explorer" }
 splitype = { path = "crates/splitype" }

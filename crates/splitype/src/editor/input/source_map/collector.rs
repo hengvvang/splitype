@@ -225,7 +225,7 @@ impl Editor {
         for child in &children {
             let child_ref = child.read(cx);
             if kind.is_list_item()
-                && crate::editor::document::Document::list_child_requires_leading_blank_line(
+                && editor_wysiwyg::document::Document::list_child_requires_leading_blank_line(
                     child_ref,
                 )
             {

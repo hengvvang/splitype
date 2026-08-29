@@ -2,14 +2,14 @@
 
 use gpui::*;
 
-use crate::editor::document::protocol::BlockEvent;
+use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
 use markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn on_table_event(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
@@ -20,7 +20,7 @@ impl Editor {
         match event {
             BlockEvent::RequestAppendTableColumn => {
                 self.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 self.append_table_column(block, cx);
@@ -28,7 +28,7 @@ impl Editor {
             }
             BlockEvent::RequestAppendTableRow => {
                 self.prepare_undo_capture(
-                    crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
+                    editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 self.append_table_row(block, cx);

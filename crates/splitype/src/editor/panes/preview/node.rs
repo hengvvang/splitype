@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use crate::editor::document::block::footnotes::FootnoteMap;
-use crate::editor::document::block::state::ImageHandle;
+use editor_wysiwyg::document::block::footnotes::FootnoteMap;
+use editor_wysiwyg::document::block::state::ImageHandle;
 use markdown::block::image::{ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
 use markdown::block::link::LinkReferenceDefinitions;
 use markdown::parse::{BlockData, BlockId, BlockKind};

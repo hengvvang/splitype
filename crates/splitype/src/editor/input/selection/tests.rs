@@ -4,11 +4,11 @@
 mod tests {
     use gpui::{AppContext, Bounds, Context, TestAppContext, point, px, size};
 
-    use crate::editor::document::protocol::UndoCaptureKind;
+    use editor_wysiwyg::document::protocol::UndoCaptureKind;
     use crate::editor::engine::controller::{
         CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorSelection,
     };
-    use crate::editor::input::actions::{Cut, Undo};
+    use editor_wysiwyg::actions::{Cut, Undo};
     use i18n::I18nManager;
     use theme::ThemeManager;
     use markdown::parse::BlockKind;

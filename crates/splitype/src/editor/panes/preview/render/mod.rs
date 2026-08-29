@@ -275,7 +275,7 @@ pub(crate) fn render_preview_block(
         .into_any_element();
 
     if let BlockKind::Callout(variant) = block.kind() {
-        let (accent, _) = crate::editor::panes::wysiwyg::render::layout::callout_colors(variant, theme);
+        let (accent, _) = editor_wysiwyg::render::layout::callout_colors(variant, theme);
         div()
             .w_full()
             .relative()

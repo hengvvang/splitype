@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::editor::document::protocol::BlockEvent;
+use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
 
 impl Editor {
@@ -47,10 +47,10 @@ impl Editor {
 
     pub(crate) fn on_interaction_event(
         &mut self,
-        block: &Entity<crate::editor::document::block::Block>,
+        block: &Entity<editor_wysiwyg::document::block::Block>,
         event: &BlockEvent,
         current_entry_index: usize,
-        entries_before: &[crate::editor::document::BlockEntry],
+        entries_before: &[editor_wysiwyg::document::BlockEntry],
         cx: &mut Context<Self>,
     ) {
         match event {

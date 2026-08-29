@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::editor::document::protocol::UndoCaptureKind;
+use editor_wysiwyg::document::protocol::UndoCaptureKind;
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 use markdown::block::table::{TableAxis, TableCellPosition};
 use markdown::parse::BlockData;
 

@@ -3,9 +3,9 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
-use crate::editor::input::actions::{Delete, DeleteBackward};
+use editor_wysiwyg::actions::{Delete, DeleteBackward};
 use workspace::actions::{Copy, Cut};
-use crate::editor::document::block::Block;
+use editor_wysiwyg::document::block::Block;
 
 impl Editor {
     pub(crate) fn on_copy_capture(
