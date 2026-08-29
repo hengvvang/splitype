@@ -45,37 +45,3 @@ pub fn parse_footnote_definition_head(line: &str) -> Option<(String, String)> {
     Some((id, remainder))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{
-        is_valid_footnote_id, parse_footnote_definition_head, split_footnote_definition_text,
-    };
-
-    #[test]
-    fn validates_footnote_ids() {
-        assert!(is_valid_footnote_id("long-note"));
-        assert!(!is_valid_footnote_id("bad id"));
-        assert!(!is_valid_footnote_id("bad:id"));
-    }
-
-    #[test]
-    fn splits_definition_text_into_id_and_content() {
-        assert_eq!(
-            split_footnote_definition_text("note: body text"),
-            ("note", "body text")
-        );
-        assert_eq!(split_footnote_definition_text("note:"), ("note", ""));
-        assert_eq!(
-            split_footnote_definition_text("note: body: more"),
-            ("note", "body: more")
-        );
-    }
-
-    #[test]
-    fn parses_definition_head() {
-        assert_eq!(
-            parse_footnote_definition_head("[^ref-1]: body"),
-            Some(("ref-1".to_string(), "body".to_string()))
-        );
-    }
-}

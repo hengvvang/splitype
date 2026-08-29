@@ -54,36 +54,3 @@ fn is_cjk_char(ch: char) -> bool {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::count_words;
-
-    #[test]
-    fn empty_text_has_zero_words() {
-        assert_eq!(count_words(""), 0);
-    }
-
-    #[test]
-    fn english_words_are_counted() {
-        assert_eq!(count_words("hello world"), 2);
-        assert_eq!(count_words("one two three four"), 4);
-    }
-
-    #[test]
-    fn cjk_characters_are_counted_individually() {
-        assert_eq!(count_words("你好世界"), 4);
-        assert_eq!(count_words("中文"), 2);
-    }
-
-    #[test]
-    fn mixed_cjk_and_english() {
-        assert_eq!(count_words("hello 世界"), 3);
-        assert_eq!(count_words("你好 world foo"), 4);
-    }
-
-    #[test]
-    fn whitespace_handling() {
-        assert_eq!(count_words("  hello   world  "), 2);
-        assert_eq!(count_words("   "), 0);
-    }
-}

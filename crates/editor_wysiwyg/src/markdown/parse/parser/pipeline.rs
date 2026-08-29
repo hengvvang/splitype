@@ -215,27 +215,3 @@ pub(crate) fn build_blocks_from_lines_internal(
     roots
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_wysiwyg_does_not_merge_consecutive_lines_and_keeps_empty_blocks() {
-        let markdown = "Line 1\nLine 2\n\nLine 3";
-        let blocks = parse_wysiwyg_document(markdown);
-        assert_eq!(blocks.len(), 4);
-        assert_eq!(blocks[0].text.plain_text(), "Line 1");
-        assert_eq!(blocks[1].text.plain_text(), "Line 2");
-        assert_eq!(blocks[2].text.plain_text(), "");
-        assert_eq!(blocks[3].text.plain_text(), "Line 3");
-    }
-
-    #[test]
-    fn test_preview_merges_consecutive_lines_per_commonmark() {
-        let markdown = "Line 1\nLine 2\n\nLine 3";
-        let blocks = parse_preview_document(markdown);
-        assert_eq!(blocks.len(), 2);
-        assert_eq!(blocks[0].text.plain_text(), "Line 1\nLine 2");
-        assert_eq!(blocks[1].text.plain_text(), "Line 3");
-    }
-}

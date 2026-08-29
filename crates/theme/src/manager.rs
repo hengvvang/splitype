@@ -39,16 +39,6 @@ impl Default for ThemeManager {
     }
 }
 
-#[cfg(test)]
-impl ThemeManager {
-    /// Test-only: installs the configured theme into GPUI's global state.
-    pub fn init(cx: &mut App) {
-        let theme_id = config::settings::read_app_settings()
-            .map(|preferences| preferences.interface.theme_id)
-            .unwrap_or_else(|_| BUILTIN_THEME_SPLITYPE_ID.into());
-        Self::init_with_theme_id(cx, &theme_id);
-    }
-}
 
 impl ThemeManager {
     /// Installs a specific theme into GPUI's global state.
@@ -249,8 +239,6 @@ pub fn import_theme_config_and_select(
     }
     Ok(imported_id)
 }
-
-#[cfg(test)]
 
 mod tests {
     use super::ThemeManager;

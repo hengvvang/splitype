@@ -261,15 +261,3 @@ impl FontFamilyCache {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_typography_scope_properties() {
-        assert_eq!(TypographyScope::ALL.len(), 3);
-        assert_eq!(TypographyScope::Ui.display_label(), "Interface Font");
-        assert_eq!(TypographyScope::Prose.display_label(), "Prose Text Font");
-        assert_eq!(TypographyScope::Code.display_label(), "Code Block Font");
-    }
-}

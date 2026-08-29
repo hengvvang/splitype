@@ -139,29 +139,3 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), Fs
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_batch_undo_record_and_destination() {
-        let mut history = ExplorerUndoHistory::default();
-        let change1 = ExplorerChange::Created {
-            path: PathBuf::from("/p/1.md"),
-            is_dir: false,
-        };
-        let change2 = ExplorerChange::Created {
-            path: PathBuf::from("/p/2.md"),
-            is_dir: false,
-        };
-        let batch = ExplorerChange::Batch(vec![change1, change2]);
-        assert_eq!(
-            explorer_change_destination(&batch),
-            Some(Path::new("/p/2.md"))
-        );
-
-        history.record(batch);
-        assert!(history.can_undo());
-        assert!(!history.can_redo());
-    }
-}

@@ -9,8 +9,6 @@ use super::state::CollapsedCaretAffinity;
 use crate::document::block::footnotes::FootnoteMap;
 use crate::markdown::block::link::LinkReferenceDefinitions;
 use crate::markdown::inline::render_cache::{InlineRenderCache, InlineSpan};
-#[cfg(test)]
-use crate::markdown::inline::style::InlineStyle;
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::BlockKind;
 use std::sync::Arc;

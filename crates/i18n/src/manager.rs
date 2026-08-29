@@ -227,8 +227,6 @@ pub fn import_language_config_and_select(
     Ok(imported_id)
 }
 
-#[cfg(test)]
-
 mod tests {
     use super::{I18nLanguagePack, I18nManager, I18nStrings};
     use config::dirs::SplitypeConfigDirs;

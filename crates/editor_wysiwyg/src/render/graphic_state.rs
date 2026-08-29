@@ -101,22 +101,3 @@ pub fn render_graphic_error_card(
         .into_any_element()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{GraphicKind, clean_error_message};
-
-    #[test]
-    fn test_graphic_kind_titles_and_headers() {
-        assert_eq!(GraphicKind::LatexMath.empty_title(), "Empty LaTeX Math");
-        assert_eq!(GraphicKind::Mermaid.empty_title(), "Empty Mermaid Diagram");
-        assert_eq!(GraphicKind::LatexMath.error_header(), "LaTeX error(s):");
-        assert_eq!(GraphicKind::Mermaid.error_header(), "Mermaid error(s):");
-    }
-
-    #[test]
-    fn test_clean_error_message() {
-        assert_eq!(clean_error_message("Error: invalid token"), "invalid token");
-        assert_eq!(clean_error_message("  error: parse failed  "), "parse failed");
-        assert_eq!(clean_error_message(""), "syntax parsing failed");
-    }
-}

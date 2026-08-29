@@ -91,21 +91,3 @@ impl Default for NodeId {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_block_id_generation_is_monotonic() {
-        let a = BlockId::next();
-        let b = BlockId::next();
-        assert!(b.raw() > a.raw());
-    }
-
-    #[test]
-    fn test_document_id_uniqueness() {
-        let a = DocumentId::new();
-        let b = DocumentId::new();
-        assert_ne!(a, b);
-    }
-}

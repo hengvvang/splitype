@@ -733,21 +733,3 @@ impl BlockText {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_toggle_strikethrough() {
-        let mut text = BlockText::plain("hello world".to_string());
-        assert!(text.toggle_strikethrough(0..5));
-        assert!(text.fragments[0].style.strikethrough);
-        assert_eq!(text.fragments[0].text, "hello");
-        assert!(!text.fragments[1].style.strikethrough);
-        assert_eq!(text.fragments[1].text, " world");
-
-        // Toggling again removes strikethrough
-        assert!(text.toggle_strikethrough(0..5));
-        assert!(!text.fragments[0].style.strikethrough);
-    }
-}

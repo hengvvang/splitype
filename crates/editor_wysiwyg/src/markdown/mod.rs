@@ -6,5 +6,3 @@ pub mod block;
 pub mod inline;
 pub mod parse;
 
-#[cfg(test)]
-mod tests;

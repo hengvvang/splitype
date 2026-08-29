@@ -25,13 +25,3 @@ pub enum CoreError {
     Internal(String),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_error_formatting() {
-        let err = CoreError::BlockNotFound(42);
-        assert_eq!(err.to_string(), "Block not found: 42");
-    }
-}

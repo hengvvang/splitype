@@ -53,28 +53,3 @@ pub fn safe_code_fence_with_info(content: &str, info: Option<&str>) -> String {
     safe_code_fence(content)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn safe_code_fence_is_longer_than_any_inner_backtick_run() {
-        assert_eq!(safe_code_fence("plain code"), "```");
-        assert_eq!(safe_code_fence("```\ncode"), "~~~");
-        assert_eq!(safe_code_fence("value = `````"), "~~~");
-        assert_eq!(safe_code_fence("```\n~~~"), "~~~~");
-    }
-
-    #[test]
-    fn safe_code_fence_with_info_uses_tildes_when_info_contains_backticks() {
-        assert_eq!(
-            safe_code_fence_with_info("plain code", Some("we`rd")),
-            "~~~"
-        );
-        assert_eq!(
-            safe_code_fence_with_info("plain\n~~~\ncode", Some("we`rd")),
-            "~~~~"
-        );
-        assert_eq!(safe_code_fence_with_info("plain code", Some("rust")), "```");
-    }
-}

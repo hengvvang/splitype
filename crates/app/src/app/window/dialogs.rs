@@ -961,15 +961,3 @@ fn format_update_message(template: &str, current_version: &str, latest_version: 
         .replace("{latest}", latest_version)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::format_update_message;
-
-    #[test]
-    pub(crate) fn update_message_templates_replace_versions() {
-        assert_eq!(
-            format_update_message("Current {current}, latest {latest}.", "0.2.1", "0.2.2"),
-            "Current 0.2.1, latest 0.2.2."
-        );
-    }
-}

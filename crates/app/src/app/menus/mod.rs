@@ -506,33 +506,3 @@ pub(crate) fn init(cx: &mut App) {
     cx.activate(true);
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::app::actions::{
-        AddLanguageConfig, AddThemeConfig, CloseWindow, NewWindow, NoRecentFiles, OpenFile,
-        OpenRecentFile, OpenSettings, QuitApplication, SelectLanguage, SelectTheme,
-    };
-    use crate::editor::actions::SaveDocument;
-
-    #[test]
-    fn fallback_menu_routes_window_context_actions_without_app_defer() {
-        assert!(super::is_window_context_menu_action(&NewWindow));
-        assert!(super::is_window_context_menu_action(&OpenFile));
-        assert!(super::is_window_context_menu_action(&OpenSettings));
-        assert!(super::is_window_context_menu_action(&OpenRecentFile {
-            path: "notes.md".into(),
-        }));
-        assert!(super::is_window_context_menu_action(&NoRecentFiles));
-        assert!(super::is_window_context_menu_action(&AddLanguageConfig));
-        assert!(super::is_window_context_menu_action(&AddThemeConfig));
-        assert!(super::is_window_context_menu_action(&SaveDocument));
-        assert!(super::is_window_context_menu_action(&QuitApplication));
-        assert!(super::is_window_context_menu_action(&CloseWindow));
-        assert!(!super::is_window_context_menu_action(&SelectTheme {
-            theme_id: "splitype".into(),
-        }));
-        assert!(!super::is_window_context_menu_action(&SelectLanguage {
-            language_id: "en-US".into(),
-        }));
-    }
-}

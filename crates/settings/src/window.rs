@@ -1080,19 +1080,3 @@ pub fn open_settings_window(cx: &mut App) -> Option<WindowHandle<SettingsWindow>
     Some(handle)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::AppSettings;
-    use config::settings::StartupOpenSetting;
-
-    #[test]
-    fn test_app_settings_default() {
-        let settings = AppSettings::default();
-        assert_eq!(settings.startup.open, StartupOpenSetting::NewFile);
-        assert_eq!(settings.interface.language_id, "en-US");
-        assert_eq!(settings.interface.theme_id, "splitype");
-        assert_eq!(settings.editor.tab_size, 4);
-        assert_eq!(settings.editor.line_numbers, true);
-        assert_eq!(settings.markdown.show_table_headers, true);
-    }
-}

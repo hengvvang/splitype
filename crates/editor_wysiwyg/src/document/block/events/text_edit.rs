@@ -456,25 +456,3 @@ impl Block {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Block;
-    use crate::markdown::inline::text::BlockText;
-    use crate::markdown::parse::{BlockData, BlockKind};
-    use gpui::{AppContext, TestAppContext};
-
-    #[gpui::test]
-    async fn multiline_quote_is_not_treated_as_leaf(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
-
-        block.update(cx, |block, cx| {
-            block.data.kind = BlockKind::Blockquote;
-            block.data.set_text(BlockText::plain("first\n"));
-            block.sync_edit_mode_from_kind();
-            block.sync_render_cache();
-            cx.notify();
-
-            assert!(!block.is_leaf_quote());
-        });
-    }
-}

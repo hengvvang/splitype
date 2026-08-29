@@ -389,5 +389,3 @@ pub fn normalize_code_language_input(text: &str) -> String {
         .to_string()
 }
 
-#[cfg(test)]
-mod tests {}
