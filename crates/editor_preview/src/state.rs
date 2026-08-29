@@ -6,7 +6,7 @@ use gpui::App;
 
 use crate::node::PreviewBlock;
 use crate::selection::{PreviewEndpoint, PreviewSelectionRange};
-use editor::{outline_headings_from_markdown, EditorDocument, EditorPaneKind, OutlineNode, Pane};
+use editor_model::{outline_headings_from_markdown, EditorDocument, EditorPaneKind, OutlineNode, Pane};
 
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]

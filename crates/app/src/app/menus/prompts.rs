@@ -100,7 +100,7 @@ pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     let opened_in_editor = with_active_window(cx, |editor, window, cx| {
         editor.open_file_in_active_editor(
             path,
-            crate::editor::engine::controller::OpenFileMode::Persistent,
+            crate::editor_scheduler::engine::controller::OpenFileMode::Persistent,
             window,
             cx,
         )

@@ -18,7 +18,7 @@ use crate::app::menus::{init as init_app_menu, install_menus};
 use crate::app::window::open_editor_window;
 #[cfg(target_os = "macos")]
 use crate::app::window::open_file_in_new_window;
-use crate::editor::keybindings::init_with_keybindings as init_editor;
+use crate::editor_scheduler::keybindings::init_with_keybindings as init_editor;
 use config::settings::{
     SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
@@ -211,7 +211,7 @@ pub fn run(args: Args) {
 /// is the only place that names the mode crate types; the editor family
 /// creates pane states through the registry.
 pub(crate) fn register_pane_factories() {
-    use editor_core::{EditorPaneKind, Pane, PaneFactory};
+    use editor_model::{EditorPaneKind, Pane, PaneFactory};
 
     struct ModePaneFactory;
 
@@ -225,13 +225,13 @@ pub(crate) fn register_pane_factories() {
                     Box::new(editor_source_code::SourceCodeState::default())
                 }
                 EditorPaneKind::Preview => {
-                    Box::new(crate::editor::panes::preview::PreviewState::default())
+                    Box::new(crate::editor_scheduler::panes::preview::PreviewState::default())
                 }
             }
         }
     }
 
-    let mut registry = editor_core::PaneFactoryRegistry::global().lock().unwrap();
+    let mut registry = editor_model::PaneFactoryRegistry::global().lock().unwrap();
     for kind in EditorPaneKind::all() {
         registry.register(*kind, Box::new(ModePaneFactory));
     }

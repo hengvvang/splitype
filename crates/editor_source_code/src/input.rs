@@ -2,12 +2,12 @@
 //!
 //! These functions operate only on [`SourceCodeState`]; coordination-layer
 //! actions (document sync, undo/redo, notify) go through
-//! [`editor::PaneHost`], which the coordinating crate implements. The app
+//! [`editor_model::PaneHost`], which the coordinating crate implements. The app
 //! routes events here and forwards the pane's state.
 
 use gpui::*;
 
-use editor::PaneHost;
+use editor_model::PaneHost;
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::state::SourceCodeState;
@@ -16,7 +16,7 @@ use crate::state::SourceCodeState;
 /// when the key was consumed.
 pub fn handle_key_down(
     state: &mut SourceCodeState,
-    pane_id: editor::PaneId,
+    pane_id: editor_model::PaneId,
     event: &KeyDownEvent,
     window: &mut Window,
     cx: &mut App,

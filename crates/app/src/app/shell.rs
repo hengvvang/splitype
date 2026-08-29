@@ -17,10 +17,10 @@ use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, WindowPanelKind};
-use crate::editor::engine::controller::{
+use crate::editor_scheduler::engine::controller::{
     EditorView,DocumentTab, Editor, InfoDialogKind, OpenFileMode};
-use crate::editor::engine::session::EditorSession;
-use editor_core::EditorHost;
+use crate::editor_scheduler::engine::session::EditorSession;
+use editor_model::EditorHost;
 use i18n::I18nManager;
 use theme::ThemeManager;
 use splitter::NodeId;
@@ -403,7 +403,7 @@ impl Shell {
     ) -> Entity<Editor> {
         let panel_id = panel_id.into();
         let shell = cx.entity().downgrade();
-        let editor = cx.new(|cx| crate::editor::Editor::with_session(panel_id, session, cx));
+        let editor = cx.new(|cx| crate::editor_scheduler::Editor::with_session(panel_id, session, cx));
 
         editor.update(cx, |editor, cx| {
             editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));

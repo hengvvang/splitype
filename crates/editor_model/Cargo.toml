@@ -1,0 +1,18 @@
+[package]
+name = "editor_model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/editor.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+gpui = { workspace = true }
+splitter = { path = "../splitter" }
+workspace = { path = "../workspace" }

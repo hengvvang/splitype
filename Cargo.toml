@@ -10,7 +10,7 @@ members = [
     "crates/ui",
     "crates/explorer_fs",
     "crates/workspace",
-    "crates/editor",
+    "crates/editor_model",
     "crates/editor_source_code",
     "crates/editor_search",
     "crates/editor_outline",
@@ -42,7 +42,7 @@ syntax = { path = "crates/syntax" }
 ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
 workspace = { path = "crates/workspace" }
-editor = { path = "crates/editor" }
+editor_model = { path = "crates/editor_model" }
 editor_source_code = { path = "crates/editor_source_code" }
 editor_search = { path = "crates/editor_search" }
 editor_outline = { path = "crates/editor_outline" }

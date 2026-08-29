@@ -14,8 +14,8 @@ use crate::app::shell::{PanelContent, Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
-use crate::editor::engine::controller::Editor;
-use crate::editor::engine::session::EditorSession;
+use crate::editor_scheduler::engine::controller::Editor;
+use crate::editor_scheduler::engine::session::EditorSession;
 
 use explorer::ExplorerState;
 
@@ -64,9 +64,9 @@ pub(crate) fn open_editor_window(
                 let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        crate::editor::Editor::empty(cx)
+                        crate::editor_scheduler::Editor::empty(cx)
                     } else {
-                        crate::editor::Editor::from_markdown(cx, markdown, file_path)
+                        crate::editor_scheduler::Editor::from_markdown(cx, markdown, file_path)
                     }
 
                 });
@@ -135,7 +135,7 @@ pub(crate) fn open_cloned_window(
                 // Materialize one Editor entity per cloned session.
                 let mut panel_contents = HashMap::new();
                 for (panel_id, session) in sessions {
-                    let editor = cx.new(|cx| crate::editor::Editor::with_session(panel_id, session, cx));
+                    let editor = cx.new(|cx| crate::editor_scheduler::Editor::with_session(panel_id, session, cx));
 
                     panel_contents.insert(panel_id, PanelContent::Editor(editor));
                 }

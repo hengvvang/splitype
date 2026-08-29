@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor::{PaneHost, PaneId};
+use editor_model::{PaneHost, PaneId};
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::highlight::{CodeHighlightSpan, build_line_text_runs};

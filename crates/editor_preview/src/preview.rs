@@ -5,11 +5,11 @@
 //! styles come from `editor_wysiwyg`'s public presentation services;
 //! the preview never touches WYSIWYG editing internals.
 //!
-//! The pane state implements [`editor::Pane`]. The crate owns its full
+//! The pane state implements [`editor_model::Pane`]. The crate owns its full
 //! presentation (block renderers, footnote section, quote guides) and
 //! input handling (drag selection); the coordinating crate only refreshes
 //! the tree, routes focus and hands over the scroll shell through
-//! [`editor::PaneRenderContext`].
+//! [`editor_model::PaneRenderContext`].
 
 pub mod node;
 pub mod render;

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// The outline heading node type lives with the `Pane` contract so both
 /// the modes and the outline panel can name it.
-pub use editor::OutlineNode;
+pub use editor_model::OutlineNode;
 
 /// Outline HUD state attached to an Editor.
 #[derive(Clone, Debug, Default)]

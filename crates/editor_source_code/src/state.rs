@@ -404,8 +404,8 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 
 use gpui::App;
 
-use editor::EditorPaneKind;
-use editor::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
+use editor_model::EditorPaneKind;
+use editor_model::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
 
 impl Pane for SourceCodeState {
     fn kind(&self) -> EditorPaneKind {

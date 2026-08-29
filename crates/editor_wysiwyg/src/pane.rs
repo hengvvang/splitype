@@ -5,7 +5,7 @@ use std::ops::Range;
 use gpui::App;
 
 use crate::state::{FocusState, SelectionState};
-use editor::{outline_headings_from_markdown, EditorDocument, EditorPaneKind, OutlineNode, Pane};
+use editor_model::{outline_headings_from_markdown, EditorDocument, EditorPaneKind, OutlineNode, Pane};
 
 /// View state specific to a WYSIWYG editor pane.
 #[derive(Default)]

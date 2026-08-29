@@ -25,7 +25,7 @@ workspace = true
 
 [dependencies]
 gpui = { workspace = true }
-editor = { path = "../editor" }
+editor_model = { path = "../editor_model" }
 theme = { path = "../theme" }
 tree-sitter = { workspace = true }
 tree-sitter-html = { workspace = true, optional = true }

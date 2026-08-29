@@ -30,7 +30,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor::{PaneHost, PaneId, PaneRenderContext};
+use editor_model::{PaneHost, PaneId, PaneRenderContext};
 use i18n::I18nStrings;
 use theme::Theme;
 use editor_wysiwyg::markdown::parse::BlockKind;

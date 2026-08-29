@@ -13,7 +13,7 @@ first; the ADRs below record rulings made while executing the plan.
 - **D4** No integration `tests/` directories; per-crate tests only.
 - **D5** `input/runtime.rs` three-way split (block factory / references / focus).
 - **D6** README in scope.
-- **D7** Shared editor content lives in `crates/editor`; Pane plugin architecture.
+- **D7** Shared editor content lives in `crates/editor_model`; Pane plugin architecture.
 - **D8** `sum_tree` dual-vendored (wysiwyg copy + source copy), zero sharing.
 - **D9** `crates/app` is the single composition root.
 - **D10** `editor_outline` / `editor_search` are independent crates; app
@@ -31,20 +31,20 @@ first; the ADRs below record rulings made while executing the plan.
 **Status:** accepted (execution ruling).
 
 **Context.** Plan §3.4 places the `Editor` entity definition in
-`crates/editor`, while §3.5 (the CI-enforced dependency graph) states
+`crates/editor_model`, while §3.5 (the CI-enforced dependency graph) states
 `editor` never depends on the mode crates. The `Editor` aggregate root
 holds the session/tab model, the document, and downcast accessors for
 every mode state — it necessarily names every mode type. Moving it into
 `editor` would create the cycle `editor → editor_wysiwyg` and
-`editor_wysiwyg → editor` (modes implement `editor::Pane`).
+`editor_wysiwyg → editor` (modes implement `editor_model::Pane`).
 
 **Decision.** The `Editor` entity and its coordination layer live in
 `crates/app` (the composition root), which already depends on every
-crate. `crates/editor` remains a pure contract layer (Pane, EditorHost,
+crate. `crates/editor_model` remains a pure contract layer (Pane, EditorHost,
 pane-kind vocabulary, factory registry). The dependency graph stays
 acyclic; modes still never reference editor internals.
 
-**Consequences.** `crates/editor` is contract-only. The app crate is
+**Consequences.** `crates/editor_model` is contract-only. The app crate is
 larger than §3.4 sketched. Dependency direction and CI audits are
 unchanged.
 
@@ -101,7 +101,7 @@ shared highlight code.
 **Context.** §3.6.4 requires a pane factory registry so `editor` never
 names a mode type.
 
-**Decision.** `editor::PaneFactoryRegistry` (a process-wide
+**Decision.** `editor_model::PaneFactoryRegistry` (a process-wide
 `LazyLock<Mutex<…>>`, no context needed) is the single creation point;
 the app bootstrap registers one factory per `EditorPaneKind`.
 `PaneState` routes `new`/`ensure_kind` through it.
@@ -125,7 +125,7 @@ lines that were purely Preview/Source/Outline/Search presentation:
 state transitions. Coordination-layer actions (focus routing, autoscroll,
 dirty marking, source sync, undo/redo, preview selection, outline
 navigation, search execution) are requested through *reverse seams
-defined by the consuming crate*: `editor::PaneHost` (shared, on the
+defined by the consuming crate*: `editor_model::PaneHost` (shared, on the
 contract layer) plus mode-specific hosts (`editor_outline::OutlineHost`,
 `editor_search::SearchHost`). Renderers read state through snapshot
 interfaces (`editor_source_code::SourceStateView`,

@@ -4,7 +4,7 @@
 //! list items render a marker column (bullet / ordinal), and raw Markdown
 //! fallback renders as plain text. This is the WYSIWYG editing presentation;
 //! the read-only preview presentation lives in
-//! `crate::editor::panes::preview::render`.
+//! `crate::editor_model::panes::preview::render`.
 
 pub mod blockquote;
 pub mod callout;

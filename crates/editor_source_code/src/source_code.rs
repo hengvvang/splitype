@@ -5,7 +5,7 @@
 //! syntax highlighting, the virtualized rendering element, and the input
 //! handling. The element reads state through the [`SourceStateView`]
 //! snapshot interface and forwards IME registration through [`SourceIme`];
-//! coordination-layer actions go through `editor::PaneHost`. The pane
+//! coordination-layer actions go through `editor_model::PaneHost`. The pane
 //! state shares nothing with the WYSIWYG world — no markdown, no tree, no
 //! highlight service (D14-B: each core self-hosts its own copies).
 

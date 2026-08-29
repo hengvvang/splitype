@@ -8,7 +8,7 @@ target name for an upcoming rename, **kept** = deliberately left as-is.
 
 ## Module layout (`editor_wysiwyg::markdown`)
 
-The dissolved `markdown` crate lives at `crates/editor_wysiwyg/src/markdown/`.
+The dissolved `markdown` crate lives at `crates/editor_model_wysiwyg/src/markdown/`.
 It mirrors the CommonMark block-level / inline-level split:
 
 - `parse/` — the parsing domain: contract types (`BlockKind`, `BlockData`,
@@ -103,11 +103,11 @@ layout, panes belong to an Editor session.
 | Opaque passthrough content | **raw** | kept for content: `BlockKind::RawMarkdown`, `raw_source` (unparsed original text). |
 | Marker-free editing of raw content | **verbatim** | done — `BlockEditMode::Verbatim` (was `SourceRaw`), `edits_verbatim_text` (was `uses_raw_text_editing`), `is_verbatim_mode`/`set_verbatim_mode` (was `is_/set_source_raw_mode`), `replace_plain_range_verbatim` (was `replace_visible_range_raw`). `set_source_document_mode` stays: it means SourceCode-view document mode. |
 | Derived view state | — | done — "Runtime" no longer names editor state; it is reserved for background execution (`tokio::runtime`, `SyncRuntime`). `TableRuntimes` → `TableGrids`, `rebuild_table_runtimes` → `rebuild_table_grids`, `Block.table_runtime` → `table_grid`, `install_table_runtime_for_block` → `install_table_grid_for_block`, `sync_table_record_from_runtime` → `sync_table_record_from_grid`, `table_runtime.rs` → `table_grid.rs`; `SourceCodePanelRuntime` → `SourceCodePaneState`, `source_pane_runtimes` → `source_pane_states`; `image_runtime` → `image_handle`; `rebuild_image_runtimes` → `rebuild_reference_registries` (it rebuilds the image/link/footnote registries), `sync_runtime_after_block_change` → `sync_references_after_block_change`, `sync_runtime_context_for_block` → `sync_reference_context_for_block`, `set_runtime_context` → `set_reference_context`. "Runtime-only blocks" prose stays: table cells exist only in the runtime tree. |
-| Document serialization | `serialize_*` | done — `Document::to_markdown` → `serialize_markdown`, `Document::to_raw_source` → `serialize_source_text`, `Editor::current_document_source` → `serialize_document_for_mode`, `BlockData::markdown_line` → `serialize_markdown_line`. Internal collectors keep their verb (`collect_root_markdown_lines`, `collect_single_block_markdown_lines`, `collect_markdown_lines`); `serialize_table_markdown_lines` already followed the prefix. |
+| Document serialization | `serialize_*` | done — `Document::to_markdown` → `serialize_markdown`, `Document::to_raw_source` → `serialize_source_text`, `editor_model::current_document_source` → `serialize_document_for_mode`, `BlockData::markdown_line` → `serialize_markdown_line`. Internal collectors keep their verb (`collect_root_markdown_lines`, `collect_single_block_markdown_lines`, `collect_markdown_lines`); `serialize_table_markdown_lines` already followed the prefix. |
 
 ## Architecture invariants
 
-- **One document rebuild entry**: `Editor::rebuild_document_from_markdown`
+- **One document rebuild entry**: `editor_model::rebuild_document_from_markdown`
   (mode-aware) is the only place that replaces the whole document from
   Markdown. Undo, cross-block edits, view-mode switches, drop, and source
   panes all route through it.

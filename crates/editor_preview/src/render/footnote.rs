@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor::PaneHost;
+use editor_model::PaneHost;
 use theme::Theme;
 
 use crate::node::PreviewBlock;
@@ -68,7 +68,7 @@ pub(crate) fn render_preview_footnote_definition(
     header.into_any_element()
 }
 
-use editor::PaneId;
+use editor_model::PaneId;
 
 /// Renders the collected GitHub-style footnotes section: a top divider line
 /// followed by every footnote definition in document order.

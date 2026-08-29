@@ -10,6 +10,6 @@
 //! together.
 
 pub mod app;
-pub mod editor;
+pub mod editor_scheduler;
 
 pub mod platform;

@@ -50,7 +50,7 @@ implementation, no syntax highlighter.
   virtualized rendering element (`element/`), and the keyboard/mouse
   input state transitions (`input/`).
 
-Each core implements `editor::Pane`; nothing in either crate references
+Each core implements `editor_model::Pane`; nothing in either crate references
 the other or the `Editor` entity.
 
 ## Mode ownership and the reverse seams (P3.2-3)
@@ -65,7 +65,7 @@ When mode code needs something only the `Editor` entity can do, it calls
 a *reverse seam* — a trait defined by the consuming crate and implemented
 by app proxies that re-enter the entity through its weak handle:
 
-- `editor::PaneHost` — shared seam on the contract layer (focus
+- `editor_model::PaneHost` — shared seam on the contract layer (focus
   routing, pending focus/autoscroll, dirty marking, source sync,
   undo/redo, preview selection, IME bounds).
 - `editor_outline::OutlineHost` — HUD navigation and hover.
@@ -84,7 +84,7 @@ trait impls next to the type.
 
 ## The editor contract crate (P3)
 
-`crates/editor` is a pure contract layer:
+`crates/editor_model` is a pure contract layer:
 
 - `EditorPaneKind`, `PaneId`, `TabKind`, `OpenFileMode` — the pane-kind
   vocabulary.
@@ -117,7 +117,7 @@ visibility plus machete/tree audits enforce the boundary.
 - The `Editor` entity and its coordination layer (session, tabs, input
   routing, commands, chrome, document pane, search/outline overlays).
   The aggregate root references every mode type, so it lives with the
-  composition root — not in `crates/editor` (see `decisions.md`, ADR-01).
+  composition root — not in `crates/editor_model` (see `decisions.md`, ADR-01).
 - The window shell (`Shell`), window chrome, menus, dialogs.
 - Bootstrap, CLI, platform glue, assets.
 - The export flow (D16): export commands live here, take the active
@@ -137,5 +137,5 @@ Per-crate unit tests live as sibling `*_tests.rs` files; every crate
 that needs GPUI declares `gpui` with the `test-support` feature in
 `[dev-dependencies]` (R10). Cross-crate behavior (e.g. the Pane
 contract) is exercised through each crate's test-support context and
-`editor::test::TestHost` (an `EditorHost` test double). There are no
+`editor_model::test::TestHost` (an `EditorHost` test double). There are no
 integration `tests/` directories (D4).

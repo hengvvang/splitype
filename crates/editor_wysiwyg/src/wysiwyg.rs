@@ -8,7 +8,7 @@
 //! `markdown`/`sum_tree`/`latex`/`mermaid`/`export` crates (and the
 //! WYSIWYG half of `syntax`) in here.
 //!
-//! The pane state implements [`editor::Pane`]; nothing in this crate
+//! The pane state implements [`editor_model::Pane`]; nothing in this crate
 //! depends on the `Editor` entity or on `editor_source_code` (dual-core
 //! zero sharing, D14-B).
 

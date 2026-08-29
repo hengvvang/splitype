@@ -23,7 +23,7 @@ use crate::markdown::block::table::{TableCellPosition, TableAxis};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockId};
 
-pub use editor::AutoscrollStrategy;
+pub use editor_model::AutoscrollStrategy;
 
 /// Focus routing and deferred focus targets.
 #[derive(Default)]
