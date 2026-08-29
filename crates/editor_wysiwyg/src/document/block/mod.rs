@@ -28,7 +28,7 @@ use gpui::*;
 
 use crate::document::protocol::BlockEvent;
 use crate::table_grid::TableGrid;
-use syntax::highlight::CodeHighlightResult;
+use crate::highlight::CodeHighlightResult;
 use crate::mermaid::MermaidSvgRender;
 use crate::projection::ExpandedInlineProjection;
 use primitives::CalloutKind;

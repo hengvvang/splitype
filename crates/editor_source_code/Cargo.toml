@@ -9,11 +9,40 @@ rust-version.workspace = true
 [lib]
 path = "src/source_code.rs"
 
+[features]
+default = ["code-highlight-core"]
+code-highlight-core = [
+    "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-c-sharp", "tree-sitter-css",
+    "tree-sitter-go", "tree-sitter-html", "tree-sitter-java", "tree-sitter-javascript",
+    "tree-sitter-json", "tree-sitter-python", "tree-sitter-rust", "tree-sitter-typescript",
+    "tree-sitter-yaml",
+]
+code-highlight-official = ["code-highlight-core"]
+code-highlight-config = ["code-highlight-core"]
+
 [lints]
 workspace = true
 
 [dependencies]
 gpui = { workspace = true }
 editor = { path = "../editor" }
-syntax = { path = "../syntax" }
 theme = { path = "../theme" }
+tree-sitter = { workspace = true }
+tree-sitter-html = { workspace = true, optional = true }
+tree-sitter-highlight = "0.26.9"
+lazy_static = "1.5"
+
+# Source-code language highlighting (self-hosted, D14-B — independent of
+# the WYSIWYG world's highlight implementation).
+tree-sitter-c = { version = "0.23", optional = true }
+tree-sitter-cpp = { version = "0.23", optional = true }
+tree-sitter-c-sharp = { version = "0.23", optional = true }
+tree-sitter-css = { version = "0.23", optional = true }
+tree-sitter-go = { version = "0.23", optional = true }
+tree-sitter-java = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.23", optional = true }
+tree-sitter-json = { version = "0.24", optional = true }
+tree-sitter-python = { version = "0.23", optional = true }
+tree-sitter-rust = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-yaml = { version = "0.7", optional = true }

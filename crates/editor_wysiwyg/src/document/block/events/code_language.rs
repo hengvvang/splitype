@@ -9,7 +9,7 @@ use crate::actions::{
     Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
 };
 use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
-use syntax::options::code_language_options_matching;
+use crate::code_language::code_language_options_matching;
 use crate::document::block::Block;
 impl Block {
     pub fn on_code_block_hover(

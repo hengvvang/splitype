@@ -7,7 +7,6 @@ members = [
     "crates/i18n",
     "crates/config",
     "crates/net",
-    "crates/syntax",
     "crates/ui",
     "crates/explorer_fs",
     "crates/workspace",

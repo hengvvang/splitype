@@ -7,7 +7,7 @@ use gpui::*;
 use unicode_segmentation::*;
 
 use crate::document::protocol::{BlockEvent, UndoCaptureKind};
-use syntax::highlight::{CodeHighlightResult, highlight_code_block};
+use crate::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::document::block::Block;
 use crate::document::block::normalize_code_language_input;
 use crate::markdown::inline::offsets::ImeConverter;

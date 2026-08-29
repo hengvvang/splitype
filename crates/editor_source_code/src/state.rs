@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use gpui::{Bounds, FocusHandle, Pixels};
 
-use syntax::highlight::{
+use crate::highlight::{
     CodeHighlightResult, highlight_code_block,
 };
 

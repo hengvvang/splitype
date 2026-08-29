@@ -10,8 +10,16 @@ rust-version.workspace = true
 path = "src/wysiwyg.rs"
 
 [features]
-default = ["html-native"]
+default = ["html-native", "code-highlight-core"]
 html-native = []
+code-highlight-core = [
+    "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-c-sharp", "tree-sitter-css",
+    "tree-sitter-go", "tree-sitter-html", "tree-sitter-java", "tree-sitter-javascript",
+    "tree-sitter-json", "tree-sitter-python", "tree-sitter-rust", "tree-sitter-typescript",
+    "tree-sitter-yaml",
+]
+code-highlight-official = ["code-highlight-core"]
+code-highlight-config = ["code-highlight-core"]
 
 [lints]
 workspace = true
@@ -25,8 +33,6 @@ workspace = { path = "../workspace" }
 config = { path = "../config" }
 i18n = { path = "../i18n" }
 ui = { path = "../ui" }
-# Migration-only dependency (stage 3h splits it: wysiwyg highlight + source highlight).
-syntax = { path = "../syntax" }
 url = "2"
 unicode-segmentation = "1.13"
 regex = "1.10"
@@ -49,4 +55,20 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 base64 = "0.22"
 thiserror = { workspace = true }
 tree-sitter = { workspace = true }
-tree-sitter-html = { workspace = true }
+tree-sitter-html = { workspace = true, optional = true }
+tree-sitter-highlight = "0.26.9"
+lazy_static = "1.5"
+
+# Code-block syntax highlighting languages (self-hosted, D14-B).
+tree-sitter-c = { version = "0.23", optional = true }
+tree-sitter-cpp = { version = "0.23", optional = true }
+tree-sitter-c-sharp = { version = "0.23", optional = true }
+tree-sitter-css = { version = "0.23", optional = true }
+tree-sitter-go = { version = "0.23", optional = true }
+tree-sitter-java = { version = "0.23", optional = true }
+tree-sitter-javascript = { version = "0.23", optional = true }
+tree-sitter-json = { version = "0.24", optional = true }
+tree-sitter-python = { version = "0.23", optional = true }
+tree-sitter-rust = { version = "0.23", optional = true }
+tree-sitter-typescript = { version = "0.23", optional = true }
+tree-sitter-yaml = { version = "0.7", optional = true }

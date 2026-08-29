@@ -13,6 +13,8 @@
 //! zero sharing, D14-B).
 
 pub mod actions;
+pub mod code_language;
+pub mod highlight;
 pub mod document;
 pub mod markdown;
 pub mod tree;

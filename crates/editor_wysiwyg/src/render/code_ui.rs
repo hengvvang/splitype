@@ -6,7 +6,7 @@ use gpui::*;
 
 use super::BLOCK_EDITOR_CONTEXT;
 
-use syntax::options::{
+use crate::code_language::{
     code_language_display_name, code_language_options_matching,
 };
 use crate::document::block::Block;
