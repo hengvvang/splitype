@@ -126,31 +126,6 @@ impl Theme {
     }
 
     /// Returns the unified callout colors for a given callout kind.
-    pub fn callout_style(&self, variant: primitives::CalloutKind) -> CalloutStyle {
-        let c = &self.colors;
-        match variant {
-            primitives::CalloutKind::Note => CalloutStyle {
-                border_color: c.callout_note_border,
-                background_color: c.callout_note_bg,
-            },
-            primitives::CalloutKind::Tip => CalloutStyle {
-                border_color: c.callout_tip_border,
-                background_color: c.callout_tip_bg,
-            },
-            primitives::CalloutKind::Important => CalloutStyle {
-                border_color: c.callout_important_border,
-                background_color: c.callout_important_bg,
-            },
-            primitives::CalloutKind::Warning => CalloutStyle {
-                border_color: c.callout_warning_border,
-                background_color: c.callout_warning_bg,
-            },
-            primitives::CalloutKind::Caution => CalloutStyle {
-                border_color: c.callout_caution_border,
-                background_color: c.callout_caution_bg,
-            },
-        }
-    }
     /// Returns the built-in fallback theme used when no custom theme is loaded.
     pub fn default_theme() -> Self {
         Self {

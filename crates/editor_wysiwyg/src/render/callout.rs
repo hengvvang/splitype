@@ -5,7 +5,7 @@ use gpui::*;
 use crate::document::block::Block;
 use crate::render::layout::callout_colors;
 use theme::Theme;
-use primitives::CalloutKind;
+use crate::markdown::block::CalloutKind;
 
 /// Render a callout (admonition) block.
 pub fn render_callout(

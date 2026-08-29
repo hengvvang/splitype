@@ -6,7 +6,7 @@ use gpui::*;
 use editor_preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
 use theme::Theme;
-use primitives::CalloutKind;
+use editor_wysiwyg::markdown::block::CalloutKind;
 
 use std::ops::Range;
 
@@ -19,7 +19,7 @@ pub(crate) fn render_preview_callout(
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
-    let style = theme.callout_style(variant);
+    let style = variant.callout_style(theme);
     let accent = style.border_color;
     let text_is_empty = block.data.text.plain_text().is_empty();
     let header_label = SharedString::from(variant.label());

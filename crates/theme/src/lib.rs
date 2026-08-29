@@ -15,6 +15,6 @@ pub mod typography;
 pub use colors::ThemeColors;
 pub use dimensions::ThemeDimensions;
 pub use manager::{apply_configured_theme, import_theme_config_and_select, ThemeManager};
-pub use theme::{Theme, ThemeCatalogEntry};
+pub use theme::{CalloutStyle, Theme, ThemeCatalogEntry};
 pub use typography::{FontFamilyCache, FontWeightDef, TypographyScope, TypographyStore};
 

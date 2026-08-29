@@ -20,7 +20,7 @@ pub struct RowSpacingInfo {
     pub quote_group_id: Option<BlockId>,
     pub visible_quote_group_id: Option<BlockId>,
     pub callout_group_id: Option<BlockId>,
-    pub callout_variant: Option<primitives::CalloutKind>,
+    pub callout_variant: Option<crate::markdown::block::CalloutKind>,
     pub is_callout_header: bool,
     pub footnote_group_id: Option<BlockId>,
     pub is_footnote_header: bool,
@@ -101,8 +101,8 @@ pub fn footnote_row_top_gap(previous: Option<RowSpacingInfo>, default_gap: f32) 
 }
 
 /// Callout accent border + background colours from the theme.
-pub fn callout_colors(variant: primitives::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
-    let style = theme.callout_style(variant);
+pub fn callout_colors(variant: crate::markdown::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
+    let style = variant.callout_style(theme);
     (style.border_color, style.background_color)
 }
 

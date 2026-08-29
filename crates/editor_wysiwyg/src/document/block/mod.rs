@@ -31,7 +31,7 @@ use crate::table_grid::TableGrid;
 use crate::highlight::CodeHighlightResult;
 use crate::mermaid::MermaidSvgRender;
 use crate::projection::ExpandedInlineProjection;
-use primitives::CalloutKind;
+use crate::markdown::block::CalloutKind;
 use crate::markdown::block::image::ImageReferenceDefinitions;
 use crate::markdown::block::link::LinkReferenceDefinitions;
 use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};

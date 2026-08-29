@@ -500,7 +500,7 @@ impl Editor {
         }
 
         let Some((variant, text)) =
-            primitives::CalloutKind::parse_header_line(&text_markdown)
+            editor_wysiwyg::markdown::block::CalloutKind::parse_header_line(&text_markdown)
         else {
             return None;
         };

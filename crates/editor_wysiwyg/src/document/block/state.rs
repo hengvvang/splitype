@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use gpui::*;
 
-use primitives::CalloutKind;
+use crate::markdown::block::CalloutKind;
 use crate::markdown::block::image::ImageResolvedSource;
 use crate::markdown::parse::BlockId;
 

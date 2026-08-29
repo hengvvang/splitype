@@ -4,7 +4,7 @@ use gpui::*;
 
 use super::Document;
 use crate::document::block::Block;
-use primitives::CalloutKind;
+use crate::markdown::block::CalloutKind;
 use crate::markdown::block::image::parse_standalone_image;
 use crate::markdown::block::table::serialize_table_markdown_lines;
 use crate::markdown::parse::BlockKind;
