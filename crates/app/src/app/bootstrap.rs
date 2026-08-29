@@ -211,7 +211,7 @@ pub fn run(args: Args) {
 /// is the only place that names the mode crate types; the editor family
 /// creates pane states through the registry.
 pub(crate) fn register_pane_factories() {
-    use editor_core::{EditorPaneKind, Pane, PaneFactory, PaneFactoryRegistry};
+    use editor_core::{EditorPaneKind, Pane, PaneFactory};
 
     struct ModePaneFactory;
 
