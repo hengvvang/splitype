@@ -1,7 +1,7 @@
 use gpui::*;
 
 use crate::editor::panes::preview::render::inline;
-use crate::editor::document::block::Block;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::wysiwyg::render::{numbered_list_marker, render_custom_bullet_marker};
 use crate::infra::theme::Theme;
 
@@ -9,7 +9,7 @@ use std::ops::Range;
 
 /// Renders a bulleted list item content line read-only.
 pub(crate) fn render_preview_bulleted_list_item(
-    block: &Block,
+    block: &PreviewBlock,
     depth: usize,
     selection_range: Option<Range<usize>>,
     base: Div,
@@ -54,7 +54,7 @@ pub(crate) fn render_preview_bulleted_list_item(
 
 /// Renders a task list item content line read-only.
 pub(crate) fn render_preview_task_list_item(
-    block: &Block,
+    block: &PreviewBlock,
     checked: bool,
     depth: usize,
     selection_range: Option<Range<usize>>,
@@ -119,7 +119,7 @@ pub(crate) fn render_preview_task_list_item(
 
 /// Renders a numbered list item content line read-only.
 pub(crate) fn render_preview_numbered_list_item(
-    block: &Block,
+    block: &PreviewBlock,
     depth: usize,
     selection_range: Option<Range<usize>>,
     base: Div,

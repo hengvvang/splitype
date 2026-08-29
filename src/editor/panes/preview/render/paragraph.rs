@@ -2,15 +2,15 @@
 
 use gpui::*;
 
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 
 use std::ops::Range;
 
 /// Renders a plain paragraph (and HTML-comment fallback) read-only.
 pub(crate) fn render_preview_paragraph(
-    block: &Block,
+    block: &PreviewBlock,
     selection_range: Option<Range<usize>>,
     base: Div,
     theme: &Theme,
@@ -35,7 +35,7 @@ pub(crate) fn render_preview_paragraph(
 
 /// Renders a raw Markdown fallback block read-only (identical to paragraph).
 pub(crate) fn render_preview_raw_markdown(
-    block: &Block,
+    block: &PreviewBlock,
     selection_range: Option<Range<usize>>,
     base: Div,
     theme: &Theme,

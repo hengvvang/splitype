@@ -3,15 +3,15 @@
 
 use gpui::*;
 
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 
 use std::ops::Range;
 
 /// Renders a heading block at the given level (1–6).
 pub(crate) fn render_preview_heading(
-    block: &Block,
+    block: &PreviewBlock,
     level: u8,
     selection_range: Option<Range<usize>>,
     base: Div,

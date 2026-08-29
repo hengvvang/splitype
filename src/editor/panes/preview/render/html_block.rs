@@ -1,11 +1,11 @@
-﻿//! Preview raw HTML block rendering — full semantic HTML document
+//! Preview raw HTML block rendering — full semantic HTML document
 //! rendering, mirroring the WYSIWYG HTML styles without any interactive
 //! state (details always follows its `open` attribute, images render
 //! directly, no hover or toggle handlers).
 
 use gpui::*;
 
-use crate::editor::document::block::Block;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::wysiwyg::render::html_document::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
@@ -17,19 +17,21 @@ use crate::model::block::image::resolve_image_source;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
-pub(crate) fn render_preview_html_block(block: &Block, base: Div, theme: &Theme) -> AnyElement {
+pub(crate) fn render_preview_html_block(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
 
+    let raw_fallback;
+    let raw = match block.data.raw_source.as_deref() {
+        Some(s) => s,
+        None => {
+            raw_fallback = block.display_text();
+            &raw_fallback
+        }
+    };
     let html = block.data.html.as_ref().cloned().unwrap_or_else(|| {
-        parse_html_document(
-            block
-                .data
-                .raw_source
-                .as_deref()
-                .unwrap_or_else(|| block.display_text()),
-        )
+        parse_html_document(raw)
     });
 
     if !html.is_semantic() {

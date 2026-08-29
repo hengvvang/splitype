@@ -3,15 +3,15 @@
 
 use gpui::*;
 
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::{paragraph, preview_centered_column_width};
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 use crate::model::block::image::{ImageResolvedSource, parse_standalone_image};
 
 /// Renders a paragraph/list-item block that holds a lone image read-only.
 /// Falls back to the paragraph renderer when the block is not an image.
 pub(crate) fn render_preview_image(
-    block: &Block,
+    block: &PreviewBlock,
     base: Div,
     theme: &Theme,
     window: &Window,

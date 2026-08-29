@@ -360,15 +360,13 @@ fn test_search_navigation_in_source_code_and_preview(cx: &mut TestAppContext) {
             assert_eq!(ed.search.matches.len(), 3);
             assert_eq!(ed.search.active_match_index, Some(0));
 
-            // In SourceCode mode, source_block should have search highlights and selection
-            let source_block = ed
+            // In SourceCode mode, source_code should have search highlights and selection
+            let matches = ed
                 .pane_state_ref(active_pane)
                 .unwrap()
-                .source_block
-                .as_ref()
-                .unwrap()
+                .source_code
+                .search_matches
                 .clone();
-            let matches = source_block.read(cx).search_matches.clone();
             assert_eq!(matches.len(), 3);
             assert_eq!(matches[0].1, true); // Active match
             assert_eq!(matches[1].1, false);
@@ -376,7 +374,12 @@ fn test_search_navigation_in_source_code_and_preview(cx: &mut TestAppContext) {
             // Find next in SourceCode mode
             ed.find_next(window, cx);
             assert_eq!(ed.search.active_match_index, Some(1));
-            let matches_after_next = source_block.read(cx).search_matches.clone();
+            let matches_after_next = ed
+                .pane_state_ref(active_pane)
+                .unwrap()
+                .source_code
+                .search_matches
+                .clone();
             assert_eq!(matches_after_next[0].1, false);
             assert_eq!(matches_after_next[1].1, true); // Second match is now active
 
@@ -399,7 +402,7 @@ fn test_search_navigation_in_source_code_and_preview(cx: &mut TestAppContext) {
             // Jump to previous match in Preview mode
             ed.find_previous(window, cx);
             assert_eq!(ed.search.active_match_index, Some(0));
-            let first_preview_block = preview_blocks[0].read(cx);
+            let first_preview_block = &preview_blocks[0];
             assert_eq!(first_preview_block.search_matches.len(), 3);
             assert_eq!(first_preview_block.search_matches[0].1, true);
             assert_eq!(first_preview_block.search_matches[1].1, false);

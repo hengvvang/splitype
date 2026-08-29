@@ -2,8 +2,8 @@
 
 use gpui::*;
 
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 
 use std::ops::Range;
@@ -11,7 +11,7 @@ use std::ops::Range;
 /// Renders a blockquote's own content line read-only. Nested children are
 /// rendered by the dispatcher with an extra indent level.
 pub(crate) fn render_preview_blockquote(
-    block: &Block,
+    block: &PreviewBlock,
     _depth: usize,
     selection_range: Option<Range<usize>>,
     base: Div,

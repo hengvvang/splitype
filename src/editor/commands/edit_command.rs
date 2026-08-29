@@ -286,13 +286,9 @@ impl Editor {
 
     fn execute_select_all(&mut self, cx: &mut Context<Self>) {
         if self.is_source_code() {
-            if let Some(block) = self.ensure_source_editor_block(cx) {
-                block.update(cx, |block, cx| {
-                    let len = block.display_len();
-                    block.selected_range = 0..len;
-                    block.selection_reversed = false;
-                    cx.notify();
-                });
+            let pane_id = self.active_pane_id();
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                state.source_code.select_all();
             }
         } else {
             self.select_all_wysiwyg_document(cx);
@@ -303,23 +299,9 @@ impl Editor {
     pub(crate) fn active_or_target_block(
         &mut self,
         target_entity: Option<EntityId>,
-        cx: &mut Context<Self>,
+        _cx: &mut Context<Self>,
     ) -> Option<Entity<Block>> {
-        if self.is_source_code() {
-            self.ensure_source_editor_block(cx)
-        } else {
-            self.context_menu_target_block(target_entity)
-        }
-    }
-
-    pub(crate) fn ensure_source_editor_block(&mut self, cx: &mut Context<Self>) -> Option<Entity<Block>> {
-        let pane_id = self.active_pane_id();
-        if let Some(b) = self.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()) {
-            Some(b)
-        } else {
-            self.sync_source_pane(pane_id, cx);
-            self.pane_state_ref(pane_id).and_then(|p| p.source_block.clone())
-        }
+        self.context_menu_target_block(target_entity)
     }
 
     pub(crate) fn apply_inline_markup(
@@ -331,6 +313,27 @@ impl Editor {
         wrap_suffix: &str,
         cx: &mut Context<Self>,
     ) {
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            self.sync_source_pane(pane_id, cx);
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                if let Some(sel) = state.source_code.selection.take() {
+                    let text = state.source_code.text[sel.start..sel.end].to_string();
+                    let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
+                    state.source_code.text.replace_range(sel.start..sel.end, &wrapped);
+                    state.source_code.selection = Some(sel.start + wrap_prefix.len()..sel.start + wrap_prefix.len() + text.len());
+                    state.source_code.cursor = sel.start + wrap_prefix.len() + text.len();
+                } else {
+                    let pos = state.source_code.cursor;
+                    state.source_code.text.insert_str(pos, empty_template);
+                    state.source_code.cursor = pos + caret_offset_in_empty;
+                }
+                state.source_code.refresh_highlight();
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
+            return;
+        }
+
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
@@ -370,6 +373,26 @@ impl Editor {
         prefix: &str,
         cx: &mut Context<Self>,
     ) {
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            self.sync_source_pane(pane_id, cx);
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                let (cur_line, _) = state.source_code.line_and_column(state.source_code.cursor);
+                let start = state.source_code.line_start_offset(cur_line);
+                let end = state.source_code.line_end_offset(cur_line);
+                let line_text = state.source_code.text[start..end].to_string();
+                let stripped = strip_markdown_line_prefix(&line_text);
+                let new_line = format!("{prefix}{stripped}");
+                let prefix_len = prefix.len();
+                state.source_code.text.replace_range(start..end, &new_line);
+                state.source_code.cursor = start + prefix_len;
+                state.source_code.selection = None;
+                state.source_code.refresh_highlight();
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
+            return;
+        }
+
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
@@ -405,6 +428,20 @@ impl Editor {
         caret_offset: usize,
         cx: &mut Context<Self>,
     ) {
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            self.sync_source_pane(pane_id, cx);
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                let pos = state.source_code.cursor;
+                state.source_code.text.insert_str(pos, snippet);
+                state.source_code.cursor = pos + caret_offset;
+                state.source_code.selection = None;
+                state.source_code.refresh_highlight();
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
+            return;
+        }
+
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
@@ -441,6 +478,24 @@ impl Editor {
         target_entity: Option<EntityId>,
         cx: &mut Context<Self>,
     ) {
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            self.sync_source_pane(pane_id, cx);
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                if let Some(sel) = state.source_code.selection.take() {
+                    let selected = &state.source_code.text[sel.start..sel.end];
+                    let plain = selected
+                        .trim_matches(|c| c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$')
+                        .to_string();
+                    state.source_code.text.replace_range(sel.start..sel.end, &plain);
+                    state.source_code.cursor = sel.start + plain.len();
+                    state.source_code.refresh_highlight();
+                }
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
+            return;
+        }
+
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };

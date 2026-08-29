@@ -26,7 +26,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use crate::editor::document::block::Block;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::model::parse::BlockKind;
@@ -68,11 +68,10 @@ impl Editor {
                     .blocks
                     .iter()
                     .enumerate()
-                    .filter(|(_, entity)| {
-                        !matches!(entity.read(cx).kind(), BlockKind::FootnoteDefinition)
+                    .filter(|(_, block)| {
+                        !matches!(block.kind(), BlockKind::FootnoteDefinition)
                     })
-                    .map(|(block_index, entity)| {
-                        let block = entity.read(cx);
+                    .map(|(block_index, block)| {
                         let selection_range = preview_selection
                             .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
                         render_preview_block(
@@ -92,8 +91,8 @@ impl Editor {
                 // Footnote definitions are collected out of the body flow and
                 // rendered as one GitHub-style section at the bottom, behind a
                 // divider line from the main content.
-                let mut footnotes: Vec<Entity<Block>> = Vec::new();
-                collect_preview_footnote_definitions(&state.preview.blocks, &mut footnotes, cx);
+                let mut footnotes: Vec<PreviewBlock> = Vec::new();
+                collect_preview_footnote_definitions(&state.preview.blocks, &mut footnotes);
                 if !footnotes.is_empty() {
                     elements.push(footnote::render_preview_footnotes_section(
                         &footnotes, pane_id, &editor_handle, theme, window, cx,
@@ -133,7 +132,7 @@ impl Editor {
 /// `render_depth`-based indent. `quote_depth` tracks blockquote nesting for
 /// the quote guide lines. Container blocks recurse into their children.
 pub(crate) fn render_preview_block(
-    block: &Block,
+    block: &PreviewBlock,
     block_index: usize,
     selection_range: Option<Range<usize>>,
     depth: usize,
@@ -249,10 +248,10 @@ pub(crate) fn render_preview_block(
     let children_elements: Vec<AnyElement> = block
         .children
         .iter()
-        .filter(|child| !matches!(child.read(cx).kind(), BlockKind::FootnoteDefinition))
+        .filter(|child| !matches!(child.kind(), BlockKind::FootnoteDefinition))
         .map(|child| {
             render_preview_block(
-                child.read(cx),
+                child,
                 block_index,
                 selection_range.clone(),
                 depth + 1,
@@ -321,16 +320,14 @@ pub(crate) fn preview_centered_column_width(
 /// order — including definitions nested inside quotes, callouts, or lists — so
 /// the preview can render them in a single bottom section.
 fn collect_preview_footnote_definitions(
-    roots: &[Entity<Block>],
-    out: &mut Vec<Entity<Block>>,
-    cx: &App,
+    roots: &[PreviewBlock],
+    out: &mut Vec<PreviewBlock>,
 ) {
-    for entity in roots {
-        let block = entity.read(cx);
+    for block in roots {
         if block.kind() == BlockKind::FootnoteDefinition {
-            out.push(entity.clone());
+            out.push(block.clone());
         }
-        collect_preview_footnote_definitions(&block.children, out, cx);
+        collect_preview_footnote_definitions(&block.children, out);
     }
 }
 

@@ -2,12 +2,12 @@
 
 use gpui::*;
 
-use crate::editor::document::block::Block;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::infra::theme::Theme;
 
 /// Renders a footnote definition block read-only.
 pub(crate) fn render_preview_footnote_definition(
-    block: &Block,
+    block: &PreviewBlock,
     _depth: usize,
     base: Div,
     theme: &Theme,
@@ -69,7 +69,7 @@ use crate::editor::engine::controller::{Editor, PaneId};
 /// Renders the collected GitHub-style footnotes section: a top divider line
 /// followed by every footnote definition in document order.
 pub(crate) fn render_preview_footnotes_section(
-    footnotes: &[Entity<Block>],
+    footnotes: &[PreviewBlock],
     pane_id: PaneId,
     editor_handle: &Entity<Editor>,
     theme: &Theme,
@@ -82,9 +82,9 @@ pub(crate) fn render_preview_footnotes_section(
     let rows: Vec<AnyElement> = footnotes
         .iter()
         .enumerate()
-        .map(|(idx, entity)| {
+        .map(|(idx, block)| {
             super::render_preview_block(
-                entity.read(cx),
+                block,
                 idx,
                 None,
                 0,

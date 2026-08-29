@@ -1,19 +1,19 @@
-﻿//! Preview table rendering — header and body grid from the persisted
+//! Preview table rendering — header and body grid from the persisted
 //! `TableData`, with no editing chrome. Column widths fall back to equal
 //! splits since the preview has no window measurement.
 
 use gpui::*;
 
 use crate::editor::geometry::table_measure::measure_table_column_layout;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
 use crate::editor::panes::preview::render::preview_centered_column_width;
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 
 /// Renders a native table block read-only with content-measured column
 /// widths, mirroring the WYSIWYG table layout.
 pub(crate) fn render_preview_table(
-    block: &Block,
+    block: &PreviewBlock,
     base: Div,
     theme: &Theme,
     window: &mut Window,

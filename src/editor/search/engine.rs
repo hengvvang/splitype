@@ -184,7 +184,7 @@ impl Editor {
     }
 
     /// Synchronizes search match highlights to all block entities in the active document.
-    pub fn sync_search_highlights_to_document(&self, cx: &mut App) {
+    pub fn sync_search_highlights_to_document(&mut self, cx: &mut App) {
         let Some(doc) = self.active_doc() else {
             return;
         };
@@ -194,15 +194,14 @@ impl Editor {
             return;
         }
 
-        let active_match = self.search.current_match();
+        let active_match = self.search.current_match().cloned();
 
         // 1. Group matches by block entity_id for WYSIWYG
         let mut matches_by_entity: std::collections::HashMap<EntityId, Vec<(Range<usize>, bool)>> =
             std::collections::HashMap::new();
-
         for m in &self.search.matches {
             if let Some(entity_id) = m.entity_id {
-                let is_active = if let Some(curr) = active_match {
+                let is_active = if let Some(curr) = active_match.as_ref() {
                     curr.entity_id == Some(entity_id) && curr.byte_range == m.byte_range
                 } else {
                     false
@@ -227,22 +226,33 @@ impl Editor {
         }
 
         // 2. Sync SourceCode and Preview panes for the active tab
-        if let Some(tab) = self.active_tab() {
-            for pane_state in tab.panes.values() {
-                if let Some(source_block) = &pane_state.source_block {
-                    let raw_text = source_block.read(cx).display_text().to_string();
+        let search_matches = self.search.matches.clone();
+        let search_input_text = self.search.search_input.text.clone();
+        let match_case = self.search.match_case;
+        let whole_word = self.search.whole_word;
+        let use_regex = self.search.use_regex;
+        let active_match_index = self.search.active_match_index;
+        let doc_entity_ids: Vec<EntityId> = self
+            .active_doc()
+            .map(|d| d.blocks().iter().map(|e| e.entity.entity_id()).collect())
+            .unwrap_or_default();
+
+        if let Some(tab) = self.active_tab_mut() {
+            for pane_state in tab.panes.values_mut() {
+                if !pane_state.source_code.text.is_empty() {
+                    let raw_text = &pane_state.source_code.text;
                     let mut source_matches = Vec::new();
                     let mut cur_line = 1usize;
                     let mut cur_byte = 0usize;
                     for line in raw_text.split_inclusive('\n') {
-                        for m in &self.search.matches {
+                        for m in &search_matches {
                             if m.line_number == cur_line {
                                 let mut cur_col = 1usize;
                                 for (ch_idx, _) in line.char_indices() {
                                     if cur_col == m.column_number {
                                         let match_len = m.preview_match.len();
                                         let r = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
-                                        let is_active = if let Some(curr) = active_match {
+                                        let is_active = if let Some(curr) = active_match.as_ref() {
                                             curr.line_number == m.line_number
                                                 && curr.column_number == m.column_number
                                         } else {
@@ -258,29 +268,21 @@ impl Editor {
                         cur_byte += line.len();
                         cur_line += 1;
                     }
-                    source_block.update(cx, |block, cx| {
-                        if block.search_matches != source_matches {
-                            block.search_matches = source_matches;
-                            cx.notify();
-                        }
-                    });
+                    pane_state.source_code.search_matches = source_matches;
                 }
 
                 if !pane_state.preview.blocks.is_empty() {
                     let preview_query = SearchQuery::new(
-                        &self.search.search_input.text,
-                        self.search.match_case,
-                        self.search.whole_word,
-                        self.search.use_regex,
+                        &search_input_text,
+                        match_case,
+                        whole_word,
+                        use_regex,
                     );
-                    for (b_idx, preview_block) in pane_state.preview.blocks.iter().enumerate() {
+                    for (b_idx, preview_block) in pane_state.preview.blocks.iter_mut().enumerate() {
                         let mut preview_matches = Vec::new();
-                        let rendered_text =
-                            preview_block.read(cx).data.text.render_cache().text().to_string();
-                        let doc_entity_id = doc.blocks().get(b_idx).map(|e| e.entity.entity_id());
-                        let entity_matches: Vec<(usize, &SearchMatch)> = self
-                            .search
-                            .matches
+                        let rendered_text = preview_block.display_text().to_string();
+                        let doc_entity_id = doc_entity_ids.get(b_idx).copied();
+                        let entity_matches: Vec<(usize, &SearchMatch)> = search_matches
                             .iter()
                             .enumerate()
                             .filter(|(_, m)| m.entity_id == doc_entity_id)
@@ -291,16 +293,11 @@ impl Editor {
                         {
                             let is_active =
                                 entity_matches.get(raw_idx).is_some_and(|(global_idx, _)| {
-                                    self.search.active_match_index == Some(*global_idx)
+                                    active_match_index == Some(*global_idx)
                                 });
                             preview_matches.push((raw.byte_range, is_active));
                         }
-                        preview_block.update(cx, |block, cx| {
-                            if block.search_matches != preview_matches {
-                                block.search_matches = preview_matches;
-                                cx.notify();
-                            }
-                        });
+                        preview_block.search_matches = preview_matches;
                     }
                 }
             }
@@ -308,7 +305,7 @@ impl Editor {
     }
 
     /// Clears search highlights from all block entities in the active document and all pane views.
-    pub fn clear_search_highlights_from_document(&self, cx: &mut App) {
+    pub fn clear_search_highlights_from_document(&mut self, cx: &mut App) {
         if let Some(doc) = self.active_doc() {
             for entry in doc.blocks() {
                 entry.entity.update(cx, |block, cx| {
@@ -319,23 +316,15 @@ impl Editor {
                 });
             }
         }
-        if let Some(tab) = self.active_tab() {
-            for pane_state in tab.panes.values() {
-                if let Some(source_block) = &pane_state.source_block {
-                    source_block.update(cx, |block, cx| {
-                        if !block.search_matches.is_empty() {
-                            block.search_matches.clear();
-                            cx.notify();
-                        }
-                    });
+        if let Some(tab) = self.active_tab_mut() {
+            for pane_state in tab.panes.values_mut() {
+                if !pane_state.source_code.search_matches.is_empty() {
+                    pane_state.source_code.search_matches.clear();
                 }
-                for preview_block in &pane_state.preview.blocks {
-                    preview_block.update(cx, |block, cx| {
-                        if !block.search_matches.is_empty() {
-                            block.search_matches.clear();
-                            cx.notify();
-                        }
-                    });
+                for preview_block in &mut pane_state.preview.blocks {
+                    if !preview_block.search_matches.is_empty() {
+                        preview_block.search_matches.clear();
+                    }
                 }
             }
         }
@@ -648,35 +637,29 @@ impl Editor {
                 }
                 crate::editor::engine::controller::EditorPaneKind::SourceCode => {
                     self.sync_source_pane(active_pane, cx);
-                    if let Some(state) = self.pane_state_ref(active_pane) {
-                        if let Some(source_block) = state.source_block.clone() {
-                            let raw_text = source_block.read(cx).display_text().to_string();
-                            let mut target_range = 0..0;
-                            let mut cur_line = 1usize;
-                            let mut cur_byte = 0usize;
-                            for line in raw_text.split_inclusive('\n') {
-                                if cur_line == match_item.line_number {
-                                    let mut cur_col = 1usize;
-                                    for (ch_idx, _) in line.char_indices() {
-                                        if cur_col == match_item.column_number {
-                                            let match_len = match_item.preview_match.len();
-                                            target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
-                                            break;
-                                        }
-                                        cur_col += 1;
+                    if let Some(state) = self.pane_state_mut(active_pane) {
+                        let raw_text = &state.source_code.text;
+                        let mut target_range = 0..0;
+                        let mut cur_line = 1usize;
+                        let mut cur_byte = 0usize;
+                        for line in raw_text.split_inclusive('\n') {
+                            if cur_line == match_item.line_number {
+                                let mut cur_col = 1usize;
+                                for (ch_idx, _) in line.char_indices() {
+                                    if cur_col == match_item.column_number {
+                                        let match_len = match_item.preview_match.len();
+                                        target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                        break;
                                     }
-                                    break;
+                                    cur_col += 1;
                                 }
-                                cur_byte += line.len();
-                                cur_line += 1;
+                                break;
                             }
-                            source_block.update(cx, |block, cx| {
-                                block.selected_range = target_range;
-                                block.selection_reversed = false;
-                                block.start_cursor_blink(cx);
-                                cx.notify();
-                            });
+                            cur_byte += line.len();
+                            cur_line += 1;
                         }
+                        state.source_code.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
+                        state.source_code.cursor = target_range.end;
                     }
                 }
                 crate::editor::engine::controller::EditorPaneKind::Preview => {
@@ -739,35 +722,29 @@ impl Editor {
                 }
                 crate::editor::engine::controller::EditorPaneKind::SourceCode => {
                     self.sync_source_pane(active_pane, cx);
-                    if let Some(state) = self.pane_state_ref(active_pane) {
-                        if let Some(source_block) = state.source_block.clone() {
-                            let raw_text = source_block.read(cx).display_text().to_string();
-                            let mut target_range = 0..0;
-                            let mut cur_line = 1usize;
-                            let mut cur_byte = 0usize;
-                            for line in raw_text.split_inclusive('\n') {
-                                if cur_line == match_item.line_number {
-                                    let mut cur_col = 1usize;
-                                    for (ch_idx, _) in line.char_indices() {
-                                        if cur_col == match_item.column_number {
-                                            let match_len = match_item.preview_match.len();
-                                            target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
-                                            break;
-                                        }
-                                        cur_col += 1;
+                    if let Some(state) = self.pane_state_mut(active_pane) {
+                        let raw_text = &state.source_code.text;
+                        let mut target_range = 0..0;
+                        let mut cur_line = 1usize;
+                        let mut cur_byte = 0usize;
+                        for line in raw_text.split_inclusive('\n') {
+                            if cur_line == match_item.line_number {
+                                let mut cur_col = 1usize;
+                                for (ch_idx, _) in line.char_indices() {
+                                    if cur_col == match_item.column_number {
+                                        let match_len = match_item.preview_match.len();
+                                        target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                        break;
                                     }
-                                    break;
+                                    cur_col += 1;
                                 }
-                                cur_byte += line.len();
-                                cur_line += 1;
+                                break;
                             }
-                            source_block.update(cx, |block, cx| {
-                                block.selected_range = target_range;
-                                block.selection_reversed = false;
-                                block.start_cursor_blink(cx);
-                                cx.notify();
-                            });
+                            cur_byte += line.len();
+                            cur_line += 1;
                         }
+                        state.source_code.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
+                        state.source_code.cursor = target_range.end;
                     }
                 }
                 crate::editor::engine::controller::EditorPaneKind::Preview => {

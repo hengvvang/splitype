@@ -16,13 +16,31 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            if let Some(entity_id) = state.focus.pending.take()
-                && let Some(block) = self.focusable_entity_by_id(entity_id)
-            {
-                let focus_handle = block.read(cx).focus_handle.clone();
-                focus_handle.focus(window, cx);
+        let kind = self.pane_kind(pane_id).unwrap_or(EditorPaneKind::Wysiwyg);
+        match kind {
+            EditorPaneKind::SourceCode => {
+                if let Some(state) = self.pane_state_mut(pane_id) {
+                    if state.source_code.focus_handle.is_none() {
+                        state.source_code.focus_handle = Some(cx.focus_handle());
+                    }
+                    if let Some(ref handle) = state.source_code.focus_handle {
+                        if !handle.is_focused(window) {
+                            handle.focus(window, cx);
+                        }
+                    }
+                }
             }
+            EditorPaneKind::Wysiwyg => {
+                if let Some(state) = self.pane_state_mut(pane_id) {
+                    if let Some(entity_id) = state.focus.pending.take()
+                        && let Some(block) = self.focusable_entity_by_id(entity_id)
+                    {
+                        let focus_handle = block.read(cx).focus_handle.clone();
+                        focus_handle.focus(window, cx);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -87,22 +105,8 @@ impl Editor {
                         })?;
                     target_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
                 }
-                EditorPaneKind::SourceCode => {
-                    let pane_state = self.pane_state_ref(pane_id)?;
-                    let source_block = pane_state.source_block.as_ref()?;
-                    source_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
-                }
-                EditorPaneKind::Preview => {
-                    let pane_state = self.pane_state_ref(pane_id)?;
-                    let active_block = pane_state.preview.blocks.iter().find(|b| {
-                        b.read(cx).search_matches.iter().any(|(_, is_active)| *is_active)
-                    })?;
-                    active_block.read_with(cx, |block, _cx| {
-                        block
-                            .active_range_or_cursor_bounds()
-                            .or_else(|| block.last_paint().map(|p| p.bounds))
-                    })
-                }
+                EditorPaneKind::SourceCode => None,
+                EditorPaneKind::Preview => None,
                 EditorPaneKind::Outline => None,
             }
         })();

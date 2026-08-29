@@ -48,17 +48,7 @@ impl Editor {
             && self.panel_mode().is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some((pane_id, _)) = self.tab().panes.iter().find(|(_, state)| {
-                state
-                    .source_block
-                    .as_ref()
-                    .is_some_and(|block| block.entity_id() == target_id)
-            }) {
-                // Keyboard focus sits in a source pane's own block.
-                if inner_tree.contains_leaf(pane_id.0) {
-                    self.focused_pane_id = Some(*pane_id);
-                }
-            } else if self.doc().block_entity_by_id(target_id).is_some() {
+            if self.doc().block_entity_by_id(target_id).is_some() {
                 // Keyboard focus sits in the shared document: point at the
                 // panel's first Wysiwyg pane.
                 if let Some(pane) = inner_tree.find_first_leaf_by_kind(EditorPaneKind::Wysiwyg) {

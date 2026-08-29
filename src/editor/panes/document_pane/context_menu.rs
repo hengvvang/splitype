@@ -237,23 +237,8 @@ impl Editor {
     ) {
         cx.stop_propagation();
         let pane_id = self.active_pane_id();
-        let source_block = if let Some(b) = self.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()) {
-            b
-        } else {
-            self.sync_source_pane(pane_id, cx);
-            let Some(b) = self.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()) else {
-                return;
-            };
-            b
-        };
-        self.focus_block(source_block.entity_id());
-        source_block.update(cx, |block, cx| {
-            if block.selected_range.is_empty() {
-                let offset = block.index_for_mouse_position(event.position);
-                block.move_to(offset, cx);
-            }
-        });
-        self.open_edit_context_menu(event.position, Some(source_block.entity_id()), cx);
+        self.sync_source_pane(pane_id, cx);
+        self.open_edit_context_menu(event.position, None, cx);
     }
 
     pub(crate) fn on_block_context_menu_mouse_down(
@@ -385,10 +370,7 @@ impl Editor {
         let pane_id = self.active_pane_id();
         let pane_state = self.pane_state_ref(pane_id);
         if self.is_source_code() {
-            if let Some(block_entity) = pane_state.and_then(|p| p.source_block.as_ref()) {
-                return !block_entity.read(cx).selected_range.is_empty();
-            }
-            false
+            pane_state.map(|p| p.source_code.selection.is_some()).unwrap_or(false)
         } else {
             if self.active_pane_selection().cross_block.is_some() {
                 return true;
@@ -410,7 +392,7 @@ impl Editor {
         let pane_id = self.active_pane_id();
         let pane_state = self.pane_state_ref(pane_id);
         if self.is_source_code() {
-            pane_state.and_then(|p| p.source_block.clone())
+            None
         } else {
             target_entity
                 .and_then(|id| self.focusable_entity_by_id(id))
@@ -1178,59 +1160,70 @@ mod tests {
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
                 let pane_id = editor.active_pane_id();
-                let source_block = editor.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()).unwrap();
                 let fake_click = gpui::ClickEvent::default();
 
                 // 1. Heading 1 (# )
-                source_block.update(cx, |b, cx| b.move_to(0, cx));
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                if let Some(state) = editor.pane_state_mut(pane_id) {
+                    state.source_code.move_to(0, false);
+                }
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_heading_1(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "# Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 2);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "# Heading line");
+                assert_eq!(state.source_code.cursor, 2);
 
                 // 2. Heading 2 (## )
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_heading_2(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "## Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 3);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "## Heading line");
+                assert_eq!(state.source_code.cursor, 3);
 
                 // 3. Numbered List (1. )
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_numbered_list(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "1. Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 3);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "1. Heading line");
+                assert_eq!(state.source_code.cursor, 3);
 
                 // 4. Bullet List (- )
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_bullet_list(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "- Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 2);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "- Heading line");
+                assert_eq!(state.source_code.cursor, 2);
 
                 // 5. Task List (- [ ] )
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_task_list(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "- [ ] Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 6);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "- [ ] Heading line");
+                assert_eq!(state.source_code.cursor, 6);
 
                 // 6. Quote (> )
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_quote(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "> Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 2);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "> Heading line");
+                assert_eq!(state.source_code.cursor, 2);
 
                 // 7. Paragraph (Strips prefix)
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_set_paragraph(&fake_click, window, cx);
-                assert_eq!(source_block.read(cx).display_text(), "Heading line");
-                assert_eq!(source_block.read(cx).cursor_offset(), 0);
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert_eq!(state.source_code.text, "Heading line");
+                assert_eq!(state.source_code.cursor, 0);
 
                 // 8. Thematic Break (---)
-                source_block.update(cx, |b, cx| b.move_to(b.display_len(), cx));
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                if let Some(state) = editor.pane_state_mut(pane_id) {
+                    let len = state.source_code.text.len();
+                    state.source_code.move_to(len, false);
+                }
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_insert_thematic_break(&fake_click, window, cx);
-                let text = source_block.read(cx).display_text();
-                assert!(text.ends_with("---"));
-                assert_eq!(source_block.read(cx).cursor_offset(), text.len());
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert!(state.source_code.text.ends_with("---"));
+                assert_eq!(state.source_code.cursor, state.source_code.text.len());
             });
         });
     }
@@ -1272,13 +1265,12 @@ mod tests {
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
                 let pane_id = editor.active_pane_id();
-                let source_block = editor.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()).unwrap();
                 let fake_click = gpui::ClickEvent::default();
-                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), None, cx);
                 editor.on_insert_callout(&fake_click, window, cx);
 
-                let text = source_block.read(cx).display_text();
-                assert!(text.contains("> [!]"));
+                let state = editor.pane_state_ref(pane_id).unwrap();
+                assert!(state.source_code.text.contains("> [!]"));
             });
         });
     }

@@ -21,15 +21,6 @@ impl Editor {
         blocks_to_entity_tree(blocks, cx)
     }
 
-    /// Parse a Markdown string into a tree of block entities using Preview (CommonMark merged) mode.
-    pub(crate) fn parse_preview_document(
-        cx: &mut Context<Self>,
-        markdown: &str,
-    ) -> Vec<Entity<Block>> {
-        let blocks = crate::model::parse::parser::parse_preview_document(markdown);
-        blocks_to_entity_tree(blocks, cx)
-    }
-
     /// Build runtime blocks from pre-split Markdown lines (WYSIWYG mode).
     pub(crate) fn build_wysiwyg_blocks_from_lines(
         cx: &mut Context<Self>,

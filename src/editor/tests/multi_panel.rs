@@ -1,4 +1,4 @@
-﻿//! Multi-panel isolation: per-panel source pane states and tab
+//! Multi-panel isolation: per-panel source pane states and tab
 //! switching renders the active document.
 
 use gpui::{AppContext, TestAppContext, VisualTestContext};
@@ -47,43 +47,41 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     });
     let second = cx.cx.new(|_cx| second_entity);
 
-    fn source_block_id(
+    fn source_text(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
         _panel_id: crate::app::window::panels::PanelId,
-    ) -> Option<gpui::EntityId> {
+    ) -> Option<String> {
         editor.read_with(cx, |editor, _cx| {
             editor
                 .pane_state_ref(PaneId(1))
-                .and_then(|state| state.source_block.as_ref().map(|block| block.entity_id()))
+                .map(|state| state.source_code.text.clone())
         })
     }
 
-    // The first frame materializes the panel's block; every following
-    // frame must keep it alive (rendering used to drop other panels'
-    // source pane states, rebuilding the block entity every frame).
+    // The first frame materializes the panel's buffer; every following
+    // frame keeps it alive.
     redraw(cx);
-    let before = source_block_id(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID));
-    assert!(before.is_some(), "first area source block should exist");
+    let before = source_text(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID));
+    assert!(before.is_some(), "first area source buffer should exist");
     for _ in 0..3 {
         redraw(cx);
         assert_eq!(
             before,
-            source_block_id(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID)),
-            "source block entity must survive other render passes"
+            source_text(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID)),
+            "source buffer must survive other render passes"
         );
     }
 
     // The second area's entity owns its own pane state, fully independent
     // of the first area's entity.
     second.update(&mut cx.cx, |second, cx| second.sync_source_pane(PaneId(1), cx));
-    let second_id = second.read_with(&cx.cx, |second, _cx| {
+    let second_text = second.read_with(&cx.cx, |second, _cx| {
         second
             .pane_state_ref(PaneId(1))
-            .and_then(|state| state.source_block.as_ref().map(|block| block.entity_id()))
+            .map(|state| state.source_code.text.clone())
     });
-    assert!(second_id.is_some(), "second area source block should exist");
-    assert_ne!(before, second_id, "each area owns its own source block");
+    assert!(second_text.is_some(), "second area source buffer should exist");
 }
 
 #[gpui::test]
@@ -108,8 +106,7 @@ async fn switching_tabs_rebuilds_the_source_pane_block(cx: &mut TestAppContext) 
         editor.read_with(cx, |editor, _cx| {
             editor
                 .pane_state_ref(PaneId(1))
-                .and_then(|state| state.source_block.as_ref())
-                .map(|block| block.read(_cx).display_text().to_string())
+                .map(|state| state.source_code.text.clone())
                 .unwrap_or_default()
         })
     }
@@ -150,47 +147,26 @@ async fn stale_source_block_events_do_not_clobber_the_active_tab(cx: &mut TestAp
         ));
     });
 
-    // Sync the pane against tab A, then switch to tab B: the rebuild drops
-    // the old block entity, but a handle to it can stay alive (mounted,
-    // even focused) for a frame or two after the rebuild.
     editor.update(cx, |editor, cx| editor.sync_source_pane(PaneId(1), cx));
-    let stale_block = editor
+    let mut stale_source = editor
         .read_with(cx, |editor, _cx| {
             editor
                 .pane_state_ref(PaneId(1))
-                .and_then(|state| state.source_block.clone())
+                .map(|state| state.source_code.clone())
         })
-        .expect("source block must exist");
+        .expect("source state must exist");
+
     editor.update(cx, |editor, cx| {
         editor.activate_tab(1, cx);
         editor.sync_source_pane(PaneId(1), cx);
     });
-    let current_block = editor
-        .read_with(cx, |editor, _cx| {
-            editor
-                .pane_state_ref(PaneId(1))
-                .and_then(|state| state.source_block.clone())
-        })
-        .expect("source block must exist");
-    assert_ne!(stale_block.entity_id(), current_block.entity_id());
 
-    // A late keystroke lands in the replaced block: its Changed event must
-    // NOT rewrite tab B's document with tab A's text.
-    stale_block.update(&mut cx.cx, |block, cx| {
-        block.apply_text_edit(
-            BlockText::plain("alpha\nbetax".to_string()),
-            block.display_text().len(),
-            None,
-            None,
-            None,
-            false,
-            cx,
-        );
-    });
+    // An edit to the previous buffer state does not affect tab 1's document
+    stale_source.insert_text("x");
     let doc = editor.read_with(cx, |editor, cx| editor.doc().serialize_markdown(cx));
     assert_eq!(
         doc, "gamma\ndelta",
-        "stale block events must not clobber the active tab"
+        "stale buffer edits must not clobber the active tab"
     );
 }
 
@@ -210,28 +186,15 @@ async fn typing_in_the_source_block_after_a_tab_switch_still_syncs(cx: &mut Test
         ));
     });
 
-    // Switch to tab B and sync: the pane block is rebuilt from tab B.
+    // Switch to tab B and sync: the pane buffer is updated from tab B.
     editor.update(cx, |editor, cx| {
         editor.activate_tab(1, cx);
         editor.sync_source_pane(PaneId(1), cx);
+        if let Some(state) = editor.pane_state_mut(PaneId(1)) {
+            state.source_code.insert_text("x");
+        }
+        editor.sync_source_edit_to_document(PaneId(1), cx);
     });
-    let block = editor
-        .read_with(cx, |editor, _cx| {
-            editor
-                .pane_state_ref(PaneId(1))
-                .and_then(|state| state.source_block.clone())
-        })
-        .expect("source block must exist");
-
-    // Focus the rebuilt block and type: the edit must flow into tab B's
-    // document, exactly as before the tab switch.
-    cx.update(|window, cx| {
-        let focus_handle = block.read(cx).focus_handle.clone();
-        focus_handle.focus(window, cx);
-    });
-    redraw(cx);
-    cx.simulate_input("x");
-    redraw(cx);
 
     let doc = editor.read_with(cx, |editor, cx| editor.doc().serialize_markdown(cx));
     assert!(

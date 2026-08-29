@@ -6,12 +6,12 @@ use gpui::*;
 use crate::editor::plugins::code_highlight::highlight::{
     code_highlight_color, highlight_code_block,
 };
-use crate::editor::document::block::Block;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::infra::theme::Theme;
 
 /// Extracts the fence language tag from the raw source (e.g. `rust` from
 /// ```rust ... ```), mirroring the WYSIWYG language resolution.
-fn fence_language(block: &Block) -> Option<String> {
+fn fence_language(block: &PreviewBlock) -> Option<String> {
     let raw = block.data.raw_source.as_deref().unwrap_or_default();
     let trimmed = raw.trim_start();
     let rest = trimmed.strip_prefix("```")?;
@@ -25,14 +25,14 @@ fn fence_language(block: &Block) -> Option<String> {
 }
 
 /// Renders a fenced code block read-only with syntax highlighting.
-pub(crate) fn render_preview_fenced_code(block: &Block, base: Div, theme: &Theme) -> AnyElement {
+pub(crate) fn render_preview_fenced_code(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
 
     let source = block.display_text();
     let language = fence_language(block);
-    let highlighted = highlight_code_block(language.as_deref(), source);
+    let highlighted = highlight_code_block(language.as_deref(), &source);
 
     let line_count = source.split('\n').count().max(1);
     let line_numbers_text = (1..=line_count)
@@ -41,7 +41,7 @@ pub(crate) fn render_preview_fenced_code(block: &Block, base: Div, theme: &Theme
         .join("\n");
 
     let code_body = if let Some(result) = highlighted {
-        render_highlighted_lines(source, &result, c.code_text, theme)
+        render_highlighted_lines(&source, &result, c.code_text, theme)
     } else {
         div()
             .text_size(px(t.code_size))

@@ -84,7 +84,7 @@ impl Editor {
         let Some(block) = state.preview.blocks.get(block_index) else {
             return;
         };
-        let offset = block.read(cx).index_for_mouse_position(position);
+        let offset = block.index_for_mouse_position(position);
         state.preview.drag_anchor = Some(PreviewEndpoint { block_index, offset });
         state.preview.selection = None;
         cx.notify();
@@ -106,7 +106,7 @@ impl Editor {
         let Some(block) = state.preview.blocks.get(block_index) else {
             return;
         };
-        let offset = block.read(cx).index_for_mouse_position(position);
+        let offset = block.index_for_mouse_position(position);
         let focus = PreviewEndpoint { block_index, offset };
         let selection = PreviewSelectionRange::new(anchor, focus);
         if selection.is_empty() {
@@ -128,7 +128,7 @@ impl Editor {
         }
     }
 
-    pub(crate) fn preview_selected_text(&self, cx: &App) -> Option<String> {
+    pub(crate) fn preview_selected_text(&self, _cx: &App) -> Option<String> {
         let pane_id = self.active_pane_id();
         let state = self.pane_state_ref(pane_id)?;
         let selection = state.preview.selection?;
@@ -137,8 +137,7 @@ impl Editor {
         }
 
         let mut lines = Vec::new();
-        for (index, entity) in state.preview.blocks.iter().enumerate() {
-            let block = entity.read(cx);
+        for (index, block) in state.preview.blocks.iter().enumerate() {
             let len = block.display_len();
             if let Some(range) = selection.range_for_block(index, len) {
                 let text = block.display_text();

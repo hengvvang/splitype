@@ -1,4 +1,4 @@
-﻿//! Save (Ctrl-S / menu action) and HTML export flows.
+//! Save (Ctrl-S / menu action) and HTML export flows.
 
 use std::fs;
 
@@ -135,17 +135,7 @@ async fn export_html_uses_source_mode_raw_text(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        let source_block = editor
-            .doc()
-            .first_root()
-            .expect("source mode should keep one root block")
-            .clone();
-        source_block.update(cx, |block, _cx| {
-            block.data.set_text(BlockText::plain(
-                "# Source\n\n<!--\n<strong>visible</strong>\n-->".to_string(),
-            ));
-            block.sync_render_cache();
-        });
+        editor.rebuild_document_from_markdown("# Source\n\n<!--\n<strong>visible</strong>\n-->", cx);
         editor
             .export_document_to_path(ExportFormat::Html, &export_path, cx)
             .expect("source html export should write");

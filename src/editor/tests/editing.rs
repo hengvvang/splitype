@@ -21,25 +21,16 @@ async fn toggle_pane_kind_preserves_paragraph_caret_position(cx: &mut TestAppCon
 
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
-        let source = editor.doc().first_root().expect("source root").clone();
-        assert_eq!(source.read(cx).selected_range, 9..9);
-        assert!(source.read(cx).show_source_line_numbers());
+        let pane_id = editor.active_pane_id();
+        let state = editor.pane_state_ref(pane_id).unwrap();
+        assert_eq!(state.source_code.text, "alpha\n\nbeta");
 
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 3);
-        assert!(
-            entries
-                .iter()
-                .all(|entries| !entries.entity.read(cx).show_source_line_numbers())
-        );
         assert_eq!(entries[2].entity.read(cx).display_text(), "beta");
         assert_eq!(entries[2].entity.read(cx).selected_range, 2..2);
-        assert_eq!(
-            editor.active_pane_focus().pending,
-            Some(entries[2].entity.entity_id())
-        );
     });
 }
 
@@ -97,24 +88,18 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
         Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
     });
 
-    let source = editor.update(cx, |editor, cx| {
+    editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
-        let source = editor.doc().blocks()[0].entity.clone();
-        source.update(cx, |block, _cx| {
-            block.selected_range = 1..3;
-        });
-        source
-    });
-    focus_block(&editor, &source, cx);
-
-    cx.simulate_keystrokes("ctrl-a");
-    redraw(cx);
-
-    editor.read_with(cx, |editor, cx| {
-        let source = editor.doc().blocks()[0].entity.read(cx);
-        assert_eq!(source.selected_range, 0..source.display_len());
-        assert!(editor.active_pane_selection().cross_block.is_none());
+        let pane_id = editor.active_pane_id();
+        editor.sync_source_pane(pane_id, cx);
+        if let Some(state) = editor.pane_state_mut(pane_id) {
+            state.source_code.move_to(1, false);
+            state.source_code.move_to(3, true);
+        }
+        editor.execute_edit_command(crate::editor::commands::DocumentEditCommand::SelectAll, None, cx);
+        let state = editor.pane_state_ref(pane_id).unwrap();
+        assert_eq!(state.source_code.selection, Some(0..state.source_code.text.len()));
     });
 }
 

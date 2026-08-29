@@ -263,14 +263,11 @@ impl Editor {
                 let (is_h1, is_h2, is_h3, is_h4, is_h5, is_h6, is_p) = if self.is_source_code() {
                     let source_line = self
                         .pane_state_ref(pane_id)
-                        .and_then(|p| p.source_block.as_ref())
-                        .map(|b| {
-                            let block = b.read(cx);
-                            let cursor = block.cursor_offset();
-                            let text = block.display_text();
-                            let line_start = text[..cursor.min(text.len())].rfind('\n').map(|i| i + 1).unwrap_or(0);
-                            let line_end = text[cursor.min(text.len())..].find('\n').map(|i| cursor + i).unwrap_or(text.len());
-                            text[line_start..line_end].trim_start().to_string()
+                        .map(|p| {
+                            let (cur_line, _) = p.source_code.line_and_column(p.source_code.cursor);
+                            let start = p.source_code.line_start_offset(cur_line);
+                            let end = p.source_code.line_end_offset(cur_line);
+                            p.source_code.text[start..end].trim_start().to_string()
                         })
                         .unwrap_or_default();
 

@@ -1,8 +1,10 @@
 //! Preview panel — read-only rendered snapshot of the document.
 
+pub(crate) mod node;
 pub(crate) mod render;
 pub(crate) mod selection;
 
+pub(crate) use node::{PreviewBlock, blocks_to_preview_tree};
 pub(crate) use selection::{PreviewEndpoint, PreviewSelectionRange};
 
 use std::collections::HashMap;
@@ -12,7 +14,6 @@ use std::sync::Arc;
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, PaneId};
-use crate::editor::document::block::Block;
 use crate::editor::document::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
@@ -23,7 +24,7 @@ use crate::model::parse::{BlockData, BlockId, BlockKind};
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]
 pub(crate) struct PreviewState {
-    pub(crate) blocks: Vec<Entity<Block>>,
+    pub(crate) blocks: Vec<PreviewBlock>,
     pub(crate) selection: Option<PreviewSelectionRange>,
     pub(crate) drag_anchor: Option<PreviewEndpoint>,
     pub(crate) source_hash: u64,
@@ -62,25 +63,25 @@ impl Editor {
             state.preview.source_hash != hash || state.preview.blocks.is_empty()
         });
         if needs_rebuild {
-            let mut roots = Self::parse_preview_document(cx, &source);
+            let data = crate::model::parse::parser::parse_preview_document(&source);
+            let mut roots = blocks_to_preview_tree(data);
             if roots.is_empty() {
-                roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
+                roots.push(PreviewBlock::new(BlockData::paragraph(String::new())));
             }
             // The preview parses its own snapshot blocks (fresh block ids), so
             // footnote bindings and first-reference locations are recomputed
             // against that tree, then pushed onto every preview block so they
             // resolve exactly like the editable blocks.
-            let footnote_registry = Arc::new(Self::build_preview_footnote_registry(&roots, cx));
+            let footnote_registry = Arc::new(Self::build_preview_footnote_registry(&roots));
             let image_registry = tab.references.image.clone();
             let link_registry = tab.references.link.clone();
             let base_dir = self.image_base_dir();
             Self::sync_preview_block_context(
-                &roots,
+                &mut roots,
                 base_dir.as_deref(),
                 &image_registry,
                 &link_registry,
                 &footnote_registry,
-                cx,
             );
             if let Some(state) = self.pane_state_mut(pane_id) {
                 state.preview.blocks = roots;
@@ -95,18 +96,18 @@ impl Editor {
     /// Builds a footnote registry for the preview tree, mirroring
     /// [`Self::rebuild_footnote_registry`] but walking the preview snapshot
     /// blocks (whose entity and block ids differ from the document tree).
-    fn build_preview_footnote_registry(roots: &[Entity<Block>], cx: &App) -> FootnoteMap {
-        let mut definitions: HashMap<String, EntityId> = HashMap::new();
-        let mut ordered: Vec<Entity<Block>> = Vec::new();
-        Self::walk_preview_blocks(roots, None, &mut definitions, &mut ordered, cx);
+    fn build_preview_footnote_registry(roots: &[PreviewBlock]) -> FootnoteMap {
+        let mut definitions: HashMap<String, BlockId> = HashMap::new();
+        let mut ordered: Vec<PreviewBlock> = Vec::new();
+        Self::walk_preview_blocks(roots, None, &mut definitions, &mut ordered);
 
         let mut bindings: HashMap<String, FootnoteDefinitionBinding> = definitions
             .into_iter()
-            .map(|(id, definition_entity_id)| {
+            .map(|(id, _definition_block_id)| {
                 (
                     id,
                     FootnoteDefinitionBinding {
-                        definition_entity_id,
+                        definition_entity_id: EntityId::default(),
                         first_reference: None,
                     },
                 )
@@ -116,8 +117,7 @@ impl Editor {
         let mut occurrence_index = 0usize;
         let mut block_occurrences: HashMap<BlockId, Vec<FootnoteResolvedOccurrence>> =
             HashMap::new();
-        for block_entity in &ordered {
-            let block = block_entity.read(cx);
+        for block in &ordered {
             let block_id = block.data.id;
             let mut occurrences = Vec::new();
             for fragment in &block.data.text.fragments {
@@ -128,7 +128,7 @@ impl Editor {
                     && binding.first_reference.is_none()
                 {
                     binding.first_reference = Some(FootnoteReferenceLocation {
-                        entity_id: block_entity.entity_id(),
+                        entity_id: EntityId::default(),
                         occurrence_index,
                     });
                 }
@@ -153,14 +153,12 @@ impl Editor {
     /// Definitions are accepted at the root or directly under a quote
     /// container, matching the document registry's rules.
     fn walk_preview_blocks(
-        roots: &[Entity<Block>],
+        roots: &[PreviewBlock],
         parent_kind: Option<BlockKind>,
-        definitions: &mut HashMap<String, EntityId>,
-        ordered: &mut Vec<Entity<Block>>,
-        cx: &App,
+        definitions: &mut HashMap<String, BlockId>,
+        ordered: &mut Vec<PreviewBlock>,
     ) {
-        for entity in roots {
-            let block = entity.read(cx);
+        for block in roots {
             let allowed = parent_kind
                 .as_ref()
                 .is_none_or(|kind| kind.is_quote_container());
@@ -173,15 +171,14 @@ impl Editor {
                         .0
                         .to_string(),
                     )
-                    .or_insert(entity.entity_id());
+                    .or_insert(block.id());
             }
-            ordered.push(entity.clone());
+            ordered.push(block.clone());
             Self::walk_preview_blocks(
                 &block.children,
                 Some(block.kind()),
                 definitions,
                 ordered,
-                cx,
             );
         }
     }
@@ -190,30 +187,25 @@ impl Editor {
     /// every preview snapshot block so ordinals, back-references, links, and
     /// image sources resolve exactly like the editable blocks.
     fn sync_preview_block_context(
-        roots: &[Entity<Block>],
+        roots: &mut [PreviewBlock],
         base_dir: Option<&Path>,
         image_registry: &Arc<ImageReferenceDefinitions>,
         link_registry: &Arc<LinkReferenceDefinitions>,
         footnote_registry: &Arc<FootnoteMap>,
-        cx: &mut Context<Self>,
     ) {
-        for entity in roots {
-            let children = entity.read(cx).children.clone();
-            entity.update(cx, |block, _cx| {
-                block.set_reference_context(
-                    base_dir.map(Path::to_path_buf),
-                    image_registry.clone(),
-                    link_registry.clone(),
-                    footnote_registry.clone(),
-                );
-            });
+        for block in roots {
+            block.set_reference_context(
+                base_dir.map(Path::to_path_buf),
+                image_registry.clone(),
+                link_registry.clone(),
+                footnote_registry.clone(),
+            );
             Self::sync_preview_block_context(
-                &children,
+                &mut block.children,
                 base_dir,
                 image_registry,
                 link_registry,
                 footnote_registry,
-                cx,
             );
         }
     }

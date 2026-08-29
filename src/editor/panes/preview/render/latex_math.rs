@@ -4,20 +4,23 @@
 use gpui::*;
 
 use crate::editor::plugins::latex_render::{display_math_font_size, render_display_math_svg};
-use crate::editor::document::block::Block;
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::infra::theme::Theme;
 use crate::model::block::math::parse_display_math_source;
 
 /// Renders a LaTeX math block read-only.
-pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme) -> AnyElement {
+pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
-    let raw = block
-        .data
-        .raw_source
-        .as_deref()
-        .unwrap_or_else(|| block.display_text());
+    let raw_fallback;
+    let raw = match block.data.raw_source.as_deref() {
+        Some(s) => s,
+        None => {
+            raw_fallback = block.display_text();
+            &raw_fallback
+        }
+    };
 
     let source = parse_display_math_source(raw).unwrap_or_else(|| {
         let body = raw

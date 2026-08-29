@@ -78,12 +78,6 @@ impl Editor {
         block
     }
 
-    /// Creates a standalone block NOT subscribed to the Editor's event
-    /// handler.  Used for the Source channel panel so its events don't
-    /// interfere with the document tree.
-    pub(crate) fn new_standalone_block(cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
-        cx.new(|cx| Block::with_data(cx, data))
-    }
 
     pub(crate) fn new_table_cell_block(
         cx: &mut Context<Self>,
@@ -360,15 +354,6 @@ impl Editor {
     }
 
     pub(crate) fn focusable_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
-        let pane_id = self.active_pane_id();
-        if let Some(source_block) = self
-            .pane_state_ref(pane_id)
-            .and_then(|p| p.source_block.clone())
-        {
-            if source_block.entity_id() == entity_id {
-                return Some(source_block);
-            }
-        }
         self.doc().block_entity_by_id(entity_id).or_else(|| {
             self.tab()
                 .tables

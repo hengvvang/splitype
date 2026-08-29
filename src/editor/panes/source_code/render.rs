@@ -1,8 +1,7 @@
-//! Source code panel — raw Markdown buffer editing view.
-
 use gpui::*;
 
 use crate::editor::engine::controller::*;
+use crate::editor::panes::source_code::element::SourceCodeViewElement;
 use crate::infra::theme::Theme;
 
 impl Editor {
@@ -14,7 +13,16 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
-        let d = &theme.dimensions;
+
+        self.sync_source_pane(pane_id, cx);
+
+        let focus_handle = {
+            let state = self.pane_state(pane_id);
+            if state.source_code.focus_handle.is_none() {
+                state.source_code.focus_handle = Some(cx.focus_handle());
+            }
+            state.source_code.focus_handle.clone().unwrap()
+        };
 
         if pane_id == self.active_pane_id() {
             self.apply_pending_focus(pane_id, window, cx);
@@ -26,27 +34,40 @@ impl Editor {
             .map(|state| state.scroll.handle.clone())
             .unwrap_or_default();
 
-        let content: AnyElement = if let Some(block) = self
-            .pane_state_ref(pane_id)
-            .and_then(|state| state.source_block.clone())
-        {
-            div()
-                .w_full()
-                .flex_shrink_0()
-                .child(block)
-                .into_any_element()
-        } else {
-            div().into_any_element()
-        };
-
         div()
             .id(ElementId::Name(
                 format!("tiled-source-editor-{pane_id}").into(),
             ))
+            .key_context("SourceCode")
+            .track_focus(&focus_handle)
             .w_full()
             .h_full()
             .relative()
             .bg(c.editor_background)
+            .font(crate::infra::theme::TypographyStore::default_font(
+                crate::infra::theme::TypographyScope::Code,
+            ))
+            .on_key_down(cx.listener(move |this, event: &KeyDownEvent, window, cx| {
+                if this.handle_source_key_down(pane_id, event, window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                    this.focus_pane(pane_id, window, cx);
+                    this.handle_source_mouse_down(pane_id, event, window, cx);
+                }),
+            )
+            .on_mouse_move(cx.listener(move |this, event: &MouseMoveEvent, window, cx| {
+                this.handle_source_mouse_move(pane_id, event, window, cx);
+            }))
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(move |this, event: &MouseUpEvent, window, cx| {
+                    this.handle_source_mouse_up(pane_id, event, window, cx);
+                }),
+            )
             .child(
                 div()
                     .id(ElementId::Name(
@@ -54,11 +75,8 @@ impl Editor {
                     ))
                     .w_full()
                     .h_full()
-                    .flex()
-                    .flex_col()
                     .overflow_y_scroll()
                     .track_scroll(&scroll_handle)
-                    .p(px(d.editor_padding))
                     .on_mouse_down(
                         MouseButton::Right,
                         cx.listener(move |this, event, window, cx| {
@@ -68,7 +86,10 @@ impl Editor {
                             this.on_source_context_menu_mouse_down(event, window, cx);
                         }),
                     )
-                    .child(content),
+                    .child(SourceCodeViewElement {
+                        editor: cx.entity().clone(),
+                        pane_id,
+                    }),
             )
             .into_any_element()
     }

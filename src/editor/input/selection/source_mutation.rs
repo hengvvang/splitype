@@ -483,14 +483,9 @@ impl Editor {
     pub(crate) fn selected_markdown_text(&self, cx: &App) -> Option<String> {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
-            let block = self.pane_state_ref(pane_id)?.source_block.as_ref()?.read(cx);
-            if !block.selected_range.is_empty() {
-                let text = block.selected_text();
-                if !text.is_empty() {
-                    return Some(text);
-                }
-            }
-            return None;
+            return self
+                .pane_state_ref(pane_id)
+                .and_then(|p| p.source_code.selected_text().map(String::from));
         }
 
         if self.is_preview() {
@@ -528,27 +523,18 @@ impl Editor {
     /// Deletes the current active selection across WYSIWYG and Source Code modes.
     pub(crate) fn delete_active_selection(&mut self, cx: &mut Context<Self>) -> bool {
         if self.is_source_code() {
-            if let Some(block) = self.ensure_source_editor_block(cx) {
-                let mut deleted = false;
-                block.update(cx, |b, cx| {
-                    if !b.selected_range.is_empty() {
-                        b.replace_text_in_display_range(
-                            b.selected_range.clone(),
-                            "",
-                            Some(0..0),
-                            false,
-                            cx,
-                        );
-                        deleted = true;
-                    }
-                });
-                if deleted {
-                    self.mark_dirty(cx);
-                    cx.notify();
-                    return true;
+            let pane_id = self.active_pane_id();
+            let mut deleted = false;
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                if state.source_code.selection.is_some() {
+                    state.source_code.delete_backward();
+                    deleted = true;
                 }
             }
-            return false;
+            if deleted {
+                self.sync_source_edit_to_document(pane_id, cx);
+            }
+            return deleted;
         }
 
         match self.active_selection(cx) {

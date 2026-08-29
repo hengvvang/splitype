@@ -3,25 +3,28 @@
 
 use gpui::*;
 
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::preview_centered_column_width;
 use crate::editor::plugins::mermaid_render::render_mermaid_svg_for_display;
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 use crate::model::block::mermaid::parse_mermaid_fence_source;
 
 /// Renders a Mermaid diagram block read-only.
 pub(crate) fn render_preview_mermaid_diagram(
-    block: &Block,
+    block: &PreviewBlock,
     base: Div,
     theme: &Theme,
     window: &Window,
 ) -> AnyElement {
     let d = &theme.dimensions;
-    let raw = block
-        .data
-        .raw_source
-        .as_deref()
-        .unwrap_or_else(|| block.display_text());
+    let raw_fallback;
+    let raw = match block.data.raw_source.as_deref() {
+        Some(s) => s,
+        None => {
+            raw_fallback = block.display_text();
+            &raw_fallback
+        }
+    };
 
     let source = parse_mermaid_fence_source(raw).unwrap_or_else(|| {
         let trimmed = raw.trim();

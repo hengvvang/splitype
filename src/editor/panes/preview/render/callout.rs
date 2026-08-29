@@ -3,8 +3,8 @@
 
 use gpui::*;
 
+use crate::editor::panes::preview::node::PreviewBlock;
 use crate::editor::panes::preview::render::inline;
-use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 use crate::model::block::CalloutKind;
 
@@ -12,7 +12,7 @@ use std::ops::Range;
 
 /// Renders a callout (admonition) block read-only.
 pub(crate) fn render_preview_callout(
-    block: &Block,
+    block: &PreviewBlock,
     variant: CalloutKind,
     _depth: usize,
     selection_range: Option<Range<usize>>,

@@ -7,6 +7,20 @@ use crate::editor::engine::controller::Editor;
 use crate::editor::search::state::{ceil_char_boundary, floor_char_boundary};
 use crate::model::inline::offsets::ImeConverter;
 
+impl Editor {
+    /// Returns the PaneId of the currently focused Source Code pane, if any.
+    pub(crate) fn focused_source_pane_id(&self, window: &Window) -> Option<crate::editor::engine::controller::PaneId> {
+        let active_pane_id = self.active_pane_id();
+        let state = self.pane_state_ref(active_pane_id)?;
+        if let Some(ref handle) = state.source_code.focus_handle {
+            if handle.is_focused(window) {
+                return Some(active_pane_id);
+            }
+        }
+        None
+    }
+}
+
 impl EntityInputHandler for Editor {
     fn text_for_range(
         &mut self,
@@ -15,6 +29,16 @@ impl EntityInputHandler for Editor {
         window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<String> {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            let state = self.pane_state_ref(pane_id)?;
+            let source = &state.source_code;
+            let range = ImeConverter::utf16_range_to_utf8_in(&source.text, &range_utf16);
+            *actual_range = Some(ImeConverter::utf8_range_to_utf16_in(&source.text, &range));
+            let start = range.start.min(source.text.len());
+            let end = range.end.min(source.text.len());
+            return Some(source.text[start..end].to_string());
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if !is_search && !is_replace {
@@ -40,6 +64,17 @@ impl EntityInputHandler for Editor {
         window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            let state = self.pane_state_ref(pane_id)?;
+            let source = &state.source_code;
+            let utf8_range = source.selection.clone().unwrap_or(source.cursor..source.cursor);
+            let utf16_range = ImeConverter::utf8_range_to_utf16_in(&source.text, &utf8_range);
+            return Some(UTF16Selection {
+                range: utf16_range,
+                reversed: false,
+            });
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if !is_search && !is_replace {
@@ -63,6 +98,15 @@ impl EntityInputHandler for Editor {
         window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Range<usize>> {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            let state = self.pane_state_ref(pane_id)?;
+            let source = &state.source_code;
+            return source
+                .marked_range
+                .as_ref()
+                .map(|range| ImeConverter::utf8_range_to_utf16_in(&source.text, range));
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if !is_search && !is_replace {
@@ -81,7 +125,15 @@ impl EntityInputHandler for Editor {
             .map(|range| ImeConverter::utf8_range_to_utf16_in(&input.text, range))
     }
 
-    fn unmark_text(&mut self, window: &mut Window, _cx: &mut Context<Self>) {
+    fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                state.source_code.marked_range = None;
+            }
+            cx.notify();
+            return;
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if is_search {
@@ -98,6 +150,31 @@ impl EntityInputHandler for Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            let current_range = {
+                let state = self.pane_state_ref(pane_id).unwrap();
+                let source = &state.source_code;
+                range_utf16
+                    .as_ref()
+                    .map(|r| ImeConverter::utf16_range_to_utf8_in(&source.text, r))
+                    .or_else(|| source.marked_range.clone())
+                    .or_else(|| source.selection.clone())
+                    .unwrap_or(source.cursor..source.cursor)
+            };
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                let source = &mut state.source_code;
+                let start = current_range.start.min(source.text.len());
+                let end = current_range.end.min(source.text.len());
+                source.text.replace_range(start..end, new_text);
+                source.cursor = start + new_text.len();
+                source.selection = None;
+                source.marked_range = None;
+                source.refresh_highlight();
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
+            return;
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if !is_search && !is_replace {
@@ -137,6 +214,37 @@ impl EntityInputHandler for Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            let range = {
+                let state = self.pane_state_ref(pane_id).unwrap();
+                let source = &state.source_code;
+                range_utf16
+                    .as_ref()
+                    .map(|r| ImeConverter::utf16_range_to_utf8_in(&source.text, r))
+                    .or_else(|| source.marked_range.clone())
+                    .or_else(|| source.selection.clone())
+                    .unwrap_or(source.cursor..source.cursor)
+            };
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                let source = &mut state.source_code;
+                let start = range.start.min(source.text.len());
+                let end = range.end.min(source.text.len());
+                source.text.replace_range(start..end, new_text);
+                let marked = start..start + new_text.len();
+                let selection = new_selected_range_utf16
+                    .as_ref()
+                    .map(|r| ImeConverter::utf16_range_to_utf8_in(new_text, r))
+                    .map(|relative| marked.start + relative.start..marked.start + relative.end)
+                    .unwrap_or_else(|| marked.clone());
+                source.marked_range = Some(marked);
+                source.selection = if selection.start == selection.end { None } else { Some(selection.clone()) };
+                source.cursor = selection.end;
+                source.refresh_highlight();
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
+            return;
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if !is_search && !is_replace {
@@ -186,6 +294,11 @@ impl EntityInputHandler for Editor {
         window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
+        if let Some(pane_id) = self.focused_source_pane_id(window) {
+            let state = self.pane_state_ref(pane_id)?;
+            return state.source_code.last_bounds;
+        }
+
         let is_search = self.search.search_focus_handle.is_focused(window);
         let is_replace = self.search.replace_focus_handle.is_focused(window);
         if is_search {

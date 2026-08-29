@@ -252,8 +252,8 @@ pub(crate) struct DocumentTab {
 ///
 /// Panes share the tab's document (the single source of truth) but nothing
 /// else: each Wysiwyg pane scrolls and focuses independently, each Source
-/// pane owns its own raw block entity, and each Preview pane keeps its own
-/// rendered copy. This keeps the model simple — there is no state to
+/// pane owns its own raw text buffer, and each Preview pane keeps its own
+/// rendered AST. This keeps the model simple — there is no state to
 /// synchronize between panes because there is no shared view state.
 #[derive(Default)]
 pub(crate) struct PaneState {
@@ -261,23 +261,7 @@ pub(crate) struct PaneState {
     pub(crate) focus: FocusState,
     pub(crate) selection: SelectionState,
     pub(crate) preview: PreviewState,
-    /// The pane's own raw-source block entity (Source panes only). The
-    /// owning area is captured by the subscription closure, so it is not
-    /// stored here.
-    pub(crate) source_block: Option<Entity<Block>>,
-    /// Fingerprint of the document at the last source sync: when the
-    /// document is changed externally (e.g. by a Wysiwyg pane), the block
-    /// is rebuilt from it. The block itself keeps the user's raw bytes in
-    /// between.
-    pub(crate) synced_doc_hash: u64,
-    /// Document revision the pane block was last synced at; `None` until
-    /// the first sync.
-    pub(crate) synced_revision: Option<u64>,
-    /// Active tab index the pane block was last synced at. `document_revision`
-    /// is per-tab and every fresh tab starts at the same value, so a tab
-    /// switch alone must force a rebuild — otherwise two unedited tabs keep
-    /// showing the first tab's source.
-    pub(crate) synced_tab_index: Option<usize>,
+    pub(crate) source_code: crate::editor::panes::source_code::SourceCodeState,
 }
 
 /// Top-level controller that owns editor-wide state and delegates tree
@@ -958,15 +942,16 @@ impl Editor {
         {
             let kind = self.session.root.tree.find_leaf_kind(pane_id.0);
             match kind {
-                // The source panel's own block becomes the edit target.
+                // The source panel's own buffer becomes the edit target.
                 Some(EditorPaneKind::SourceCode) => {
                     self.sync_source_pane(pane_id, cx);
-                    if let Some(block) = self
-                        .pane_state_ref(pane_id)
-                        .and_then(|state| state.source_block.clone())
-                    {
-                        let focus_handle = block.read(cx).focus_handle.clone();
-                        focus_handle.focus(window, cx);
+                    if let Some(state) = self.pane_state_mut(pane_id) {
+                        if state.source_code.focus_handle.is_none() {
+                            state.source_code.focus_handle = Some(cx.focus_handle());
+                        }
+                        if let Some(ref handle) = state.source_code.focus_handle {
+                            handle.focus(window, cx);
+                        }
                     }
                 }
                 // Resume editing the shared document at the last position
