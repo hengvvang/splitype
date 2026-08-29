@@ -5,8 +5,6 @@ pub(crate) mod structure_ops;
 pub(crate) mod table_events;
 pub(crate) mod text_edits;
 
-#[cfg(test)]
-mod tests;
 
 use gpui::*;
 

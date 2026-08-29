@@ -53,7 +53,7 @@ impl Block {
     }
 
     #[cfg(test)]
-    pub fn inline_style_at(&self, offset: usize) -> InlineStyle {
+    pub fn inline_style_at(&self, offset: usize) -> crate::markdown::inline::style::InlineStyle {
         self.display_cache().style_at(offset)
     }
 

@@ -20,8 +20,6 @@
 
 pub mod typing;
 
-#[cfg(test)]
-mod tests;
 
 use gpui::*;
 

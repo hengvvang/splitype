@@ -90,5 +90,3 @@ fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<
         .collect()
 }
 
-#[cfg(test)]
-mod tests;

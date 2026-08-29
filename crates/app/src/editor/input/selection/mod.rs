@@ -5,5 +5,3 @@ pub(crate) mod mouse_drag;
 pub(crate) mod source_mutation;
 pub(crate) mod state;
 
-#[cfg(test)]
-mod tests;

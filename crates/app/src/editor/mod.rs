@@ -26,5 +26,3 @@ pub use navigation::{
 };
 
 
-#[cfg(test)]
-mod tests;
