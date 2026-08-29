@@ -5,7 +5,7 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::engine::controller::{
-    BlockSelectionAnchor, Editor, EditorPaneKind, UndoSelectionSnapshot,
+    BlockSelectionAnchor, Editor, EditorPaneKind, PaneId, UndoSelectionSnapshot,
 };
 use editor_wysiwyg::document::block::Block;
 
@@ -18,14 +18,41 @@ impl Editor {
         }
     }
 
+    /// Model C: selection snapshot straight from the Source pane's own
+    /// cursor/selection, used while the block tree is still unparsed
+    /// (a parse-free open in Source mode). The Source pane owns its
+    /// buffer state; the tree is only a lazy cache.
+    pub(crate) fn source_pane_selection_snapshot(&self, pane_id: PaneId) -> UndoSelectionSnapshot {
+        let Some(source) = self
+            .pane_state_ref(pane_id)
+            .and_then(|s| s.as_source_code())
+        else {
+            return Self::empty_selection_snapshot();
+        };
+        let range = source
+            .selection
+            .clone()
+            .unwrap_or_else(|| source.cursor..source.cursor);
+        UndoSelectionSnapshot {
+            range,
+            reversed: false,
+            block_anchor: None,
+        }
+    }
+
     pub(crate) fn capture_source_selection_snapshot(&self, cx: &App) -> UndoSelectionSnapshot {
         if let Some(snapshot) = self.cross_block_source_selection_snapshot(cx) {
             return snapshot;
         }
 
         if self.is_source_code() {
-            return self
-                .doc()
+            // Model C: while the block tree is unparsed (parse-free open
+            // in Source mode) the pane's own cursor/selection is the
+            // authority; otherwise the first root mirrors it.
+            let Some(doc) = self.active_doc() else {
+                return self.source_pane_selection_snapshot(self.active_pane_id());
+            };
+            return doc
                 .first_root()
                 .map(|block| {
                     let block_ref = block.read(cx);
@@ -76,8 +103,13 @@ impl Editor {
         }
 
         if self.is_source_code() {
-            return self
-                .doc()
+            // Model C: while the block tree is unparsed (parse-free open
+            // in Source mode) the pane's own cursor/selection is the
+            // authority; otherwise the first root mirrors it.
+            let Some(doc) = self.active_doc() else {
+                return self.source_pane_selection_snapshot(self.active_pane_id());
+            };
+            return doc
                 .first_root()
                 .map(|block| {
                     let block_ref = block.read(cx);

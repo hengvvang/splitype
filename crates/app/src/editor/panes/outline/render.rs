@@ -36,7 +36,7 @@ impl Editor {
                     .unwrap_or("");
 
                 let text_to_parse = if source_text.is_empty() {
-                    self.doc().serialize_markdown(cx)
+                    self.serialized_document_text(cx)
                 } else {
                     source_text.to_string()
                 };
@@ -76,7 +76,7 @@ impl Editor {
                 self.outline.synced_hash = 0;
             }
             EditorPaneKind::Preview => {
-                let text = self.doc().serialize_markdown(cx);
+                let text = self.serialized_document_text(cx);
                 let hash = Self::hash_str(&text);
                 if self.outline.synced_tab_index == Some(tab_idx)
                     && self.outline.synced_file_path == file_path

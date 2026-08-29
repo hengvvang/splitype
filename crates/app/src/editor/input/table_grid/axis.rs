@@ -213,9 +213,14 @@ impl Editor {
     pub(crate) fn sync_table_axis_visuals(&mut self, cx: &mut App) {
         self.normalize_table_axis_state(cx);
 
-        let visible_tables = self
-            .doc()
-            .blocks()
+        // Model C: an unparsed tab has no table blocks to mark — the axis
+        // visuals are a WYSIWYG concern and sync again after `ensure_document`.
+        let Some(blocks) = self.active_doc().map(|doc| doc.blocks()) else {
+            self.tab_mut().tables.axis_preview = None;
+            self.tab_mut().tables.axis_selection = None;
+            return;
+        };
+        let visible_tables = blocks
             .iter()
             .filter(|entry| entry.entity.read(cx).kind() == BlockKind::Table)
             .map(|entry| entry.entity.clone())

@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{
-    EditorView,CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
+    CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
 use editor_wysiwyg::actions::{Delete, DeleteBackward};
 use workspace::actions::{Copy, Cut};
 use editor_wysiwyg::document::block::Block;

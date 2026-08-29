@@ -57,6 +57,12 @@ impl Render for Editor {
         // to this editor's own session.
 
         if self.has_active_tab() {
+            // Model C: materialize the block tree lazily only when a view
+            // actually needs it — a Source pane renders straight from the
+            // tab's authoritative text without parsing.
+            if !self.is_source_code() {
+                self.ensure_document(cx);
+            }
             // The window keyboard focus sits in exactly one pane; pending
             // focus and scroll-into-view apply to the active pane here (and
             // again inside its document view once layout is measurable).

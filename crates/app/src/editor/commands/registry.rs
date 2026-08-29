@@ -71,6 +71,9 @@ impl Editor {
         if !self.has_active_tab() {
             return;
         }
+        // Undo operates on the block tree; parse it lazily if needed
+        // (e.g. the tab was opened parse-free and edited in Source mode).
+        self.ensure_document(cx);
         self.undo_document(cx);
     }
 
@@ -78,6 +81,7 @@ impl Editor {
         if !self.has_active_tab() {
             return;
         }
+        self.ensure_document(cx);
         self.redo_document(cx);
     }
 
@@ -154,6 +158,12 @@ impl Editor {
         };
         self.change_pane_kind(active_pane, next_kind);
 
+        // Model C: switching into WYSIWYG materializes the block tree if
+        // the tab was still parse-free (opened in Source mode).
+        if next_kind.is_wysiwyg() {
+            self.ensure_document(cx);
+        }
+
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
         {
             let pane_id = self.active_pane_id();
@@ -184,6 +194,11 @@ impl Editor {
     /// it is automatically persisted to a persistent resident tab.
     pub(crate) fn mark_dirty(&mut self, cx: &mut App) {
         self.bump_document_revision();
+        // Model C: every mutation marks the authoritative text stale so
+        // text readers serialize from the parsed tree. Harmless when the
+        // tree is unparsed (`serialized_text` reads `text` then) — this is
+        // the safety net for edits that bypass `doc_mut`.
+        self.tab_mut().text_stale = true;
         if self.tab().is_transient() {
             self.tab_mut().persist();
         }

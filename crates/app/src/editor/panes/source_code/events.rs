@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{
-    EditorView,Editor, PaneId};
+    Editor, PaneId};
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 impl Editor {
@@ -376,10 +376,10 @@ impl Editor {
         self.rebuild_document_from_markdown(&text, cx);
         self.mark_dirty(cx);
 
-        let synced_hash = self
-            .active_doc()
-            .map(|d| Self::hash_str(&d.serialize_markdown(cx)))
-            .unwrap_or_default();
+        // Model C: the source text just became the authoritative session
+        // text (the block tree, if any, was invalidated), so the sync hash
+        // is computed from it directly — no re-parse, no serialization.
+        let synced_hash = Self::hash_str(&text);
         let revision = self.active_tab().map(|t| t.document_revision).unwrap_or(0);
         let tab_index = self.session.active_tab_index();
 

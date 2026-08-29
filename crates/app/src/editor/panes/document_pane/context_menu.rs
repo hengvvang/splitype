@@ -13,7 +13,7 @@ use crate::editor::commands::edit_command::{
     BlockStructureKind, DocumentEditCommand, InlineFormatKind, InsertBlockKind,
 };
 use crate::editor::engine::controller::{
-    EditorView,Editor, TableAxisSelection};
+    Editor, TableAxisSelection};
 use workspace::actions::DismissTransientUi;
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 use editor_wysiwyg::document::block::Block;

@@ -30,22 +30,29 @@ impl Editor {
         blocks_to_entity_tree(blocks, cx)
     }
 
-    /// Replace the whole document with a fresh parse of `markdown`,
-    /// rebuilding table/image handles and bumping the document revision.
+    /// Replace the whole document with `markdown`.
+    ///
+    /// Model C: `text` is the authoritative session source, so a rebuild
+    /// is just a text swap plus cache invalidation — the block tree is
+    /// dropped and re-parsed lazily by `ensure_document`. When the WYSIWYG
+    /// pane is active it re-parses immediately (the caller is about to
+    /// keep interacting with the tree); otherwise parsing waits until the
+    /// WYSIWYG world actually needs it.
     pub(crate) fn rebuild_document_from_markdown(
         &mut self,
         markdown: &str,
         cx: &mut Context<Self>,
     ) {
-        let mut roots = Self::parse_wysiwyg_document(cx, markdown);
-        if roots.is_empty() {
-            roots.push(self.new_block(cx, BlockData::paragraph(String::new())));
+        self.tab_mut().text = markdown.to_string();
+        self.tab_mut().document = None;
+        self.tab_mut().text_stale = false;
+        // The old tree's entities are abandoned; their subscriptions die
+        // with the entities, so the bookkeeping set must not grow.
+        self.subscribed_blocks.clear();
+        if self.is_wysiwyg() {
+            self.ensure_document(cx);
         }
-        self.doc_mut().replace_blocks(roots, cx);
-        self.rebuild_table_grids(cx);
-        self.rebuild_reference_registries(cx);
         self.bump_document_revision();
-        self.subscribe_document_blocks(cx);
     }
 }
 

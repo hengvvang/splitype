@@ -35,10 +35,14 @@ impl EditorView for Editor {
     }
 
     fn active_doc(&self) -> Option<&Document> {
-        Some(self.doc())
+        // Model C: an unparsed tab has no tree yet — report None instead
+        // of materializing one from a read-only path.
+        self.session.active_tab().and_then(|t| t.document.as_ref())
     }
 
     fn active_doc_mut(&mut self) -> Option<&mut Document> {
+        // Routes through `doc_mut` so the authoritative text is marked
+        // stale on every WYSIWYG mutation.
         Some(self.doc_mut())
     }
 

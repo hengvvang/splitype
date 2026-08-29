@@ -11,16 +11,16 @@ use anyhow::Result;
 use gpui::*;
 
 use crate::editor::engine::controller::{
-    EditorView,Editor, OpenFileMode};
+    Editor, OpenFileMode};
 use i18n::I18nManager;
 
 impl Editor {
+    /// The active tab's current text, whatever the pane mode: the parsed
+    /// tree when it exists and is stale (unflushed WYSIWYG edits),
+    /// otherwise the authoritative `text`. Never triggers parsing — an
+    /// unparsed tab (parse-free open) reports its text directly.
     pub(crate) fn serialized_document_text(&self, cx: &App) -> String {
-        if self.is_source_code() {
-            self.doc().serialize_source_text(cx)
-        } else {
-            self.doc().serialize_markdown(cx)
-        }
+        self.tab().serialized_text(cx)
     }
 
     // ── Save flow ──────────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ impl Editor {
             return true;
         }
         if let Some(path) = tab.file.path.clone() {
-            let text = tab.document.serialize_markdown(cx);
+            let text = tab.serialized_text(cx);
             if std::fs::write(&path, text).is_ok() {
                 if let Some(tab) = self.session.tab_mut(index) {
                     tab.file.dirty = false;

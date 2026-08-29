@@ -20,7 +20,6 @@ pub(crate) use editor_core::EditorHost;
 pub(crate) use editor_wysiwyg::editor_view::EditorView;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
-pub(crate) use editor_wysiwyg::document::protocol::UndoCaptureKind;
 pub(crate) use editor_outline::OutlineHudState;
 pub use crate::editor::engine::session::{
     EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, TabKind,
@@ -30,7 +29,7 @@ pub(crate) use editor_wysiwyg::document::Document;
 pub(crate) use editor_wysiwyg::document::block::footnotes::FootnoteMap;
 pub(crate) use editor_wysiwyg::state::{
     AutoscrollStrategy, BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,
-    CrossBlockSelectionEndpoint, EditorSelection, FocusState, HistoryEntry, PendingUndoCapture,
+    CrossBlockSelectionEndpoint, EditorSelection, FocusState,
     ReferenceRegistries, SelectionState, SourceTargetMapping, TableAxisSelection,
     TableCellBinding, TableGrids, TableSizePickerState, UndoHistory, UndoSelectionSnapshot,
     WysiwygSelectAllCycle, EMPTY_FOCUS_STATE, EMPTY_SELECTION_STATE,
@@ -106,13 +105,32 @@ impl Default for ScrollState {
     }
 }
 
-/// One document tab: the document and all of its document-level state.
+/// One document tab: the authoritative text and all document-level state.
+///
+/// Model C: the tab is type-agnostic — it stores the raw Markdown text,
+/// not a parsed tree. The WYSIWYG block tree (`document`) is a lazily
+/// parsed cache: it stays `None` until the WYSIWYG world first needs it
+/// (`ensure_document`), so opening a file costs zero parsing and the
+/// Source pane reads the text directly. WYSIWYG edits mutate the cached
+/// tree and mark `text_stale`; anything that needs the *current* text
+/// serializes from the tree when stale, otherwise reads `text`.
 ///
 /// A tab whose `file.path` is `None` is an untitled temporary document.
 /// Switching tabs swaps the whole context, so undo history and per-pane
 /// view states are preserved per file.
 pub(crate) struct DocumentTab {
-    pub(crate) document: Document,
+    /// Authoritative Markdown text — the file content. Updated on open
+    /// and on Source-pane edits; the block tree, when parsed, is a view
+    /// derived from it.
+    pub(crate) text: String,
+    /// Lazily parsed WYSIWYG block tree. `None` until the WYSIWYG world
+    /// needs it, and dropped again whenever `text` changes from the
+    /// Source side (the tree is re-parsed on the next `ensure_document`).
+    pub(crate) document: Option<Document>,
+    /// True when the parsed tree was mutated after the last flush to
+    /// `text`; readers that need the current text serialize from the
+    /// tree instead of reading `text`.
+    pub(crate) text_stale: bool,
     /// Bumped whenever the document text may have changed; derived views
     /// (preview, source panes) compare against this to skip re-syncing.
     pub(crate) document_revision: u64,
@@ -141,6 +159,18 @@ pub(crate) struct DocumentTab {
 pub(crate) struct PaneState {
     pub(crate) scroll: ScrollState,
     pub(crate) pane: Box<dyn editor_core::Pane>,
+}
+
+impl DocumentTab {
+    /// The current document text: the parsed tree wins while it exists
+    /// and is stale (WYSIWYG edits not yet flushed), otherwise the
+    /// authoritative `text`. Never triggers parsing.
+    pub(crate) fn serialized_text(&self, cx: &App) -> String {
+        match &self.document {
+            Some(doc) if self.text_stale => doc.serialize_markdown(cx),
+            _ => self.text.clone(),
+        }
+    }
 }
 
 
@@ -350,8 +380,6 @@ impl DocumentTab {
 }
 
 impl Editor {
-    pub(crate) const HISTORY_LIMIT: usize = 200;
-    pub(crate) const HISTORY_COALESCE_WINDOW: Duration = Duration::from_millis(1_000);
     pub(crate) const WYSIWYG_SELECT_ALL_CYCLE_WINDOW: Duration = Duration::from_millis(750);
 
     /// Creates an editor with no document tabs — the welcome state shown
@@ -411,7 +439,7 @@ impl Editor {
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
-        let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
+        let tab = Self::new_tab_from_markdown(markdown, file_path);
         let mut editor = Self {
             panel_id: PanelId(DEFAULT_EDITOR_PANEL_ID),
             entity_id: cx.entity().entity_id(),
@@ -434,18 +462,10 @@ impl Editor {
             search: crate::editor::search::SearchPanelState::new(cx),
             subscribed_blocks: HashSet::new(),
         };
+        // Model C: opening is parse-free. The block tree is parsed lazily
+        // by `ensure_document` the first time the WYSIWYG world needs it
+        // (WYSIWYG/Preview rendering, mode toggles, undo/redo, search).
         editor.session.push_tab(tab);
-        editor.rebuild_table_grids(cx);
-        editor.rebuild_reference_registries(cx);
-        let pane_id = editor.active_pane_id();
-        editor.refresh_preview_blocks(pane_id, cx);
-        let pending_focus = editor.first_focusable_entity_id(cx);
-        let pane = editor.pane_state(pane_id);
-        if let Some(w) = pane.as_wysiwyg_mut() {
-            w.focus.pending = pending_focus;
-            w.focus.active_entity = pending_focus;
-        }
-        editor.refresh_stable_document_snapshot(cx);
         editor
     }
 }
@@ -453,29 +473,19 @@ impl Editor {
 impl Editor {
     /// Builds a document tab from raw Markdown and an optional file path.
     /// `file_path == None` produces an untitled temporary document.
+    ///
+    /// Model C: the Markdown is stored as the tab's authoritative `text`
+    /// and *not* parsed — the WYSIWYG block tree is materialized lazily
+    /// by [`Editor::ensure_document`] on first use.
     pub(crate) fn new_tab_from_markdown(
-        cx: &mut Context<Self>,
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> DocumentTab {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
-        let mut roots = Self::parse_wysiwyg_document(cx, &normalized);
-        if roots.is_empty() {
-            roots.push(cx.new(|cx| {
-                editor_wysiwyg::document::block::Block::with_data(
-                    cx,
-                    BlockData::paragraph(String::new()),
-                )
-            }));
-        }
-
-        let mut document = Document::new(roots);
-        document.rebuild_metadata_and_snapshot(cx);
-
-        let panes = HashMap::new();
-
         DocumentTab {
-            document,
+            text: normalized,
+            document: None,
+            text_stale: false,
             document_revision: 0,
             file: FileState {
                 path: file_path,
@@ -485,9 +495,56 @@ impl Editor {
             undo: UndoHistory::default(),
             references: ReferenceRegistries::default(),
             tables: TableGrids::default(),
-            panes,
+            panes: HashMap::new(),
             cached_word_count: None,
         }
+    }
+
+    /// Parses the active tab's authoritative text into a WYSIWYG block
+    /// tree if it has not been parsed yet, then runs the first-parse
+    /// initialization (table grids, references, block subscriptions,
+    /// preview, focus, stable snapshot). Idempotent: a no-op once the
+    /// tree exists.
+    pub(crate) fn ensure_document(&mut self, cx: &mut Context<Self>) {
+        if !self.session.has_tabs() {
+            return;
+        }
+        let index = self.session.active_tab_index();
+        if self
+            .session
+            .tab(index)
+            .is_some_and(|tab| tab.document.is_some())
+        {
+            return;
+        }
+        let text = self.session.tab(index).expect("active tab").text.clone();
+        let mut roots = Self::parse_wysiwyg_document(cx, &text);
+        if roots.is_empty() {
+            roots.push(cx.new(|cx| {
+                editor_wysiwyg::document::block::Block::with_data(
+                    cx,
+                    BlockData::paragraph(String::new()),
+                )
+            }));
+        }
+        let mut document = Document::new(roots);
+        document.rebuild_metadata_and_snapshot(cx);
+        self.session.tab_mut(index).expect("active tab").document = Some(document);
+
+        // First-parse initialization (mirrors the pre-model-C flow that
+        // used to run inside `new_tab_from_markdown`/`from_markdown`).
+        self.rebuild_table_grids(cx);
+        self.rebuild_reference_registries(cx);
+        self.subscribe_document_blocks(cx);
+        let pane_id = self.active_pane_id();
+        self.refresh_preview_blocks(pane_id, cx);
+        let pending_focus = self.first_focusable_entity_id(cx);
+        let pane = self.pane_state(pane_id);
+        if let Some(w) = pane.as_wysiwyg_mut() {
+            w.focus.pending = pending_focus;
+            w.focus.active_entity = pending_focus;
+        }
+        self.refresh_stable_document_snapshot(cx);
     }
 
     /// Activates the tab at `index`, restoring its focus and window
@@ -499,12 +556,21 @@ impl Editor {
         // Also reachable right after the first tab is pushed onto an empty
         // editor (welcome state) — notify so the new document renders.
         if index == self.session.active_tab_index() {
-            self.rebuild_table_grids(cx);
-            self.rebuild_reference_registries(cx);
-            self.subscribe_document_blocks(cx);
-            let pane_id = self.active_pane_id();
-            self.refresh_preview_blocks(pane_id, cx);
-            self.refresh_stable_document_snapshot(cx);
+            // Model C: derived init runs only when the block tree exists;
+            // an unparsed tab (parse-free open) is initialized lazily by
+            // `ensure_document` the first time WYSIWYG needs it.
+            if self
+                .session
+                .tab(index)
+                .is_some_and(|tab| tab.document.is_some())
+            {
+                self.rebuild_table_grids(cx);
+                self.rebuild_reference_registries(cx);
+                self.subscribe_document_blocks(cx);
+                let pane_id = self.active_pane_id();
+                self.refresh_preview_blocks(pane_id, cx);
+                self.refresh_stable_document_snapshot(cx);
+            }
             cx.notify();
             return;
         }
@@ -519,11 +585,19 @@ impl Editor {
             tab.file.pending_window_title_refresh = true;
             tab.file.pending_window_edited = true;
         }
-        self.rebuild_table_grids(cx);
-        self.rebuild_reference_registries(cx);
-        let pane_id = self.active_pane_id();
-        self.refresh_preview_blocks(pane_id, cx);
-        self.refresh_stable_document_snapshot(cx);
+        // Model C: derived init only when the block tree exists (see the
+        // active-tab branch above).
+        if self
+            .session
+            .tab(index)
+            .is_some_and(|tab| tab.document.is_some())
+        {
+            self.rebuild_table_grids(cx);
+            self.rebuild_reference_registries(cx);
+            let pane_id = self.active_pane_id();
+            self.refresh_preview_blocks(pane_id, cx);
+            self.refresh_stable_document_snapshot(cx);
+        }
         if self.search.visible {
             self.execute_search(cx);
         }
@@ -569,11 +643,7 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let mut tab = Self::new_tab_from_markdown(
-            cx,
-            markdown,
-            Some(path.to_path_buf()),
-        );
+        let mut tab = Self::new_tab_from_markdown(markdown, Some(path.to_path_buf()));
         tab.kind = match mode {
             OpenFileMode::Transient => TabKind::Transient,
             OpenFileMode::Persistent => TabKind::Persistent,
@@ -619,7 +689,7 @@ impl Editor {
         let last = self
             .session
             .tab_list
-            .push(Self::new_tab_from_markdown(cx, String::new(), None));
+            .push(Self::new_tab_from_markdown(String::new(), None));
         self.activate_tab(last, cx);
     }
 
@@ -895,7 +965,7 @@ impl Editor {
 
     #[inline]
     pub(crate) fn active_doc(&self) -> Option<&Document> {
-        self.session.active_tab().map(|t| &t.document)
+        self.session.active_tab().and_then(|t| t.document.as_ref())
     }
 
     #[inline]
@@ -913,14 +983,26 @@ impl Editor {
             .expect("active tab mut requested on empty editor")
     }
 
-    /// The active tab's document.
+    /// The active tab's document — panics if the block tree has not been
+    /// parsed yet. Call [`Editor::ensure_document`] at every entry point
+    /// that touches the WYSIWYG world (rendering, mode toggles, undo/redo,
+    /// search) so this invariant holds.
     pub(crate) fn doc(&self) -> &Document {
-        &self.tab().document
+        self.tab()
+            .document
+            .as_ref()
+            .expect("document not parsed; ensure_document must run first")
     }
 
-    /// The active tab's document, mutably.
+    /// The active tab's document, mutably. Marks the authoritative text
+    /// stale so text readers (Source pane, save, clone) serialize from
+    /// the tree instead of `text`.
     pub(crate) fn doc_mut(&mut self) -> &mut Document {
-        &mut self.tab_mut().document
+        let tab = self.tab_mut();
+        tab.text_stale = true;
+        tab.document
+            .as_mut()
+            .expect("document not parsed; ensure_document must run first")
     }
 
     // ------------------------------------------------------------------
@@ -956,8 +1038,8 @@ impl Editor {
 
         let mut list = EditorTabList::new();
         for tab in self.session.tabs() {
-            let text = tab.document.serialize_markdown(cx);
-            let mut copy = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
+            let text = tab.serialized_text(cx);
+            let mut copy = Self::new_tab_from_markdown(text, tab.file.path.clone());
             copy.file.dirty = tab.file.dirty;
             copy.kind = tab.kind;
             list.push(copy);

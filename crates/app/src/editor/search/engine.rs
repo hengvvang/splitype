@@ -127,6 +127,10 @@ impl Editor {
 
     /// Executes search with the current query, scope, and filter settings.
     pub fn execute_search(&mut self, cx: &mut Context<Self>) {
+        // Model C: in-document search operates on the block tree, so a
+        // parse-free tab (opened in Source mode) is materialized here —
+        // searching is an explicit user action, not part of opening.
+        self.ensure_document(cx);
         self.search.search_generation = self.search.search_generation.wrapping_add(1);
         let raw_query = self.search.query().to_string();
         if raw_query.is_empty() {

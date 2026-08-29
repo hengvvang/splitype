@@ -407,7 +407,10 @@ impl Shell {
 
         editor.update(cx, |editor, cx| {
             editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
-            if editor.session.has_tabs() {
+            // Model C: cloned/restored sessions carry parse-free tabs; the
+            // derived init below runs only for tabs whose block tree already
+            // exists, otherwise `ensure_document` performs it on first use.
+            if editor.session.has_tabs() && editor.active_doc().is_some() {
                 editor.rebuild_table_grids(cx);
                 editor.rebuild_reference_registries(cx);
                 let pane_id = editor.active_pane_id();

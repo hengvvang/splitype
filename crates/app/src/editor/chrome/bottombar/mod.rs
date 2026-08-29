@@ -329,7 +329,13 @@ impl Editor {
         // Cross-block selections and runtime-only blocks (table cells) fall
         // back to the global source-range path.
         let cursor_offset = snapshot.range.end;
-        let text = self.doc().serialize_source_text(cx);
+        // Model C: an unparsed tab (parse-free open) reads the authoritative
+        // text directly; a parsed tree with unflushed edits uses its source
+        // serialization so the offset coordinates stay consistent.
+        let text = match self.tab().document.as_ref() {
+            Some(doc) if self.tab().text_stale => doc.serialize_source_text(cx),
+            _ => self.tab().text.clone(),
+        };
         // Snap to valid UTF-8 char boundary to avoid panics on multi-byte chars.
         let clamped = cursor_offset.min(text.len());
         let safe = if text.is_char_boundary(clamped) {

@@ -8,6 +8,10 @@ use crate::editor::engine::controller::{Editor, PaneId};
 
 impl Editor {
     /// Ensure the Source pane's buffer is synchronized with the document.
+    ///
+    /// Model C: the authoritative text is the tab's `text` (or the parsed
+    /// tree when it holds unflushed WYSIWYG edits); an unparsed tab — a
+    /// parse-free open — synchronizes straight from `text` with no parsing.
     pub(crate) fn sync_source_pane(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
         let Some(tab) = self.active_tab() else {
             return;
@@ -25,10 +29,7 @@ impl Editor {
         if !needs_sync {
             return;
         }
-        let Some(doc) = self.active_doc() else {
-            return;
-        };
-        let doc_text = doc.serialize_markdown(cx);
+        let doc_text = self.serialized_document_text(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
         if let Some(state) = self.pane_state_mut(pane_id) {
