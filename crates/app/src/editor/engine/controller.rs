@@ -293,6 +293,10 @@ pub struct Editor {
     /// autoscroll, dirty marking, source sync, undo/redo) while rendering
     /// and handling input inside their own crates.
     pub(crate) pane_host: Arc<dyn editor_core::PaneHost>,
+    /// Source-pane renderer view: serves the element's state snapshots.
+    pub(crate) source_view: Arc<dyn editor_source_code::SourceStateView>,
+    /// Source-pane IME registration proxy.
+    pub(crate) source_ime: Arc<dyn editor_source_code::SourceIme>,
     /// This editor panel's session: its document tabs and pane split
     /// root. One Editor entity owns exactly one session.
     pub(crate) session: EditorSession,
@@ -417,6 +421,8 @@ impl Editor {
             self_weak: cx.weak_entity(),
             host: None,
             pane_host: crate::editor::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
+            source_view: crate::editor::engine::pane_host::EditorSourceView::new(cx.weak_entity()),
+            source_ime: crate::editor::engine::pane_host::EditorSourceIme::new(cx.weak_entity()),
             session,
             panel_rect: None,
             is_active_panel: false,
@@ -453,6 +459,8 @@ impl Editor {
             self_weak: cx.weak_entity(),
             host: None,
             pane_host: crate::editor::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
+            source_view: crate::editor::engine::pane_host::EditorSourceView::new(cx.weak_entity()),
+            source_ime: crate::editor::engine::pane_host::EditorSourceIme::new(cx.weak_entity()),
             session: EditorSession::welcome(),
             panel_rect: None,
             is_active_panel: false,

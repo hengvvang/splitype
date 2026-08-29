@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use gpui::{App, Point, Pixels, ScrollHandle, Window};
+use gpui::{App, Bounds, Point, Pixels, ScrollHandle, Window};
 
 use crate::{AutoscrollStrategy, PaneId};
 
@@ -54,6 +54,10 @@ pub trait PaneHost: Send + Sync + 'static {
     /// Flush a Source pane's buffer edits back into the session text
     /// (the model-C text swap + cache invalidation).
     fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App);
+
+    /// Record the Source pane's rendered bounds (IME candidate popup
+    /// positioning), written during the element's prepaint.
+    fn set_source_last_bounds(&self, pane_id: PaneId, bounds: Bounds<Pixels>, cx: &mut App);
 
     /// Undo the most recent edit (block-tree based).
     fn undo(&self, window: &mut Window, cx: &mut App);

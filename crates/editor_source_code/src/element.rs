@@ -1,19 +1,59 @@
-//! High-performance virtualized GPUI Element for Source Code pane.
+//! High-performance virtualized GPUI Element for the Source Code pane.
 //! Implements Zed-style sub-pixel text shaping, viewport virtualization,
 //! Tree-sitter syntax highlighting, and exact character-level hit-testing.
 
+use std::ops::Range;
+use std::sync::Arc;
+
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, PaneId};
-use editor_source_code::build_line_text_runs;
+use editor::{PaneHost, PaneId};
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
-pub(crate) struct SourceCodeViewElement {
-    pub(crate) editor: Entity<Editor>,
-    pub(crate) pane_id: PaneId,
+use crate::highlight::{CodeHighlightSpan, build_line_text_runs};
+
+/// Read-only view of a Source pane's state, as the renderer needs it.
+///
+/// The coordinating crate implements this on its entity; the element
+/// consumes the owned snapshot so no type crosses the crate boundary.
+pub trait SourceStateView: Send + Sync + 'static {
+    /// Snapshot of the state fields needed to lay out and paint.
+    fn snapshot(&self, pane_id: PaneId, cx: &App) -> Option<SourceViewSnapshot>;
 }
 
-pub(crate) struct SourceCodePrepaintState {
+/// Owned snapshot of the Source pane state handed to the renderer.
+#[derive(Default)]
+pub struct SourceViewSnapshot {
+    pub text: String,
+    pub line_ranges: Vec<Range<usize>>,
+    pub cursor: usize,
+    pub selection: Option<Range<usize>>,
+    pub highlight_spans: Vec<CodeHighlightSpan>,
+    pub focus_handle: Option<FocusHandle>,
+}
+
+/// IME input plumbing. GPUI requires the platform input handler to bind to
+/// a concrete entity, so the coordinating crate implements this by
+/// re-entering its entity; the element only forwards bounds.
+pub trait SourceIme: Send + Sync + 'static {
+    /// Register the platform input handler for the pane at `bounds`.
+    fn handle_input(
+        &self,
+        pane_id: PaneId,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    );
+}
+
+pub struct SourceCodeViewElement {
+    pub view: Arc<dyn SourceStateView>,
+    pub ime: Arc<dyn SourceIme>,
+    pub host: Arc<dyn PaneHost>,
+    pub pane_id: PaneId,
+}
+
+pub struct SourceCodePrepaintState {
     pub(crate) line_height: f32,
     pub(crate) gutter_width: f32,
     pub(crate) editor_padding: f32,
@@ -60,11 +100,15 @@ impl Element for SourceCodeViewElement {
         let editor_padding = theme.dimensions.editor_padding;
 
         let total_lines = self
-            .editor
-            .read(cx)
-            .pane_state_ref(self.pane_id)
-            .and_then(|s| s.as_source_code())
-            .map(|s| s.line_count())
+            .view
+            .snapshot(self.pane_id, cx)
+            .map(|s| {
+                if s.line_ranges.is_empty() {
+                    1
+                } else {
+                    s.line_ranges.len()
+                }
+            })
             .unwrap_or(1);
 
         let content_height = (total_lines as f32) * line_height + editor_padding * 2.0;
@@ -92,43 +136,29 @@ impl Element for SourceCodeViewElement {
         let editor_padding = theme.dimensions.editor_padding;
         let font = TypographyStore::default_font(TypographyScope::Code);
 
-        let (text, line_ranges, cursor, selection, spans, is_focused) = {
-            let editor_ref = self.editor.read(cx);
-            let state = editor_ref.pane_state_ref(self.pane_id);
-            let sc_opt = state.and_then(|s| s.as_source_code());
-            let focus_handle = sc_opt.and_then(|s| s.focus_handle.clone());
-            let is_focused = focus_handle.as_ref().map_or(false, |h| h.is_focused(window));
-            if let Some(sc) = sc_opt {
+        let (text, line_ranges, cursor, selection, spans, is_focused) = match self
+            .view
+            .snapshot(self.pane_id, cx)
+        {
+            Some(snap) => {
+                let is_focused = snap
+                    .focus_handle
+                    .as_ref()
+                    .map_or(false, |h| h.is_focused(window));
                 (
-                    sc.text.clone(),
-                    sc.line_ranges.clone(),
-                    sc.cursor,
-                    sc.selection.clone(),
-                    sc.highlight_cache
-                        .as_ref()
-                        .map(|h| h.spans.clone())
-                        .unwrap_or_default(),
-                    is_focused,
-                )
-            } else {
-                (
-                    String::new(),
-                    vec![0..0],
-                    0,
-                    None,
-                    Vec::new(),
+                    snap.text,
+                    snap.line_ranges,
+                    snap.cursor,
+                    snap.selection,
+                    snap.highlight_spans,
                     is_focused,
                 )
             }
+            None => (String::new(), vec![0..0], 0, None, Vec::new(), false),
         };
 
         // Record bounds for IME candidate popup window
-        let pane_id = self.pane_id;
-        self.editor.update(cx, |ed, _cx| {
-            if let Some(source) = ed.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                source.last_bounds = Some(bounds);
-            }
-        });
+        self.host.set_source_last_bounds(self.pane_id, bounds, cx);
 
         let total_lines = if line_ranges.is_empty() { 1 } else { line_ranges.len() };
         let line_digits = total_lines.to_string().len();
@@ -299,19 +329,13 @@ impl Element for SourceCodeViewElement {
         }
 
         let focus_handle = self
-            .editor
-            .read(cx)
-            .pane_state_ref(self.pane_id)
-            .and_then(|s| s.as_source_code())
-            .and_then(|s| s.focus_handle.clone());
+            .view
+            .snapshot(self.pane_id, cx)
+            .and_then(|s| s.focus_handle);
 
         if let Some(ref focus_handle) = focus_handle {
             if focus_handle.is_focused(window) {
-                window.handle_input(
-                    focus_handle,
-                    ElementInputHandler::new(bounds, self.editor.clone()),
-                    cx,
-                );
+                self.ime.handle_input(self.pane_id, bounds, window, cx);
             }
         }
 

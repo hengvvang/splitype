@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use gpui::{App, Point, Pixels, WeakEntity, Window};
+use gpui::{App, Bounds, Point, Pixels, WeakEntity, Window};
 
 use editor_core::{AutoscrollStrategy, PaneHost, PaneId};
 
@@ -22,6 +22,81 @@ pub(crate) struct EditorPaneHost {
 impl EditorPaneHost {
     pub(crate) fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
         Arc::new(Self { editor })
+    }
+}
+
+/// Snapshot provider for the Source pane's rendering element: reads the
+/// pane state off the editor entity.
+pub(crate) struct EditorSourceView {
+    editor: WeakEntity<Editor>,
+}
+
+impl EditorSourceView {
+    pub(crate) fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
+        Arc::new(Self { editor })
+    }
+}
+
+impl editor_source_code::SourceStateView for EditorSourceView {
+    fn snapshot(
+        &self,
+        pane_id: PaneId,
+        cx: &App,
+    ) -> Option<editor_source_code::SourceViewSnapshot> {
+        let editor = self.editor.upgrade()?;
+        let state = editor.read(cx).pane_state_ref(pane_id)?.as_source_code()?;
+        Some(editor_source_code::SourceViewSnapshot {
+            text: state.text.clone(),
+            line_ranges: state.line_ranges.clone(),
+            cursor: state.cursor,
+            selection: state.selection.clone(),
+            highlight_spans: state
+                .highlight_cache
+                .as_ref()
+                .map(|h| h.spans.clone())
+                .unwrap_or_default(),
+            focus_handle: state.focus_handle.clone(),
+        })
+    }
+}
+
+/// IME registration for the Source pane: re-enters the editor entity so
+/// the platform input handler binds to it (gpui requires a concrete
+/// entity type).
+pub(crate) struct EditorSourceIme {
+    editor: WeakEntity<Editor>,
+}
+
+impl EditorSourceIme {
+    pub(crate) fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
+        Arc::new(Self { editor })
+    }
+}
+
+impl editor_source_code::SourceIme for EditorSourceIme {
+    fn handle_input(
+        &self,
+        pane_id: PaneId,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let Some(entity) = self.editor.upgrade() else {
+            return;
+        };
+        let Some(focus_handle) = entity
+            .read(cx)
+            .pane_state_ref(pane_id)
+            .and_then(|p| p.as_source_code())
+            .and_then(|s| s.focus_handle.clone())
+        else {
+            return;
+        };
+        window.handle_input(
+            &focus_handle,
+            gpui::ElementInputHandler::new(bounds, entity),
+            cx,
+        );
     }
 }
 
@@ -63,6 +138,16 @@ impl PaneHost for EditorPaneHost {
     fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| editor.sync_source_edit_to_document(pane_id, cx));
+        }
+    }
+
+    fn set_source_last_bounds(&self, pane_id: PaneId, bounds: Bounds<Pixels>, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, _cx| {
+                if let Some(source) = editor.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.last_bounds = Some(bounds);
+                }
+            });
         }
     }
 

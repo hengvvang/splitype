@@ -1,7 +1,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::*;
-use crate::editor::panes::source_code::element::SourceCodeViewElement;
+use editor_source_code::SourceCodeViewElement;
 use theme::Theme;
 
 impl Editor {
@@ -91,7 +91,9 @@ impl Editor {
                         }),
                     )
                     .child(SourceCodeViewElement {
-                        editor: cx.entity().clone(),
+                        view: self.source_view.clone(),
+                        ime: self.source_ime.clone(),
+                        host: self.pane_host.clone(),
                         pane_id,
                     }),
             )

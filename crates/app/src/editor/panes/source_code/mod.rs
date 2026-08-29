@@ -1,4 +1,3 @@
-pub(crate) mod element;
 pub(crate) mod events;
 pub(crate) mod render;
 
