@@ -165,12 +165,12 @@ impl PaneState {
     }
 
     #[inline]
-    pub(crate) fn as_wysiwyg(&self) -> Option<&crate::editor::panes::wysiwyg::WysiwygPaneState> {
+    pub(crate) fn as_wysiwyg(&self) -> Option<&editor_wysiwyg::WysiwygPaneState> {
         self.pane.as_any().downcast_ref()
     }
 
     #[inline]
-    pub(crate) fn as_wysiwyg_mut(&mut self) -> Option<&mut crate::editor::panes::wysiwyg::WysiwygPaneState> {
+    pub(crate) fn as_wysiwyg_mut(&mut self) -> Option<&mut editor_wysiwyg::WysiwygPaneState> {
         self.pane.as_any_mut().downcast_mut()
     }
 
@@ -227,7 +227,7 @@ impl PaneState {
 pub(crate) fn new_pane_for_kind(kind: EditorPaneKind) -> Box<dyn editor_core::Pane> {
     match kind {
         EditorPaneKind::Wysiwyg => {
-            Box::new(crate::editor::panes::wysiwyg::WysiwygPaneState::default())
+            Box::new(editor_wysiwyg::WysiwygPaneState::default())
         }
         EditorPaneKind::SourceCode => Box::new(editor_source_code::SourceCodeState::default()),
         EditorPaneKind::Preview => Box::new(crate::editor::panes::preview::PreviewState::default()),

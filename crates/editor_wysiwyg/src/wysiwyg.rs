@@ -15,6 +15,7 @@
 pub mod actions;
 pub mod document;
 pub mod history;
+pub mod pane;
 pub mod paste_plain;
 pub mod render;
 pub mod projection;
@@ -23,6 +24,8 @@ pub mod text_layout;
 pub mod table_measure;
 
 pub mod state;
+
+pub use pane::WysiwygPaneState;
 
 pub use state::{
     AutoscrollStrategy, BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,

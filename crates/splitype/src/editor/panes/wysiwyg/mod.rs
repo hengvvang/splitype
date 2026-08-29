@@ -1,56 +1,10 @@
-//! WYSIWYG panel — the primary rendered editing view.
-//!
-//! WYSIWYG renders the document tree directly; the only panel-specific
-//! behavior is re-normalizing quote/container structure after edits. The
-//! row layout helpers live in `render`.
-
-
-use std::ops::Range;
+//! WYSIWYG panel glue — editor-side re-normalization of the rendered
+//! tree. The mode's view state ([`WysiwygPaneState`]) lives in the
+//! `editor_wysiwyg` crate.
 
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, FocusState, SelectionState};
-use crate::editor::engine::session::EditorPaneKind;
-use editor_core::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
-
-/// View state specific to a WYSIWYG editor pane.
-#[derive(Default)]
-pub(crate) struct WysiwygPaneState {
-    pub(crate) focus: FocusState,
-    pub(crate) selection: SelectionState,
-}
-
-impl Pane for WysiwygPaneState {
-    fn kind(&self) -> EditorPaneKind {
-        EditorPaneKind::Wysiwyg
-    }
-
-    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String {
-        doc.serialize_markdown(cx)
-    }
-
-    fn set_search_matches(&mut self, _matches: &[(Range<usize>, bool)]) {
-        // WYSIWYG highlights search matches at the block level: the editor
-        // syncs `block.search_matches` on the block entities directly, so
-        // the pane state carries nothing.
-    }
-
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-    fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
-        let mut headings = doc.outline_headings(cx);
-        if headings.is_empty() {
-            headings = outline_headings_from_markdown(&doc.serialize_markdown(cx));
-        }
-        headings
-    }
-}
+use crate::editor::engine::controller::Editor;
 
 impl Editor {
     /// Re-parse and replace the rendered tree, preserving selection and
