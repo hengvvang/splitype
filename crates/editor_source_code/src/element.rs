@@ -27,7 +27,7 @@ pub trait SourceStateView: Send + Sync + 'static {
 }
 
 /// Owned snapshot of the Source pane state handed to the renderer.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct SourceViewSnapshot {
     pub text: String,
     pub line_ranges: Vec<Range<usize>>,
@@ -35,6 +35,19 @@ pub struct SourceViewSnapshot {
     pub selection: Option<Range<usize>>,
     pub highlight_spans: Vec<CodeHighlightSpan>,
     pub focus_handle: Option<FocusHandle>,
+}
+
+/// Standalone `SourceStateView` wrapper around a `SourceViewSnapshot`.
+pub struct SnapshotSourceStateView(pub SourceViewSnapshot);
+
+impl SourceStateView for SnapshotSourceStateView {
+    fn total_lines(&self, _pane_id: PaneId, _cx: &App) -> Option<usize> {
+        Some(self.0.line_ranges.len().max(1))
+    }
+
+    fn snapshot(&self, _pane_id: PaneId, _cx: &App) -> Option<SourceViewSnapshot> {
+        Some(self.0.clone())
+    }
 }
 
 /// IME input plumbing. GPUI requires the platform input handler to bind to
@@ -49,6 +62,19 @@ pub trait SourceIme: Send + Sync + 'static {
         window: &mut Window,
         cx: &mut App,
     );
+}
+
+/// No-op IME provider.
+pub struct NullSourceIme;
+
+impl SourceIme for NullSourceIme {
+    fn handle_input(
+        &self,
+        _pane_id: PaneId,
+        _bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) {}
 }
 
 pub struct SourceCodeViewElement {

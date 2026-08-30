@@ -84,4 +84,26 @@ pub trait PaneHost: Send + Sync + 'static {
 
     /// Preview pane: mouse-up ends the drag selection.
     fn preview_mouse_up(&self, pane_id: PaneId, cx: &mut App);
+
+    /// Navigate to outline heading index in the active pane.
+    fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
+
+    /// Report outline popover hover state changes.
+    fn set_outline_hovered(&self, pane_id: PaneId, hovered: bool, window: &mut Window, cx: &mut App);
+}
+
+/// Outline host adapter forwarding to [`PaneHost`].
+pub struct PaneOutlineHost {
+    pub pane_id: PaneId,
+    pub host: Arc<dyn PaneHost>,
+}
+
+impl editor_outline::OutlineHost for PaneOutlineHost {
+    fn navigate_to(&self, index: usize, cx: &mut App) {
+        self.host.navigate_to_outline(self.pane_id, index, cx);
+    }
+
+    fn set_hovered(&self, hovered: bool, window: &mut Window, cx: &mut App) {
+        self.host.set_outline_hovered(self.pane_id, hovered, window, cx);
+    }
 }

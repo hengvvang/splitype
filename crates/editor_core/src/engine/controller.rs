@@ -206,30 +206,6 @@ impl PaneState {
     }
 
     #[inline]
-    pub fn as_source_code(&self) -> Option<&editor_source_code::SourceCodeState> {
-        self.pane.as_any().downcast_ref()
-    }
-
-    #[inline]
-    pub fn as_source_code_mut(
-        &mut self,
-    ) -> Option<&mut editor_source_code::SourceCodeState> {
-        self.pane.as_any_mut().downcast_mut()
-    }
-
-    #[inline]
-    pub fn as_preview(&self) -> Option<&crate::panes::preview::PreviewState> {
-        self.pane.as_any().downcast_ref()
-    }
-
-    #[inline]
-    pub fn as_preview_mut(
-        &mut self,
-    ) -> Option<&mut crate::panes::preview::PreviewState> {
-        self.pane.as_any_mut().downcast_mut()
-    }
-
-    #[inline]
     pub fn selection(&self) -> Option<&SelectionState> {
         self.as_wysiwyg().map(|w| &w.selection)
     }
@@ -291,10 +267,6 @@ pub struct Editor {
     /// autoscroll, dirty marking, source sync, undo/redo) while rendering
     /// and handling input inside their own crates.
     pub pane_host: Arc<dyn editor_model::PaneHost>,
-    /// Source-pane renderer view: serves the element's state snapshots.
-    pub source_view: Arc<dyn editor_source_code::SourceStateView>,
-    /// Source-pane IME registration proxy.
-    pub source_ime: Arc<dyn editor_source_code::SourceIme>,
     /// Search input field snapshots for the panel's input elements.
     pub search_view: Arc<dyn editor_search::SearchStateView>,
     /// Search input IME registration proxy.
@@ -399,8 +371,6 @@ impl Editor {
             self_weak: cx.weak_entity(),
             host: None,
             pane_host: crate::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
-            source_view: crate::engine::pane_host::EditorSourceView::new(cx.weak_entity()),
-            source_ime: crate::engine::pane_host::EditorSourceIme::new(cx.weak_entity()),
             search_view: crate::engine::pane_host::EditorSearchView::new(cx.weak_entity()),
             search_ime: crate::engine::pane_host::EditorSearchIme::new(cx.weak_entity()),
             session,
@@ -432,8 +402,6 @@ impl Editor {
             self_weak: cx.weak_entity(),
             host: None,
             pane_host: crate::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
-            source_view: crate::engine::pane_host::EditorSourceView::new(cx.weak_entity()),
-            source_ime: crate::engine::pane_host::EditorSourceIme::new(cx.weak_entity()),
             search_view: crate::engine::pane_host::EditorSearchView::new(cx.weak_entity()),
             search_ime: crate::engine::pane_host::EditorSearchIme::new(cx.weak_entity()),
             session: EditorSession::welcome(),
@@ -528,7 +496,11 @@ impl Editor {
         self.rebuild_table_grids(cx);
 
         let pane_id = self.active_pane_id();
-        self.refresh_preview_blocks(pane_id, cx);
+        let revision = self.tab().document_revision;
+        let text = self.serialized_document_text(cx);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.sync_document_text(&text, revision, cx);
+        }
         self.refresh_stable_document_snapshot(cx);
     }
 
@@ -553,7 +525,11 @@ impl Editor {
         self.subscribe_document_blocks(cx);
         self.rebuild_table_grids(cx);
         let pane_id = self.active_pane_id();
-        self.refresh_preview_blocks(pane_id, cx);
+        let revision = self.tab().document_revision;
+        let text = self.serialized_document_text(cx);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.sync_document_text(&text, revision, cx);
+        }
         self.refresh_stable_document_snapshot(cx);
         if self.search.visible {
             self.execute_search(cx);
@@ -850,35 +826,9 @@ impl Editor {
             cx.notify();
             return;
         }
-        {
-            let kind = self.session.root.tree.find_leaf_kind(pane_id.0);
-            if kind == Some(PaneKindId::SOURCE_CODE) {
-                self.sync_source_pane(pane_id, cx);
-                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                    if source.focus_handle.is_none() {
-                        source.focus_handle = Some(cx.focus_handle());
-                    }
-                    if let Some(ref handle) = source.focus_handle {
-                        handle.focus(window, cx);
-                    }
-                }
-            } else if kind == Some(PaneKindId::WYSIWYG) {
-                let doc = self.active_doc();
-                let target = self
-                    .pane_state_ref(pane_id)
-                    .and_then(|state| state.as_wysiwyg())
-                    .and_then(|wysiwyg| wysiwyg.focus.active_entity)
-                    .or_else(|| doc.and_then(|d| d.first_root()).map(|b| b.entity_id()));
-                if let Some(id) = target {
-                    if let Some(block) = doc.and_then(|d| d.block_entity_by_id(id)) {
-                        let focus_handle = block.read(cx).focus_handle.clone();
-                        focus_handle.focus(window, cx);
-                    }
-                }
-            } else if let Some(state) = self.pane_state_mut(pane_id) {
-                if let Some(handle) = state.pane.focus_handle(cx) {
-                    handle.focus(window, cx);
-                }
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            if let Some(handle) = state.pane.focus_handle(cx) {
+                handle.focus(window, cx);
             }
         }
         cx.notify();

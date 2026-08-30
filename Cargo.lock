@@ -1739,9 +1739,7 @@ dependencies = [
  "config",
  "editor_model",
  "editor_outline",
- "editor_preview",
  "editor_search",
- "editor_source_code",
  "editor_wysiwyg",
  "futures",
  "gpui",
@@ -1758,8 +1756,11 @@ dependencies = [
 name = "editor_model"
 version = "0.0.1"
 dependencies = [
+ "editor_outline",
+ "editor_search",
  "gpui",
  "splitter",
+ "theme",
  "workspace",
 ]
 

@@ -21,7 +21,7 @@ mod pane_type;
 mod pane_view;
 
 pub use autoscroll::AutoscrollStrategy;
-pub use pane_host::{PaneHost, PaneRenderContext};
+pub use pane_host::{PaneHost, PaneOutlineHost, PaneRenderContext};
 pub use pane_registry::{PaneDescriptor, PaneRegistry};
 pub use pane_type::PaneKindId;
 pub use pane_view::PaneView;

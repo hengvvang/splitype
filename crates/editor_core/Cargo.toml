@@ -17,8 +17,6 @@ anyhow = { workspace = true }
 config = { path = "../config" }
 editor_model = { path = "../editor_model" }
 editor_wysiwyg = { path = "../editor_wysiwyg" }
-editor_source_code = { path = "../editor_source_code" }
-editor_preview = { path = "../editor_preview" }
 editor_outline = { path = "../editor_outline" }
 editor_search = { path = "../editor_search" }
 futures = "0.3"

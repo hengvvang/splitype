@@ -413,9 +413,39 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 
 // ── Pane plugin contract ─────────────────────────────────────────────────
 
-use gpui::{App, IntoElement};
+use std::sync::Arc;
 
-use editor_model::{EditorDocument, PaneKindId, PaneRenderContext, PaneView};
+use gpui::{
+    AnyElement, App, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    StatefulInteractiveElement, Styled, Window, div,
+};
+use editor_model::{
+    EditorDocument, PaneKindId, PaneOutlineHost, PaneRenderContext, PaneView,
+};
+use editor_outline::OutlineNode;
+use editor_search::{SearchMatch, SearchQuery};
+use theme::Theme;
+
+use crate::element::{
+    NullSourceIme, SnapshotSourceStateView, SourceCodeViewElement, SourceViewSnapshot,
+};
+
+impl SourceCodeState {
+    pub fn snapshot(&self) -> SourceViewSnapshot {
+        SourceViewSnapshot {
+            text: self.text.clone(),
+            line_ranges: self.line_ranges.clone(),
+            cursor: self.cursor,
+            selection: self.selection.clone(),
+            highlight_spans: self
+                .highlight_cache
+                .as_ref()
+                .map(|h| h.spans.clone())
+                .unwrap_or_default(),
+            focus_handle: self.focus_handle.clone(),
+        }
+    }
+}
 
 impl PaneView for SourceCodeState {
     fn kind(&self) -> PaneKindId {
@@ -426,13 +456,202 @@ impl PaneView for SourceCodeState {
         self.text.clone()
     }
 
+    fn sync_document_text(&mut self, text: &str, revision: u64, _cx: &mut App) {
+        let hash = {
+            use std::hash::{Hash, Hasher};
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            text.hash(&mut h);
+            h.finish()
+        };
+        if self.synced_revision != Some(revision) || hash != self.synced_doc_hash {
+            self.set_text(text.to_string());
+            self.synced_doc_hash = hash;
+            self.synced_revision = Some(revision);
+        }
+    }
+
+    fn serialize_text(&self, _cx: &App) -> Option<String> {
+        Some(self.text.clone())
+    }
+
+    fn focus_handle(&self, _cx: &App) -> Option<gpui::FocusHandle> {
+        self.focus_handle.clone()
+    }
+
+    fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
+        crate::outline::extract_outline_headings(&self.text)
+    }
+
+    fn navigate_to_outline(&mut self, index: usize, theme: &Theme, _cx: &mut App) {
+        let headings = self.outline_headings(_cx);
+        if let Some(node) = headings.get(index) {
+            crate::outline::navigate_to_node(self, node);
+            let font_size = theme.typography.code_size.max(12.0);
+            let line_height = (font_size * theme.typography.text_line_height).round().max(18.0);
+            let _target_y = (node.block_index as f32 * line_height) - 40.0;
+        }
+    }
+
+    fn search_matches(&self, query: &SearchQuery, _cx: &App) -> Vec<SearchMatch> {
+        crate::search::search_in_source(self, query)
+    }
+
+    fn replace_match(
+        &mut self,
+        match_item: &SearchMatch,
+        replace_with: &str,
+        _cx: &mut App,
+    ) {
+        let range = match_item.byte_range.clone();
+        crate::search::replace_in_source(self, range, replace_with);
+    }
+
+    fn replace_all_matches(
+        &mut self,
+        query: &SearchQuery,
+        replace_with: &str,
+        _cx: &mut App,
+    ) {
+        let matches = self.search_matches(query, _cx);
+        let replacements: Vec<(std::ops::Range<usize>, String)> = matches
+            .into_iter()
+            .map(|m| (m.byte_range, replace_with.to_string()))
+            .collect();
+        crate::search::replace_all_in_source(self, replacements);
+    }
+
+    fn navigate_to_search_match(&mut self, match_item: &SearchMatch, _cx: &mut App) {
+        let range = match_item.byte_range.clone();
+        let len = self.text.len();
+        self.cursor = range.end.min(len);
+        self.selection = Some(range.start.min(len)..range.end.min(len));
+        self.refresh_highlight();
+    }
+
+    fn apply_line_prefix(&mut self, prefix: &str, _cx: &mut App) {
+        let (cur_line, _) = self.line_and_column(self.cursor);
+        let start = self.line_start_offset(cur_line);
+        let end = self.line_end_offset(cur_line);
+        let line_text = self.text[start..end].to_string();
+        let stripped = line_text
+            .trim_start_matches(|c| c == '#' || c == '>' || c == '-' || c == '*' || c == '+' || c == ' ' || c == '\t');
+        let new_line = format!("{prefix}{stripped}");
+        let prefix_len = prefix.len();
+        self.text.replace_range(start..end, &new_line);
+        self.cursor = start + prefix_len;
+        self.selection = None;
+        self.refresh_highlight();
+    }
+
+    fn apply_snippet(&mut self, snippet: &str, caret_offset: usize, _cx: &mut App) {
+        let pos = self.cursor;
+        self.text.insert_str(pos, snippet);
+        self.cursor = pos + caret_offset;
+        self.selection = None;
+        self.refresh_highlight();
+    }
+
+    fn apply_wrapped_or_template(
+        &mut self,
+        empty_template: &str,
+        caret_offset_in_empty: usize,
+        wrap_prefix: &str,
+        wrap_suffix: &str,
+        _cx: &mut App,
+    ) {
+        if let Some(sel) = self.selection.take() {
+            let text = self.text[sel.start..sel.end].to_string();
+            let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
+            self.text.replace_range(sel.start..sel.end, &wrapped);
+            self.selection = Some(
+                sel.start + wrap_prefix.len()..sel.start + wrap_prefix.len() + text.len(),
+            );
+            self.cursor = sel.start + wrap_prefix.len() + text.len();
+        } else {
+            let pos = self.cursor;
+            self.text.insert_str(pos, empty_template);
+            self.cursor = pos + caret_offset_in_empty;
+        }
+        self.refresh_highlight();
+    }
+
+    fn apply_clear_format(&mut self, _cx: &mut App) {
+        if let Some(sel) = self.selection.take() {
+            let selected = &self.text[sel.start..sel.end];
+            let plain = selected
+                .trim_matches(|c| c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$')
+                .to_string();
+            self.text.replace_range(sel.start..sel.end, &plain);
+            self.cursor = sel.start + plain.len();
+            self.refresh_highlight();
+        }
+    }
+
     fn render(
         &mut self,
-        _ctx: &PaneRenderContext,
-        _window: &mut gpui::Window,
-        _cx: &mut App,
-    ) -> gpui::AnyElement {
-        gpui::div().into_any_element()
+        ctx: &PaneRenderContext,
+        _window: &mut Window,
+        cx: &mut App,
+    ) -> AnyElement {
+        let theme = cx.global::<theme::ThemeManager>().current_arc();
+        let c = &theme.colors;
+        let pane_id = ctx.pane_id;
+
+        if self.focus_handle.is_none() {
+            self.focus_handle = Some(cx.focus_handle());
+        }
+        let focus_handle = self.focus_handle.clone().unwrap();
+
+        let snapshot = self.snapshot();
+        let view: Arc<dyn crate::element::SourceStateView> =
+            Arc::new(SnapshotSourceStateView(snapshot));
+        let ime: Arc<dyn crate::element::SourceIme> = Arc::new(NullSourceIme);
+
+        let outline_host: Arc<dyn editor_outline::OutlineHost> = Arc::new(PaneOutlineHost {
+            pane_id: ctx.pane_id,
+            host: ctx.host.clone(),
+        });
+        let outline_hud = editor_outline::render_floating_outline_hud(
+            ctx.pane_id.0,
+            &self.outline_headings(cx),
+            None,
+            false,
+            &theme,
+            &outline_host,
+        );
+
+        let host_for_click = ctx.host.clone();
+        div()
+            .id(ElementId::Name(format!("tiled-source-editor-{pane_id}").into()))
+            .key_context("SourceCode")
+            .track_focus(&focus_handle)
+            .w_full()
+            .h_full()
+            .relative()
+            .bg(c.editor_background)
+            .font(theme::TypographyStore::default_font(theme::TypographyScope::Code))
+            .on_mouse_down(
+                MouseButton::Left,
+                move |_event, window, cx| {
+                    host_for_click.focus_pane(pane_id, window, cx);
+                },
+            )
+            .child(
+                div()
+                    .id(ElementId::Name(format!("tiled-source-scroll-{pane_id}").into()))
+                    .w_full()
+                    .h_full()
+                    .overflow_y_scroll()
+                    .track_scroll(ctx.scroll)
+                    .child(SourceCodeViewElement {
+                        view,
+                        ime,
+                        host: ctx.host.clone(),
+                        pane_id,
+                    }),
+            )
+            .child(outline_hud)
+            .into_any_element()
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

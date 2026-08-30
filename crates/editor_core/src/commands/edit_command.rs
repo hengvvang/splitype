@@ -243,33 +243,9 @@ impl Editor {
         self.apply_snippet(target_entity, &table_md, first_cell_offset, cx);
     }
 
-    fn execute_cut(&mut self, cx: &mut Context<Self>) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                if let Some(sel) = source.selection.take() {
-                    let text = source.text[sel.start..sel.end].to_string();
-                    cx.write_to_clipboard(ClipboardItem::new_string(text));
-                    source.text.replace_range(sel.start..sel.end, "");
-                    source.cursor = sel.start;
-                    source.refresh_highlight();
-                }
-            }
-            self.sync_source_edit_to_document(pane_id, cx);
-        }
-    }
+    fn execute_cut(&mut self, _cx: &mut Context<Self>) {}
 
-    fn execute_copy(&mut self, cx: &mut Context<Self>) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            if let Some(source) = self.pane_state(pane_id).as_source_code() {
-                if let Some(sel) = &source.selection {
-                    let text = source.text[sel.start..sel.end].to_string();
-                    cx.write_to_clipboard(ClipboardItem::new_string(text));
-                }
-            }
-        }
-    }
+    fn execute_copy(&mut self, _cx: &mut Context<Self>) {}
 
     fn execute_paste(&mut self, target_entity: Option<EntityId>, is_plain: bool, cx: &mut Context<Self>) {
         let Some(clipboard_item) = cx.read_from_clipboard() else {
@@ -300,12 +276,6 @@ impl Editor {
     }
 
     fn execute_select_all(&mut self, cx: &mut Context<Self>) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                source.select_all();
-            }
-        }
         cx.notify();
     }
 
@@ -322,212 +292,67 @@ impl Editor {
 
     pub fn apply_inline_markup(
         &mut self,
-        target_entity: Option<EntityId>,
+        _target_entity: Option<EntityId>,
         empty_template: &str,
         caret_offset_in_empty: usize,
         wrap_prefix: &str,
         wrap_suffix: &str,
         cx: &mut Context<Self>,
     ) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            self.sync_source_pane(pane_id, cx);
-            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                if let Some(sel) = source.selection.take() {
-                    let text = source.text[sel.start..sel.end].to_string();
-                    let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
-                    source.text.replace_range(sel.start..sel.end, &wrapped);
-                    source.selection = Some(sel.start + wrap_prefix.len()..sel.start + wrap_prefix.len() + text.len());
-                    source.cursor = sel.start + wrap_prefix.len() + text.len();
-                } else {
-                    let pos = source.cursor;
-                    source.text.insert_str(pos, empty_template);
-                    source.cursor = pos + caret_offset_in_empty;
-                }
-                source.refresh_highlight();
-            }
-            self.sync_source_edit_to_document(pane_id, cx);
-            return;
+        let pane_id = self.active_pane_id();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.apply_wrapped_or_template(
+                empty_template,
+                caret_offset_in_empty,
+                wrap_prefix,
+                wrap_suffix,
+                cx,
+            );
+            self.mark_dirty(cx);
+            cx.notify();
         }
-
-        let Some(block) = self.active_or_target_block(target_entity, cx) else {
-            return;
-        };
-        self.focus_wysiwyg_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            let range = block.selected_range.clone();
-            if range.is_empty() {
-                let cursor = block.cursor_offset();
-                block.replace_text_in_display_range(
-                    cursor..cursor,
-                    empty_template,
-                    Some(caret_offset_in_empty..caret_offset_in_empty),
-                    false,
-                    cx,
-                );
-            } else {
-                let text = block.selected_text();
-                let inner_len = text.len();
-                let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
-                let prefix_len = wrap_prefix.len();
-                block.replace_text_in_display_range(
-                    range,
-                    &wrapped,
-                    Some(prefix_len..prefix_len + inner_len),
-                    false,
-                    cx,
-                );
-            }
-        });
-        self.mark_dirty(cx);
-        cx.notify();
     }
 
     pub fn apply_line_prefix(
         &mut self,
-        target_entity: Option<EntityId>,
+        _target_entity: Option<EntityId>,
         prefix: &str,
         cx: &mut Context<Self>,
     ) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            self.sync_source_pane(pane_id, cx);
-            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                let (cur_line, _) = source.line_and_column(source.cursor);
-                let start = source.line_start_offset(cur_line);
-                let end = source.line_end_offset(cur_line);
-                let line_text = source.text[start..end].to_string();
-                let stripped = strip_markdown_line_prefix(&line_text);
-                let new_line = format!("{prefix}{stripped}");
-                let prefix_len = prefix.len();
-                source.text.replace_range(start..end, &new_line);
-                source.cursor = start + prefix_len;
-                source.selection = None;
-                source.refresh_highlight();
-            }
-            self.sync_source_edit_to_document(pane_id, cx);
-            return;
+        let pane_id = self.active_pane_id();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.apply_line_prefix(prefix, cx);
+            self.mark_dirty(cx);
+            cx.notify();
         }
-
-        let Some(block) = self.active_or_target_block(target_entity, cx) else {
-            return;
-        };
-        self.focus_wysiwyg_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            if !block.edits_verbatim_text() {
-                block.data.kind = editor_wysiwyg::markdown::parse::BlockKind::Paragraph;
-            }
-            let cursor = block.cursor_offset();
-            let text = block.display_text();
-            let line_start = text[..cursor.min(text.len())].rfind('\n').map(|i| i + 1).unwrap_or(0);
-            let line_end = text[cursor.min(text.len())..].find('\n').map(|i| cursor + i).unwrap_or(text.len());
-            let line = &text[line_start..line_end];
-            let stripped = strip_markdown_line_prefix(line);
-            let new_line = format!("{prefix}{stripped}");
-            let prefix_len = prefix.len();
-            block.replace_text_in_display_range(
-                line_start..line_end,
-                &new_line,
-                Some(prefix_len..prefix_len),
-                false,
-                cx,
-            );
-        });
-        self.mark_dirty(cx);
-        cx.notify();
     }
 
     pub fn apply_snippet(
         &mut self,
-        target_entity: Option<EntityId>,
+        _target_entity: Option<EntityId>,
         snippet: &str,
         caret_offset: usize,
         cx: &mut Context<Self>,
     ) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            self.sync_source_pane(pane_id, cx);
-            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                let pos = source.cursor;
-                source.text.insert_str(pos, snippet);
-                source.cursor = pos + caret_offset;
-                source.selection = None;
-                source.refresh_highlight();
-            }
-            self.sync_source_edit_to_document(pane_id, cx);
-            return;
+        let pane_id = self.active_pane_id();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.apply_snippet(snippet, caret_offset, cx);
+            self.mark_dirty(cx);
+            cx.notify();
         }
-
-        let Some(block) = self.active_or_target_block(target_entity, cx) else {
-            return;
-        };
-        self.focus_wysiwyg_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            let cursor = block.cursor_offset();
-            let range = block.selected_range.clone();
-            let len = snippet.len();
-            let offset = caret_offset.min(len);
-            if range.is_empty() {
-                block.replace_text_in_display_range(
-                    cursor..cursor,
-                    snippet,
-                    Some(offset..offset),
-                    false,
-                    cx,
-                );
-            } else {
-                block.replace_text_in_display_range(
-                    range,
-                    snippet,
-                    Some(offset..offset),
-                    false,
-                    cx,
-                );
-            }
-        });
-        self.mark_dirty(cx);
-        cx.notify();
     }
 
     pub fn apply_clear_format(
         &mut self,
-        target_entity: Option<EntityId>,
+        _target_entity: Option<EntityId>,
         cx: &mut Context<Self>,
     ) {
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            self.sync_source_pane(pane_id, cx);
-            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                if let Some(sel) = source.selection.take() {
-                    let selected = &source.text[sel.start..sel.end];
-                    let plain = selected
-                        .trim_matches(|c| c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$')
-                        .to_string();
-                    source.text.replace_range(sel.start..sel.end, &plain);
-                    source.cursor = sel.start + plain.len();
-                    source.refresh_highlight();
-                }
-            }
-            self.sync_source_edit_to_document(pane_id, cx);
-            return;
+        let pane_id = self.active_pane_id();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.apply_clear_format(cx);
+            self.mark_dirty(cx);
+            cx.notify();
         }
-
-        let Some(block) = self.active_or_target_block(target_entity, cx) else {
-            return;
-        };
-        self.focus_wysiwyg_block(block.entity_id());
-        block.update(cx, |b, cx| {
-            let range = b.selected_range.clone();
-            if !range.is_empty() {
-                let selected = b.selected_text();
-                let plain = selected
-                    .trim_matches(|c| c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$');
-                let plain_len = plain.len();
-                b.replace_text_in_display_range(range, plain, Some(0..plain_len), false, cx);
-            }
-        });
-        self.mark_dirty(cx);
-        cx.notify();
     }
 }
 

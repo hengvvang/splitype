@@ -3,6 +3,9 @@
 use std::any::Any;
 
 use gpui::{AnyElement, App, FocusHandle, Window};
+use editor_outline::OutlineHeading;
+use editor_search::{SearchMatch, SearchQuery};
+use theme::Theme;
 
 use crate::{EditorDocument, PaneKindId, PaneRenderContext};
 
@@ -14,7 +17,7 @@ pub trait PaneView: Any + Send + Sync + 'static {
     /// Pure markdown source of the active tab, as this mode sees it.
     fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String;
 
-    /// Render the pane's inner body element.
+    /// Render the pane's entire body viewport (including outline HUD / scroll if desired).
     fn render(
         &mut self,
         ctx: &PaneRenderContext,
@@ -26,6 +29,65 @@ pub trait PaneView: Any + Send + Sync + 'static {
     fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {
         None
     }
+
+    /// Sync pane state from the canonical document text and revision.
+    fn sync_document_text(&mut self, _text: &str, _revision: u64, _cx: &mut App) {}
+
+    /// Serialize this pane's current content to Markdown.
+    fn serialize_text(&self, _cx: &App) -> Option<String> {
+        None
+    }
+
+    /// Extract outline headings for TOC navigation.
+    fn outline_headings(&self, _cx: &App) -> Vec<OutlineHeading> {
+        Vec::new()
+    }
+
+    /// Navigate to a specific outline heading item.
+    fn navigate_to_outline(&mut self, _index: usize, _theme: &Theme, _cx: &mut App) {}
+
+    /// Find search matches within this pane.
+    fn search_matches(&self, _query: &SearchQuery, _cx: &App) -> Vec<SearchMatch> {
+        Vec::new()
+    }
+
+    /// Jump to / highlight a search match in this pane.
+    fn navigate_to_search_match(&mut self, _match_item: &SearchMatch, _cx: &mut App) {}
+
+    /// Replace one search match item.
+    fn replace_match(
+        &mut self,
+        _match_item: &SearchMatch,
+        _replace_with: &str,
+        _cx: &mut App,
+    ) {}
+
+    /// Replace all search matches.
+    fn replace_all_matches(
+        &mut self,
+        _query: &SearchQuery,
+        _replace_with: &str,
+        _cx: &mut App,
+    ) {}
+
+    /// Apply line prefix (e.g. heading `# `, list `- `, task `- [ ] `).
+    fn apply_line_prefix(&mut self, _prefix: &str, _cx: &mut App) {}
+
+    /// Apply snippet / wrapper around selection (e.g. bold `****`, italic `**`, inline code ` `` `).
+    fn apply_snippet(&mut self, _snippet: &str, _caret_offset: usize, _cx: &mut App) {}
+
+    /// Wrap selection or insert template.
+    fn apply_wrapped_or_template(
+        &mut self,
+        _empty_template: &str,
+        _caret_offset_in_empty: usize,
+        _wrap_prefix: &str,
+        _wrap_suffix: &str,
+        _cx: &mut App,
+    ) {}
+
+    /// Clear inline formatting from selection.
+    fn apply_clear_format(&mut self, _cx: &mut App) {}
 
     /// Hook called when the shared document text has changed.
     fn on_document_changed(&mut self, _new_text: &str, _cx: &mut App) {}

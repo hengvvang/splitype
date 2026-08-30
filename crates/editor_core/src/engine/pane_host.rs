@@ -1,16 +1,10 @@
-//! App-side implementation of the [`PaneHost`] seam: a proxy that
-//! re-enters the `Editor` entity through its captured weak handle.
-//!
-//! Pane mode crates render and process input against their own state; the
-//! coordination-layer actions they need (focus routing, autoscroll, dirty
-//! marking, source sync, undo/redo, preview selection) go through this
-//! proxy so the modes never name the entity type.
+//! App-side implementation of host seams: proxies that
+//! re-enter the `Editor` entity through its captured weak handle.
 
 use std::sync::Arc;
 
-use gpui::{App, Bounds, KeyDownEvent, Point, Pixels, WeakEntity, Window};
-
-use editor_model::{AutoscrollStrategy, PaneHost, PaneId};
+use gpui::{App, Bounds, KeyDownEvent, Pixels, Point, WeakEntity, Window};
+use editor_model::{AutoscrollStrategy, PaneHost, PaneId, PaneKindId};
 
 use crate::engine::controller::Editor;
 
@@ -22,96 +16,6 @@ pub struct EditorPaneHost {
 impl EditorPaneHost {
     pub fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
         Arc::new(Self { editor })
-    }
-}
-
-/// Snapshot provider for the Source pane's rendering element: reads the
-/// pane state off the editor entity.
-pub struct EditorSourceView {
-    editor: WeakEntity<Editor>,
-}
-
-impl EditorSourceView {
-    pub fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
-        Arc::new(Self { editor })
-    }
-}
-
-impl editor_source_code::SourceStateView for EditorSourceView {
-    fn total_lines(&self, pane_id: PaneId, cx: &App) -> Option<usize> {
-        let editor = self.editor.upgrade()?;
-        let state = editor.read(cx).pane_state_ref(pane_id)?.as_source_code()?;
-        Some(state.line_ranges.len().max(1))
-    }
-
-    fn snapshot(
-        &self,
-        pane_id: PaneId,
-        cx: &App,
-    ) -> Option<editor_source_code::SourceViewSnapshot> {
-        let editor = self.editor.upgrade()?;
-        let state = editor.read(cx).pane_state_ref(pane_id)?.as_source_code()?;
-        Some(editor_source_code::SourceViewSnapshot {
-            text: state.text.clone(),
-            line_ranges: state.line_ranges.clone(),
-            cursor: state.cursor,
-            selection: state.selection.clone(),
-            highlight_spans: state
-                .highlight_cache
-                .as_ref()
-                .map(|h| h.spans.clone())
-                .unwrap_or_default(),
-            focus_handle: state.focus_handle.clone(),
-        })
-    }
-}
-
-/// IME registration for the Source pane: re-enters the editor entity so
-/// the platform input handler binds to it (gpui requires a concrete
-/// entity type).
-pub struct EditorSourceIme {
-    editor: WeakEntity<Editor>,
-}
-
-impl EditorSourceIme {
-    pub fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
-        Arc::new(Self { editor })
-    }
-}
-
-/// Outline HUD host: navigation and hover re-enter the editor entity,
-/// carrying the pane kind and theme captured at render time.
-pub struct EditorOutlineHost {
-    editor: WeakEntity<Editor>,
-    kind: editor_model::PaneKindId,
-    theme: theme::Theme,
-}
-
-impl EditorOutlineHost {
-    pub fn new(
-        editor: WeakEntity<Editor>,
-        kind: editor_model::PaneKindId,
-        theme: theme::Theme,
-    ) -> Arc<Self> {
-        Arc::new(Self { editor, kind, theme })
-    }
-}
-
-impl editor_outline::OutlineHost for EditorOutlineHost {
-    fn navigate_to(&self, index: usize, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            let kind = self.kind;
-            let theme = self.theme.clone();
-            let _ = editor.update(cx, |editor, cx| {
-                editor.navigate_to_outline_index(index, kind, &theme, cx)
-            });
-        }
-    }
-
-    fn set_hovered(&self, hovered: bool, window: &mut Window, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, cx| editor.set_outline_hovered(hovered, window, cx));
-        }
     }
 }
 
@@ -202,7 +106,6 @@ impl editor_search::SearchHost for EditorSearchHost {
             let _ = editor.update(cx, |editor, cx| {
                 editor.search.active_field = editor_search::SearchActiveField::Query;
                 window.focus(&editor.search.search_focus_handle, cx);
-                cx.notify();
             });
         }
     }
@@ -212,15 +115,19 @@ impl editor_search::SearchHost for EditorSearchHost {
             let _ = editor.update(cx, |editor, cx| {
                 editor.search.active_field = editor_search::SearchActiveField::Replace;
                 window.focus(&editor.search.replace_focus_handle, cx);
-                cx.notify();
             });
         }
     }
 
-    fn handle_key_down(&self, event: &KeyDownEvent, window: &mut Window, cx: &mut App) {
+    fn handle_key_down(
+        &self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
-                editor.handle_search_key_down(event, window, cx)
+                editor.handle_search_key_down(event, window, cx);
             });
         }
     }
@@ -230,7 +137,6 @@ impl editor_search::SearchHost for EditorSearchHost {
             let _ = editor.update(cx, |editor, cx| {
                 editor.search.prev_match();
                 editor.jump_to_active_search_match(window, cx);
-                cx.notify();
             });
         }
     }
@@ -240,7 +146,6 @@ impl editor_search::SearchHost for EditorSearchHost {
             let _ = editor.update(cx, |editor, cx| {
                 editor.search.next_match();
                 editor.jump_to_active_search_match(window, cx);
-                cx.notify();
             });
         }
     }
@@ -250,7 +155,6 @@ impl editor_search::SearchHost for EditorSearchHost {
             let _ = editor.update(cx, |editor, cx| {
                 editor.search.active_match_index = Some(index);
                 editor.jump_to_active_search_match(window, cx);
-                cx.notify();
             });
         }
     }
@@ -258,7 +162,7 @@ impl editor_search::SearchHost for EditorSearchHost {
     fn replace_current(&self, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
-                editor.replace_current_search_match(window, cx)
+                editor.replace_current_search_match(window, cx);
             });
         }
     }
@@ -385,33 +289,6 @@ impl editor_search::SearchIme for EditorSearchIme {
     }
 }
 
-impl editor_source_code::SourceIme for EditorSourceIme {
-    fn handle_input(
-        &self,
-        pane_id: PaneId,
-        bounds: Bounds<Pixels>,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        let Some(entity) = self.editor.upgrade() else {
-            return;
-        };
-        let Some(focus_handle) = entity
-            .read(cx)
-            .pane_state_ref(pane_id)
-            .and_then(|p| p.as_source_code())
-            .and_then(|s| s.focus_handle.clone())
-        else {
-            return;
-        };
-        window.handle_input(
-            &focus_handle,
-            gpui::ElementInputHandler::new(bounds, entity),
-            cx,
-        );
-    }
-}
-
 impl PaneHost for EditorPaneHost {
     fn focus_pane(&self, pane_id: PaneId, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
@@ -449,19 +326,17 @@ impl PaneHost for EditorPaneHost {
 
     fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, cx| editor.sync_source_edit_to_document(pane_id, cx));
-        }
-    }
-
-    fn set_source_last_bounds(&self, pane_id: PaneId, bounds: Bounds<Pixels>, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, _cx| {
-                if let Some(source) = editor.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                    source.last_bounds = Some(bounds);
+            let _ = editor.update(cx, |editor, cx| {
+                if let Some(state) = editor.pane_state_ref(pane_id) {
+                    if let Some(text) = state.pane.serialize_text(cx) {
+                        editor.rebuild_document_from_markdown(&text, cx);
+                    }
                 }
             });
         }
     }
+
+    fn set_source_last_bounds(&self, _pane_id: PaneId, _bounds: Bounds<Pixels>, _cx: &mut App) {}
 
     fn undo(&self, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
@@ -481,35 +356,44 @@ impl PaneHost for EditorPaneHost {
 
     fn preview_mouse_down(
         &self,
-        pane_id: PaneId,
-        block_index: usize,
-        position: Point<Pixels>,
-        cx: &mut App,
+        _pane_id: PaneId,
+        _block_index: usize,
+        _position: Point<Pixels>,
+        _cx: &mut App,
     ) {
-        if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, cx| {
-                editor.on_preview_mouse_down(pane_id, block_index, position, cx)
-            });
-        }
     }
 
     fn preview_mouse_move(
         &self,
-        pane_id: PaneId,
-        block_index: usize,
-        position: Point<Pixels>,
-        cx: &mut App,
+        _pane_id: PaneId,
+        _block_index: usize,
+        _position: Point<Pixels>,
+        _cx: &mut App,
     ) {
+    }
+
+    fn preview_mouse_up(&self, _pane_id: PaneId, _cx: &mut App) {}
+
+    fn navigate_to_outline(&self, _pane_id: PaneId, index: usize, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
-                editor.on_preview_mouse_move(pane_id, block_index, position, cx)
+                let theme = cx.global::<theme::ThemeManager>().current_arc();
+                editor.navigate_to_outline_index(index, PaneKindId(""), &theme, cx);
             });
         }
     }
 
-    fn preview_mouse_up(&self, pane_id: PaneId, cx: &mut App) {
+    fn set_outline_hovered(
+        &self,
+        _pane_id: PaneId,
+        hovered: bool,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
         if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, cx| editor.on_preview_mouse_up(pane_id, cx));
+            let _ = editor.update(cx, |editor, cx| {
+                editor.set_outline_hovered(hovered, window, cx);
+            });
         }
     }
 }

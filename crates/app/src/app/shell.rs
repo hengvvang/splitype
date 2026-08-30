@@ -414,7 +414,11 @@ impl Shell {
             // exists, otherwise `ensure_document` performs it on first use.
             if editor.session.has_tabs() && editor.active_doc().is_some() {
                 let pane_id = editor.active_pane_id();
-                editor.refresh_preview_blocks(pane_id, cx);
+                let revision = editor.tab().document_revision;
+                let text = editor.serialized_document_text(cx);
+                if let Some(state) = editor.pane_state_mut(pane_id) {
+                    state.pane.sync_document_text(&text, revision, cx);
+                }
                 editor.refresh_stable_document_snapshot(cx);
             }
         });

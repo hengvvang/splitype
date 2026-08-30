@@ -3,7 +3,6 @@
 use gpui::*;
 
 use crate::engine::controller::*;
-use crate::engine::session::PaneKindId;
 use config::language::I18nStrings;
 use theme::Theme;
 use splitter::SplitAxis;
@@ -33,23 +32,14 @@ impl Editor {
         match node {
             SplitTree::Leaf(container) => {
                 let pane_id = PaneId(container.id);
-                let kind = container.kind;
+                let _kind = container.kind;
                 let inner_editor = cx.entity().downgrade();
 
                 // The pane kind is the view type; in the welcome mode
                 // (no tabs) every pane renders the guidance prompt instead
                 // of its view, so the split layout stays visible.
                 let inner_body: AnyElement = if self.panel_mode().is_editing() {
-                    if kind == PaneKindId::WYSIWYG {
-                        self.render_wysiwyg_pane(pane_id, window, cx)
-                    } else if kind == PaneKindId::SOURCE_CODE {
-                        self.sync_source_pane(pane_id, cx);
-                        self.render_source_pane(pane_id, theme, window, cx)
-                    } else if kind == PaneKindId::PREVIEW {
-                        self.render_preview_pane(pane_id, theme, strings, window, cx)
-                    } else {
-                        self.render_generic_pane(pane_id, window, cx)
-                    }
+                    self.render_pane(pane_id, window, cx)
                 } else {
                     self.render_welcome_prompt(pane_id, theme, cx)
                 };
@@ -323,7 +313,7 @@ impl Editor {
         }
     }
 
-    pub(crate) fn render_generic_pane(
+    pub(crate) fn render_pane(
         &mut self,
         pane_id: PaneId,
         window: &mut Window,

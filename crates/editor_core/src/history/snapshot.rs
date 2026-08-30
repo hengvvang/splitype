@@ -21,18 +21,6 @@ impl Editor {
         &self,
         cx: &App,
     ) -> UndoSelectionSnapshot {
-        let pane_id = self.active_pane_id();
-        if let Some(source) = self.pane_state_ref(pane_id).and_then(|s| s.as_source_code()) {
-            let range = source
-                .selection
-                .clone()
-                .unwrap_or_else(|| source.cursor..source.cursor);
-            return UndoSelectionSnapshot {
-                range,
-                reversed: false,
-                block_anchor: None,
-            };
-        }
         if let Some(doc) = self.active_doc() {
             if let Some(first) = doc.first_root() {
                 let b = first.read(cx);
@@ -48,15 +36,8 @@ impl Editor {
 
     pub(crate) fn apply_selection_snapshot_in_current_mode(
         &mut self,
-        snapshot: &UndoSelectionSnapshot,
-        cx: &mut Context<Self>,
+        _snapshot: &UndoSelectionSnapshot,
+        _cx: &mut Context<Self>,
     ) {
-        let pane_id = self.active_pane_id();
-        self.sync_source_pane(pane_id, cx);
-        if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-            let len = source.text.len();
-            let pos = snapshot.range.end.min(len);
-            source.move_to(pos, false);
-        }
     }
 }

@@ -13,6 +13,9 @@ path = "src/editor.rs"
 workspace = true
 
 [dependencies]
+editor_outline = { path = "../editor_outline" }
+editor_search = { path = "../editor_search" }
 gpui = { workspace = true }
 splitter = { path = "../splitter" }
+theme = { path = "../theme" }
 workspace = { path = "../workspace" }
