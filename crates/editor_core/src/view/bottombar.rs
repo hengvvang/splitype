@@ -120,7 +120,7 @@ impl Editor {
                     .into_any_element(),
             );
             left_items.push(render_cursor(
-                self.compute_source_cursor_position(cx),
+                self.active_pane_cursor_position(cx),
                 theme,
             ));
         }
@@ -266,7 +266,7 @@ impl Editor {
         SettingsStore::settings(cx).status_bar
     }
 
-    pub(crate) fn compute_source_cursor_position(&self, cx: &App) -> (usize, usize) {
+    pub(crate) fn active_pane_cursor_position(&self, cx: &App) -> (usize, usize) {
         let active_pane = self.active_pane_id();
         if let Some(pos) = self
             .pane_state_ref(active_pane)

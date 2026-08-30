@@ -19,9 +19,7 @@ pub use actions::edit::*;
 pub use editor::export::ExportFormat;
 pub use editor::host_bridge::*;
 pub use editor::Editor;
-pub use navigation::{
-    NavigationExecutionPlan, NavigationIntent, NavigationMode, NavigationTarget,
-};
+pub use navigation::{NavigationExecutionPlan, NavigationIntent, NavigationTarget};
 pub use session::*;
 
 // Convenience aliases for transition

@@ -4,9 +4,7 @@ pub mod defs;
 pub mod edit;
 
 pub use defs::*;
-pub use edit::{
-    strip_markdown_line_prefix, BlockStructureKind, EditCommand, InlineFormatKind, InsertionKind,
-};
+pub use edit::{BlockStructureKind, EditCommand, InlineFormatKind, InsertionKind};
 
 use std::path::Path;
 
@@ -143,10 +141,19 @@ impl Editor {
     pub fn toggle_pane_kind(&mut self, cx: &mut Context<Self>) {
         let active_pane = self.active_pane_id();
         let current_kind = self.active_pane_kind();
-        let next_kind = if current_kind == PaneKindId::WYSIWYG {
-            PaneKindId::SOURCE_CODE
+        let descriptors = editor_model::PaneRegistry::global()
+            .lock()
+            .unwrap()
+            .all_descriptors();
+        let next_kind = if descriptors.is_empty() {
+            current_kind
         } else {
-            PaneKindId::WYSIWYG
+            let current_idx = descriptors
+                .iter()
+                .position(|d| d.kind() == current_kind)
+                .unwrap_or(0);
+            let next_idx = (current_idx + 1) % descriptors.len();
+            descriptors[next_idx].kind()
         };
         self.change_pane_kind(active_pane, next_kind);
 

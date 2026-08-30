@@ -2,6 +2,8 @@
 
 use gpui::*;
 
+use editor_model::PaneKindId;
+
 /// Target of a navigation request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NavigationTarget {
@@ -16,49 +18,28 @@ pub enum NavigationTarget {
     FootnoteReference { id: String },
 }
 
-/// The mode the navigation was initiated from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NavigationMode {
-    Wysiwyg,
-    Preview,
-    SourceCode,
-}
-
-/// A request to navigate to a target from a specific view mode and keyboard modifier state.
+/// A request to navigate to a target from a specific pane kind and keyboard modifier state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NavigationIntent {
     pub target: NavigationTarget,
-    pub mode: NavigationMode,
+    pub pane_kind: PaneKindId,
     pub modifiers: Modifiers,
 }
 
 impl NavigationIntent {
     #[inline]
-    pub fn new(target: NavigationTarget, mode: NavigationMode, modifiers: Modifiers) -> Self {
+    pub fn new(target: NavigationTarget, pane_kind: PaneKindId, modifiers: Modifiers) -> Self {
         Self {
             target,
-            mode,
+            pane_kind,
             modifiers,
         }
     }
 
-    /// Resolves the strict execution policy for this intent.
-    ///
-    /// Zero backwards compatibility rules:
-    /// - Preview mode:
-    ///   - External URL -> DirectOpen
-    ///   - FootnoteDefinition -> ScrollPreviewToFootnote
-    ///   - FootnoteReference -> ScrollPreviewToFootnoteRef
-    /// - WYSIWYG mode:
-    ///   - External URL -> Requires secondary modifier (Ctrl/Cmd); triggers PromptAndOpen
-    ///   - FootnoteDefinition -> Direct Jump in document (no modifier needed)
-    ///   - FootnoteReference -> Direct Jump back in document (no modifier needed)
-    ///   - Note: Double-click link open is strictly removed (word selection occurs instead).
-    /// - SourceCode mode:
-    ///   - External URL -> Requires secondary modifier (Ctrl/Cmd); triggers DirectOpen
+    /// Resolves the execution policy for this intent based on target and pane kind.
     pub fn resolve_policy(&self) -> Option<NavigationExecutionPlan> {
-        match self.mode {
-            NavigationMode::Preview => match &self.target {
+        if self.pane_kind == PaneKindId::PREVIEW {
+            match &self.target {
                 NavigationTarget::External { resolved, .. } => {
                     Some(NavigationExecutionPlan::OpenExternalUrl(resolved.clone()))
                 }
@@ -68,8 +49,9 @@ impl NavigationIntent {
                 NavigationTarget::FootnoteReference { id } => {
                     Some(NavigationExecutionPlan::ScrollPreviewToFootnoteRef(id.clone()))
                 }
-            },
-            NavigationMode::Wysiwyg => match &self.target {
+            }
+        } else {
+            match &self.target {
                 NavigationTarget::External { raw, resolved } => {
                     if self.modifiers.secondary() {
                         Some(NavigationExecutionPlan::PromptAndOpenExternalUrl {
@@ -85,18 +67,6 @@ impl NavigationIntent {
                 }
                 NavigationTarget::FootnoteReference { id } => {
                     Some(NavigationExecutionPlan::JumpToFootnoteRefInEditor(id.clone()))
-                }
-            },
-            NavigationMode::SourceCode => {
-                if self.modifiers.secondary() {
-                    match &self.target {
-                        NavigationTarget::External { resolved, .. } => {
-                            Some(NavigationExecutionPlan::OpenExternalUrl(resolved.clone()))
-                        }
-                        _ => None,
-                    }
-                } else {
-                    None
                 }
             }
         }
@@ -152,5 +122,3 @@ impl crate::editor::Editor {
         }
     }
 }
-
-

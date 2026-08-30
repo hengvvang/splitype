@@ -401,18 +401,8 @@ impl Editor {
     }
 
     #[inline]
-    pub fn is_wysiwyg(&self) -> bool {
-        self.active_pane_kind() == PaneKindId::WYSIWYG
-    }
-
-    #[inline]
-    pub fn is_source_code(&self) -> bool {
-        self.active_pane_kind() == PaneKindId::SOURCE_CODE
-    }
-
-    #[inline]
-    pub fn is_preview(&self) -> bool {
-        self.active_pane_kind() == PaneKindId::PREVIEW
+    pub fn is_pane_kind(&self, kind: PaneKindId) -> bool {
+        self.active_pane_kind() == kind
     }
 
     #[inline]
