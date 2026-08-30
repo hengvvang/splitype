@@ -413,17 +413,26 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 
 // ── Pane plugin contract ─────────────────────────────────────────────────
 
-use gpui::App;
+use gpui::{App, IntoElement};
 
-use editor_model::EditorPaneKind;
-use editor_model::{EditorDocument, Pane};
-impl Pane for SourceCodeState {
-    fn kind(&self) -> EditorPaneKind {
-        EditorPaneKind::SourceCode
+use editor_model::{EditorDocument, PaneKindId, PaneRenderContext, PaneView};
+
+impl PaneView for SourceCodeState {
+    fn kind(&self) -> PaneKindId {
+        PaneKindId::SOURCE_CODE
     }
 
     fn document_source(&self, _doc: &dyn EditorDocument, _cx: &App) -> String {
         self.text.clone()
+    }
+
+    fn render(
+        &mut self,
+        _ctx: &PaneRenderContext,
+        _window: &mut gpui::Window,
+        _cx: &mut App,
+    ) -> gpui::AnyElement {
+        gpui::div().into_any_element()
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

@@ -2,7 +2,7 @@
 //!
 //! Pane modes render and process input inside their own crates; whenever
 //! they need something only the coordinating `Editor` entity can do
-//! (focus routing, autoscroll, dirty marking, cross-mode sync, undo) they
+//! (focus routing, autoscroll, dirty marking, source sync, undo) they
 //! call through [`PaneHost`] instead of naming the entity. The app
 //! composition root injects an `Arc<dyn PaneHost>` proxy that re-enters
 //! the `Editor` through its weak handle, so the mode crates depend only
@@ -10,21 +10,22 @@
 
 use std::sync::Arc;
 
-use gpui::{App, Bounds, Point, Pixels, ScrollHandle, Window};
+use gpui::{App, ScrollHandle, Window};
 
 use crate::{AutoscrollStrategy, PaneId};
 
 /// Render context handed to a pane mode's render entry point: the pane's
-/// id, its scroll handle (owned by the view shell) and the host proxy.
+/// id, its focus state, its scroll handle (owned by the view shell) and the host proxy.
 pub struct PaneRenderContext<'a> {
     pub pane_id: PaneId,
+    pub is_focused: bool,
     pub scroll: &'a ScrollHandle,
     /// The host proxy; mode renderers clone the `Arc` into interaction
     /// callbacks, so the shared handle outlives the frame.
     pub host: &'a Arc<dyn PaneHost>,
 }
 
-/// Coordination-layer capabilities a pane mode may request while
+/// Universal coordination-layer capabilities a pane plugin may request while
 /// rendering or handling input. Implemented by a proxy that re-enters
 /// the `Editor` entity.
 pub trait PaneHost: Send + Sync + 'static {
@@ -51,15 +52,13 @@ pub trait PaneHost: Send + Sync + 'static {
     /// Notify the editor entity so it re-renders.
     fn notify(&self, cx: &mut App);
 
-    /// Flush a Source pane's buffer edits back into the session text
-    /// (the model-C text swap + cache invalidation).
+    /// Flush a Source pane's buffer edits back into the session text.
     fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App);
 
-    /// Record the Source pane's rendered bounds (IME candidate popup
-    /// positioning), written during the element's prepaint.
-    fn set_source_last_bounds(&self, pane_id: PaneId, bounds: Bounds<Pixels>, cx: &mut App);
+    /// Record the Source pane's rendered bounds (IME candidate popup positioning).
+    fn set_source_last_bounds(&self, pane_id: PaneId, bounds: gpui::Bounds<gpui::Pixels>, cx: &mut App);
 
-    /// Undo the most recent edit (block-tree based).
+    /// Undo the most recent edit.
     fn undo(&self, window: &mut Window, cx: &mut App);
 
     /// Redo the most recently undone edit.
@@ -70,7 +69,7 @@ pub trait PaneHost: Send + Sync + 'static {
         &self,
         pane_id: PaneId,
         block_index: usize,
-        position: Point<Pixels>,
+        position: gpui::Point<gpui::Pixels>,
         cx: &mut App,
     );
 
@@ -79,7 +78,7 @@ pub trait PaneHost: Send + Sync + 'static {
         &self,
         pane_id: PaneId,
         block_index: usize,
-        position: Point<Pixels>,
+        position: gpui::Point<gpui::Pixels>,
         cx: &mut App,
     );
 

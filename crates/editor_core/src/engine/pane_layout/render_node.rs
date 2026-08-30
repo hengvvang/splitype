@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::engine::controller::*;
-use crate::engine::session::EditorPaneKind;
+use crate::engine::session::PaneKindId;
 use config::language::I18nStrings;
 use theme::Theme;
 use splitter::SplitAxis;
@@ -12,7 +12,7 @@ use splitter::tree::SplitTree;
 impl Editor {
     pub(crate) fn render_editor_pane_node(
         &mut self,
-        node: &splitter::tree::SplitTree<crate::engine::session::EditorPaneKind>,
+        node: &splitter::tree::SplitTree<crate::engine::session::PaneKindId>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -40,20 +40,15 @@ impl Editor {
                 // (no tabs) every pane renders the guidance prompt instead
                 // of its view, so the split layout stays visible.
                 let inner_body: AnyElement = if self.panel_mode().is_editing() {
-                    match kind {
-                        // WYSIWYG — this editor's own block editor pane.
-                        EditorPaneKind::Wysiwyg => self.render_wysiwyg_pane(pane_id, window, cx),
-                        // Source — interactive source code editor. Uses a
-                        // cached block in source-document mode; edits sync
-                        // to the shared document via the block's Changed
-                        // event.
-                        EditorPaneKind::SourceCode => {
-                            self.sync_source_pane(pane_id, cx);
-                            self.render_source_pane(pane_id, theme, window, cx)
-                        }
-                        EditorPaneKind::Preview => {
-                            self.render_preview_pane(pane_id, theme, strings, window, cx)
-                        }
+                    if kind == PaneKindId::WYSIWYG {
+                        self.render_wysiwyg_pane(pane_id, window, cx)
+                    } else if kind == PaneKindId::SOURCE_CODE {
+                        self.sync_source_pane(pane_id, cx);
+                        self.render_source_pane(pane_id, theme, window, cx)
+                    } else if kind == PaneKindId::PREVIEW {
+                        self.render_preview_pane(pane_id, theme, strings, window, cx)
+                    } else {
+                        self.render_generic_pane(pane_id, window, cx)
                     }
                 } else {
                     self.render_welcome_prompt(pane_id, theme, cx)
@@ -325,6 +320,37 @@ impl Editor {
                     }
                 }
             }
+        }
+    }
+
+    pub(crate) fn render_generic_pane(
+        &mut self,
+        pane_id: PaneId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        if pane_id == self.active_pane_id() {
+            self.apply_pending_focus(pane_id, window, cx);
+            self.apply_pending_autoscroll(pane_id, window, cx);
+        }
+
+        let is_focused = self.focused_pane_id == Some(pane_id);
+        let scroll = self
+            .pane_state_ref(pane_id)
+            .map(|s| s.scroll.handle.clone())
+            .unwrap_or_default();
+        let host = self.pane_host.clone();
+        let render_ctx = editor_model::PaneRenderContext {
+            pane_id,
+            is_focused,
+            scroll: &scroll,
+            host: &host,
+        };
+
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.render(&render_ctx, window, cx)
+        } else {
+            div().into_any_element()
         }
     }
 }

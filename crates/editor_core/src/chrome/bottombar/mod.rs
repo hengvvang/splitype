@@ -97,7 +97,12 @@ impl Editor {
             let editing = mode.is_editing();
             let toggle_editor = cx.entity().downgrade();
             let label = if editing {
-                focused_kind.name().to_string()
+                editor_model::PaneRegistry::global()
+                    .lock()
+                    .unwrap()
+                    .get(focused_kind)
+                    .map(|d| d.display_name().to_string())
+                    .unwrap_or_else(|| focused_kind.as_str().to_string())
             } else {
                 mode.name().to_string()
             };

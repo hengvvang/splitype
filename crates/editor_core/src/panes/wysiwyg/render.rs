@@ -257,7 +257,7 @@ impl Editor {
             content_area
         };
 
-        let outline_hud = self.render_floating_outline_hud(pane_id, crate::engine::session::EditorPaneKind::Wysiwyg, &theme, cx);
+        let outline_hud = self.render_floating_outline_hud(pane_id, crate::engine::session::PaneKindId::WYSIWYG, &theme, cx);
         content_area.child(outline_hud).into_any_element()
     }
 

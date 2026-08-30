@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use gpui::{App, Context, EntityId, KeyDownEvent, Window};
 
 use crate::engine::controller::Editor;
-use editor_model::EditorPaneKind;
+use editor_model::PaneKindId;
 use editor_search::SearchQuery;
 use editor_search::{SearchActiveField, SearchMatch, SearchScope};
 
@@ -476,26 +476,22 @@ impl Editor {
             .unwrap_or_else(|| "Untitled".to_string());
 
         let active_pane = self.active_pane_id();
-        let pane_kind = self.pane_kind(active_pane).unwrap_or(EditorPaneKind::Wysiwyg);
+        let pane_kind = self.pane_kind(active_pane).unwrap_or(PaneKindId::WYSIWYG);
 
-        let mut pane_matches = match pane_kind {
-            EditorPaneKind::SourceCode => {
-                if let Some(source) = self.pane_state_ref(active_pane).and_then(|p| p.as_source_code()) {
-                    editor_source_code::search::search_in_source(source, query)
-                } else {
-                    Vec::new()
-                }
+        let mut pane_matches = if pane_kind == PaneKindId::SOURCE_CODE {
+            if let Some(source) = self.pane_state_ref(active_pane).and_then(|p| p.as_source_code()) {
+                editor_source_code::search::search_in_source(source, query)
+            } else {
+                Vec::new()
             }
-            EditorPaneKind::Preview => {
-                let markdown = self.serialized_document_text(cx);
-                editor_preview::search::search_in_preview(&markdown, query)
-            }
-            EditorPaneKind::Wysiwyg => {
-                if let Some(doc) = self.active_doc() {
-                    editor_wysiwyg::search::search_in_document(&doc, query, cx)
-                } else {
-                    Vec::new()
-                }
+        } else if pane_kind == PaneKindId::PREVIEW {
+            let markdown = self.serialized_document_text(cx);
+            editor_preview::search::search_in_preview(&markdown, query)
+        } else {
+            if let Some(doc) = self.active_doc() {
+                editor_wysiwyg::search::search_in_document(&doc, query, cx)
+            } else {
+                Vec::new()
             }
         };
 
@@ -631,54 +627,50 @@ impl Editor {
             .root
             .tree
             .find_leaf_kind(active_pane.0)
-            .unwrap_or(crate::engine::controller::EditorPaneKind::Wysiwyg);
+            .unwrap_or(crate::engine::controller::PaneKindId::WYSIWYG);
 
         if let Some(entity_id) = match_item.entity_id {
-            match pane_kind {
-                crate::engine::controller::EditorPaneKind::Wysiwyg => {
-                    self.focus_wysiwyg_block(entity_id);
-                    if let Some(doc) = self.active_doc() {
-                        if let Some(block) = doc.block_entity_by_id(entity_id) {
-                            let range = match_item.byte_range.clone();
-                            block.update(cx, |block, cx| {
-                                block.selected_range = range;
-                                block.selection_reversed = false;
-                                block.start_cursor_blink(cx);
-                                cx.notify();
-                            });
-                        }
+            if pane_kind == crate::engine::controller::PaneKindId::WYSIWYG {
+                self.focus_wysiwyg_block(entity_id);
+                if let Some(doc) = self.active_doc() {
+                    if let Some(block) = doc.block_entity_by_id(entity_id) {
+                        let range = match_item.byte_range.clone();
+                        block.update(cx, |block, cx| {
+                            block.selected_range = range;
+                            block.selection_reversed = false;
+                            block.start_cursor_blink(cx);
+                            cx.notify();
+                        });
                     }
                 }
-                crate::engine::controller::EditorPaneKind::SourceCode => {
-                    self.sync_source_pane(active_pane, cx);
-                    if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
-                        let raw_text = &source.text;
-                        let mut target_range = 0..0;
-                        let mut cur_line = 1usize;
-                        let mut cur_byte = 0usize;
-                        for line in raw_text.split_inclusive('\n') {
-                            if cur_line == match_item.line_number {
-                                let mut cur_col = 1usize;
-                                for (ch_idx, _) in line.char_indices() {
-                                    if cur_col == match_item.column_number {
-                                        let match_len = match_item.preview_match.len();
-                                        target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
-                                        break;
-                                    }
-                                    cur_col += 1;
+            } else if pane_kind == crate::engine::controller::PaneKindId::SOURCE_CODE {
+                self.sync_source_pane(active_pane, cx);
+                if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
+                    let raw_text = &source.text;
+                    let mut target_range = 0..0;
+                    let mut cur_line = 1usize;
+                    let mut cur_byte = 0usize;
+                    for line in raw_text.split_inclusive('\n') {
+                        if cur_line == match_item.line_number {
+                            let mut cur_col = 1usize;
+                            for (ch_idx, _) in line.char_indices() {
+                                if cur_col == match_item.column_number {
+                                    let match_len = match_item.preview_match.len();
+                                    target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                    break;
                                 }
-                                break;
+                                cur_col += 1;
                             }
-                            cur_byte += line.len();
-                            cur_line += 1;
+                            break;
                         }
-                        source.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
-                        source.cursor = target_range.end;
+                        cur_byte += line.len();
+                        cur_line += 1;
                     }
+                    source.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
+                    source.cursor = target_range.end;
                 }
-                crate::engine::controller::EditorPaneKind::Preview => {
-                    self.refresh_preview_blocks(active_pane, cx);
-                }
+            } else if pane_kind == crate::engine::controller::PaneKindId::PREVIEW {
+                self.refresh_preview_blocks(active_pane, cx);
             }
 
             self.sync_search_highlights_to_document(cx);
@@ -703,66 +695,62 @@ impl Editor {
                 .root
                 .tree
                 .find_leaf_kind(active_pane.0)
-                .unwrap_or(crate::engine::controller::EditorPaneKind::Wysiwyg);
+                .unwrap_or(crate::engine::controller::PaneKindId::WYSIWYG);
 
-            match pane_kind {
-                crate::engine::controller::EditorPaneKind::Wysiwyg => {
-                    let mut found_target = None;
-                    if let Some(doc) = self.active_doc() {
-                        let mut line_counter = 1usize;
-                        for entry in doc.blocks() {
-                            let block_text = entry.entity.read(cx).display_text().to_string();
-                            let block_lines = block_text.lines().count().max(1);
-                            if match_item.line_number >= line_counter
-                                && match_item.line_number < line_counter + block_lines
-                            {
-                                found_target = Some((entry.entity.clone(), entry.entity.entity_id()));
-                                break;
-                            }
-                            line_counter += block_lines;
+            if pane_kind == crate::engine::controller::PaneKindId::WYSIWYG {
+                let mut found_target = None;
+                if let Some(doc) = self.active_doc() {
+                    let mut line_counter = 1usize;
+                    for entry in doc.blocks() {
+                        let block_text = entry.entity.read(cx).display_text().to_string();
+                        let block_lines = block_text.lines().count().max(1);
+                        if match_item.line_number >= line_counter
+                            && match_item.line_number < line_counter + block_lines
+                        {
+                            found_target = Some((entry.entity.clone(), entry.entity.entity_id()));
+                            break;
                         }
-                    }
-                    if let Some((target_entity, entity_id)) = found_target {
-                        self.focus_wysiwyg_block(entity_id);
-                        let range = match_item.byte_range.clone();
-                        target_entity.update(cx, |block, cx| {
-                            block.selected_range = range;
-                            block.selection_reversed = false;
-                            block.start_cursor_blink(cx);
-                            cx.notify();
-                        });
+                        line_counter += block_lines;
                     }
                 }
-                crate::engine::controller::EditorPaneKind::SourceCode => {
-                    self.sync_source_pane(active_pane, cx);
-                    if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
-                        let raw_text = &source.text;
-                        let mut target_range = 0..0;
-                        let mut cur_line = 1usize;
-                        let mut cur_byte = 0usize;
-                        for line in raw_text.split_inclusive('\n') {
-                            if cur_line == match_item.line_number {
-                                let mut cur_col = 1usize;
-                                for (ch_idx, _) in line.char_indices() {
-                                    if cur_col == match_item.column_number {
-                                        let match_len = match_item.preview_match.len();
-                                        target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
-                                        break;
-                                    }
-                                    cur_col += 1;
+                if let Some((target_entity, entity_id)) = found_target {
+                    self.focus_wysiwyg_block(entity_id);
+                    let range = match_item.byte_range.clone();
+                    target_entity.update(cx, |block, cx| {
+                        block.selected_range = range;
+                        block.selection_reversed = false;
+                        block.start_cursor_blink(cx);
+                        cx.notify();
+                    });
+                }
+            } else if pane_kind == crate::engine::controller::PaneKindId::SOURCE_CODE {
+                self.sync_source_pane(active_pane, cx);
+                if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
+                    let raw_text = &source.text;
+                    let mut target_range = 0..0;
+                    let mut cur_line = 1usize;
+                    let mut cur_byte = 0usize;
+                    for line in raw_text.split_inclusive('\n') {
+                        if cur_line == match_item.line_number {
+                            let mut cur_col = 1usize;
+                            for (ch_idx, _) in line.char_indices() {
+                                if cur_col == match_item.column_number {
+                                    let match_len = match_item.preview_match.len();
+                                    target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                    break;
                                 }
-                                break;
+                                cur_col += 1;
                             }
-                            cur_byte += line.len();
-                            cur_line += 1;
+                            break;
                         }
-                        source.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
-                        source.cursor = target_range.end;
+                        cur_byte += line.len();
+                        cur_line += 1;
                     }
+                    source.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
+                    source.cursor = target_range.end;
                 }
-                crate::engine::controller::EditorPaneKind::Preview => {
-                    self.refresh_preview_blocks(active_pane, cx);
-                }
+            } else if pane_kind == crate::engine::controller::PaneKindId::PREVIEW {
+                self.refresh_preview_blocks(active_pane, cx);
             }
 
             self.sync_search_highlights_to_document(cx);

@@ -121,7 +121,7 @@ pub fn run(args: Args) {
         cx.set_global(settings::SettingsUiState::new());
         theme::TypographyStore::init(cx, settings.typography.clone());
         install_http_client(cx);
-        register_pane_factories();
+        register_pane_descriptors();
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
@@ -208,32 +208,52 @@ pub fn run(args: Args) {
     });
 }
 
-/// Registers one pane factory per editor mode kind. The composition root
-/// is the only place that names the mode crate types; the editor family
-/// creates pane states through the registry.
-pub(crate) fn register_pane_factories() {
-    use editor_model::{EditorPaneKind, Pane, PaneFactory};
+/// Registers all built-in pane descriptors into the global PaneRegistry.
+pub(crate) fn register_pane_descriptors() {
+    use editor_model::{PaneDescriptor, PaneKindId, PaneRegistry, PaneView};
+    use gpui::SharedString;
 
-    struct ModePaneFactory;
-
-    impl PaneFactory for ModePaneFactory {
-        fn new_pane(&self, kind: EditorPaneKind) -> Box<dyn Pane> {
-            match kind {
-                EditorPaneKind::Wysiwyg => {
-                    Box::new(editor_wysiwyg::WysiwygPaneState::default())
-                }
-                EditorPaneKind::SourceCode => {
-                    Box::new(editor_source_code::SourceCodeState::default())
-                }
-                EditorPaneKind::Preview => {
-                    Box::new(editor_core::panes::preview::PreviewState::default())
-                }
-            }
+    struct WysiwygDescriptor;
+    impl PaneDescriptor for WysiwygDescriptor {
+        fn kind(&self) -> PaneKindId {
+            PaneKindId::WYSIWYG
+        }
+        fn display_name(&self) -> SharedString {
+            "Wysiwyg".into()
+        }
+        fn create_pane(&self) -> Box<dyn PaneView> {
+            Box::new(editor_wysiwyg::WysiwygPaneState::default())
         }
     }
 
-    let mut registry = editor_model::PaneFactoryRegistry::global().lock().unwrap();
-    for kind in EditorPaneKind::all() {
-        registry.register(*kind, Box::new(ModePaneFactory));
+    struct PreviewDescriptor;
+    impl PaneDescriptor for PreviewDescriptor {
+        fn kind(&self) -> PaneKindId {
+            PaneKindId::PREVIEW
+        }
+        fn display_name(&self) -> SharedString {
+            "Preview".into()
+        }
+        fn create_pane(&self) -> Box<dyn PaneView> {
+            Box::new(editor_preview::PreviewState::default())
+        }
     }
+
+    struct SourceCodeDescriptor;
+    impl PaneDescriptor for SourceCodeDescriptor {
+        fn kind(&self) -> PaneKindId {
+            PaneKindId::SOURCE_CODE
+        }
+        fn display_name(&self) -> SharedString {
+            "Source Code".into()
+        }
+        fn create_pane(&self) -> Box<dyn PaneView> {
+            Box::new(editor_source_code::SourceCodeState::default())
+        }
+    }
+
+    let mut registry = PaneRegistry::global().lock().unwrap();
+    registry.register(std::sync::Arc::new(WysiwygDescriptor));
+    registry.register(std::sync::Arc::new(PreviewDescriptor));
+    registry.register(std::sync::Arc::new(SourceCodeDescriptor));
 }

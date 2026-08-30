@@ -147,11 +147,10 @@ impl Editor {
         }
         let active_pane = self.active_pane_id();
         let current_kind = self.active_pane_kind();
-        let next_kind = match current_kind {
-            EditorPaneKind::Wysiwyg => EditorPaneKind::SourceCode,
-            EditorPaneKind::SourceCode | EditorPaneKind::Preview => {
-                EditorPaneKind::Wysiwyg
-            }
+        let next_kind = if current_kind == PaneKindId::WYSIWYG {
+            PaneKindId::SOURCE_CODE
+        } else {
+            PaneKindId::WYSIWYG
         };
         self.change_pane_kind(active_pane, next_kind);
 

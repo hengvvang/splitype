@@ -88,7 +88,7 @@ impl Editor {
                         pane_id,
                     }),
             )
-            .child(self.render_floating_outline_hud(pane_id, EditorPaneKind::SourceCode, theme, cx))
+            .child(self.render_floating_outline_hud(pane_id, PaneKindId::SOURCE_CODE, theme, cx))
             .into_any_element()
     }
 }

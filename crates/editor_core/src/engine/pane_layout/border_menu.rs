@@ -3,7 +3,6 @@
 use gpui::*;
 
 use crate::engine::controller::*;
-use crate::engine::session::EditorPaneKind;
 use theme::Theme;
 use splitter::SplitAxis;
 use ui::popover::menu_panel;
@@ -86,7 +85,7 @@ impl Editor {
     pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
         pane_id: impl Into<PaneId>,
-        current_kind: crate::engine::session::EditorPaneKind,
+        current_kind: crate::engine::session::PaneKindId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -96,7 +95,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_kinds = EditorPaneKind::all();
+        let available_descriptors = editor_model::PaneRegistry::global().lock().unwrap().all_descriptors();
 
         menu_panel(c, d)
             .id(("inner-pane-dropdown-overlay", pane_id.0))
@@ -108,8 +107,9 @@ impl Editor {
             // the window bottom edge.
             .bottom(px(0.0))
             .w(px(d.menu_panel_width))
-            .children(available_kinds.iter().enumerate().map(|(idx, kind)| {
-                let kind = *kind;
+            .children(available_descriptors.into_iter().enumerate().map(|(idx, descriptor)| {
+                let kind = descriptor.kind();
+                let name = descriptor.display_name();
                 let is_current = kind == current_kind;
                 let option_editor = editor.clone();
                 div()
@@ -131,7 +131,7 @@ impl Editor {
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)
-                    .child(div().child(kind.name()))
+                    .child(div().child(name.to_string()))
                     .child(if is_current {
                         svg()
                             .path("icons/editor/bottombar/checkmark.svg")

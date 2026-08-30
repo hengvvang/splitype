@@ -72,7 +72,7 @@ impl Editor {
                 let current_kind = root
                     .tree
                     .find_leaf_kind(pane_id.0)
-                    .unwrap_or(EditorPaneKind::Wysiwyg);
+                    .unwrap_or(PaneKindId::WYSIWYG);
                 Some(self.render_editor_pane_dropdown_menu(pane_id, current_kind, theme, cx))
             } else {
                 None

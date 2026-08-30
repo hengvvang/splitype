@@ -1,10 +1,10 @@
 //! editor_model — the editor family's contract and vocabulary layer.
 //!
 //! This crate owns the *contract* types every editor mode (WYSIWYG,
-//! Source Code, Preview) and every consumer (outline, search, export)
-//! depends on — and nothing else: the pane-kind vocabulary, pane ids,
+//! Source Code, Preview, and custom plugins) and every consumer (outline, search, export)
+//! depends on — and nothing else: the pane-kind identifier, pane ids,
 //! the session primitives (tab kinds, open modes), the outline node
-//! type, the `Pane` plugin trait, the `PaneHost` reverse seam, and the
+//! type, the `PaneView` plugin trait, the `PaneHost` reverse seam, and the
 //! [`EditorHost`] dependency-inversion seam to the window shell.
 //!
 //! Dependency direction: modes and consumers depend on `editor_model`;
@@ -15,60 +15,21 @@
 pub use gpui;
 
 mod autoscroll;
-mod pane_factory;
 mod pane_host;
+mod pane_registry;
+mod pane_type;
+mod pane_view;
 
 pub use autoscroll::AutoscrollStrategy;
-pub use pane_factory::{PaneFactory, PaneFactoryRegistry};
 pub use pane_host::{PaneHost, PaneRenderContext};
+pub use pane_registry::{PaneDescriptor, PaneRegistry};
+pub use pane_type::PaneKindId;
+pub use pane_view::PaneView;
 
-/// The pane kinds an Editor panel can host: the document views
-/// inside its split tree. The tree holds only real views — the welcome
-/// state is the area's mode, not a panel kind — so the split structure
-/// survives tab open/close cycles unchanged and the remembered panel
-/// layout needs no migration.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum EditorPaneKind {
-    /// Raw Markdown source code editor.
-    SourceCode,
-    /// Visual block editor (WYSIWYG rendered view).
-    Wysiwyg,
-    /// Read-only rendered Markdown preview.
-    Preview,
-}
+/// Backward compatibility alias for PaneKindId.
+pub type EditorPaneKind = PaneKindId;
 
-impl EditorPaneKind {
-    #[inline]
-    pub fn is_wysiwyg(&self) -> bool {
-        matches!(self, Self::Wysiwyg)
-    }
-
-    #[inline]
-    pub fn is_source_code(&self) -> bool {
-        matches!(self, Self::SourceCode)
-    }
-
-    #[inline]
-    pub fn is_preview(&self) -> bool {
-        matches!(self, Self::Preview)
-    }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::SourceCode => "Source Code",
-            Self::Wysiwyg => "Wysiwyg",
-            Self::Preview => "Preview",
-        }
-    }
-
-    /// All editor pane types (status-bar dropdown options).
-    pub fn all() -> &'static [EditorPaneKind] {
-        &[Self::Wysiwyg, Self::Preview, Self::SourceCode]
-    }
-}
-
-/// The strongly-typed identifier of one inner tiled editor pane
-/// (WYSIWYG, Source Code, Preview).
+/// The strongly-typed identifier of one inner tiled editor pane.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PaneId(pub splitter::tree::NodeId);
 
@@ -119,7 +80,6 @@ pub enum OpenFileMode {
     Persistent,
 }
 
-use std::any::Any;
 use std::path::Path;
 
 use gpui::{App, Window};
@@ -178,19 +138,4 @@ pub trait EditorHost: Send + Sync + 'static {
 pub trait EditorDocument {
     /// Serialize the active document to markdown.
     fn serialize_markdown(&self, cx: &App) -> String;
-}
-
-/// The plugin contract implemented by every editor pane kind.
-pub trait Pane: Any {
-    /// Which pane kind this state belongs to.
-    fn kind(&self) -> EditorPaneKind;
-
-    /// Pure markdown source of the active tab, as this mode sees it.
-    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String;
-
-    /// Type-erased access for downcasting to the concrete mode state.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Type-erased mutable access for downcasting to the concrete mode state.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }

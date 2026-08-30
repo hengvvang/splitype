@@ -23,7 +23,7 @@ pub use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub use workspace::WindowPanelKind;
 pub use editor_outline::OutlineHudState;
 pub use crate::engine::session::{
-    EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, TabKind,
+    EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, PaneKindId, TabKind,
 };
 pub use editor_wysiwyg::document::block::Block;
 pub use editor_wysiwyg::document::Document;
@@ -158,7 +158,7 @@ pub struct DocumentTab {
 /// synchronize between panes because there is no shared view state.
 pub struct PaneState {
     pub scroll: ScrollState,
-    pub pane: Box<dyn editor_model::Pane>,
+    pub pane: Box<dyn editor_model::PaneView>,
 }
 
 impl DocumentTab {
@@ -176,7 +176,7 @@ impl DocumentTab {
 
 #[allow(dead_code)]
 impl PaneState {
-    pub fn new(kind: EditorPaneKind) -> Self {
+    pub fn new(kind: PaneKindId) -> Self {
         Self {
             scroll: ScrollState::default(),
             pane: new_pane_for_kind(kind),
@@ -184,11 +184,11 @@ impl PaneState {
     }
 
     #[inline]
-    pub fn kind(&self) -> EditorPaneKind {
+    pub fn kind(&self) -> PaneKindId {
         self.pane.kind()
     }
 
-    pub fn ensure_kind(&mut self, kind: EditorPaneKind) {
+    pub fn ensure_kind(&mut self, kind: PaneKindId) {
         if self.kind() == kind {
             return;
         }
@@ -251,10 +251,9 @@ impl PaneState {
 }
 
 /// Creates a fresh pane state for `kind` through the app-wide pane
-/// factory registry (the composition root registers one factory per
-/// mode kind at startup).
-pub fn new_pane_for_kind(kind: EditorPaneKind) -> Box<dyn editor_model::Pane> {
-    editor_model::PaneFactoryRegistry::global()
+/// registry (the composition root registers descriptors at startup).
+pub fn new_pane_for_kind(kind: PaneKindId) -> Box<dyn editor_model::PaneView> {
+    editor_model::PaneRegistry::global()
         .lock()
         .unwrap()
         .create(kind)
@@ -733,7 +732,7 @@ impl Editor {
 
     /// The view state of the pane with `pane_id`, creating it lazily.
     pub fn pane_state(&mut self, pane_id: PaneId) -> &mut PaneState {
-        let kind = self.pane_kind(pane_id).unwrap_or(EditorPaneKind::Wysiwyg);
+        let kind = self.pane_kind(pane_id).unwrap_or(PaneKindId::WYSIWYG);
         let tab = self.tab_mut();
         let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
         state.ensure_kind(kind);
@@ -742,7 +741,7 @@ impl Editor {
 
     /// The view state of the pane with `pane_id`, creating it lazily if an active tab exists.
     pub fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
-        let kind = self.pane_kind(pane_id).unwrap_or(EditorPaneKind::Wysiwyg);
+        let kind = self.pane_kind(pane_id).unwrap_or(PaneKindId::WYSIWYG);
         let tab = self.session.active_tab_mut()?;
         let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
         state.ensure_kind(kind);
@@ -853,36 +852,33 @@ impl Editor {
         }
         {
             let kind = self.session.root.tree.find_leaf_kind(pane_id.0);
-            match kind {
-                // The source panel's own buffer becomes the edit target.
-                Some(EditorPaneKind::SourceCode) => {
-                    self.sync_source_pane(pane_id, cx);
-                    if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                        if source.focus_handle.is_none() {
-                            source.focus_handle = Some(cx.focus_handle());
-                        }
-                        if let Some(ref handle) = source.focus_handle {
-                            handle.focus(window, cx);
-                        }
+            if kind == Some(PaneKindId::SOURCE_CODE) {
+                self.sync_source_pane(pane_id, cx);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    if source.focus_handle.is_none() {
+                        source.focus_handle = Some(cx.focus_handle());
+                    }
+                    if let Some(ref handle) = source.focus_handle {
+                        handle.focus(window, cx);
                     }
                 }
-                // Resume editing the shared document at the last position
-                // (falling back to the first block when it was rebuilt).
-                Some(EditorPaneKind::Wysiwyg) => {
-                    let doc = self.active_doc();
-                    let target = self
-                        .pane_state_ref(pane_id)
-                        .and_then(|state| state.as_wysiwyg())
-                        .and_then(|wysiwyg| wysiwyg.focus.active_entity)
-                        .or_else(|| doc.and_then(|d| d.first_root()).map(|b| b.entity_id()));
-                    if let Some(id) = target {
-                        if let Some(block) = doc.and_then(|d| d.block_entity_by_id(id)) {
-                            let focus_handle = block.read(cx).focus_handle.clone();
-                            focus_handle.focus(window, cx);
-                        }
+            } else if kind == Some(PaneKindId::WYSIWYG) {
+                let doc = self.active_doc();
+                let target = self
+                    .pane_state_ref(pane_id)
+                    .and_then(|state| state.as_wysiwyg())
+                    .and_then(|wysiwyg| wysiwyg.focus.active_entity)
+                    .or_else(|| doc.and_then(|d| d.first_root()).map(|b| b.entity_id()));
+                if let Some(id) = target {
+                    if let Some(block) = doc.and_then(|d| d.block_entity_by_id(id)) {
+                        let focus_handle = block.read(cx).focus_handle.clone();
+                        focus_handle.focus(window, cx);
                     }
                 }
-                _ => {}
+            } else if let Some(state) = self.pane_state_mut(pane_id) {
+                if let Some(handle) = state.pane.focus_handle(cx) {
+                    handle.focus(window, cx);
+                }
             }
         }
         cx.notify();
@@ -890,33 +886,33 @@ impl Editor {
 
     /// Query the pane kind of a specific pane.
     #[inline]
-    pub fn pane_kind(&self, pane_id: PaneId) -> Option<EditorPaneKind> {
+    pub fn pane_kind(&self, pane_id: PaneId) -> Option<PaneKindId> {
         self.session.root.tree.find_leaf(pane_id.0).map(|l| l.kind)
     }
 
     /// The active pane's kind.
     #[inline]
-    pub fn active_pane_kind(&self) -> EditorPaneKind {
+    pub fn active_pane_kind(&self) -> PaneKindId {
         self.pane_kind(self.active_pane_id())
-            .unwrap_or(EditorPaneKind::Wysiwyg)
+            .unwrap_or(PaneKindId::WYSIWYG)
     }
 
     /// True if the active pane is in WYSIWYG mode.
     #[inline]
     pub fn is_wysiwyg(&self) -> bool {
-        self.active_pane_kind().is_wysiwyg()
+        self.active_pane_kind() == PaneKindId::WYSIWYG
     }
 
     /// True if the active pane is in Source Code mode.
     #[inline]
     pub fn is_source_code(&self) -> bool {
-        self.active_pane_kind().is_source_code()
+        self.active_pane_kind() == PaneKindId::SOURCE_CODE
     }
 
     /// True if the active pane is in Preview mode.
     #[inline]
     pub fn is_preview(&self) -> bool {
-        self.active_pane_kind().is_preview()
+        self.active_pane_kind() == PaneKindId::PREVIEW
     }
 
     #[inline]
@@ -997,7 +993,7 @@ impl Editor {
     /// serialized document so the two editors are fully independent
     /// (separate undo, focus, scroll, and dirty state).
     pub fn clone_session(&self, cx: &mut Context<Self>) -> EditorSession {
-        let mut root = SplitterRoot::single_leaf(1, EditorPaneKind::SourceCode);
+        let mut root = SplitterRoot::single_leaf(1, PaneKindId::SOURCE_CODE);
         let mut next_id = 1;
         root.tree = self.session.root.tree.clone_with_new_ids(&mut next_id);
         root.next_node_id = next_id;

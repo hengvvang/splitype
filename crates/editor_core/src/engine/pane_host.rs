@@ -83,14 +83,14 @@ impl EditorSourceIme {
 /// carrying the pane kind and theme captured at render time.
 pub struct EditorOutlineHost {
     editor: WeakEntity<Editor>,
-    kind: editor_model::EditorPaneKind,
+    kind: editor_model::PaneKindId,
     theme: theme::Theme,
 }
 
 impl EditorOutlineHost {
     pub fn new(
         editor: WeakEntity<Editor>,
-        kind: editor_model::EditorPaneKind,
+        kind: editor_model::PaneKindId,
         theme: theme::Theme,
     ) -> Arc<Self> {
         Arc::new(Self { editor, kind, theme })

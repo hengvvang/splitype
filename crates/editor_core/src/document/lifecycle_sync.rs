@@ -82,39 +82,37 @@ impl Editor {
         _window: &Window,
         cx: &App,
     ) -> bool {
-        use crate::engine::controller::{AutoscrollStrategy, EditorPaneKind};
+        use crate::engine::controller::{AutoscrollStrategy, PaneKindId};
 
         let kind = self
             .session
             .root
             .tree
             .find_leaf_kind(pane_id.0)
-            .unwrap_or(EditorPaneKind::Wysiwyg);
+            .unwrap_or(PaneKindId::WYSIWYG);
 
         let active_bounds: Option<Bounds<Pixels>> = (|| {
-            match kind {
-                EditorPaneKind::Wysiwyg => {
-                    let doc = self.active_doc()?;
-                    let target_block = {
-                        let active_entity_id =
-                            self.pane_state_ref(pane_id)?.as_wysiwyg()?.focus.active_entity;
-                        active_entity_id
-                            .and_then(|id| doc.block_entity_by_id(id))
-                            .or_else(|| {
-                                doc.blocks().iter().find_map(|entry| {
-                                    let block = entry.entity.read(cx);
-                                    if block.search_matches.iter().any(|(_, is_active)| *is_active) {
-                                        Some(entry.entity.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                            })?
-                    };
-                    target_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
-                }
-                EditorPaneKind::SourceCode => None,
-                EditorPaneKind::Preview => None,
+            if kind == PaneKindId::WYSIWYG {
+                let doc = self.active_doc()?;
+                let target_block = {
+                    let active_entity_id =
+                        self.pane_state_ref(pane_id)?.as_wysiwyg()?.focus.active_entity;
+                    active_entity_id
+                        .and_then(|id| doc.block_entity_by_id(id))
+                        .or_else(|| {
+                            doc.blocks().iter().find_map(|entry| {
+                                let block = entry.entity.read(cx);
+                                if block.search_matches.iter().any(|(_, is_active)| *is_active) {
+                                    Some(entry.entity.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        })?
+                };
+                target_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
+            } else {
+                None
             }
         })();
 

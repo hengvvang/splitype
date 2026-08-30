@@ -2,11 +2,10 @@
 
 use std::ops::Range;
 
-use gpui::App;
+use gpui::{App, IntoElement};
 
 use crate::node::PreviewBlock;
 use crate::selection::{PreviewEndpoint, PreviewSelectionRange};
-use editor_model::{EditorDocument, EditorPaneKind, Pane};
 
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]
@@ -21,13 +20,24 @@ pub struct PreviewState {
     pub synced_revision: Option<u64>,
 }
 
-impl Pane for PreviewState {
-    fn kind(&self) -> EditorPaneKind {
-        EditorPaneKind::Preview
+use editor_model::{EditorDocument, PaneKindId, PaneRenderContext, PaneView};
+
+impl PaneView for PreviewState {
+    fn kind(&self) -> PaneKindId {
+        PaneKindId::PREVIEW
     }
 
     fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String {
         doc.serialize_markdown(cx)
+    }
+
+    fn render(
+        &mut self,
+        _ctx: &PaneRenderContext,
+        _window: &mut gpui::Window,
+        _cx: &mut App,
+    ) -> gpui::AnyElement {
+        gpui::div().into_any_element()
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

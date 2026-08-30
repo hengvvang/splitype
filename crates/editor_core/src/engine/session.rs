@@ -9,7 +9,7 @@
 //! contract types owned by the `editor` crate (migrated here for the
 //! editor-family split; re-exported so existing paths keep working).
 
-pub use editor_model::{EditorPaneKind, OpenFileMode, TabKind};
+pub use editor_model::{EditorPaneKind, OpenFileMode, PaneKindId, TabKind};
 
 use splitter::root::SplitterRoot;
 
@@ -198,7 +198,7 @@ pub struct EditorSession {
     pub tab_list: EditorTabList<crate::engine::controller::DocumentTab>,
     /// The pane layout's split root: the pane tree, its
     /// operations, and the active drag sessions.
-    pub root: SplitterRoot<EditorPaneKind>,
+    pub root: SplitterRoot<PaneKindId>,
 }
 
 impl EditorSession {
@@ -208,7 +208,7 @@ impl EditorSession {
     pub fn welcome() -> Self {
         Self {
             tab_list: EditorTabList::new(),
-            root: SplitterRoot::single_leaf(1, EditorPaneKind::SourceCode),
+            root: SplitterRoot::single_leaf(1, PaneKindId::SOURCE_CODE),
         }
     }
 

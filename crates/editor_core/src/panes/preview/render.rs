@@ -37,13 +37,15 @@ impl Editor {
             return div().w_full().h_full().into_any_element();
         };
 
+        let is_focused = self.focused_pane_id == Some(pane_id);
         let view = PaneRenderContext {
             pane_id,
+            is_focused,
             scroll: &scroll,
             host: &host,
         };
         let preview_body = editor_preview::render_preview_pane(state, &view, theme, strings, window, cx);
-        let outline_hud = self.render_floating_outline_hud(pane_id, crate::engine::session::EditorPaneKind::Preview, theme, cx);
+        let outline_hud = self.render_floating_outline_hud(pane_id, crate::engine::session::PaneKindId::PREVIEW, theme, cx);
         div()
             .relative()
             .w_full()

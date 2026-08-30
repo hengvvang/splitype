@@ -71,7 +71,7 @@ impl Editor {
                 &footnote_registry,
             );
             if let Some(state) = self.pane_state_mut(pane_id) {
-                state.ensure_kind(crate::engine::controller::EditorPaneKind::Preview);
+                state.ensure_kind(crate::engine::controller::PaneKindId::PREVIEW);
                 if let Some(preview) = state.as_preview_mut() {
                     preview.blocks = roots;
                     preview.source_hash = hash;
