@@ -21,7 +21,7 @@ use crate::app::actions::{
 };
 use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::app::shell::Shell;
-use editor_scheduler::engine::controller::Editor;
+use editor_core::engine::controller::Editor;
 use config::language::I18nManager;
 use theme::{Theme, ThemeManager};
 use ui::button::menu_bar_button;

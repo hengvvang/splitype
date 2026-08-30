@@ -10,7 +10,7 @@ members = [
     "crates/explorer_fs",
     "crates/workspace",
     "crates/editor_model",
-    "crates/editor_scheduler",
+    "crates/editor_core",
     "crates/editor_source_code",
     "crates/editor_search",
     "crates/editor_outline",
@@ -41,7 +41,7 @@ ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
 workspace = { path = "crates/workspace" }
 editor_model = { path = "crates/editor_model" }
-editor_scheduler = { path = "crates/editor_scheduler" }
+editor_core = { path = "crates/editor_core" }
 editor_source_code = { path = "crates/editor_source_code" }
 editor_search = { path = "crates/editor_search" }
 editor_outline = { path = "crates/editor_outline" }

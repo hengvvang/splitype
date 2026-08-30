@@ -1,5 +1,5 @@
 [package]
-name = "editor_scheduler"
+name = "editor_core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

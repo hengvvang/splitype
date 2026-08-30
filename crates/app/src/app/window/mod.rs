@@ -14,8 +14,8 @@ use crate::app::shell::{PanelContent, Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
-use editor_scheduler::engine::controller::Editor;
-use editor_scheduler::engine::session::EditorSession;
+use editor_core::engine::controller::Editor;
+use editor_core::engine::session::EditorSession;
 
 use explorer::ExplorerState;
 
@@ -64,9 +64,9 @@ pub(crate) fn open_editor_window(
                 let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        editor_scheduler::Editor::empty(cx)
+                        editor_core::Editor::empty(cx)
                     } else {
-                        editor_scheduler::Editor::from_markdown(cx, markdown, file_path)
+                        editor_core::Editor::from_markdown(cx, markdown, file_path)
                     }
 
                 });
@@ -135,7 +135,7 @@ pub(crate) fn open_cloned_window(
                 // Materialize one Editor entity per cloned session, and ensure all leaves exist.
                 let mut panel_contents = HashMap::new();
                 for (panel_id, session) in sessions {
-                    let editor = cx.new(|cx| editor_scheduler::Editor::with_session(panel_id, session, cx));
+                    let editor = cx.new(|cx| editor_core::Editor::with_session(panel_id, session, cx));
                     panel_contents.insert(panel_id, PanelContent::Editor(editor));
                 }
 
@@ -148,7 +148,7 @@ pub(crate) fn open_cloned_window(
                             WindowPanelKind::Explorer => PanelContent::Explorer,
                             WindowPanelKind::Settings => PanelContent::Settings,
                             WindowPanelKind::Editor => {
-                                let editor = cx.new(|cx| editor_scheduler::Editor::empty(cx));
+                                let editor = cx.new(|cx| editor_core::Editor::empty(cx));
                                 PanelContent::Editor(editor)
                             }
                         });

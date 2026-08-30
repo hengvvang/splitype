@@ -417,8 +417,6 @@ use gpui::App;
 
 use editor_model::EditorPaneKind;
 use editor_model::{EditorDocument, Pane};
-use editor_outline::OutlineNode;
-
 impl Pane for SourceCodeState {
     fn kind(&self) -> EditorPaneKind {
         EditorPaneKind::SourceCode
@@ -428,24 +426,11 @@ impl Pane for SourceCodeState {
         self.text.clone()
     }
 
-    fn set_search_matches(&mut self, matches: &[(std::ops::Range<usize>, bool)]) {
-        self.search_matches = matches.to_vec();
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-
-    fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
-        let text = if self.text.is_empty() {
-            doc.serialize_markdown(cx)
-        } else {
-            self.text.clone()
-        };
-        crate::outline::extract_outline_headings(&text)
     }
 }

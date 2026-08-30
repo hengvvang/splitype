@@ -13,7 +13,6 @@ path = "src/editor.rs"
 workspace = true
 
 [dependencies]
-editor_outline = { path = "../editor_outline" }
 gpui = { workspace = true }
 splitter = { path = "../splitter" }
 workspace = { path = "../workspace" }

@@ -14,8 +14,8 @@ use futures::FutureExt;
 use futures::channel::oneshot;
 
 use crate::app::shell::Shell;
-use editor_scheduler::engine::controller::{Editor, InfoDialogKind};
-use editor_scheduler::document::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use editor_core::engine::controller::{Editor, InfoDialogKind};
+use editor_core::document::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use config::language::{I18nManager, I18nStrings};
 use splitype_installer::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
@@ -51,7 +51,7 @@ impl Shell {
     pub(crate) fn editor_with_dialog(
         &self,
         cx: &App,
-        show: fn(&editor_scheduler::engine::controller::FileState) -> bool,
+        show: fn(&editor_core::engine::controller::FileState) -> bool,
 
     ) -> Option<Entity<Editor>> {
         self.panel_contents

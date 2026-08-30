@@ -226,7 +226,7 @@ pub(crate) fn register_pane_factories() {
                     Box::new(editor_source_code::SourceCodeState::default())
                 }
                 EditorPaneKind::Preview => {
-                    Box::new(editor_scheduler::panes::preview::PreviewState::default())
+                    Box::new(editor_core::panes::preview::PreviewState::default())
                 }
             }
         }

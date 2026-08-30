@@ -5,7 +5,7 @@
 //! the normalization/conflict logic that settings read. Pure data plus
 //! gpui's `Keystroke` parser; no editor imports, so `infra` never depends
 //! on the application layers. The runtime key-binding installation lives
-//! in `crate::editor_scheduler::keybindings`.
+//! in `crate::editor_core::keybindings`.
 
 use std::collections::{BTreeMap, BTreeSet};
 

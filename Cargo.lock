@@ -243,10 +243,10 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "config",
+ "editor_core",
  "editor_model",
  "editor_outline",
  "editor_preview",
- "editor_scheduler",
  "editor_search",
  "editor_source_code",
  "editor_wysiwyg",
@@ -1732,10 +1732,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
+name = "editor_core"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "config",
+ "editor_model",
+ "editor_outline",
+ "editor_preview",
+ "editor_search",
+ "editor_source_code",
+ "editor_wysiwyg",
+ "futures",
+ "gpui",
+ "splitter",
+ "theme",
+ "tracing",
+ "ui",
+ "unicode-segmentation",
+ "uuid",
+ "workspace",
+]
+
+[[package]]
 name = "editor_model"
 version = "0.0.1"
 dependencies = [
- "editor_outline",
  "gpui",
  "splitter",
  "workspace",
@@ -1761,29 +1783,6 @@ dependencies = [
  "gpui",
  "theme",
  "uuid",
-]
-
-[[package]]
-name = "editor_scheduler"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "config",
- "editor_model",
- "editor_outline",
- "editor_preview",
- "editor_search",
- "editor_source_code",
- "editor_wysiwyg",
- "futures",
- "gpui",
- "splitter",
- "theme",
- "tracing",
- "ui",
- "unicode-segmentation",
- "uuid",
- "workspace",
 ]
 
 [[package]]
