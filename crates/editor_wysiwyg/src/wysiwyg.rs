@@ -34,6 +34,8 @@ pub mod table_measure;
 pub mod http_client;
 
 pub mod state;
+pub mod outline;
+pub mod search;
 
 pub use pane::WysiwygPaneState;
 

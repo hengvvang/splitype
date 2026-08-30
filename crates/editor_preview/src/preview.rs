@@ -13,6 +13,8 @@
 
 pub mod node;
 pub mod render;
+pub mod outline;
+pub mod search;
 mod context;
 mod input;
 mod selection;

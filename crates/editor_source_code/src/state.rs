@@ -27,6 +27,17 @@ pub struct SourceCodeState {
 }
 
 impl SourceCodeState {
+    /// Creates a new SourceCodeState from initial text.
+    pub fn from_text(text: impl Into<String>) -> Self {
+        let text = text.into();
+        let mut state = Self {
+            text,
+            ..Default::default()
+        };
+        state.rebuild_lines();
+        state
+    }
+
     /// Rebuilds cached line byte ranges.
     pub fn rebuild_lines(&mut self) {
         let mut lines = Vec::new();
@@ -405,7 +416,8 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 use gpui::App;
 
 use editor_model::EditorPaneKind;
-use editor_model::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
+use editor_model::{EditorDocument, Pane};
+use editor_outline::OutlineNode;
 
 impl Pane for SourceCodeState {
     fn kind(&self) -> EditorPaneKind {
@@ -420,7 +432,6 @@ impl Pane for SourceCodeState {
         self.search_matches = matches.to_vec();
     }
 
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -428,14 +439,13 @@ impl Pane for SourceCodeState {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
+
     fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
-        // The source buffer is authoritative while it holds text; fall
-        // back to the shared document when the pane was never synced.
         let text = if self.text.is_empty() {
             doc.serialize_markdown(cx)
         } else {
             self.text.clone()
         };
-        outline_headings_from_markdown(&text)
+        crate::outline::extract_outline_headings(&text)
     }
 }

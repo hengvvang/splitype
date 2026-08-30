@@ -5,8 +5,6 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::engine::controller::{Editor, EditorPaneKind, PaneId};
-use crate::outline::build_outline_headings_from_doc;
-use editor_model::outline_headings_from_markdown;
 use theme::Theme;
 
 impl Editor {
@@ -50,7 +48,7 @@ impl Editor {
                     return;
                 }
 
-                self.outline.headings = outline_headings_from_markdown(&text_to_parse);
+                self.outline.headings = editor_source_code::outline::extract_outline_headings(&text_to_parse);
                 self.outline.synced_tab_index = Some(tab_idx);
                 self.outline.synced_file_path = file_path;
                 self.outline.synced_revision = Some(revision);
@@ -64,9 +62,9 @@ impl Editor {
                     return;
                 }
 
-                let mut headings = build_outline_headings_from_doc(self.doc(), cx);
+                let mut headings = editor_wysiwyg::outline::extract_outline_headings(self.doc(), cx);
                 if headings.is_empty() {
-                    headings = outline_headings_from_markdown(&self.doc().serialize_markdown(cx));
+                    headings = editor_source_code::outline::extract_outline_headings(&self.doc().serialize_markdown(cx));
                 }
 
                 self.outline.headings = headings;
@@ -86,7 +84,7 @@ impl Editor {
                     return;
                 }
 
-                self.outline.headings = outline_headings_from_markdown(&text);
+                self.outline.headings = editor_preview::outline::extract_outline_headings(&text);
                 self.outline.synced_tab_index = Some(tab_idx);
                 self.outline.synced_file_path = file_path;
                 self.outline.synced_revision = Some(revision);
@@ -116,7 +114,6 @@ impl Editor {
                 cx.background_executor()
                     .timer(Duration::from_millis(200))
                     .await;
-                // try-borrow path: a tick landing mid-render is skipped.
                 let _ = window_handle.update(cx, |_view, _window, cx| {
                     let _ = weak_editor.update(cx, |editor, cx| {
                         if editor.outline.close_token == token && editor.outline.is_hovered {
@@ -128,6 +125,8 @@ impl Editor {
             })
             .detach();
         }
+
+        cx.notify();
     }
 
     /// Navigates the editor to the specified heading in the outline.
@@ -174,9 +173,7 @@ impl Editor {
             EditorPaneKind::SourceCode => {
                 let pane_id = self.active_pane_id();
                 if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
-                    let line_start = source.line_start_offset(node.block_index);
-                    source.move_to(line_start, false);
-                    source.cursor = line_start;
+                    editor_source_code::outline::navigate_to_node(source, &node);
                 }
 
                 let font_size = theme.typography.code_size.max(12.0);
@@ -292,7 +289,7 @@ impl Editor {
                 theme.clone(),
             );
         editor_outline::render_floating_outline_hud(
-            pane_id,
+            pane_id.0,
             &self.outline.headings,
             self.outline.active_index,
             self.outline.is_hovered,

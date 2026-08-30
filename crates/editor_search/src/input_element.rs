@@ -37,7 +37,10 @@ impl Element for SearchInputElement {
     type PrepaintState = SearchInputPrepaintState;
 
     fn id(&self) -> Option<ElementId> {
-        None
+        match self.field {
+            SearchActiveField::Query => Some(ElementId::Name("search-query-input".into())),
+            SearchActiveField::Replace => Some(ElementId::Name("search-replace-input".into())),
+        }
     }
 
     fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {

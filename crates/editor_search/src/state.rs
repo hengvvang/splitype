@@ -3,8 +3,7 @@
 use std::ops::Range;
 use std::path::PathBuf;
 use gpui::{Bounds, EntityId, FocusHandle, Pixels};
-
-use editor_wysiwyg::markdown::parse::BlockId;
+use uuid::Uuid;
 
 #[inline]
 pub fn floor_char_boundary(s: &str, index: usize) -> usize {
@@ -322,7 +321,7 @@ pub struct SearchMatch {
     /// Display name of the file.
     pub file_name: String,
     /// Logical block identifier if match is in the active document.
-    pub block_id: Option<BlockId>,
+    pub block_id: Option<Uuid>,
     /// Block entity ID in the active document.
     pub entity_id: Option<EntityId>,
     /// Line number (1-indexed).

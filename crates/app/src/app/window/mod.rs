@@ -132,13 +132,29 @@ pub(crate) fn open_cloned_window(
         .open_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
-                // Materialize one Editor entity per cloned session.
+                // Materialize one Editor entity per cloned session, and ensure all leaves exist.
                 let mut panel_contents = HashMap::new();
                 for (panel_id, session) in sessions {
                     let editor = cx.new(|cx| editor_scheduler::Editor::with_session(panel_id, session, cx));
-
                     panel_contents.insert(panel_id, PanelContent::Editor(editor));
                 }
+
+                let mut leaf_ids = Vec::new();
+                tree.leaf_ids(&mut leaf_ids);
+                for leaf_id in leaf_ids {
+                    let panel_id = PanelId(leaf_id);
+                    if let Some(kind) = tree.find_leaf_kind(leaf_id) {
+                        panel_contents.entry(panel_id).or_insert_with(|| match kind {
+                            WindowPanelKind::Explorer => PanelContent::Explorer,
+                            WindowPanelKind::Settings => PanelContent::Settings,
+                            WindowPanelKind::Editor => {
+                                let editor = cx.new(|cx| editor_scheduler::Editor::empty(cx));
+                                PanelContent::Editor(editor)
+                            }
+                        });
+                    }
+                }
+
                 // The Shell owns the cloned outer layout; the explorer
                 // state travels as the app-wide global (a fresh state when
                 // the drag carried none).

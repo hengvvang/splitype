@@ -118,6 +118,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "adot-tree-sitter-toml"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95fdeddf7d69819d0e52ea0b20a9520fa2a88683aa180c9104d925318593c413"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "aes"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1727,6 +1737,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 name = "editor_model"
 version = "0.0.1"
 dependencies = [
+ "editor_outline",
  "gpui",
  "splitter",
  "workspace",
@@ -1736,7 +1747,6 @@ dependencies = [
 name = "editor_outline"
 version = "0.0.1"
 dependencies = [
- "editor_model",
  "gpui",
  "theme",
 ]
@@ -1747,6 +1757,8 @@ version = "0.0.1"
 dependencies = [
  "config",
  "editor_model",
+ "editor_outline",
+ "editor_search",
  "editor_wysiwyg",
  "gpui",
  "theme",
@@ -1780,21 +1792,25 @@ dependencies = [
 name = "editor_search"
 version = "0.0.1"
 dependencies = [
- "editor_wysiwyg",
  "gpui",
  "regex",
  "theme",
+ "uuid",
 ]
 
 [[package]]
 name = "editor_source_code"
 version = "0.0.1"
 dependencies = [
+ "adot-tree-sitter-toml",
  "editor_model",
+ "editor_outline",
+ "editor_search",
  "gpui",
  "lazy_static",
  "theme",
  "tree-sitter",
+ "tree-sitter-bash",
  "tree-sitter-c",
  "tree-sitter-c-sharp",
  "tree-sitter-cpp",
@@ -1805,7 +1821,10 @@ dependencies = [
  "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-json",
+ "tree-sitter-md",
+ "tree-sitter-php",
  "tree-sitter-python",
+ "tree-sitter-ruby",
  "tree-sitter-rust",
  "tree-sitter-typescript",
  "tree-sitter-yaml",
@@ -1815,6 +1834,7 @@ dependencies = [
 name = "editor_wysiwyg"
 version = "0.0.1"
 dependencies = [
+ "adot-tree-sitter-toml",
  "anyhow",
  "base64",
  "chromiumoxide",
@@ -1822,6 +1842,8 @@ dependencies = [
  "cssparser",
  "directories",
  "editor_model",
+ "editor_outline",
+ "editor_search",
  "futures",
  "gpui",
  "image",
@@ -1842,6 +1864,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tree-sitter",
+ "tree-sitter-bash",
  "tree-sitter-c",
  "tree-sitter-c-sharp",
  "tree-sitter-cpp",
@@ -1852,7 +1875,10 @@ dependencies = [
  "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-json",
+ "tree-sitter-md",
+ "tree-sitter-php",
  "tree-sitter-python",
+ "tree-sitter-ruby",
  "tree-sitter-rust",
  "tree-sitter-typescript",
  "tree-sitter-yaml",
@@ -6920,6 +6946,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-bash"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e5ec769279cc91b561d3df0d8a5deb26b0ad40d183127f409494d6d8fc53062"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "tree-sitter-c"
 version = "0.23.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7028,10 +7064,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
 
 [[package]]
+name = "tree-sitter-md"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2efd398be546456c814598ee56c0f51769a77241511b4a58077815d120afa882"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-php"
+version = "0.24.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d8c17c3ab69052c5eeaa7ff5cd972dd1bc25d1b97ee779fec391ad3b5df5592"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "tree-sitter-python"
 version = "0.23.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d065aaa27f3aaceaf60c1f0e0ac09e1cb9eb8ed28e7bcdaa52129cffc7f4b04"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "tree-sitter-ruby"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be0484ea4ef6bb9c575b4fdabde7e31340a8d2dbc7d52b321ac83da703249f95"
 dependencies = [
  "cc",
  "tree-sitter-language",

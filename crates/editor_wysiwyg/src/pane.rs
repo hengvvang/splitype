@@ -5,7 +5,8 @@ use std::ops::Range;
 use gpui::App;
 
 use crate::state::{FocusState, SelectionState};
-use editor_model::{outline_headings_from_markdown, EditorDocument, EditorPaneKind, OutlineNode, Pane};
+use editor_model::{EditorDocument, EditorPaneKind, Pane};
+use editor_outline::OutlineNode;
 
 /// View state specific to a WYSIWYG editor pane.
 #[derive(Default)]
@@ -30,11 +31,7 @@ impl Pane for WysiwygPaneState {
     }
 
     fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
-        let mut headings = doc.outline_headings(cx);
-        if headings.is_empty() {
-            headings = outline_headings_from_markdown(&doc.serialize_markdown(cx));
-        }
-        headings
+        doc.outline_headings(cx)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

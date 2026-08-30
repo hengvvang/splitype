@@ -13,6 +13,5 @@ path = "src/outline.rs"
 workspace = true
 
 [dependencies]
-editor_model = { path = "../editor_model" }
 gpui = { workspace = true }
 theme = { path = "../theme" }

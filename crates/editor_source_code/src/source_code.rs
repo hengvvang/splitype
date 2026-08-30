@@ -13,8 +13,13 @@ mod element;
 mod highlight;
 mod input;
 mod state;
+pub mod outline;
+pub mod search;
 
 pub use element::{SourceCodeViewElement, SourceIme, SourceStateView, SourceViewSnapshot};
-pub use highlight::build_line_text_runs;
+pub use highlight::{build_line_text_runs, prewarm_code_highlight_registry};
 pub use input::{handle_key_down, handle_mouse_down, handle_mouse_move, handle_mouse_up};
 pub use state::SourceCodeState;
+
+#[cfg(test)]
+mod tests;

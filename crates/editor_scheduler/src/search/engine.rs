@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use gpui::{App, Context, EntityId, KeyDownEvent, Window};
 
 use crate::engine::controller::Editor;
+use editor_model::EditorPaneKind;
 use editor_search::SearchQuery;
 use editor_search::{SearchActiveField, SearchMatch, SearchScope};
 
@@ -458,7 +459,7 @@ impl Editor {
         cx.stop_propagation();
     }
 
-    /// Searches inside the currently active document's blocks.
+    /// Searches inside the currently active document's blocks or source code buffer.
     fn search_in_current_document(
         &self,
         query: &SearchQuery,
@@ -474,36 +475,35 @@ impl Editor {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
             .unwrap_or_else(|| "Untitled".to_string());
 
-        let Some(doc) = self.active_doc() else {
-            return;
-        };
-        let blocks = doc.blocks();
-        let mut line_counter = 1usize;
+        let active_pane = self.active_pane_id();
+        let pane_kind = self.pane_kind(active_pane).unwrap_or(EditorPaneKind::Wysiwyg);
 
-        for entry in blocks {
-            let entity = &entry.entity;
-            let entity_id = entity.entity_id();
-            let block_id = entity.read_with(cx, |b, _| b.data.id);
-            let text = entity.read_with(cx, |b, _| b.display_text().to_string());
-
-            for raw in query.find_matches(&text, line_counter) {
-                matches.push(SearchMatch {
-                    file_path: active_file_path.clone(),
-                    file_name: file_name.clone(),
-                    block_id: Some(block_id),
-                    entity_id: Some(entity_id),
-                    line_number: raw.line_number,
-                    column_number: raw.column_number,
-                    byte_range: raw.byte_range,
-                    preview_prefix: raw.preview_prefix,
-                    preview_match: raw.preview_match,
-                    preview_suffix: raw.preview_suffix,
-                });
+        let mut pane_matches = match pane_kind {
+            EditorPaneKind::SourceCode => {
+                if let Some(source) = self.pane_state_ref(active_pane).and_then(|p| p.as_source_code()) {
+                    editor_source_code::search::search_in_source(source, query)
+                } else {
+                    Vec::new()
+                }
             }
+            EditorPaneKind::Preview => {
+                let markdown = self.serialized_document_text(cx);
+                editor_preview::search::search_in_preview(&markdown, query)
+            }
+            EditorPaneKind::Wysiwyg => {
+                if let Some(doc) = self.active_doc() {
+                    editor_wysiwyg::search::search_in_document(&doc, query, cx)
+                } else {
+                    Vec::new()
+                }
+            }
+        };
 
-            let block_lines = text.lines().count().max(1);
-            line_counter += block_lines;
+        for m in &mut pane_matches {
+            m.file_path = active_file_path.clone();
+            m.file_name = file_name.clone();
         }
+        matches.extend(pane_matches);
     }
 
     /// Searches inside all files belonging to open worktree directories.
@@ -777,6 +777,7 @@ impl Editor {
     }
 
     /// Replaces the current search match in the document.
+    /// Replaces the current search match in the document or source code.
     pub fn replace_current_search_match(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
         let Some(active_idx) = self.search.active_match_index else {
             return;
@@ -784,17 +785,13 @@ impl Editor {
         let Some(match_item) = self.search.matches.get(active_idx).cloned() else {
             return;
         };
-        let Some(entity_id) = match_item.entity_id else {
-            return;
-        };
-        let Some(doc) = self.active_doc() else {
-            return;
-        };
-        let Some(block) = doc.block_entity_by_id(entity_id) else {
-            return;
-        };
 
-        let replace_str = self.search.replace_query().to_string();
+        let raw_replace_str = self.search.replace_query().to_string();
+        let final_replace_str = editor_search::query::compute_preserve_case_replacement(
+            &match_item.preview_match,
+            &raw_replace_str,
+            self.search.preserve_case,
+        );
         let range = match_item.byte_range.clone();
 
         self.prepare_undo_capture(
@@ -802,27 +799,35 @@ impl Editor {
             cx,
         );
 
-        block.update(cx, |block, cx| {
-            let current_text = block.display_text().to_string();
-            if range.start <= current_text.len()
-                && range.end <= current_text.len()
-                && current_text.is_char_boundary(range.start)
-                && current_text.is_char_boundary(range.end)
-            {
-                let mut new_text = current_text[..range.start].to_string();
-                new_text.push_str(&replace_str);
-                new_text.push_str(&current_text[range.end..]);
-                block.data.text = editor_wysiwyg::markdown::inline::text::BlockText::plain(new_text);
-                block.selected_range = range.start..(range.start + replace_str.len());
-                block.refresh_cached_display_text();
-                block.sync_render_cache();
-                cx.notify();
+        if let Some(entity_id) = match_item.entity_id {
+            if let Some(doc) = self.active_doc() {
+                editor_wysiwyg::search::replace_in_block_entity(
+                    &doc,
+                    entity_id,
+                    range,
+                    &final_replace_str,
+                    cx,
+                );
+                self.mark_dirty(cx);
             }
-        });
+        } else {
+            let active_pane = self.active_pane_id();
+            if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
+                editor_source_code::search::replace_in_source(source, range, &final_replace_str);
+                self.mark_dirty(cx);
+            } else if let Some(ref file_path) = match_item.file_path {
+                if let Ok(content) = fs::read_to_string(file_path) {
+                    if range.start <= content.len() && range.end <= content.len() {
+                        let mut new_content = content[..range.start].to_string();
+                        new_content.push_str(&final_replace_str);
+                        new_content.push_str(&content[range.end..]);
+                        let _ = fs::write(file_path, new_content);
+                    }
+                }
+            }
+        }
 
-        self.mark_dirty(cx);
         self.finalize_pending_undo_capture(cx);
-
         self.execute_search(cx);
         self.jump_to_active_search_match(window, cx);
     }
@@ -833,58 +838,76 @@ impl Editor {
             return;
         }
 
-        let replace_str = self.search.replace_query().to_string();
+        let raw_replace_str = self.search.replace_query().to_string();
 
         self.prepare_undo_capture(
             editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
 
-        let mut matches_by_entity: std::collections::HashMap<EntityId, Vec<Range<usize>>> =
+        let mut matches_by_entity: std::collections::HashMap<EntityId, Vec<(Range<usize>, String)>> =
+            std::collections::HashMap::new();
+
+        let mut source_replacements: Vec<(Range<usize>, String)> = Vec::new();
+        let mut disk_replacements: std::collections::HashMap<PathBuf, Vec<(Range<usize>, String)>> =
             std::collections::HashMap::new();
 
         for m in &self.search.matches {
+            let final_replace_str = editor_search::query::compute_preserve_case_replacement(
+                &m.preview_match,
+                &raw_replace_str,
+                self.search.preserve_case,
+            );
+
             if let Some(entity_id) = m.entity_id {
                 matches_by_entity
                     .entry(entity_id)
                     .or_default()
-                    .push(m.byte_range.clone());
+                    .push((m.byte_range.clone(), final_replace_str));
+            } else if m.file_path.is_none() {
+                source_replacements.push((m.byte_range.clone(), final_replace_str));
+            } else if let Some(ref path) = m.file_path {
+                disk_replacements
+                    .entry(path.clone())
+                    .or_default()
+                    .push((m.byte_range.clone(), final_replace_str));
             }
         }
 
-        let Some(doc) = self.active_doc() else {
-            return;
-        };
+        if let Some(doc) = self.active_doc() {
+            for (entity_id, ranges) in matches_by_entity {
+                for (range, rep_str) in ranges {
+                    editor_wysiwyg::search::replace_in_block_entity(
+                        &doc,
+                        entity_id,
+                        range,
+                        &rep_str,
+                        cx,
+                    );
+                }
+            }
+            self.mark_dirty(cx);
+        }
 
-        for (entity_id, mut ranges) in matches_by_entity {
-            if let Some(block) = doc.block_entity_by_id(entity_id) {
-                ranges.sort_by_key(|r| std::cmp::Reverse(r.start));
+        let active_pane = self.active_pane_id();
+        if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
+            editor_source_code::search::replace_all_in_source(source, source_replacements);
+            self.mark_dirty(cx);
+        }
 
-                block.update(cx, |block, cx| {
-                    let mut current_text = block.display_text().to_string();
-                    for range in ranges {
-                        if range.start <= current_text.len()
-                            && range.end <= current_text.len()
-                            && current_text.is_char_boundary(range.start)
-                            && current_text.is_char_boundary(range.end)
-                        {
-                            let mut new_text = current_text[..range.start].to_string();
-                            new_text.push_str(&replace_str);
-                            new_text.push_str(&current_text[range.end..]);
-                            current_text = new_text;
-                        }
+        for (path, mut ranges) in disk_replacements {
+            if let Ok(mut content) = fs::read_to_string(&path) {
+                ranges.sort_by_key(|(r, _)| std::cmp::Reverse(r.start));
+                for (range, rep_str) in ranges {
+                    if range.start <= content.len() && range.end <= content.len() {
+                        content.replace_range(range, &rep_str);
                     }
-                    block.data.text = editor_wysiwyg::markdown::inline::text::BlockText::plain(current_text);
-                    block.refresh_cached_display_text();
-                    block.sync_render_cache();
-                    cx.notify();
-                });
+                }
+                let _ = fs::write(&path, content);
             }
         }
 
-        self.mark_dirty(cx);
         self.finalize_pending_undo_capture(cx);
-
         self.execute_search(cx);
     }
 }

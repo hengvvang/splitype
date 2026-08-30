@@ -67,27 +67,3 @@ impl fmt::Display for DocumentId {
     }
 }
 
-/// Generic element ID wrapper.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ElementId(pub u64);
-
-/// Node ID for split tree containers and panes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct NodeId(pub u64);
-
-static NEXT_NODE_ID: AtomicU64 = AtomicU64::new(1);
-
-impl NodeId {
-    #[inline]
-    #[must_use]
-    pub fn next() -> Self {
-        Self(NEXT_NODE_ID.fetch_add(1, Ordering::Relaxed))
-    }
-}
-
-impl Default for NodeId {
-    fn default() -> Self {
-        Self::next()
-    }
-}
-

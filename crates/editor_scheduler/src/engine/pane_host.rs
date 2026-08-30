@@ -38,6 +38,12 @@ impl EditorSourceView {
 }
 
 impl editor_source_code::SourceStateView for EditorSourceView {
+    fn total_lines(&self, pane_id: PaneId, cx: &App) -> Option<usize> {
+        let editor = self.editor.upgrade()?;
+        let state = editor.read(cx).pane_state_ref(pane_id)?.as_source_code()?;
+        Some(state.line_ranges.len().max(1))
+    }
+
     fn snapshot(
         &self,
         pane_id: PaneId,

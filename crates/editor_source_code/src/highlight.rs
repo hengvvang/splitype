@@ -271,6 +271,39 @@ impl CodeHighlightRegistry {
 
         Some(arc_config)
     }
+
+    fn prewarm_all(&self) {
+        const ALL_KEYS: &[CodeLanguageKey] = &[
+            CodeLanguageKey::Rust,
+            CodeLanguageKey::JavaScript,
+            CodeLanguageKey::JavaScriptJsx,
+            CodeLanguageKey::TypeScript,
+            CodeLanguageKey::TypeScriptTsx,
+            CodeLanguageKey::Json,
+            CodeLanguageKey::Markdown,
+            CodeLanguageKey::Bash,
+            CodeLanguageKey::C,
+            CodeLanguageKey::Cpp,
+            CodeLanguageKey::CSharp,
+            CodeLanguageKey::Css,
+            CodeLanguageKey::Go,
+            CodeLanguageKey::Html,
+            CodeLanguageKey::Java,
+            CodeLanguageKey::Php,
+            CodeLanguageKey::Python,
+            CodeLanguageKey::Ruby,
+            CodeLanguageKey::Yaml,
+            CodeLanguageKey::Toml,
+        ];
+        for &key in ALL_KEYS {
+            let _ = self.config_for(key);
+        }
+    }
+}
+
+#[cfg(feature = "code-highlight-core")]
+pub fn prewarm_code_highlight_registry() {
+    CODE_HIGHLIGHT_REGISTRY.prewarm_all();
 }
 
 #[cfg(feature = "code-highlight-core")]

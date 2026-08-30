@@ -16,4 +16,4 @@ workspace = true
 gpui = { workspace = true }
 regex = "1.10"
 theme = { path = "../theme" }
-editor_wysiwyg = { path = "../editor_wysiwyg" }
+uuid = { workspace = true }

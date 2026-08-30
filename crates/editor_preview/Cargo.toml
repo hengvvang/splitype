@@ -16,6 +16,8 @@ workspace = true
 config = { path = "../config" }
 gpui = { workspace = true }
 editor_model = { path = "../editor_model" }
+editor_outline = { path = "../editor_outline" }
+editor_search = { path = "../editor_search" }
 # The read-only render world consumes the WYSIWYG world's public
 # services: block data types, footnote registry and image handles.
 editor_wysiwyg = { path = "../editor_wysiwyg" }

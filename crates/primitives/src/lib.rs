@@ -7,7 +7,7 @@ pub mod error;
 pub mod id;
 
 pub use error::{CoreError, CoreResult};
-pub use id::{BlockId, DocumentId, ElementId, NodeId};
+pub use id::{BlockId, DocumentId};
 
 /// Reverse-DNS application id used by GPUI, desktop launchers, and bundles.
 pub const SPLITYPE_APP_ID: &str = "com.hengvvang.splitype";

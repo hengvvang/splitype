@@ -10,7 +10,7 @@ rust-version.workspace = true
 path = "src/wysiwyg.rs"
 
 [features]
-default = ["html-native", "code-highlight-core"]
+default = ["html-native", "code-highlight-core", "code-highlight-official", "code-highlight-config"]
 html-native = []
 code-highlight-core = [
     "tree-sitter-c", "tree-sitter-cpp", "tree-sitter-c-sharp", "tree-sitter-css",
@@ -18,8 +18,14 @@ code-highlight-core = [
     "tree-sitter-json", "tree-sitter-python", "tree-sitter-rust", "tree-sitter-typescript",
     "tree-sitter-yaml",
 ]
-code-highlight-official = ["code-highlight-core"]
-code-highlight-config = ["code-highlight-core"]
+code-highlight-official = [
+    "code-highlight-core",
+    "tree-sitter-md", "tree-sitter-bash", "tree-sitter-php", "tree-sitter-ruby",
+]
+code-highlight-config = [
+    "code-highlight-core",
+    "tree-sitter-toml",
+]
 
 [lints]
 workspace = true
@@ -29,6 +35,8 @@ gpui = { workspace = true }
 primitives = { path = "../primitives" }
 theme = { path = "../theme" }
 editor_model = { path = "../editor_model" }
+editor_outline = { path = "../editor_outline" }
+editor_search = { path = "../editor_search" }
 workspace = { path = "../workspace" }
 config = { path = "../config" }
 ui = { path = "../ui" }
@@ -61,6 +69,7 @@ tree-sitter-highlight = "0.26.9"
 lazy_static = "1.5"
 
 # Code-block syntax highlighting languages (self-hosted, D14-B).
+tree-sitter-bash = { version = "0.25", optional = true }
 tree-sitter-c = { version = "0.23", optional = true }
 tree-sitter-cpp = { version = "0.23", optional = true }
 tree-sitter-c-sharp = { version = "0.23", optional = true }
@@ -69,7 +78,11 @@ tree-sitter-go = { version = "0.23", optional = true }
 tree-sitter-java = { version = "0.23", optional = true }
 tree-sitter-javascript = { version = "0.23", optional = true }
 tree-sitter-json = { version = "0.24", optional = true }
+tree-sitter-md = { version = "0.5", optional = true }
+tree-sitter-php = { version = "0.24", optional = true }
 tree-sitter-python = { version = "0.23", optional = true }
+tree-sitter-ruby = { version = "0.23", optional = true }
 tree-sitter-rust = { version = "0.23", optional = true }
+tree-sitter-toml = { package = "adot-tree-sitter-toml", version = "0.1", optional = true }
 tree-sitter-typescript = { version = "0.23", optional = true }
 tree-sitter-yaml = { version = "0.7", optional = true }

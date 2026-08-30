@@ -17,6 +17,11 @@ use crate::highlight::{CodeHighlightSpan, build_line_text_runs};
 /// The coordinating crate implements this on its entity; the element
 /// consumes the owned snapshot so no type crosses the crate boundary.
 pub trait SourceStateView: Send + Sync + 'static {
+    /// Returns the number of lines in the buffer without deep cloning.
+    fn total_lines(&self, pane_id: PaneId, cx: &App) -> Option<usize> {
+        self.snapshot(pane_id, cx).map(|s| s.line_ranges.len().max(1))
+    }
+
     /// Snapshot of the state fields needed to lay out and paint.
     fn snapshot(&self, pane_id: PaneId, cx: &App) -> Option<SourceViewSnapshot>;
 }
@@ -63,6 +68,7 @@ pub struct SourceCodePrepaintState {
     pub(crate) active_line_quad: Option<PaintQuad>,
     pub(crate) gutter_numbers: Vec<(usize, ShapedLine, bool)>, // (row, shaped_number, is_active)
     pub(crate) hitbox: Option<Hitbox>,
+    pub(crate) focus_handle: Option<FocusHandle>,
 }
 
 impl IntoElement for SourceCodeViewElement {
@@ -101,14 +107,7 @@ impl Element for SourceCodeViewElement {
 
         let total_lines = self
             .view
-            .snapshot(self.pane_id, cx)
-            .map(|s| {
-                if s.line_ranges.is_empty() {
-                    1
-                } else {
-                    s.line_ranges.len()
-                }
-            })
+            .total_lines(self.pane_id, cx)
             .unwrap_or(1);
 
         let content_height = (total_lines as f32) * line_height + editor_padding * 2.0;
@@ -136,7 +135,7 @@ impl Element for SourceCodeViewElement {
         let editor_padding = theme.dimensions.editor_padding;
         let font = TypographyStore::default_font(TypographyScope::Code);
 
-        let (text, line_ranges, cursor, selection, spans, is_focused) = match self
+        let (text, line_ranges, cursor, selection, spans, is_focused, focus_handle) = match self
             .view
             .snapshot(self.pane_id, cx)
         {
@@ -152,9 +151,10 @@ impl Element for SourceCodeViewElement {
                     snap.selection,
                     snap.highlight_spans,
                     is_focused,
+                    snap.focus_handle,
                 )
             }
-            None => (String::new(), vec![0..0], 0, None, Vec::new(), false),
+            None => (String::new(), vec![0..0], 0, None, Vec::new(), false, None),
         };
 
         // Record bounds for IME candidate popup window
@@ -271,28 +271,30 @@ impl Element for SourceCodeViewElement {
                 ));
             }
 
-            // Gutter line numbers
-            let line_num_str = format!("{}", row + 1);
-            let num_color = if row == cursor_line {
+            shaped_lines.push((row, shaped_line));
+
+            // Shape Gutter line number
+            let num_str = (row + 1).to_string();
+            let is_active_row = row == cursor_line;
+            let num_color = if is_active_row {
                 theme.colors.text_default
             } else {
                 theme.colors.dialog_muted
             };
+
             let num_run = TextRun {
-                len: line_num_str.len(),
+                len: num_str.len(),
                 font: font.clone(),
                 color: num_color,
                 ..Default::default()
             };
             let shaped_num = window.text_system().shape_line(
-                SharedString::new(line_num_str),
+                SharedString::new(num_str),
                 px(font_size),
                 &[num_run],
                 None,
             );
-
-            gutter_numbers.push((row, shaped_num, row == cursor_line));
-            shaped_lines.push((row, shaped_line));
+            gutter_numbers.push((row, shaped_num, is_active_row));
         }
 
         let hitbox = Some(window.insert_hitbox(bounds, HitboxBehavior::Normal));
@@ -307,6 +309,7 @@ impl Element for SourceCodeViewElement {
             active_line_quad,
             gutter_numbers,
             hitbox,
+            focus_handle,
         }
     }
 
@@ -328,12 +331,7 @@ impl Element for SourceCodeViewElement {
             }
         }
 
-        let focus_handle = self
-            .view
-            .snapshot(self.pane_id, cx)
-            .and_then(|s| s.focus_handle);
-
-        if let Some(ref focus_handle) = focus_handle {
+        if let Some(ref focus_handle) = prepaint.focus_handle {
             if focus_handle.is_focused(window) {
                 self.ime.handle_input(self.pane_id, bounds, window, cx);
             }

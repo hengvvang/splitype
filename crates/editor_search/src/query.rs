@@ -169,3 +169,37 @@ impl SearchQuery {
         results
     }
 }
+
+/// Computes replacement string matching the casing style of `matched_slice` if `preserve_case` is true.
+pub fn compute_preserve_case_replacement(matched_slice: &str, replacement: &str, preserve_case: bool) -> String {
+    if !preserve_case || matched_slice.is_empty() || replacement.is_empty() {
+        return replacement.to_string();
+    }
+
+    let is_all_upper = matched_slice.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
+    let is_all_lower = matched_slice.chars().all(|c| !c.is_alphabetic() || c.is_lowercase());
+
+    let is_title_case = {
+        let mut chars = matched_slice.chars();
+        match chars.next() {
+            Some(first) if first.is_uppercase() => {
+                chars.all(|c| !c.is_alphabetic() || c.is_lowercase())
+            }
+            _ => false,
+        }
+    };
+
+    if is_all_upper {
+        replacement.to_uppercase()
+    } else if is_title_case {
+        let mut chars = replacement.chars();
+        match chars.next() {
+            Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            None => String::new(),
+        }
+    } else if is_all_lower {
+        replacement.to_lowercase()
+    } else {
+        replacement.to_string()
+    }
+}

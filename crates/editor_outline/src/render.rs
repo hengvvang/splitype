@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_model::{OutlineNode, PaneId};
+use crate::OutlineNode;
 use theme::Theme;
 
 /// Navigation seam: clicking a heading in the HUD asks the coordinating
@@ -24,7 +24,7 @@ pub trait OutlineHost: Send + Sync + 'static {
 /// Renders the floating outline HUD (equal-length micro-ticks rail plus
 /// the hover TOC popover card) for the given heading data.
 pub fn render_floating_outline_hud(
-    pane_id: PaneId,
+    pane_id: usize,
     headings: &[OutlineNode],
     active_index: Option<usize>,
     is_hovered: bool,
@@ -173,7 +173,7 @@ pub fn render_floating_outline_hud(
 
     let host_hover = host.clone();
     div()
-        .id(ElementId::Name(format!("floating-outline-hud-{}", pane_id.0).into()))
+        .id(ElementId::Name(format!("floating-outline-hud-{pane_id}").into()))
         .absolute()
         .top(px(40.0))
         .right(px(14.0))

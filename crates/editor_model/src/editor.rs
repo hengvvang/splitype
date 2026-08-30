@@ -119,16 +119,7 @@ pub enum OpenFileMode {
     Persistent,
 }
 
-/// A heading node in the outline HUD (pure data; owned by `editor` so both
-/// the outline panel and the modes can name it).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OutlineNode {
-    pub id: String,
-    pub label: String,
-    pub level: u8,
-    pub block_index: usize,
-    pub block_id: Option<gpui::EntityId>,
-}
+pub use editor_outline::OutlineNode;
 
 use std::path::Path;
 
