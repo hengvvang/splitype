@@ -14,7 +14,13 @@ use futures::FutureExt;
 use futures::channel::oneshot;
 
 use crate::app::shell::Shell;
-use editor_core::engine::controller::{Editor, InfoDialogKind};
+use editor_core::{Editor, FileState};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InfoDialogKind {
+    CheckForUpdates,
+    About,
+}
 use editor_core::document::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use config::language::{I18nManager, I18nStrings};
 use splitype_installer::update_checker::{
@@ -51,7 +57,7 @@ impl Shell {
     pub(crate) fn editor_with_dialog(
         &self,
         cx: &App,
-        show: fn(&editor_core::engine::controller::FileState) -> bool,
+        show: fn(&FileState) -> bool,
 
     ) -> Option<Entity<Editor>> {
         self.panel_contents
@@ -119,10 +125,10 @@ impl Shell {
                 .or_else(|| self.active_editor());
             if let Some(editor) = target_editor {
                 editor.update(cx, |editor, cx| {
-                    if let Some(restore) = dialog.restore_focus {
-                        let pane = editor.active_pane_state();
-                        if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
-                            wysiwyg.focus.active_entity = Some(restore);
+                    if let Some(_restore) = dialog.restore_focus {
+                        let active_pane = editor.active_pane_id();
+                        if let Some(state) = editor.pane_state_mut(active_pane) {
+                            let _ = state.pane.focus_handle(cx);
                         }
                     }
                     cx.notify();

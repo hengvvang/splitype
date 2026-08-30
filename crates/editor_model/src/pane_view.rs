@@ -30,6 +30,11 @@ pub trait PaneView: Any + Send + Sync + 'static {
         None
     }
 
+    /// Returns (line, column) 1-based cursor position if supported.
+    fn cursor_position(&self, _cx: &App) -> Option<(usize, usize)> {
+        None
+    }
+
     /// Sync pane state from the canonical document text and revision.
     fn sync_document_text(&mut self, _text: &str, _revision: u64, _cx: &mut App) {}
 

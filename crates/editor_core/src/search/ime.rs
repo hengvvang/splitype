@@ -3,9 +3,46 @@
 use std::ops::Range;
 use gpui::*;
 
-use crate::engine::controller::Editor;
+use crate::editor::Editor;
 use editor_search::state::{ceil_char_boundary, floor_char_boundary};
-use editor_wysiwyg::markdown::inline::offsets::ImeConverter;
+
+#[inline]
+fn utf16_offset_to_utf8(text: &str, utf16_offset: usize) -> usize {
+    let mut utf16_count = 0;
+    for (byte_offset, ch) in text.char_indices() {
+        if utf16_count >= utf16_offset {
+            return byte_offset;
+        }
+        utf16_count += ch.len_utf16();
+    }
+    text.len()
+}
+
+#[inline]
+fn utf8_offset_to_utf16(text: &str, utf8_offset: usize) -> usize {
+    let mut utf16_count = 0;
+    for (byte_offset, ch) in text.char_indices() {
+        if byte_offset >= utf8_offset {
+            return utf16_count;
+        }
+        utf16_count += ch.len_utf16();
+    }
+    utf16_count
+}
+
+#[inline]
+fn utf16_range_to_utf8(text: &str, range: &Range<usize>) -> Range<usize> {
+    let start = utf16_offset_to_utf8(text, range.start);
+    let end = utf16_offset_to_utf8(text, range.end).max(start);
+    start..end
+}
+
+#[inline]
+fn utf8_range_to_utf16(text: &str, range: &Range<usize>) -> Range<usize> {
+    let start = utf8_offset_to_utf16(text, range.start);
+    let end = utf8_offset_to_utf16(text, range.end).max(start);
+    start..end
+}
 
 impl EntityInputHandler for Editor {
     fn text_for_range(
@@ -27,8 +64,8 @@ impl EntityInputHandler for Editor {
             &self.search.replace_input
         };
 
-        let range = ImeConverter::utf16_range_to_utf8_in(&input.text, &range_utf16);
-        actual_range.replace(ImeConverter::utf8_range_to_utf16_in(&input.text, &range));
+        let range = utf16_range_to_utf8(&input.text, &range_utf16);
+        actual_range.replace(utf8_range_to_utf16(&input.text, &range));
         let start = floor_char_boundary(&input.text, range.start);
         let end = ceil_char_boundary(&input.text, range.end.max(start));
         Some(input.text[start..end].to_string())
@@ -53,7 +90,7 @@ impl EntityInputHandler for Editor {
         };
 
         Some(UTF16Selection {
-            range: ImeConverter::utf8_range_to_utf16_in(&input.text, &input.selection_range()),
+            range: utf8_range_to_utf16(&input.text, &input.selection_range()),
             reversed: input.reversed,
         })
     }
@@ -78,7 +115,7 @@ impl EntityInputHandler for Editor {
         input
             .marked_range
             .as_ref()
-            .map(|range| ImeConverter::utf8_range_to_utf16_in(&input.text, range))
+            .map(|range| utf8_range_to_utf16(&input.text, range))
     }
 
     fn unmark_text(&mut self, window: &mut Window, _cx: &mut Context<Self>) {
@@ -108,14 +145,14 @@ impl EntityInputHandler for Editor {
             let t = &self.search.search_input.text;
             range_utf16
                 .as_ref()
-                .map(|r| ImeConverter::utf16_range_to_utf8_in(t, r))
+                .map(|r| utf16_range_to_utf8(t, r))
                 .or_else(|| self.search.search_input.marked_range.clone())
                 .unwrap_or_else(|| self.search.search_input.selection_range())
         } else {
             let t = &self.search.replace_input.text;
             range_utf16
                 .as_ref()
-                .map(|r| ImeConverter::utf16_range_to_utf8_in(t, r))
+                .map(|r| utf16_range_to_utf8(t, r))
                 .or_else(|| self.search.replace_input.marked_range.clone())
                 .unwrap_or_else(|| self.search.replace_input.selection_range())
         };
@@ -152,7 +189,7 @@ impl EntityInputHandler for Editor {
         let text = input.text.clone();
         let range = range_utf16
             .as_ref()
-            .map(|r| ImeConverter::utf16_range_to_utf8_in(&text, r))
+            .map(|r| utf16_range_to_utf8(&text, r))
             .or_else(|| input.marked_range.clone())
             .unwrap_or_else(|| input.selection_range());
 
@@ -164,7 +201,7 @@ impl EntityInputHandler for Editor {
         let marked = start..start + sanitized.len();
         let selection = new_selected_range_utf16
             .as_ref()
-            .map(|r| ImeConverter::utf16_range_to_utf8_in(&sanitized, r))
+            .map(|r| utf16_range_to_utf8(&sanitized, r))
             .map(|relative| marked.start + relative.start..marked.start + relative.end)
             .unwrap_or_else(|| marked.clone());
 

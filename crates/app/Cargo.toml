@@ -28,6 +28,7 @@ explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }
 editor_model = { path = "../editor_model" }
 editor_core = { path = "../editor_core" }
+editor_builder = { path = "../editor_builder" }
 editor_source_code = { path = "../editor_source_code" }
 editor_search = { path = "../editor_search" }
 editor_outline = { path = "../editor_outline" }

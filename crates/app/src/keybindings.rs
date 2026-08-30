@@ -12,7 +12,7 @@ use gpui::*;
 use crate::app::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
-use editor_core::commands::actions::{
+use editor_core::actions::{
     FindNext, FindPrevious, SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind,
     ToggleReplace, ToggleSearch,
 };

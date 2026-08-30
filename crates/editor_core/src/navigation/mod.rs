@@ -117,7 +117,7 @@ pub enum NavigationExecutionPlan {
     JumpToFootnoteRefInEditor(String),
 }
 
-impl crate::engine::controller::Editor {
+impl crate::editor::Editor {
     pub fn execute_navigation(
         &mut self,
         intent: NavigationIntent,

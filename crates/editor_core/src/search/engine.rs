@@ -1,12 +1,11 @@
 //! Search and replace query execution engine.
 
 use std::fs;
-use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use gpui::{App, Context, EntityId, KeyDownEvent, Window};
+use gpui::{App, Context, KeyDownEvent, Window};
 
-use crate::engine::controller::Editor;
+use crate::editor::Editor;
 use editor_search::SearchQuery;
 use editor_search::{SearchActiveField, SearchMatch, SearchScope};
 
@@ -71,7 +70,7 @@ impl Editor {
 
     pub(crate) fn on_toggle_search(
         &mut self,
-        _: &crate::commands::actions::ToggleSearch,
+        _: &crate::actions::ToggleSearch,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -80,7 +79,7 @@ impl Editor {
 
     pub(crate) fn on_toggle_replace(
         &mut self,
-        _: &crate::commands::actions::ToggleReplace,
+        _: &crate::actions::ToggleReplace,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -89,7 +88,7 @@ impl Editor {
 
     pub(crate) fn on_find_next(
         &mut self,
-        _: &crate::commands::actions::FindNext,
+        _: &crate::actions::FindNext,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -98,7 +97,7 @@ impl Editor {
 
     pub(crate) fn on_find_previous(
         &mut self,
-        _: &crate::commands::actions::FindPrevious,
+        _: &crate::actions::FindPrevious,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -107,7 +106,7 @@ impl Editor {
 
     pub(crate) fn on_replace_current(
         &mut self,
-        _: &crate::commands::actions::ReplaceCurrent,
+        _: &crate::actions::ReplaceCurrent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -116,7 +115,7 @@ impl Editor {
 
     pub(crate) fn on_replace_all(
         &mut self,
-        _: &crate::commands::actions::ReplaceAll,
+        _: &crate::actions::ReplaceAll,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -127,10 +126,6 @@ impl Editor {
 
     /// Executes search with the current query, scope, and filter settings.
     pub fn execute_search(&mut self, cx: &mut Context<Self>) {
-        // Model C: in-document search operates on the block tree, so a
-        // parse-free tab (opened in Source mode) is materialized here —
-        // searching is an explicit user action, not part of opening.
-        self.ensure_document(cx);
         self.search.search_generation = self.search.search_generation.wrapping_add(1);
         let raw_query = self.search.query().to_string();
         if raw_query.is_empty() {
@@ -189,62 +184,11 @@ impl Editor {
         cx.notify();
     }
 
-    /// Synchronizes search match highlights to all block entities in the active document.
-    pub fn sync_search_highlights_to_document(&mut self, cx: &mut App) {
-        let Some(doc) = self.active_doc() else {
-            return;
-        };
+    /// Synchronizes search match highlights to the active pane.
+    pub fn sync_search_highlights_to_document(&mut self, _cx: &mut App) {}
 
-        if !self.search.visible || self.search.matches.is_empty() {
-            self.clear_search_highlights_from_document(cx);
-            return;
-        }
-
-        let active_match = self.search.current_match().cloned();
-
-        // 1. Group matches by block entity_id for WYSIWYG
-        let mut matches_by_entity: std::collections::HashMap<EntityId, Vec<(Range<usize>, bool)>> =
-            std::collections::HashMap::new();
-        for m in &self.search.matches {
-            if let Some(entity_id) = m.entity_id {
-                let is_active = if let Some(curr) = active_match.as_ref() {
-                    curr.entity_id == Some(entity_id) && curr.byte_range == m.byte_range
-                } else {
-                    false
-                };
-                matches_by_entity
-                    .entry(entity_id)
-                    .or_default()
-                    .push((m.byte_range.clone(), is_active));
-            }
-        }
-
-        for entry in doc.blocks() {
-            let entity = &entry.entity;
-            let entity_id = entity.entity_id();
-            let new_matches = matches_by_entity.remove(&entity_id).unwrap_or_default();
-            entity.update(cx, |block, cx| {
-                if block.search_matches != new_matches {
-                    block.search_matches = new_matches;
-                    cx.notify();
-                }
-            });
-        }
-    }
-
-    /// Clears search highlights from all block entities in the active document.
-    pub fn clear_search_highlights_from_document(&mut self, cx: &mut App) {
-        if let Some(doc) = self.active_doc() {
-            for entry in doc.blocks() {
-                entry.entity.update(cx, |block, cx| {
-                    if !block.search_matches.is_empty() {
-                        block.search_matches.clear();
-                        cx.notify();
-                    }
-                });
-            }
-        }
-    }
+    /// Clears search highlights from the active pane.
+    pub fn clear_search_highlights_from_document(&mut self, _cx: &mut App) {}
 
     /// Handles keyboard events when typing in search / replace input fields.
     pub fn handle_search_key_down(
@@ -512,7 +456,7 @@ impl Editor {
         if let Some(ref file_path) = match_item.file_path {
             self.open_file_in_panel(
                 file_path,
-                crate::engine::controller::OpenFileMode::Persistent,
+                crate::session::OpenFileMode::Persistent,
                 window,
                 cx,
             );
@@ -529,7 +473,7 @@ impl Editor {
         self.sync_search_highlights_to_document(cx);
         self.request_autoscroll(
             active_pane,
-            crate::engine::controller::AutoscrollStrategy::Center,
+            editor_model::AutoscrollStrategy::Center,
             cx,
         );
         window.refresh();

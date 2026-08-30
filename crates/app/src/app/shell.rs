@@ -18,9 +18,8 @@ use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::actions::{OpenInEditor, OpenInSplit};
 use workspace::{PanelId, WindowPanelKind};
-use editor_core::engine::controller::{
-    EditorView,DocumentTab, Editor, InfoDialogKind, OpenFileMode};
-use editor_core::engine::session::EditorSession;
+use editor_core::{DocumentTab, Editor, EditorSession, OpenFileMode};
+pub use crate::app::window::dialogs::InfoDialogKind;
 use editor_model::EditorHost;
 use config::language::I18nManager;
 use theme::ThemeManager;
@@ -409,17 +408,8 @@ impl Shell {
 
         editor.update(cx, |editor, cx| {
             editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
-            // Model C: cloned/restored sessions carry parse-free tabs; the
-            // derived init below runs only for tabs whose block tree already
-            // exists, otherwise `ensure_document` performs it on first use.
-            if editor.session.has_tabs() && editor.active_doc().is_some() {
-                let pane_id = editor.active_pane_id();
-                let revision = editor.tab().document_revision;
-                let text = editor.serialized_document_text(cx);
-                if let Some(state) = editor.pane_state_mut(pane_id) {
-                    state.pane.sync_document_text(&text, revision, cx);
-                }
-                editor.refresh_stable_document_snapshot(cx);
+            if editor.session.has_tabs() {
+                editor.sync_panes_with_active_tab(cx);
             }
         });
         self.panel_contents
@@ -819,17 +809,10 @@ impl Shell {
             })
             .unwrap_or_else(|| "Untitled".to_string());
 
-        let restore_focus = self.active_editor().and_then(|e| {
-            let ed = e.read(cx);
-            ed.pane_state_ref(ed.active_pane_id())
-                .and_then(|p| p.as_wysiwyg())
-                .and_then(|p| p.focus.active_entity)
-        });
-
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Window,
             document_name: first_dirty_name,
-            restore_focus,
+            restore_focus: None,
         });
         cx.notify();
     }
@@ -846,17 +829,10 @@ impl Shell {
             return;
         }
 
-        let restore_focus = self.editor_for(panel_id).and_then(|e| {
-            let ed = e.read(cx);
-            ed.pane_state_ref(ed.active_pane_id())
-                .and_then(|p| p.as_wysiwyg())
-                .and_then(|p| p.focus.active_entity)
-        });
-
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::EditorPanel(panel_id),
             document_name: first_dirty_name,
-            restore_focus,
+            restore_focus: None,
         });
         cx.notify();
     }
@@ -884,17 +860,10 @@ impl Shell {
             })
             .unwrap_or_else(|| "Untitled".to_string());
 
-        let restore_focus = self.editor_for(panel_id).and_then(|e| {
-            let ed = e.read(cx);
-            ed.pane_state_ref(ed.active_pane_id())
-                .and_then(|p| p.as_wysiwyg())
-                .and_then(|p| p.focus.active_entity)
-        });
-
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Tab { panel_id, index },
             document_name,
-            restore_focus,
+            restore_focus: None,
         });
         cx.notify();
     }

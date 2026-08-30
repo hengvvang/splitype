@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use crate::engine::controller::Editor;
+use crate::editor::Editor;
 use editor_search::SearchHost;
 use theme::Theme;
 
@@ -23,7 +23,7 @@ impl Editor {
             return None;
         }
         let host: Arc<dyn SearchHost> =
-            crate::engine::pane_host::EditorSearchHost::new(cx.weak_entity());
+            crate::editor::host_bridge::EditorSearchHost::new(cx.weak_entity());
         editor_search::render_search_panel_overlay(
             &self.search,
             &self.search_view,

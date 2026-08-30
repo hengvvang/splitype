@@ -83,7 +83,7 @@ impl Shell {
                     // Outer gesture shortcuts (host-owned, immediate):
                     // Forward to every editor entity — only the one with an
                     // active drag reports a change.
-                    let editors: Vec<Entity<editor_core::engine::controller::Editor>> = shell
+                    let editors: Vec<Entity<editor_core::Editor>> = shell
                         .panel_contents
                         .values()
                         .filter_map(|content| content.as_editor().cloned())
@@ -184,7 +184,7 @@ impl Shell {
             CornerDragResult::None => {}
         }
         cx.notify();
-        let editors: Vec<Entity<editor_core::engine::controller::Editor>> = self
+        let editors: Vec<Entity<editor_core::Editor>> = self
             .panel_contents
             .values()
             .filter_map(|content| content.as_editor().cloned())
@@ -434,7 +434,7 @@ impl Shell {
             let entity = match self.editor_for(leaf_id) {
                 Some(entity) => entity.clone(),
                 None => {
-                    let session = editor_core::engine::session::EditorSession::welcome();
+                    let session = editor_core::EditorSession::welcome();
                     self.add_editor_panel(leaf_id, session, cx);
                     self.editor_for(leaf_id).cloned().expect("editor entity present after add")
                 }

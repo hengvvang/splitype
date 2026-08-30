@@ -452,6 +452,15 @@ impl PaneView for SourceCodeState {
         PaneKindId::SOURCE_CODE
     }
 
+    fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {
+        self.focus_handle.clone()
+    }
+
+    fn cursor_position(&self, _cx: &App) -> Option<(usize, usize)> {
+        let (line, col) = self.line_and_column(self.cursor);
+        Some((line + 1, col + 1))
+    }
+
     fn document_source(&self, _doc: &dyn EditorDocument, _cx: &App) -> String {
         self.text.clone()
     }
@@ -472,10 +481,6 @@ impl PaneView for SourceCodeState {
 
     fn serialize_text(&self, _cx: &App) -> Option<String> {
         Some(self.text.clone())
-    }
-
-    fn focus_handle(&self, _cx: &App) -> Option<gpui::FocusHandle> {
-        self.focus_handle.clone()
     }
 
     fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {

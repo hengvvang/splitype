@@ -14,8 +14,7 @@ use crate::app::shell::{PanelContent, Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
-use editor_core::engine::controller::Editor;
-use editor_core::engine::session::EditorSession;
+use editor_core::{Editor, EditorSession};
 
 use explorer::ExplorerState;
 
@@ -62,13 +61,15 @@ pub(crate) fn open_editor_window(
                 // one per window (the shell renders it from the global).
                 cx.set_global(explorer::ExplorerState::default());
                 let editor = cx.new(|cx| {
-                    // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        editor_core::Editor::empty(cx)
+                        editor_core::Editor::with_session(
+                            PanelId(DEFAULT_EDITOR_PANEL_ID),
+                            editor_core::EditorSession::welcome(),
+                            cx,
+                        )
                     } else {
-                        editor_core::Editor::from_markdown(cx, markdown, file_path)
+                        editor_core::Editor::new(markdown, file_path, cx)
                     }
-
                 });
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
@@ -148,7 +149,13 @@ pub(crate) fn open_cloned_window(
                             WindowPanelKind::Explorer => PanelContent::Explorer,
                             WindowPanelKind::Settings => PanelContent::Settings,
                             WindowPanelKind::Editor => {
-                                let editor = cx.new(|cx| editor_core::Editor::empty(cx));
+                                let editor = cx.new(|cx| {
+                                    editor_core::Editor::with_session(
+                                        panel_id,
+                                        editor_core::EditorSession::welcome(),
+                                        cx,
+                                    )
+                                });
                                 PanelContent::Editor(editor)
                             }
                         });

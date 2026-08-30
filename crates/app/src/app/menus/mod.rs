@@ -25,8 +25,9 @@ use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
 use editor_core::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use editor_core::engine::controller::{Editor, InfoDialogKind};
-use editor_wysiwyg::export::ExportFormat;
+use editor_core::Editor;
+use crate::app::window::dialogs::InfoDialogKind;
+use editor_core::ExportFormat;
 use editor_core::document::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
@@ -343,7 +344,7 @@ pub(crate) fn dispatch_menu_action_for_editor(
         || action.as_any().is::<ExportPdf>()
     {
         let no_tab = target
-            .update(cx, |editor, _cx| !editor.has_active_tab())
+            .update(cx, |editor, _cx| !editor.has_tabs())
             .unwrap_or(true);
         if no_tab {
             return;

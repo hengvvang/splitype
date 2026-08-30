@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::engine::controller::{Editor, PaneKindId};
+use crate::editor::Editor;
+use crate::session::PaneKindId;
 use theme::Theme;
 
 impl Editor {

@@ -210,50 +210,5 @@ pub fn run(args: Args) {
 
 /// Registers all built-in pane descriptors into the global PaneRegistry.
 pub(crate) fn register_pane_descriptors() {
-    use editor_model::{PaneDescriptor, PaneKindId, PaneRegistry, PaneView};
-    use gpui::SharedString;
-
-    struct WysiwygDescriptor;
-    impl PaneDescriptor for WysiwygDescriptor {
-        fn kind(&self) -> PaneKindId {
-            PaneKindId::WYSIWYG
-        }
-        fn display_name(&self) -> SharedString {
-            "Wysiwyg".into()
-        }
-        fn create_pane(&self) -> Box<dyn PaneView> {
-            Box::new(editor_wysiwyg::WysiwygPaneState::default())
-        }
-    }
-
-    struct PreviewDescriptor;
-    impl PaneDescriptor for PreviewDescriptor {
-        fn kind(&self) -> PaneKindId {
-            PaneKindId::PREVIEW
-        }
-        fn display_name(&self) -> SharedString {
-            "Preview".into()
-        }
-        fn create_pane(&self) -> Box<dyn PaneView> {
-            Box::new(editor_preview::PreviewState::default())
-        }
-    }
-
-    struct SourceCodeDescriptor;
-    impl PaneDescriptor for SourceCodeDescriptor {
-        fn kind(&self) -> PaneKindId {
-            PaneKindId::SOURCE_CODE
-        }
-        fn display_name(&self) -> SharedString {
-            "Source Code".into()
-        }
-        fn create_pane(&self) -> Box<dyn PaneView> {
-            Box::new(editor_source_code::SourceCodeState::default())
-        }
-    }
-
-    let mut registry = PaneRegistry::global().lock().unwrap();
-    registry.register(std::sync::Arc::new(WysiwygDescriptor));
-    registry.register(std::sync::Arc::new(PreviewDescriptor));
-    registry.register(std::sync::Arc::new(SourceCodeDescriptor));
+    editor_builder::EditorBuilder::register_defaults();
 }
