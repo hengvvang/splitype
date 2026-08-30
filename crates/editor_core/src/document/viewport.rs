@@ -447,7 +447,8 @@ impl Editor {
             content_area
         };
 
-        content_area.into_any_element()
+        let outline_hud = self.render_floating_outline_hud(pane_id, crate::engine::session::EditorPaneKind::Wysiwyg, &theme, cx);
+        content_area.child(outline_hud).into_any_element()
     }
 
     /// Materializes one planned render row into its element tree. Only rows

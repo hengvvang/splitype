@@ -40,7 +40,7 @@ impl Editor {
                 // (no tabs) every pane renders the guidance prompt instead
                 // of its view, so the split layout stays visible.
                 let inner_body: AnyElement = if self.panel_mode().is_editing() {
-                    let pane_body = match kind {
+                    match kind {
                         // WYSIWYG — this editor's own block editor pane.
                         EditorPaneKind::Wysiwyg => self.render_wysiwyg_pane(pane_id, window, cx),
                         // Source — interactive source code editor. Uses a
@@ -54,15 +54,7 @@ impl Editor {
                         EditorPaneKind::Preview => {
                             self.render_preview_pane(pane_id, theme, strings, window, cx)
                         }
-                    };
-                    let outline_hud = self.render_floating_outline_hud(pane_id, kind, theme, cx);
-                    div()
-                        .relative()
-                        .w_full()
-                        .h_full()
-                        .child(pane_body)
-                        .child(outline_hud)
-                        .into_any_element()
+                    }
                 } else {
                     self.render_welcome_prompt(pane_id, theme, cx)
                 };

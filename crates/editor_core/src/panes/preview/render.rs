@@ -42,6 +42,14 @@ impl Editor {
             scroll: &scroll,
             host: &host,
         };
-        editor_preview::render_preview_pane(state, &view, theme, strings, window, cx)
+        let preview_body = editor_preview::render_preview_pane(state, &view, theme, strings, window, cx);
+        let outline_hud = self.render_floating_outline_hud(pane_id, crate::engine::session::EditorPaneKind::Preview, theme, cx);
+        div()
+            .relative()
+            .w_full()
+            .h_full()
+            .child(preview_body)
+            .child(outline_hud)
+            .into_any_element()
     }
 }
