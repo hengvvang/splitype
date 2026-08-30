@@ -144,31 +144,34 @@ impl Editor {
 
         match kind {
             EditorPaneKind::Wysiwyg => {
+                let pane_id = self.active_pane_id();
                 if let Some(entity_id) = node.block_id {
                     self.focus_block(entity_id);
                     if let Some(block) = self.doc().block_entity_by_id(entity_id) {
                         Self::reset_block_cursor(&block, 0, cx);
                     }
-                    self.request_autoscroll_active_pane(
-                        crate::engine::controller::AutoscrollStrategy::Top {
-                            margin: px(40.0),
-                        },
-                        cx,
-                    );
                 } else {
                     let fallback_entity = self.doc().blocks().get(node.block_index).map(|e| e.entity.clone());
                     if let Some(entity) = fallback_entity {
                         let entity_id = entity.entity_id();
                         self.focus_block(entity_id);
                         Self::reset_block_cursor(&entity, 0, cx);
-                        self.request_autoscroll_active_pane(
-                            crate::engine::controller::AutoscrollStrategy::Top {
-                                margin: px(40.0),
-                            },
-                            cx,
-                        );
                     }
                 }
+
+                let font_size = theme.typography.text_size.max(14.0);
+                let line_height = (font_size * theme.typography.text_line_height).round().max(24.0);
+                let target_y = (node.block_index as f32 * line_height * 1.5) - 40.0;
+                if let Some(state) = self.pane_state_mut(pane_id) {
+                    state.scroll.handle.set_offset(point(px(0.0), px(-target_y.max(0.0))));
+                }
+
+                self.request_autoscroll_active_pane(
+                    crate::engine::controller::AutoscrollStrategy::Top {
+                        margin: px(40.0),
+                    },
+                    cx,
+                );
             }
             EditorPaneKind::SourceCode => {
                 let pane_id = self.active_pane_id();
@@ -185,13 +188,16 @@ impl Editor {
             }
             EditorPaneKind::Preview => {
                 let pane_id = self.active_pane_id();
-                self.request_autoscroll(
-                    pane_id,
-                    crate::engine::controller::AutoscrollStrategy::Top {
-                        margin: px(40.0),
-                    },
-                    cx,
-                );
+                let font_size = theme.typography.text_size.max(14.0);
+                let line_height = (font_size * theme.typography.text_line_height).round().max(22.0);
+                let target_y = if let Some(preview) = self.pane_state_ref(pane_id).and_then(|p| p.as_preview()) {
+                    editor_preview::outline::calculate_scroll_offset_for_node(preview, &node, line_height)
+                } else {
+                    (node.block_index as f32 * line_height * 2.0).max(0.0)
+                };
+                if let Some(state) = self.pane_state_mut(pane_id) {
+                    state.scroll.handle.set_offset(point(px(0.0), px(-target_y.max(0.0))));
+                }
             }
         }
         cx.notify();
