@@ -24,7 +24,7 @@ use config::settings::{
     load_or_create_app_settings,
 };
 use config::language::I18nManager;
-use editor_wysiwyg::http_client::install_http_client;
+use editor_wysiwyg::install_http_client;
 use theme::ThemeManager;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;

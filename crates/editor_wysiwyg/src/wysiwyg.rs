@@ -1,53 +1,49 @@
-//! editor_wysiwyg — core mode 1: the complete Markdown editing world
-//! (WYSIWYG rendered view).
+//! editor_wysiwyg — the complete WYSIWYG Markdown editing engine plugin.
 //!
-//! Owns the runtime block tree ([`document`]), its history deltas, the
-//! text projection layer, native-table grid data, text shaping/measuring
-//! helpers, and — as the mode crates converge — the pane state, input
-//! routing, rendering and presentation. Stage 3h folds the dissolved
-//! `markdown`/`sum_tree`/`latex`/`mermaid`/`export` crates (and the
-//! WYSIWYG half of `syntax`) in here.
-//!
-//! The pane state implements [`editor_model::Pane`]; nothing in this crate
-//! depends on the `Editor` entity or on `editor_source_code` (dual-core
-//! zero sharing, D14-B).
+//! Implements [`editor_model::PaneView`] to provide a rich visual block editor
+//! with dual-direction text projection, syntax highlighting, LaTeX math,
+//! Mermaid diagrams, native table editing, and Outline/Search capabilities.
 
-pub mod actions;
-pub mod code_language;
-pub mod highlight;
-pub mod editor_view;
-pub mod document;
-pub mod markdown;
-pub mod tree;
-pub mod latex;
-pub mod mermaid;
 pub mod export;
-pub mod history;
-pub mod pane;
-pub mod presentation;
-pub mod paste_plain;
-pub mod render;
-pub mod projection;
-pub mod table_grid;
-pub mod text_layout;
-pub mod table_measure;
-pub mod http_client;
-pub mod source_map;
-pub mod selection;
-pub mod events;
 pub mod input;
-pub mod paste;
+pub mod model;
+pub mod net;
+pub mod plugin;
+pub mod projection;
+pub mod render;
+pub mod syntax;
+pub mod table;
 
-pub mod state;
-pub mod outline;
-pub mod search;
+// Public re-exports
+pub use model::*;
+pub use net::install_http_client;
+pub use plugin::actions;
+pub use plugin::actions::*;
+pub use plugin::outline;
+pub use plugin::outline::*;
+pub use plugin::search;
+pub use plugin::search::*;
+pub use plugin::state;
+pub use plugin::state::*;
+pub use plugin::WysiwygPaneState;
+pub use syntax::language as code_language;
+pub use syntax::{highlight, language, latex, markdown, mermaid};
+pub use table::*;
 
-pub use pane::WysiwygPaneState;
-
-pub use state::{
-    AutoscrollStrategy, BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,
-    CrossBlockSelectionEndpoint, EditorSelection, FocusState, HistoryEntry, PendingUndoCapture,
-    ReferenceRegistries, SelectionState, SourceTargetMapping, TableAxisSelection,
-    TableCellBinding, TableGrids, TableSizePickerState, UndoHistory, UndoSelectionSnapshot,
-    WysiwygSelectAllCycle, EMPTY_FOCUS_STATE, EMPTY_SELECTION_STATE,
-};
+// Aliases for compatibility across internal submodules
+pub use input::events;
+pub use input::history;
+pub use input::paste;
+pub use input::paste::plain as paste_plain;
+pub use input::selection;
+pub use model as document;
+pub use model::tree;
+pub use plugin as pane;
+pub use projection::source_map;
+pub use render::presentation;
+pub use render::text_layout;
+pub use syntax::highlight as highlight_mod;
+pub use syntax::latex as latex_mod;
+pub use syntax::mermaid as mermaid_mod;
+pub use table as table_grid;
+pub use table::measure as table_measure;

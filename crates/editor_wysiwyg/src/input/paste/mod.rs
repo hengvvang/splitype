@@ -1,7 +1,12 @@
 //! Classification and block construction helpers for external paste.
 
 pub mod image;
+pub mod plain;
 pub mod quote;
+
+pub use image::*;
+pub use plain::*;
+pub use quote::*;
 
 use gpui::{App, AppContext, Entity};
 

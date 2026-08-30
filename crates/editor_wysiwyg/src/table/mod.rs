@@ -1,9 +1,16 @@
-//! Native-table grid data, matrix structure, axis ops, and row/column edits.
+//! Native-table grid data, matrix structure, axis ops, column measurement and row/column edits.
 
 pub mod axis;
 pub mod columns;
 pub mod grid;
+pub mod measure;
 pub mod rows;
+
+pub use axis::*;
+pub use columns::*;
+pub use grid::*;
+pub use measure::*;
+pub use rows::*;
 
 use gpui::Entity;
 

@@ -13,7 +13,7 @@ use gpui::*;
 use crate::editor::export::ExportFormat;
 use crate::editor::Editor;
 use crate::session::PendingOpenLink;
-use editor_model::{AutoscrollStrategy, PaneId, PaneKindId};
+use editor_model::{AutoscrollStrategy, PaneId};
 
 impl Editor {
     /// Builds the OS window title, including the dirty marker when the document has unsaved changes.

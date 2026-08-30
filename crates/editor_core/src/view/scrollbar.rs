@@ -16,6 +16,7 @@ pub struct ScrollbarGeometry {
     pub max_scroll_y: f32,
 }
 
+#[allow(dead_code)]
 impl Editor {
     pub(crate) fn scrollbar_geometry(
         viewport_height: f32,

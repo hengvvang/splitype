@@ -6,34 +6,14 @@
 //! the read-only preview presentation lives in
 //! `crate::editor_model::panes::preview::render`.
 
-pub mod blockquote;
-pub mod callout;
-pub mod code_ui;
-pub mod embedded_preview;
-pub mod fenced_code;
-pub mod footnote;
-pub mod graphic_state;
-pub mod heading;
-pub mod html_block;
-pub mod html_document;
+pub mod blocks;
 pub mod inline;
-pub mod inline_visuals;
-pub mod latex_math;
 pub mod layout;
-pub mod link_cursor;
-pub mod list_item;
-pub mod list_markers;
-pub mod media_placeholder;
-pub mod mermaid_diagram;
-pub mod paragraph;
-pub mod raw_markdown;
-pub mod table_block;
-pub mod thematic_break;
-pub mod viewport;
+pub mod presentation;
+pub mod text_layout;
 
-pub use link_cursor::*;
-pub use list_markers::*;
-pub use media_placeholder::*;
+pub use blocks::*;
+pub use text_layout::*;
 
 use gpui::*;
 
@@ -41,22 +21,7 @@ pub const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::document::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
-use crate::render::{
-    blockquote::render_blockquote,
-    callout::render_callout,
-    embedded_preview::render_graphic_preview_box,
-    fenced_code::render_fenced_code,
-    footnote::render_footnote_definition,
-    heading::render_heading,
-    html_block::render_html_block,
-    latex_math::render_latex_math,
-    list_item::{render_bulleted_list_item, render_numbered_list_item, render_task_list_item},
-    mermaid_diagram::render_mermaid_diagram,
-    paragraph::render_paragraph,
-    raw_markdown::render_raw_markdown,
-    table_block::render_table,
-    thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
-};
+
 use config::language::I18nManager;
 use theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::markdown::parse::BlockKind;

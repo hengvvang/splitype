@@ -1,7 +1,4 @@
 //! Code language registry — display names, aliases, and picker options.
-//!
-//! This is the editor-facing language metadata (labels, values, aliases).
-//! Highlighting capability itself lives in highlight.
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CodeLanguageOption {

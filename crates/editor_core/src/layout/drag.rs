@@ -89,6 +89,7 @@ impl Editor {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn on_pane_drag_move(
         &mut self,
         _drag: splitter::sessions::CornerDragSession,
@@ -98,6 +99,7 @@ impl Editor {
     ) {
     }
 
+    #[allow(dead_code)]
     pub(crate) fn on_pane_drag_end(
         &mut self,
         _drag: splitter::sessions::CornerDragSession,

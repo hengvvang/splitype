@@ -1,3 +1,15 @@
+//! WYSIWYG Pane plugin implementation — PaneView contract and lifecycle.
+
+pub mod actions;
+pub mod outline;
+pub mod search;
+pub mod state;
+
+pub use actions::*;
+pub use outline::*;
+pub use search::*;
+pub use state::*;
+
 use gpui::{
     AnyElement, App, AppContext, Div, ElementId, InteractiveElement, IntoElement, MouseButton,
     ParentElement, StatefulInteractiveElement, Styled, Window, div,
@@ -11,7 +23,6 @@ use theme::Theme;
 
 use crate::document::block::Block;
 use crate::document::Document;
-use crate::state::{FocusState, ReferenceRegistries, SelectionState, TableGrids};
 
 /// View state specific to a WYSIWYG editor pane.
 #[derive(Default)]
@@ -67,7 +78,7 @@ impl PaneView for WysiwygPaneState {
 
     fn outline_headings(&self, cx: &App) -> Vec<OutlineNode> {
         if let Some(doc) = &self.document {
-            crate::outline::extract_outline_headings(doc, cx)
+            crate::plugin::outline::extract_outline_headings(doc, cx)
         } else {
             Vec::new()
         }
@@ -99,7 +110,7 @@ impl PaneView for WysiwygPaneState {
 
     fn search_matches(&self, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {
         if let Some(doc) = &self.document {
-            crate::search::search_in_document(doc, query, cx)
+            crate::plugin::search::search_in_document(doc, query, cx)
         } else {
             Vec::new()
         }
@@ -113,7 +124,7 @@ impl PaneView for WysiwygPaneState {
     ) {
         if let Some(doc) = &self.document {
             if let Some(entity_id) = match_item.entity_id {
-                crate::search::replace_in_block_entity(
+                crate::plugin::search::replace_in_block_entity(
                     doc,
                     entity_id,
                     match_item.byte_range.clone(),

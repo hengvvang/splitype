@@ -85,6 +85,7 @@ impl Editor {
         ))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
         pane_id: impl Into<PaneId>,

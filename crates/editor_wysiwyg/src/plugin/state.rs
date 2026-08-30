@@ -1,10 +1,4 @@
-//! WYSIWYG-world state types — the mode's data contracts.
-//!
-//! These were defined next to the `Editor` entity before the family split
-//! and now live with the mode that owns their semantics: autoscroll
-//! strategies, focus/selection state, undo history entries, native-table
-//! bindings, reference registries and the unified selection description.
-//! The coordinating crate re-exports them during migration.
+//! WYSIWYG pane state and domain types.
 
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
@@ -12,14 +6,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use gpui::{Entity, EntityId, Point, Pixels};
+use gpui::{Entity, EntityId, Pixels, Point};
 
 use crate::document::block::{Block, footnotes::FootnoteMap};
 use crate::history::delta::Transaction;
 use crate::document::protocol::UndoCaptureKind;
 use crate::markdown::block::image::ImageReferenceDefinitions;
 use crate::markdown::block::link::LinkReferenceDefinitions;
-use crate::markdown::block::table::{TableCellPosition, TableAxis};
+use crate::markdown::block::table::{TableAxis, TableCellPosition};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockId};
 
@@ -114,10 +108,6 @@ pub struct TableGrids {
 }
 
 /// A block-local selection captured as a path through the block tree.
-///
-/// Undo restores rebuild every block entity, so the anchor addresses the
-/// block structurally (root index + sibling index per level) instead of by
-/// entity id. The range is the block's current (projected) content range.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockSelectionAnchor {
     /// Root index followed by the sibling index of each child level.
