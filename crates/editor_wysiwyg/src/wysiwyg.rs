@@ -32,6 +32,11 @@ pub mod table_grid;
 pub mod text_layout;
 pub mod table_measure;
 pub mod http_client;
+pub mod source_map;
+pub mod selection;
+pub mod events;
+pub mod input;
+pub mod paste;
 
 pub mod state;
 pub mod outline;

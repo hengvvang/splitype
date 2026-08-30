@@ -81,15 +81,6 @@ impl Editor {
                     .h_full()
                     .overflow_y_scroll()
                     .track_scroll(&scroll_handle)
-                    .on_mouse_down(
-                        MouseButton::Right,
-                        cx.listener(move |this, event, window, cx| {
-                            this.defer_host_action(cx, move |host, cx| {
-                                host.activate_panel(pane_id.0.into(), cx)
-                            });
-                            this.on_source_context_menu_mouse_down(event, window, cx);
-                        }),
-                    )
                     .child(SourceCodeViewElement {
                         view: self.source_view.clone(),
                         ime: self.source_ime.clone(),

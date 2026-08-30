@@ -1,8 +1,4 @@
 //! Editor canvas mouse handling — hover, wheel, and scrollbar drag.
-//!
-//! These are thin wrappers that toggle UI state (scrollbar visibility,
-//! menu dismissal, table-axis preview clearing) and drive the scrollbar
-//! drag session. Page-key and table-cell navigation lives in `navigation`.
 
 use std::time::Duration;
 
@@ -12,9 +8,6 @@ use crate::engine::controller::*;
 
 impl Editor {
     pub(crate) fn bump_scrollbar_visibility(&mut self, pane_id: PaneId, window: &mut Window, cx: &mut Context<Self>) {
-        // One Editor entity serves one area; the scrollbar belongs to the
-        // pane's own document view. The fade task captures the pane id so it
-        // clears the right fade task later.
         let duration = Duration::from_millis(900);
         let Some(state) = self.pane_state_mut(pane_id) else {
             return;
@@ -31,8 +24,6 @@ impl Editor {
                 cx.background_executor()
                     .timer(duration + Duration::from_millis(50))
                     .await;
-                // `AnyWindowHandle::update` uses try_borrow_mut: a fade tick
-                // that lands mid-render is skipped, not panicked on.
                 let _ = window_handle.update(cx, |_view, _window, cx| {
                     let _ = weak_editor.update(cx, |this, cx| {
                         if let Some(state) = this.pane_state_mut(pane_id) {
@@ -58,11 +49,6 @@ impl Editor {
             state.scroll.scrollbar_hovered = *hovered;
             if *hovered {
                 self.bump_scrollbar_visibility(pane_id, window, cx);
-            } else {
-                // Pointer left the editor: dismiss the footnote tooltip so it does
-                // not linger when there is no further mouse-move to clear it.
-                self.footnote_tooltip = None;
-                cx.notify();
             }
         }
     }
@@ -71,12 +57,8 @@ impl Editor {
         &mut self,
         _event: &MouseDownEvent,
         _window: &mut Window,
-        cx: &mut Context<Self>,
+        _cx: &mut Context<Self>,
     ) {
-        // The in-window menu bar lives on the Shell; a mouse-down in the
-        // editor body reaches the Shell's body listener, which closes it.
-        self.clear_table_axis_preview(cx);
-        self.clear_table_axis_selection(cx);
     }
 
     pub(crate) fn on_editor_scroll_wheel(
@@ -86,7 +68,6 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // User scroll input has absolute priority: cancel any pending autoscroll.
         if let Some(state) = self.pane_state_mut(pane_id) {
             state.scroll.pending_autoscroll = None;
         }

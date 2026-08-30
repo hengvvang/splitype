@@ -251,7 +251,34 @@ impl Editor {
         self.save_document_via_prompt(window, cx);
     }
 
-    // ── Drop-file replace dialogs ──────────────────────────────────────────
+    pub fn abort_pending_close_after_save(&mut self, cx: &mut App) {
+        self.tab_mut().file.pending_close_after_save = false;
+        cx.notify(self.entity_id);
+    }
+
+    pub fn cancel_close_dialog(&mut self, cx: &mut Context<Self>) {
+        let restore_focus = self.tab_mut().file.close_dialog_restore_focus.take();
+        self.tab_mut().file.show_unsaved_changes_dialog = false;
+        self.tab_mut().file.pending_close_after_save = false;
+        if let Some(focus_id) = restore_focus {
+            self.focus_wysiwyg_block(focus_id);
+        }
+        cx.notify();
+    }
+
+    pub fn save_and_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.tab_mut().file.pending_close_after_save = true;
+        self.save_document(window, cx);
+    }
+
+    pub fn discard_and_close(&mut self, cx: &mut Context<Self>) {
+        self.tab_mut().file.dirty = false;
+        self.tab_mut().file.show_unsaved_changes_dialog = false;
+        if let Some(host) = self.host.clone() {
+            host.request_close_panel(self.panel_id, cx);
+        }
+        cx.notify();
+    }
 
     pub fn on_external_paths_drop(
         &mut self,
@@ -260,7 +287,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let Some(path) =
-            crate::input::paste::drop::first_dropped_markdown_path(paths.paths())
+            crate::input::drop::first_dropped_markdown_path(paths.paths())
         else {
             let strings = cx.global::<I18nManager>().strings().clone();
             self.show_drop_open_failed_prompt(strings.drop_no_markdown_file_message, window, cx);
@@ -279,7 +306,6 @@ impl Editor {
         if let Some(host) = self.host.clone() {
             host.hide_info_dialog(cx);
         }
-        self.dismiss_contextual_overlays(cx);
 
         // Welcome state (no tabs): open the file in a fresh tab instead of
         // replacing the current document.

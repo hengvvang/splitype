@@ -138,7 +138,7 @@ impl Editor {
 
         if self.has_tabs() && prefs.show_word_count {
             let total_count = self.active_tab_word_count(cx);
-            let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
+            let selection_count = None;
             right_items.push(render_word_count(
                 selection_count,
                 total_count,
@@ -295,48 +295,8 @@ impl Editor {
         use unicode_segmentation::UnicodeSegmentation;
 
         let snapshot = self.capture_source_selection_snapshot(cx);
-        if let Some(anchor) = &snapshot.block_anchor
-            && let Some(block) = self.block_entity_by_path(&anchor.path, cx)
-        {
-            let entity_id = block.entity_id();
-            let mut before_lines = 0usize;
-            let mut found = false;
-            for entry in self.doc().blocks() {
-                if entry.entity.entity_id() == entity_id {
-                    found = true;
-                    break;
-                }
-                before_lines += entry.entity.read(cx).display_text().matches('\n').count() + 1;
-            }
-            if found {
-                let text = block.read(cx).display_text();
-                let clamped = anchor.content_range.end.min(text.len());
-                let safe = if text.is_char_boundary(clamped) {
-                    clamped
-                } else {
-                    (0..=clamped)
-                        .rev()
-                        .find(|&i| text.is_char_boundary(i))
-                        .unwrap_or(0)
-                };
-                let line = text[..safe].matches('\n').count() + 1;
-                let last_newline = text[..safe].rfind('\n').map(|i| i + 1).unwrap_or(0);
-                let col = text[last_newline..safe].graphemes(true).count() + 1;
-                return (before_lines + line, col);
-            }
-        }
-
-        // Cross-block selections and runtime-only blocks (table cells) fall
-        // back to the global source-range path.
         let cursor_offset = snapshot.range.end;
-        // Model C: an unparsed tab (parse-free open) reads the authoritative
-        // text directly; a parsed tree with unflushed edits uses its source
-        // serialization so the offset coordinates stay consistent.
-        let text = match self.tab().document.as_ref() {
-            Some(doc) if self.tab().text_stale => doc.serialize_source_text(cx),
-            _ => self.tab().text.clone(),
-        };
-        // Snap to valid UTF-8 char boundary to avoid panics on multi-byte chars.
+        let text = self.tab().serialized_text(cx);
         let clamped = cursor_offset.min(text.len());
         let safe = if text.is_char_boundary(clamped) {
             clamped

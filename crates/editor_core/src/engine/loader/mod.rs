@@ -21,15 +21,6 @@ impl Editor {
         blocks_to_entity_tree(blocks, cx)
     }
 
-    /// Build runtime blocks from pre-split Markdown lines (WYSIWYG mode).
-    pub(crate) fn build_wysiwyg_blocks_from_lines(
-        cx: &mut Context<Self>,
-        lines: &[String],
-    ) -> Vec<Entity<Block>> {
-        let blocks = editor_wysiwyg::markdown::parse::parser::build_wysiwyg_blocks_from_lines(lines);
-        blocks_to_entity_tree(blocks, cx)
-    }
-
     /// Replace the whole document with `markdown`.
     ///
     /// Model C: `text` is the authoritative session source, so a rebuild
@@ -46,9 +37,6 @@ impl Editor {
         self.tab_mut().text = markdown.to_string();
         self.tab_mut().document = None;
         self.tab_mut().text_stale = false;
-        // The old tree's entities are abandoned; their subscriptions die
-        // with the entities, so the bookkeeping set must not grow.
-        self.subscribed_blocks.clear();
         if self.is_wysiwyg() {
             self.ensure_document(cx);
         }
@@ -65,7 +53,7 @@ fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<
     // Pre-allocate hash map to prevent re-allocations and re-hashing during load.
     let mut entities: HashMap<uuid::Uuid, Entity<Block>> = HashMap::with_capacity(block_count);
     for block in &data {
-        let entity = cx.new(|cx| Block::with_data(cx, block.clone()));
+        let entity = Editor::new_block(cx, block.clone());
         entities.insert(block.id.0, entity);
     }
 

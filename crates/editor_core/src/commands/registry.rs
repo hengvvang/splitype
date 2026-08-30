@@ -61,7 +61,6 @@ impl Editor {
     }
 
     pub fn toggle_pane_kind_from_ui(&mut self, cx: &mut Context<Self>) {
-        self.end_block_pointer_selection_sessions(cx);
         self.tab_mut().undo.last_selection_snapshot =
             self.capture_source_selection_snapshot_global(cx);
         self.toggle_pane_kind(cx);
@@ -142,9 +141,7 @@ impl Editor {
     }
 
     pub fn toggle_pane_kind(&mut self, cx: &mut Context<Self>) {
-        self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
-        self.clear_cross_block_selection(cx);
         if let Some(selection) = self.active_pane_state().selection_mut() {
             selection.clear_all();
         }
@@ -175,10 +172,6 @@ impl Editor {
         }
         self.tab_mut().file.pending_window_title_refresh = true;
         self.tab_mut().file.close_dialog_restore_focus = None;
-        self.tab_mut().tables.axis_preview = None;
-        self.tab_mut().tables.axis_selection = None;
-        self.dismiss_contextual_overlays(cx);
-        self.sync_table_axis_visuals(cx);
         self.refresh_stable_document_snapshot(cx);
         cx.notify();
     }

@@ -10,7 +10,7 @@
 
 pub use std::time::{Duration, Instant};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -35,8 +35,7 @@ pub use editor_wysiwyg::state::{
     TableCellBinding, TableGrids, TableSizePickerState, UndoHistory, UndoSelectionSnapshot,
     WysiwygSelectAllCycle, EMPTY_FOCUS_STATE, EMPTY_SELECTION_STATE,
 };
-pub use crate::document::context_menu::{ContextMenuState, FootnoteTooltipState};
-pub use crate::document::dialogs::TableInsertDialogState;
+
 pub use editor_wysiwyg::markdown::block::image::parse_image_reference_definitions;
 pub use editor_wysiwyg::markdown::block::link::parse_link_reference_definitions;
 pub use editor_wysiwyg::markdown::block::table::TableCellPosition;
@@ -322,35 +321,11 @@ pub struct Editor {
     /// This editor's floating outline HUD state (heading list of its own active
     /// document). Synced during render from the active tab.
     pub outline: OutlineHudState,
-    /// Rendered-mode context menu currently open in the editor.
-    pub context_menu: Option<ContextMenuState>,
-    pub context_menu_submenu_close_task: Option<Task<()>>,
-    pub context_menu_submenu_close_token: usize,
-    /// Footnote content tooltip shown while the pointer hovers a footnote
-    /// reference or definition header.
-    pub footnote_tooltip: Option<FootnoteTooltipState>,
-    /// Table insertion dialog opened from the context menu.
-    pub table_insert_dialog: Option<TableInsertDialogState>,
-    /// Table size matrix picker opened from the bottom-right corner dot.
-    pub table_size_picker: Option<TableSizePickerState>,
-    /// Timestamp of the last welcome-prompt click, used to detect a
-    /// double-click across repaints. GPUI rebuilds elements (and their
-    /// closures) every frame, so the timestamp must live in editor state
-    /// rather than in a click-handler closure.
     pub welcome_last_click: Option<Instant>,
-    /// Currently focused pane id — the status-bar action target and the
-    /// routing target for events without a pane context (block events,
-    /// keyboard commands). One Editor entity serves one area, so the area
-    /// (panel) id alone identifies it.
+    /// Currently focused pane id.
     pub focused_pane_id: Option<PaneId>,
     /// In-buffer and workspace search and replace state.
     pub search: crate::search::SearchPanelState,
-    /// Block entities this editor currently subscribes to (block events
-    /// drive undo capture, preview refresh and structural requests).
-    /// Blocks created outside `Editor::new_block` (e.g. by undo restore
-    /// deltas in the WYSIWYG crate) are subscribed lazily via
-    /// `subscribe_document_blocks` after the structure change.
-    pub subscribed_blocks: HashSet<EntityId>,
 }
 
 /// Pixel geometry for the custom editor scrollbar.
@@ -435,16 +410,9 @@ impl Editor {
             is_maximized: false,
             leaf_count: 1,
             outline: OutlineHudState::default(),
-            context_menu: None,
-            context_menu_submenu_close_task: None,
-            context_menu_submenu_close_token: 0,
-            footnote_tooltip: None,
-            table_insert_dialog: None,
-            table_size_picker: None,
             welcome_last_click: None,
             focused_pane_id: None,
             search: crate::search::SearchPanelState::new(cx),
-            subscribed_blocks: HashSet::new(),
         }
     }
 
@@ -475,16 +443,9 @@ impl Editor {
             is_maximized: false,
             leaf_count: 1,
             outline: OutlineHudState::default(),
-            context_menu: None,
-            context_menu_submenu_close_task: None,
-            context_menu_submenu_close_token: 0,
-            footnote_tooltip: None,
-            table_insert_dialog: None,
-            table_size_picker: None,
             welcome_last_click: None,
             focused_pane_id: None,
             search: crate::search::SearchPanelState::new(cx),
-            subscribed_blocks: HashSet::new(),
         };
         // Model C: opening is parse-free. The block tree is parsed lazily
         // by `ensure_document` the first time the WYSIWYG world needs it
@@ -524,6 +485,18 @@ impl Editor {
         }
     }
 
+    pub fn image_base_dir(&self) -> Option<PathBuf> {
+        self.tab().file.path.as_ref().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+    }
+
+    pub fn focus_wysiwyg_block(&mut self, entity_id: EntityId) {
+        let pane_id = self.active_pane_id();
+        if let Some(w) = self.pane_state_mut(pane_id).and_then(|p| p.as_wysiwyg_mut()) {
+            w.focus.pending = Some(entity_id);
+            w.focus.active_entity = Some(entity_id);
+        }
+    }
+
     /// Parses the active tab's authoritative text into a WYSIWYG block
     /// tree if it has not been parsed yet, then runs the first-parse
     /// initialization (table grids, references, block subscriptions,
@@ -544,30 +517,19 @@ impl Editor {
         let text = self.session.tab(index).expect("active tab").text.clone();
         let mut roots = Self::parse_wysiwyg_document(cx, &text);
         if roots.is_empty() {
-            roots.push(cx.new(|cx| {
-                editor_wysiwyg::document::block::Block::with_data(
-                    cx,
-                    BlockData::paragraph(String::new()),
-                )
-            }));
+            roots.push(Self::new_block(
+                cx,
+                BlockData::paragraph(String::new()),
+            ));
         }
         let mut document = Document::new(roots);
         document.rebuild_metadata_and_snapshot(cx);
         self.session.tab_mut(index).expect("active tab").document = Some(document);
-
-        // First-parse initialization (mirrors the pre-model-C flow that
-        // used to run inside `new_tab_from_markdown`/`from_markdown`).
-        self.rebuild_table_grids(cx);
-        self.rebuild_reference_registries(cx);
         self.subscribe_document_blocks(cx);
+        self.rebuild_table_grids(cx);
+
         let pane_id = self.active_pane_id();
         self.refresh_preview_blocks(pane_id, cx);
-        let pending_focus = self.first_focusable_entity_id(cx);
-        let pane = self.pane_state(pane_id);
-        if let Some(w) = pane.as_wysiwyg_mut() {
-            w.focus.pending = pending_focus;
-            w.focus.active_entity = pending_focus;
-        }
         self.refresh_stable_document_snapshot(cx);
     }
 
@@ -577,28 +539,8 @@ impl Editor {
         if index >= self.session.tab_count() {
             return;
         }
-        // Also reachable right after the first tab is pushed onto an empty
-        // editor (welcome state) — notify so the new document renders.
-        if index == self.session.active_tab_index() {
-            // Model C: derived init runs only when the block tree exists;
-            // an unparsed tab (parse-free open) is initialized lazily by
-            // `ensure_document` the first time WYSIWYG needs it.
-            if self
-                .session
-                .tab(index)
-                .is_some_and(|tab| tab.document.is_some())
-            {
-                self.rebuild_table_grids(cx);
-                self.rebuild_reference_registries(cx);
-                self.subscribe_document_blocks(cx);
-                let pane_id = self.active_pane_id();
-                self.refresh_preview_blocks(pane_id, cx);
-                self.refresh_stable_document_snapshot(cx);
-            }
-            cx.notify();
-            return;
-        }
         self.session.set_active_tab(index);
+        self.ensure_document(cx);
         let pane = self.active_pane_state();
         if let Some(w) = pane.as_wysiwyg_mut() {
             if w.focus.pending.is_none() {
@@ -609,19 +551,11 @@ impl Editor {
             tab.file.pending_window_title_refresh = true;
             tab.file.pending_window_edited = true;
         }
-        // Model C: derived init only when the block tree exists (see the
-        // active-tab branch above).
-        if self
-            .session
-            .tab(index)
-            .is_some_and(|tab| tab.document.is_some())
-        {
-            self.rebuild_table_grids(cx);
-            self.rebuild_reference_registries(cx);
-            let pane_id = self.active_pane_id();
-            self.refresh_preview_blocks(pane_id, cx);
-            self.refresh_stable_document_snapshot(cx);
-        }
+        self.subscribe_document_blocks(cx);
+        self.rebuild_table_grids(cx);
+        let pane_id = self.active_pane_id();
+        self.refresh_preview_blocks(pane_id, cx);
+        self.refresh_stable_document_snapshot(cx);
         if self.search.visible {
             self.execute_search(cx);
         }
@@ -935,14 +869,14 @@ impl Editor {
                 // Resume editing the shared document at the last position
                 // (falling back to the first block when it was rebuilt).
                 Some(EditorPaneKind::Wysiwyg) => {
+                    let doc = self.active_doc();
                     let target = self
                         .pane_state_ref(pane_id)
                         .and_then(|state| state.as_wysiwyg())
                         .and_then(|wysiwyg| wysiwyg.focus.active_entity)
-                        .filter(|id| self.focusable_entity_by_id(*id).is_some())
-                        .or_else(|| self.first_focusable_entity_id(cx));
+                        .or_else(|| doc.and_then(|d| d.first_root()).map(|b| b.entity_id()));
                     if let Some(id) = target {
-                        if let Some(block) = self.focusable_entity_by_id(id) {
+                        if let Some(block) = doc.and_then(|d| d.block_entity_by_id(id)) {
                             let focus_handle = block.read(cx).focus_handle.clone();
                             focus_handle.focus(window, cx);
                         }

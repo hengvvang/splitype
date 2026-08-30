@@ -244,15 +244,30 @@ impl Editor {
     }
 
     fn execute_cut(&mut self, cx: &mut Context<Self>) {
-        if let Some(text) = self.selected_markdown_text(cx) {
-            cx.write_to_clipboard(ClipboardItem::new_string(text));
-            self.delete_active_selection(cx);
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                if let Some(sel) = source.selection.take() {
+                    let text = source.text[sel.start..sel.end].to_string();
+                    cx.write_to_clipboard(ClipboardItem::new_string(text));
+                    source.text.replace_range(sel.start..sel.end, "");
+                    source.cursor = sel.start;
+                    source.refresh_highlight();
+                }
+            }
+            self.sync_source_edit_to_document(pane_id, cx);
         }
     }
 
     fn execute_copy(&mut self, cx: &mut Context<Self>) {
-        if let Some(text) = self.selected_markdown_text(cx) {
-            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            if let Some(source) = self.pane_state(pane_id).as_source_code() {
+                if let Some(sel) = &source.selection {
+                    let text = source.text[sel.start..sel.end].to_string();
+                    cx.write_to_clipboard(ClipboardItem::new_string(text));
+                }
+            }
         }
     }
 
@@ -267,7 +282,7 @@ impl Editor {
             text = text.replace("\r\n", "\n");
         }
         if let Some(block) = self.active_or_target_block(target_entity, cx) {
-            self.focus_block(block.entity_id());
+            self.focus_wysiwyg_block(block.entity_id());
             block.update(cx, |block, cx| {
                 let range = block.selected_range.clone();
                 let text_len = text.len();
@@ -290,8 +305,6 @@ impl Editor {
             if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
                 source.select_all();
             }
-        } else {
-            self.select_all_wysiwyg_document(cx);
         }
         cx.notify();
     }
@@ -301,7 +314,10 @@ impl Editor {
         target_entity: Option<EntityId>,
         _cx: &mut Context<Self>,
     ) -> Option<Entity<Block>> {
-        self.context_menu_target_block(target_entity)
+        let doc = self.active_doc()?;
+        target_entity
+            .and_then(|id| doc.block_entity_by_id(id))
+            .or_else(|| doc.first_root().cloned())
     }
 
     pub fn apply_inline_markup(
@@ -337,7 +353,7 @@ impl Editor {
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
-        self.focus_block(block.entity_id());
+        self.focus_wysiwyg_block(block.entity_id());
         block.update(cx, |block, cx| {
             let range = block.selected_range.clone();
             if range.is_empty() {
@@ -396,7 +412,7 @@ impl Editor {
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
-        self.focus_block(block.entity_id());
+        self.focus_wysiwyg_block(block.entity_id());
         block.update(cx, |block, cx| {
             if !block.edits_verbatim_text() {
                 block.data.kind = editor_wysiwyg::markdown::parse::BlockKind::Paragraph;
@@ -445,7 +461,7 @@ impl Editor {
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
-        self.focus_block(block.entity_id());
+        self.focus_wysiwyg_block(block.entity_id());
         block.update(cx, |block, cx| {
             let cursor = block.cursor_offset();
             let range = block.selected_range.clone();
@@ -499,7 +515,7 @@ impl Editor {
         let Some(block) = self.active_or_target_block(target_entity, cx) else {
             return;
         };
-        self.focus_block(block.entity_id());
+        self.focus_wysiwyg_block(block.entity_id());
         block.update(cx, |b, cx| {
             let range = b.selected_range.clone();
             if !range.is_empty() {

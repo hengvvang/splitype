@@ -146,16 +146,22 @@ impl Editor {
             EditorPaneKind::Wysiwyg => {
                 let pane_id = self.active_pane_id();
                 if let Some(entity_id) = node.block_id {
-                    self.focus_block(entity_id);
+                    self.focus_wysiwyg_block(entity_id);
                     if let Some(block) = self.doc().block_entity_by_id(entity_id) {
-                        Self::reset_block_cursor(&block, 0, cx);
+                        block.update(cx, |block, cx| {
+                            block.assign_collapsed_selection_offset(0, editor_wysiwyg::document::block::CollapsedCaretAffinity::Default, None);
+                            cx.notify();
+                        });
                     }
                 } else {
                     let fallback_entity = self.doc().blocks().get(node.block_index).map(|e| e.entity.clone());
                     if let Some(entity) = fallback_entity {
                         let entity_id = entity.entity_id();
-                        self.focus_block(entity_id);
-                        Self::reset_block_cursor(&entity, 0, cx);
+                        self.focus_wysiwyg_block(entity_id);
+                        entity.update(cx, |block, cx| {
+                            block.assign_collapsed_selection_offset(0, editor_wysiwyg::document::block::CollapsedCaretAffinity::Default, None);
+                            cx.notify();
+                        });
                     }
                 }
 

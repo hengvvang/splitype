@@ -118,7 +118,7 @@ pub enum NavigationExecutionPlan {
 }
 
 impl crate::engine::controller::Editor {
-    pub(crate) fn execute_navigation(
+    pub fn execute_navigation(
         &mut self,
         intent: NavigationIntent,
         cx: &mut Context<Self>,
@@ -143,12 +143,10 @@ impl crate::engine::controller::Editor {
             NavigationExecutionPlan::ScrollPreviewToFootnoteRef(_id) => {
                 cx.notify();
             }
-            NavigationExecutionPlan::JumpToFootnoteDefInEditor(id) => {
-                let _ = self.jump_to_footnote_definition(&id, cx);
+            NavigationExecutionPlan::JumpToFootnoteDefInEditor(_id) => {
                 cx.notify();
             }
-            NavigationExecutionPlan::JumpToFootnoteRefInEditor(id) => {
-                let _ = self.jump_to_footnote_backref(&id, cx);
+            NavigationExecutionPlan::JumpToFootnoteRefInEditor(_id) => {
                 cx.notify();
             }
         }

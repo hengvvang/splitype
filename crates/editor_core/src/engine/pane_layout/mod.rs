@@ -44,16 +44,9 @@ impl Editor {
         // reaches the pane div. Explicit clicks take precedence. Only runs
         // for editing panels: a welcome panel has no tabs, hence no edit
         // targets to derive from.
-        if self.focused_pane_id.is_none()
-            && self.panel_mode().is_editing()
-            && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
-        {
-            if self.doc().block_entity_by_id(target_id).is_some() {
-                // Keyboard focus sits in the shared document: point at the
-                // panel's first Wysiwyg pane.
-                if let Some(pane) = inner_tree.find_first_leaf_by_kind(EditorPaneKind::Wysiwyg) {
-                    self.focused_pane_id = Some(PaneId(pane.id));
-                }
+        if self.focused_pane_id.is_none() && self.panel_mode().is_editing() {
+            if let Some(leaf_id) = inner_tree.first_leaf_id() {
+                self.focused_pane_id = Some(PaneId(leaf_id));
             }
         }
 

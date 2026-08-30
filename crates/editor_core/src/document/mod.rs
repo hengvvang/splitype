@@ -11,13 +11,8 @@
 //! 6. **Overlays** — context menu, table-insert dialog, info/drop/unsaved
 //!    dialogs.
 
-pub mod context_menu;
-pub mod context_menu_actions;
-pub mod context_menu_render;
-pub mod dialogs;
 pub mod export;
 pub mod lifecycle_sync;
-pub mod viewport;
 
 use gpui::*;
 
@@ -123,10 +118,6 @@ impl Render for Editor {
                     window.refresh();
                 }
             })
-            .capture_action(cx.listener(Self::on_copy_capture))
-            .capture_action(cx.listener(Self::on_cut_capture))
-            .capture_action(cx.listener(Self::on_delete_capture))
-            .capture_action(cx.listener(Self::on_delete_backward_capture))
             .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
             .on_action(cx.listener(Self::on_undo))
             .on_action(cx.listener(Self::on_redo))
@@ -146,7 +137,6 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_page_down))
             .on_action(cx.listener(Self::on_jump_to_top))
             .on_action(cx.listener(Self::on_jump_to_bottom))
-            .on_action(cx.listener(Self::on_dismiss_transient_ui))
             .child(self.render_editor_topbar(
                 WindowPanelKind::Editor,
                 &theme,
@@ -163,27 +153,6 @@ impl Render for Editor {
                     .child(self.render_editor_pane_layout(&theme, &strings, window, cx)),
             )
             .child(self.render_editor_bottombar(&theme, &strings, cx));
-        let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
-            base.child(context_menu)
-        } else {
-            base
-        };
-        let base = if let Some(footnote_tooltip) = self.render_footnote_tooltip(&theme, window, cx)
-        {
-            base.child(footnote_tooltip)
-        } else {
-            base
-        };
-        let base = if let Some(table_dialog) = self.render_table_insert_dialog_overlay(&theme, window, cx) {
-            base.child(table_dialog)
-        } else {
-            base
-        };
-        let base = if let Some(picker) = self.render_table_size_picker_overlay(&theme, window, cx) {
-            base.child(picker)
-        } else {
-            base
-        };
         let base = if let Some(search_overlay) = self.render_search_panel_overlay(&theme, window, cx) {
             base.child(search_overlay)
         } else {

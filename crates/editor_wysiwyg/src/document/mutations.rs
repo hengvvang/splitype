@@ -21,6 +21,14 @@ impl Document {
         });
     }
 
+    pub fn remove_block(
+        &mut self,
+        entity_id: EntityId,
+        cx: &mut App,
+    ) -> Option<(Entity<Block>, BlockLocation)> {
+        self.with_structure_mutation(cx, |tree, cx| tree.remove_block_unindexed(entity_id, cx))
+    }
+
     /// Runs a tree mutation and then eagerly rebuilds metadata and the entries
     /// snapshot exactly once for that mutation batch.
     pub fn with_structure_mutation<R>(

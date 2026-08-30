@@ -387,6 +387,7 @@ impl Shell {
             return false;
         };
         editor.update(cx, |editor, cx| editor.open_file_in_panel(path, mode, window, cx));
+        cx.notify();
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
@@ -412,8 +413,6 @@ impl Shell {
             // derived init below runs only for tabs whose block tree already
             // exists, otherwise `ensure_document` performs it on first use.
             if editor.session.has_tabs() && editor.active_doc().is_some() {
-                editor.rebuild_table_grids(cx);
-                editor.rebuild_reference_registries(cx);
                 let pane_id = editor.active_pane_id();
                 editor.refresh_preview_blocks(pane_id, cx);
                 editor.refresh_stable_document_snapshot(cx);

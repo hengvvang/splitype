@@ -1,12 +1,6 @@
-//! Input processing: keyboard, mouse, IME, clipboard, selection, table grid, and block events.
+//! Generic input processing: mouse scrollbar drag, page navigation, drop, and keyboard shortcuts.
 
-pub mod block_events;
-pub mod focus;
+pub mod drop;
 pub mod keyboard;
 pub mod mouse;
 pub mod navigation;
-pub mod paste;
-pub mod runtime;
-pub mod selection;
-pub mod source_map;
-pub mod table_grid;

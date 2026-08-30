@@ -30,9 +30,8 @@ impl Block {
             self.move_to(offset, cx);
         }
 
-        if !was_focused {
-            cx.emit(BlockEvent::RequestFocus);
-        }
+        self.focus_handle.focus(window, cx);
+        cx.emit(BlockEvent::RequestFocus);
     }
 
     /// Resolve the inline link under a pointer position against the most recent

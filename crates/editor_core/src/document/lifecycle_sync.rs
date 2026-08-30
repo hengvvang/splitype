@@ -31,11 +31,20 @@ impl Editor {
                 }
             }
             EditorPaneKind::Wysiwyg => {
-                if let Some(wysiwyg) = self.pane_state_mut(pane_id).and_then(|p| p.as_wysiwyg_mut()) {
-                    if let Some(entity_id) = wysiwyg.focus.pending.take()
-                        && let Some(block) = self.focusable_entity_by_id(entity_id)
-                    {
-                        let focus_handle = block.read(cx).focus_handle.clone();
+                let first_root_id = self.active_doc().and_then(|d| d.first_root()).map(|r| r.entity_id());
+                let target_id = self.pane_state_mut(pane_id)
+                    .and_then(|p| p.as_wysiwyg_mut())
+                    .and_then(|wysiwyg| {
+                        wysiwyg.focus.pending.take().or(wysiwyg.focus.active_entity).or(first_root_id)
+                    });
+                if let Some(entity_id) = target_id
+                    && let Some(block) = self.active_doc().and_then(|d| d.block_entity_by_id(entity_id))
+                {
+                    if let Some(wysiwyg) = self.pane_state_mut(pane_id).and_then(|p| p.as_wysiwyg_mut()) {
+                        wysiwyg.focus.active_entity = Some(entity_id);
+                    }
+                    let focus_handle = block.read(cx).focus_handle.clone();
+                    if !focus_handle.is_focused(window) {
                         focus_handle.focus(window, cx);
                     }
                 }
@@ -70,7 +79,7 @@ impl Editor {
         &mut self,
         pane_id: PaneId,
         strategy: crate::engine::controller::AutoscrollStrategy,
-        window: &Window,
+        _window: &Window,
         cx: &App,
     ) -> bool {
         use crate::engine::controller::{AutoscrollStrategy, EditorPaneKind};
@@ -85,24 +94,23 @@ impl Editor {
         let active_bounds: Option<Bounds<Pixels>> = (|| {
             match kind {
                 EditorPaneKind::Wysiwyg => {
-                    let target_block = self
-                        .focused_edit_target(window, cx)
-                        .or_else(|| {
-                            let active_entity_id =
-                                self.pane_state_ref(pane_id)?.as_wysiwyg()?.focus.active_entity?;
-                            self.focusable_entity_by_id(active_entity_id)
-                        })
-                        .or_else(|| {
-                            let doc = self.active_doc()?;
-                            doc.blocks().iter().find_map(|entry| {
-                                let block = entry.entity.read(cx);
-                                if block.search_matches.iter().any(|(_, is_active)| *is_active) {
-                                    Some(entry.entity.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                        })?;
+                    let doc = self.active_doc()?;
+                    let target_block = {
+                        let active_entity_id =
+                            self.pane_state_ref(pane_id)?.as_wysiwyg()?.focus.active_entity;
+                        active_entity_id
+                            .and_then(|id| doc.block_entity_by_id(id))
+                            .or_else(|| {
+                                doc.blocks().iter().find_map(|entry| {
+                                    let block = entry.entity.read(cx);
+                                    if block.search_matches.iter().any(|(_, is_active)| *is_active) {
+                                        Some(entry.entity.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })?
+                    };
                     target_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
                 }
                 EditorPaneKind::SourceCode => None,

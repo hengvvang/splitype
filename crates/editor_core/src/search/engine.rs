@@ -636,14 +636,14 @@ impl Editor {
         if let Some(entity_id) = match_item.entity_id {
             match pane_kind {
                 crate::engine::controller::EditorPaneKind::Wysiwyg => {
-                    self.focus_block(entity_id);
+                    self.focus_wysiwyg_block(entity_id);
                     if let Some(doc) = self.active_doc() {
                         if let Some(block) = doc.block_entity_by_id(entity_id) {
                             let range = match_item.byte_range.clone();
                             block.update(cx, |block, cx| {
                                 block.selected_range = range;
                                 block.selection_reversed = false;
-                                block.start_cursor_blink(window, cx);
+                                block.start_cursor_blink(cx);
                                 cx.notify();
                             });
                         }
@@ -723,12 +723,12 @@ impl Editor {
                         }
                     }
                     if let Some((target_entity, entity_id)) = found_target {
-                        self.focus_block(entity_id);
+                        self.focus_wysiwyg_block(entity_id);
                         let range = match_item.byte_range.clone();
                         target_entity.update(cx, |block, cx| {
                             block.selected_range = range;
                             block.selection_reversed = false;
-                            block.start_cursor_blink(window, cx);
+                            block.start_cursor_blink(cx);
                             cx.notify();
                         });
                     }

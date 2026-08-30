@@ -29,6 +29,7 @@ pub mod paragraph;
 pub mod raw_markdown;
 pub mod table_block;
 pub mod thematic_break;
+pub mod viewport;
 
 pub use link_cursor::*;
 pub use list_markers::*;
@@ -204,7 +205,7 @@ impl Render for Block {
         self.sync_inline_projection_for_focus(focused);
 
         if input_active && self.cursor_blink_task.is_none() {
-            self.start_cursor_blink(window, cx);
+            self.start_cursor_blink(cx);
         } else if !input_active && self.cursor_blink_task.is_some() {
             self.cursor_blink_task = None;
         }
@@ -334,7 +335,7 @@ impl Render for Block {
             && !matches!(self.kind(), BlockKind::MathBlock | BlockKind::MermaidBlock)
         {
             if focused && self.cursor_blink_task.is_none() {
-                self.start_cursor_blink(window, cx);
+                self.start_cursor_blink(cx);
             } else if !focused && self.cursor_blink_task.is_some() {
                 self.cursor_blink_task = None;
             }

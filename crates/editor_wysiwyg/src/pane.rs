@@ -1,6 +1,7 @@
 use gpui::App;
 
-use crate::state::{FocusState, SelectionState};
+use crate::document::Document;
+use crate::state::{FocusState, ReferenceRegistries, SelectionState, TableGrids};
 use editor_model::{EditorDocument, EditorPaneKind, Pane};
 
 /// View state specific to a WYSIWYG editor pane.
@@ -8,6 +9,10 @@ use editor_model::{EditorDocument, EditorPaneKind, Pane};
 pub struct WysiwygPaneState {
     pub focus: FocusState,
     pub selection: SelectionState,
+    pub document: Option<Document>,
+    pub tables: TableGrids,
+    pub references: ReferenceRegistries,
+    pub text_stale: bool,
 }
 
 impl Pane for WysiwygPaneState {

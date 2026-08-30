@@ -39,11 +39,4 @@ impl Editor {
             cx.notify();
         }
     }
-
-    pub(crate) fn preview_selected_text(&self, _cx: &App) -> Option<String> {
-        let pane_id = self.active_pane_id();
-        self.pane_state_ref(pane_id)?
-            .as_preview()
-            .and_then(editor_preview::selected_text)
-    }
 }
