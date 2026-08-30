@@ -257,7 +257,6 @@ dependencies = [
  "gpui",
  "gpui_platform",
  "notify",
- "primitives",
  "regex",
  "schemars",
  "serde",
@@ -1255,7 +1254,6 @@ dependencies = [
  "anyhow",
  "directories",
  "gpui",
- "primitives",
  "schemars",
  "serde",
  "serde_json",
@@ -1849,7 +1847,6 @@ dependencies = [
  "image",
  "lazy_static",
  "mermaid-rs-renderer",
- "primitives",
  "pulldown-cmark",
  "ratex-layout",
  "ratex-parser",
@@ -4800,16 +4797,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "primitives"
-version = "0.0.1"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "uuid",
-]
-
-[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6134,7 +6121,6 @@ name = "splitter"
 version = "0.0.1"
 dependencies = [
  "gpui",
- "primitives",
  "schemars",
  "serde",
 ]
@@ -6509,7 +6495,6 @@ dependencies = [
  "directories",
  "gpui",
  "gpui_platform",
- "primitives",
  "schemars",
  "serde",
  "serde_json",
@@ -7200,7 +7185,6 @@ version = "0.0.1"
 dependencies = [
  "config",
  "gpui",
- "primitives",
  "splitter",
  "theme",
 ]

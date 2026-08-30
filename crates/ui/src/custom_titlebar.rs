@@ -8,7 +8,7 @@
 use gpui::*;
 
 use theme::{Theme, ThemeColors, ThemeDimensions};
-use primitives::SPLITYPE_APP_ID;
+use config::SPLITYPE_APP_ID;
 
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;

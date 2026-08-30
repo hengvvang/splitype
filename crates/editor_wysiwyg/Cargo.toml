@@ -32,7 +32,6 @@ workspace = true
 
 [dependencies]
 gpui = { workspace = true }
-primitives = { path = "../primitives" }
 theme = { path = "../theme" }
 editor_model = { path = "../editor_model" }
 editor_outline = { path = "../editor_outline" }

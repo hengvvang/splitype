@@ -10,7 +10,6 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-primitives = { path = "../primitives" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 config = { path = "../config" }

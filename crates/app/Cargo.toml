@@ -19,7 +19,6 @@ name = "app"
 path = "src/main.rs"
 
 [dependencies]
-primitives = { path = "../primitives" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 config = { path = "../config" }

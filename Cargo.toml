@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/primitives",
     "crates/splitter",
     "crates/splitype_installer",
     "crates/splitype_cli",
@@ -33,13 +32,11 @@ rust-version = "1.91"
 
 [workspace.dependencies]
 # Member crates
-primitives = { path = "crates/primitives" }
 splitter = { path = "crates/splitter" }
 splitype_installer = { path = "crates/splitype_installer" }
 splitype_cli = { path = "crates/splitype_cli" }
 theme = { path = "crates/theme" }
 config = { path = "crates/config" }
-syntax = { path = "crates/syntax" }
 ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
 workspace = { path = "crates/workspace" }
