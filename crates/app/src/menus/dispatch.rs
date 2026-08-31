@@ -89,34 +89,6 @@ pub(crate) fn request_update_check_on_active_window(cx: &mut App) {
     });
 }
 
-pub(crate) fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
-    action.as_any().is::<SaveDocument>()
-        || action.as_any().is::<SaveDocumentAs>()
-        || action.as_any().is::<ExportHtml>()
-        || action.as_any().is::<ExportPdf>()
-        || action.as_any().is::<QuitApplication>()
-        || action.as_any().is::<CloseWindow>()
-        || action.as_any().is::<CheckForUpdates>()
-        || action.as_any().is::<ShowAbout>()
-        || action.as_any().is::<InstallCliTool>()
-        || action.as_any().is::<UninstallCliTool>()
-        || action.as_any().is::<ToggleExplorer>()
-        || action.as_any().is::<CloseExplorerFolder>()
-}
-
-pub(crate) fn is_window_context_menu_action(action: &dyn Action) -> bool {
-    action.as_any().is::<NewWindow>()
-        || action.as_any().is::<OpenFile>()
-        || action.as_any().is::<OpenSettings>()
-        || action.as_any().is::<OpenRecentFile>()
-        || action.as_any().is::<NoRecentFiles>()
-        || action.as_any().is::<AddLanguageConfig>()
-        || action.as_any().is::<AddThemeConfig>()
-        || action.as_any().is::<InstallCliTool>()
-        || action.as_any().is::<UninstallCliTool>()
-        || is_editor_scoped_menu_action(action)
-}
-
 pub(crate) fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
     let mut candidates = Vec::new();
     let mut push_unique = |window: AnyWindowHandle| {
@@ -155,42 +127,46 @@ pub(crate) fn request_close_editor_window(window: AnyWindowHandle, cx: &mut App)
 }
 
 pub(crate) fn request_close_current_editor_window(cx: &mut App) {
-    let candidates = current_window_candidates(cx);
-    if candidates.is_empty() {
-        cx.quit();
-        return;
-    }
-
-    for window in candidates {
-        if request_close_editor_window(window, cx) {
+    cx.defer(|cx| {
+        let candidates = current_window_candidates(cx);
+        if candidates.is_empty() {
+            cx.quit();
             return;
         }
-    }
+
+        for window in candidates {
+            if request_close_editor_window(window, cx) {
+                return;
+            }
+        }
+    });
 }
 
 pub(crate) fn request_quit_application(cx: &mut App) {
-    let candidates = current_window_candidates(cx);
-    if candidates.is_empty() {
-        cx.quit();
-        return;
-    }
-
-    for window in candidates {
-        let Some(window) = window.downcast::<Shell>() else {
-            continue;
-        };
-
-        let should_close = window
-            .update(cx, |shell, window, cx| {
-                shell.on_window_should_close(window, cx)
-            })
-            .unwrap_or(false);
-        if !should_close {
+    cx.defer(|cx| {
+        let candidates = current_window_candidates(cx);
+        if candidates.is_empty() {
+            cx.quit();
             return;
         }
-    }
 
-    cx.quit();
+        for window in candidates {
+            let Some(window) = window.downcast::<Shell>() else {
+                continue;
+            };
+
+            let should_close = window
+                .update(cx, |shell, window, cx| {
+                    shell.on_window_should_close(window, cx)
+                })
+                .unwrap_or(true);
+            if !should_close {
+                return;
+            }
+        }
+
+        cx.quit();
+    });
 }
 
 /// Executes one of the app-menu actions against the current application state.
@@ -271,10 +247,8 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
             });
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        let _ = with_shell_window(cx, |_shell, _window, cx| {
-            explorer::ExplorerState::update(cx, |state, cx| {
-                state.close_explorer_folder(cx);
-            });
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.close_explorer_folder(cx);
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -291,37 +265,17 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     }
 }
 
-/// Executes a menu action against a specific editor when the action is
-/// editor-scoped, falling back to app-wide behavior for global actions.
+/// Executes a menu action directly with full access to the current shell,
+/// editor entity, and window context.
 pub(crate) fn dispatch_menu_action_for_editor(
     action: &dyn Action,
-    target: &WeakEntity<Editor>,
+    target_shell: &WeakEntity<Shell>,
+    target_editor: &WeakEntity<Editor>,
     window: &mut Window,
     cx: &mut App,
 ) {
-    if !is_window_context_menu_action(action) {
-        let deferred_action = action.boxed_clone();
-        cx.defer(move |cx| {
-            dispatch_menu_action(deferred_action.as_ref(), cx);
-        });
-        return;
-    }
-
     window.activate_window();
     let current_window = Some(window.window_handle());
-
-    if action.as_any().is::<SaveDocument>()
-        || action.as_any().is::<SaveDocumentAs>()
-        || action.as_any().is::<ExportHtml>()
-        || action.as_any().is::<ExportPdf>()
-    {
-        let no_tab = target
-            .update(cx, |editor, _cx| !editor.has_tabs())
-            .unwrap_or(true);
-        if no_tab {
-            return;
-        }
-    }
 
     if action.as_any().is::<NewWindow>() {
         open_editor_window(cx, String::new(), None);
@@ -336,42 +290,71 @@ pub(crate) fn dispatch_menu_action_for_editor(
             current_window,
         );
     } else if action.as_any().is::<NoRecentFiles>() {
+        // Disabled item, do nothing
     } else if action.as_any().is::<AddLanguageConfig>() {
         prompts::prompt_and_import_language_config_with_error_window(cx, current_window);
     } else if action.as_any().is::<AddThemeConfig>() {
         prompts::prompt_and_import_theme_config_with_error_window(cx, current_window);
     } else if action.as_any().is::<SaveDocument>() {
-        let _ = target.update(cx, |editor, cx| editor.request_save_document(cx));
+        let _ = target_editor.update(cx, |editor, cx| editor.request_save_document(cx));
     } else if action.as_any().is::<SaveDocumentAs>() {
-        let _ = target.update(cx, |editor, cx| editor.request_save_document_as(cx));
+        let _ = target_editor.update(cx, |editor, cx| editor.request_save_document_as(cx));
     } else if action.as_any().is::<ExportHtml>() {
-        let _ = target.update(cx, |editor, cx| {
+        let _ = target_editor.update(cx, |editor, cx| {
             editor.export_document_via_prompt(ExportFormat::Html, window, cx);
         });
     } else if action.as_any().is::<ExportPdf>() {
-        let _ = target.update(cx, |editor, cx| {
+        let _ = target_editor.update(cx, |editor, cx| {
             editor.export_document_via_prompt(ExportFormat::Pdf, window, cx);
         });
+    } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
+        match apply_configured_theme(cx, &action.theme_id) {
+            Ok(changed) => {
+                if changed {
+                    install_menus(cx);
+                    cx.refresh_windows();
+                }
+            }
+            Err(err) => {
+                let title = cx
+                    .global::<I18nManager>()
+                    .strings()
+                    .settings_save_failed_title
+                    .clone();
+                show_window_prompt(current_window, &title, &err.to_string(), cx);
+            }
+        }
+    } else if let Some(action) = action.as_any().downcast_ref::<SelectLanguage>() {
+        match apply_configured_language(cx, &action.language_id) {
+            Ok(changed) => {
+                if changed {
+                    install_menus(cx);
+                    cx.refresh_windows();
+                }
+            }
+            Err(err) => {
+                let title = cx
+                    .global::<I18nManager>()
+                    .strings()
+                    .settings_save_failed_title
+                    .clone();
+                show_window_prompt(current_window, &title, &err.to_string(), cx);
+            }
+        }
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
-        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |shell, window, cx| {
-                shell.request_close_current_window(window, cx);
-            });
-        }
+        let _ = target_shell.update(cx, |shell, cx| {
+            shell.request_close_current_window(window, cx);
+        });
     } else if action.as_any().is::<CheckForUpdates>() {
-        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |shell, window, cx| {
-                shell.request_check_updates(window, cx);
-            });
-        }
+        let _ = target_shell.update(cx, |shell, cx| {
+            shell.request_check_updates(window, cx);
+        });
     } else if action.as_any().is::<ShowAbout>() {
-        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |shell, _window, cx| {
-                shell.show_info_dialog(InfoDialogKind::About, cx);
-            });
-        }
+        let _ = target_shell.update(cx, |shell, cx| {
+            shell.show_info_dialog(InfoDialogKind::About, cx);
+        });
     } else if action.as_any().is::<InstallCliTool>() {
         install_cli_tool(cx);
         install_menus(cx);
@@ -379,20 +362,25 @@ pub(crate) fn dispatch_menu_action_for_editor(
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |_shell, window, cx| {
-                explorer::ExplorerState::update(cx, |state, cx| {
-                    state.toggle_explorer_drawer(window, cx);
-                });
-            });
-        }
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.toggle_explorer_drawer(window, cx);
+        });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
-            let _ = window_shell.update(cx, |_shell, _window, cx| {
-                explorer::ExplorerState::update(cx, |state, cx| {
-                    state.close_explorer_folder(cx);
-                });
-            });
-        }
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.close_explorer_folder(cx);
+        });
+    } else if action.as_any().is::<OpenSplitypeRepository>() {
+        open_splitype_repository(cx);
+    } else if action.as_any().is::<OpenBugReport>() {
+        open_bug_report(cx);
+    } else if action.as_any().is::<OpenFeatureRequest>() {
+        open_feature_request(cx);
+    } else if action.as_any().is::<OpenDiscussions>() {
+        open_discussions(cx);
+    } else {
+        let deferred_action = action.boxed_clone();
+        cx.defer(move |cx| {
+            dispatch_menu_action(deferred_action.as_ref(), cx);
+        });
     }
 }
