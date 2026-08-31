@@ -21,7 +21,7 @@ use crate::app::actions::{
 };
 use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::app::shell::Shell;
-use editor_core::Editor;
+use editor::Editor;
 use config::language::I18nManager;
 use theme::{Theme, ThemeManager};
 use ui::button::menu_bar_button;
@@ -951,4 +951,5 @@ pub(crate) fn import_menu_split_index(items: &[OwnedMenuItem]) -> Option<usize> 
         None
     }
 }
+
 

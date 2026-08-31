@@ -100,7 +100,7 @@ pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     let opened_in_editor = with_active_window(cx, |editor, window, cx| {
         editor.open_file_in_active_editor(
             path,
-            editor_core::OpenFileMode::Persistent,
+            core_contracts::OpenFileMode::Persistent,
             window,
             cx,
         )
@@ -250,3 +250,4 @@ pub(super) fn recent_files_for_menu() -> Vec<PathBuf> {
         }
     }
 }
+

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 
-use markdown_ast_parser::block::mermaid::MermaidSource;
+use markdown_parser::block::mermaid::MermaidSource;
 
 const SIMPLE_MERMAID_LINE_LIMIT: usize = 8;
 const MERMAID_COMPLEX_TARGET_WIDTH_RATIO: f32 = 0.9;
@@ -526,4 +526,5 @@ fn looks_like_supported_mermaid_source(source: &str) -> bool {
     }
     false
 }
+
 

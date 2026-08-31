@@ -25,10 +25,11 @@ splitype_installer = { path = "../splitype_installer" }
 ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }
-editor_model = { path = "../editor_model" }
-editor_core = { path = "../editor_core" }
-editor_builder = { path = "../editor_builder" }
-editor_wysiwyg = { path = "../editor_wysiwyg" }
+core_contracts = { path = "../core_contracts" }
+editor = { path = "../editor" }
+pane_wysiwyg = { path = "../pane_wysiwyg" }
+pane_source_code = { path = "../pane_source_code" }
+pane_preview = { path = "../pane_preview" }
 settings = { path = "../settings" }
 syntax_highlighter = { path = "../syntax_highlighter" }
 splitype_cli = { path = "../splitype_cli" }

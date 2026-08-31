@@ -1,0 +1,192 @@
+//! PDF generation through a local Chromium-compatible browser.
+//!
+//! The browser HTML export is the source of truth for visual PDF fidelity. This
+//! module writes that HTML to a temporary file, opens it in headless Chromium,
+//! and asks DevTools to print the page to PDF.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+
+use anyhow::anyhow;
+use chromiumoxide::browser::{Browser, BrowserConfig};
+use chromiumoxide::cdp::browser_protocol::page::PrintToPdfParams;
+use futures::StreamExt;
+use uuid::Uuid;
+
+use super::ExportError;
+use crate::export::html::render_chromium_pdf_html_with_base_dir;
+use theme::Theme;
+
+const CHROMIUM_VIEWPORT_WIDTH: u32 = 1280;
+const CHROMIUM_VIEWPORT_HEIGHT: u32 = 1600;
+const PDF_TIMEOUT: Duration = Duration::from_secs(45);
+
+/// Renders themed PDF bytes from Markdown through the local Chromium print engine.
+pub(crate) fn render_pdf(
+    markdown: &str,
+    theme: &Theme,
+    title: &str,
+    base_path: Option<&Path>,
+) -> Result<Vec<u8>, ExportError> {
+    if tokio::runtime::Handle::try_current().is_ok() {
+        // If called from within an existing tokio context, spawn a dedicated worker
+        // thread to prevent nested runtime builder panics.
+        let markdown = markdown.to_string();
+        let theme = theme.clone();
+        let title = title.to_string();
+        let base_path = base_path.map(Path::to_path_buf);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::Builder::new()
+            .name("splitype-pdf-worker".to_string())
+            .spawn(move || {
+                let res = (|| -> Result<Vec<u8>, ExportError> {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
+                    runtime.block_on(async move {
+                        tokio::time::timeout(
+                            PDF_TIMEOUT,
+                            render_pdf_async(&markdown, &theme, &title, base_path.as_deref()),
+                        )
+                        .await
+                        .map_err(|_| ExportError::Timeout)?
+                    })
+                })();
+                let _ = tx.send(res);
+            })
+            .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
+        rx.recv().map_err(|_| ExportError::Timeout)?
+    } else {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_name("splitype-pdf-export")
+            .build()
+            .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
+
+        runtime.block_on(async move {
+            tokio::time::timeout(
+                PDF_TIMEOUT,
+                render_pdf_async(markdown, theme, title, base_path),
+            )
+            .await
+            .map_err(|_| ExportError::Timeout)?
+        })
+    }
+}
+
+pub(crate) async fn render_pdf_async(
+    markdown: &str,
+    theme: &Theme,
+    title: &str,
+    base_path: Option<&Path>,
+) -> Result<Vec<u8>, ExportError> {
+    let html = render_chromium_pdf_html_with_base_dir(markdown, theme, title, base_path);
+    let temp = PdfTempFiles::create(&html).map_err(ExportError::Io)?;
+    let result = render_pdf_from_html_file_async(temp.html_path.clone()).await;
+    temp.cleanup();
+    result
+}
+
+async fn render_pdf_from_html_file_async(html_path: PathBuf) -> Result<Vec<u8>, ExportError> {
+    let user_data_dir = unique_temp_path("splitype-chromium-profile");
+    fs::create_dir_all(&user_data_dir).map_err(ExportError::Io)?;
+
+    let config = BrowserConfig::builder()
+        .new_headless_mode()
+        .window_size(CHROMIUM_VIEWPORT_WIDTH, CHROMIUM_VIEWPORT_HEIGHT)
+        .user_data_dir(user_data_dir.clone())
+        .build()
+        .map_err(|err| {
+            ExportError::ChromiumLaunchFailed(format!("failed to build Chromium config: {err}"))
+        })?;
+
+    let (mut browser, mut handler) = Browser::launch(config).await.map_err(|err| {
+        ExportError::ChromiumLaunchFailed(
+            format!("failed to launch Chromium: {err}. Install Chrome, Chromium, or Edge, or set the CHROME environment variable")
+        )
+    })?;
+
+    let handler_task = tokio::spawn(async move {
+        while let Some(event) = handler.next().await {
+            if event.is_err() {
+                break;
+            }
+        }
+    });
+
+    let result = async {
+        let file_url =
+            file_url_from_path(&html_path).map_err(|err| ExportError::Render(err.to_string()))?;
+        let page = browser.new_page(file_url.as_str()).await.map_err(|err| {
+            ExportError::Render(format!("failed to open export HTML in Chromium: {err}"))
+        })?;
+        page.wait_for_navigation().await.map_err(|err| {
+            ExportError::Render(format!(
+                "Chromium did not finish loading export HTML: {err}"
+            ))
+        })?;
+
+        let params = chromium_pdf_params();
+        page.pdf(params).await.map_err(|err| {
+            ExportError::Render(format!(
+                "Chromium failed to print export HTML to PDF: {err}"
+            ))
+        })
+    }
+    .await;
+
+    let _ = browser.close().await;
+    handler_task.abort();
+    let _ = fs::remove_dir_all(&user_data_dir);
+
+    result
+}
+
+fn chromium_pdf_params() -> PrintToPdfParams {
+    PrintToPdfParams {
+        print_background: Some(true),
+        prefer_css_page_size: Some(true),
+        paper_width: Some(8.27),
+        paper_height: Some(11.69),
+        margin_top: Some(0.0),
+        margin_bottom: Some(0.0),
+        margin_left: Some(0.0),
+        margin_right: Some(0.0),
+        ..Default::default()
+    }
+}
+
+fn file_url_from_path(path: &Path) -> anyhow::Result<url::Url> {
+    url::Url::from_file_path(path)
+        .map_err(|_| anyhow!("failed to convert '{}' to a file URL", path.display()))
+}
+
+fn unique_temp_path(prefix: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("{prefix}-{}", Uuid::new_v4()))
+}
+
+struct PdfTempFiles {
+    html_path: PathBuf,
+}
+
+impl PdfTempFiles {
+    fn create(html: &str) -> std::io::Result<Self> {
+        let html_path = unique_temp_path("splitype-export").with_extension("html");
+        fs::write(&html_path, html)?;
+        Ok(Self { html_path })
+    }
+
+    fn cleanup(&self) {
+        let _ = fs::remove_file(&self.html_path);
+    }
+}
+
+impl Drop for PdfTempFiles {
+    fn drop(&mut self) {
+        self.cleanup();
+    }
+}
+
+

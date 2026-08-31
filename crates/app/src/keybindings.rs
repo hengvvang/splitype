@@ -12,12 +12,12 @@ use gpui::*;
 use crate::app::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
-use editor_core::actions::{
+use editor::actions::{
     FindNext, FindPrevious, JumpToBottom, JumpToTop, PageDown, PageUp, Redo, SaveDocument,
     SaveDocumentAs, ToggleMaximizePane, TogglePaneKind, ToggleReplace, ToggleSearch, Undo,
 };
 
-use editor_wysiwyg::actions::{
+use pane_wysiwyg::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
     FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, MoveLeft, MoveRight, Newline,
     OutdentBlock, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,

@@ -4,21 +4,18 @@ members = [
     "crates/splitter",
     "crates/splitype_installer",
     "crates/splitype_cli",
-    "crates/markdown_ast_parser",
+    "crates/markdown_parser",
     "crates/syntax_highlighter",
     "crates/theme",
     "crates/config",
     "crates/ui",
     "crates/explorer_fs",
     "crates/workspace",
-    "crates/editor_model",
-    "crates/editor_core",
-    "crates/editor_builder",
-    "crates/editor_source_code",
-    "crates/editor_search",
-    "crates/editor_outline",
-    "crates/editor_wysiwyg",
-    "crates/editor_preview",
+    "crates/core_contracts",
+    "crates/editor",
+    "crates/pane_source_code",
+    "crates/pane_wysiwyg",
+    "crates/pane_preview",
     "crates/settings",
     "crates/explorer",
     "crates/app",
@@ -35,7 +32,8 @@ rust-version = "1.91"
 
 [workspace.dependencies]
 # Member crates
-markdown_ast_parser = { path = "crates/markdown_ast_parser" }
+core_contracts = { path = "crates/core_contracts" }
+markdown_parser = { path = "crates/markdown_parser" }
 syntax_highlighter = { path = "crates/syntax_highlighter" }
 splitter = { path = "crates/splitter" }
 splitype_installer = { path = "crates/splitype_installer" }
@@ -45,14 +43,10 @@ config = { path = "crates/config" }
 ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
 workspace = { path = "crates/workspace" }
-editor_model = { path = "crates/editor_model" }
-editor_core = { path = "crates/editor_core" }
-editor_builder = { path = "crates/editor_builder" }
-editor_source_code = { path = "crates/editor_source_code" }
-editor_search = { path = "crates/editor_search" }
-editor_outline = { path = "crates/editor_outline" }
-editor_wysiwyg = { path = "crates/editor_wysiwyg" }
-editor_preview = { path = "crates/editor_preview" }
+editor = { path = "crates/editor" }
+pane_source_code = { path = "crates/pane_source_code" }
+pane_wysiwyg = { path = "crates/pane_wysiwyg" }
+pane_preview = { path = "crates/pane_preview" }
 settings = { path = "crates/settings" }
 explorer = { path = "crates/explorer" }
 app = { path = "crates/app" }

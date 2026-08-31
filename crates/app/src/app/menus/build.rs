@@ -16,7 +16,7 @@ use crate::app::actions::{
 };
 #[cfg(target_os = "macos")]
 use crate::app::actions::{InstallCliTool, UninstallCliTool};
-use editor_core::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
+use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use config::language::I18nManager;
 use theme::ThemeManager;
 #[cfg(target_os = "macos")]
@@ -181,4 +181,5 @@ pub(super) fn build_menus(
         },
     ]
 }
+
 

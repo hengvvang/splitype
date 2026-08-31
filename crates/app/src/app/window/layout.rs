@@ -83,10 +83,10 @@ impl Shell {
                     // Outer gesture shortcuts (host-owned, immediate):
                     // Forward to every editor entity — only the one with an
                     // active drag reports a change.
-                    let editors: Vec<Entity<editor_core::Editor>> = shell
+                    let editors: Vec<Entity<editor::Editor>> = shell
                         .panel_views
                         .values()
-                        .filter_map(|view| view.as_any().downcast_ref::<editor_core::EditorPanelView>())
+                        .filter_map(|view| view.as_any().downcast_ref::<editor::EditorPanelView>())
                         .map(|p| p.editor.clone())
                         .collect();
                     for editor in editors {
@@ -185,10 +185,10 @@ impl Shell {
             CornerDragResult::None => {}
         }
         cx.notify();
-        let editors: Vec<Entity<editor_core::Editor>> = self
+        let editors: Vec<Entity<editor::Editor>> = self
             .panel_views
             .values()
-            .filter_map(|view| view.as_any().downcast_ref::<editor_core::EditorPanelView>())
+            .filter_map(|view| view.as_any().downcast_ref::<editor::EditorPanelView>())
             .map(|p| p.editor.clone())
             .collect();
         for editor in editors {
@@ -665,3 +665,4 @@ impl Shell {
 // ---------------------------------------------------------------------------
 // Window panels aggregate
 // ---------------------------------------------------------------------------
+

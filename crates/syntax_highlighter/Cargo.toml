@@ -32,7 +32,7 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 theme = { path = "../theme" }
-markdown_ast_parser = { path = "../markdown_ast_parser" }
+markdown_parser = { path = "../markdown_parser" }
 ratex-parser = "0.1.13"
 ratex-layout = "0.1.13"
 ratex-svg = "0.1.13"

@@ -1,0 +1,19 @@
+[package]
+name = "pane_source_code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/source_code.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+gpui = { workspace = true }
+core_contracts = { path = "../core_contracts" }
+syntax_highlighter = { path = "../syntax_highlighter" }
+theme = { path = "../theme" }

@@ -1,0 +1,28 @@
+//! editor — the editor domain's resource and container layer.
+//!
+//! Home of the `Editor` aggregate root and everything that manages document
+//! resources, session/file state, tab lifecycles, and pane layout hosting.
+
+pub mod actions;
+pub mod editor;
+pub mod input;
+pub mod layout;
+pub mod navigation;
+pub mod outline;
+pub mod plugin;
+pub mod search;
+pub mod session;
+pub mod view;
+
+pub use plugin::*;
+
+pub use actions::defs as action_defs;
+pub use actions::defs::*;
+pub use actions::edit::*;
+pub use editor::export::ExportFormat;
+pub use editor::host_bridge::*;
+pub use editor::Editor;
+pub use navigation::{NavigationExecutionPlan, NavigationIntent, NavigationTarget};
+pub use session::*;
+
+

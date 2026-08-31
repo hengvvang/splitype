@@ -24,7 +24,7 @@ use config::settings::{
     load_or_create_app_settings,
 };
 use config::language::I18nManager;
-use editor_wysiwyg::install_http_client;
+use pane_wysiwyg::install_http_client;
 use theme::ThemeManager;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;
@@ -207,10 +207,13 @@ pub fn run(args: Args) {
 
 /// Registers all built-in pane and panel descriptors into their global registries.
 pub(crate) fn register_pane_descriptors() {
-    editor_builder::EditorBuilder::register_defaults();
+    let mut pane_registry = core_contracts::PaneRegistry::global().lock().unwrap();
+    pane_registry.register(std::sync::Arc::new(pane_wysiwyg::WysiwygDescriptor::new()), true);
+    pane_registry.register(std::sync::Arc::new(pane_source_code::SourceCodeDescriptor::new()), false);
+    pane_registry.register(std::sync::Arc::new(pane_preview::PreviewDescriptor::new()), false);
 
-    let mut registry = workspace::PanelRegistry::global().lock().unwrap();
-    registry.register(std::sync::Arc::new(editor_core::EditorPanelDescriptor::new()));
-    registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()));
-    registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()));
+    let mut panel_registry = workspace::PanelRegistry::global().lock().unwrap();
+    panel_registry.register(std::sync::Arc::new(editor::EditorPanelDescriptor::new()));
+    panel_registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()));
+    panel_registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()));
 }

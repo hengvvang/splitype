@@ -24,11 +24,11 @@ use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
-use editor_core::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use editor_core::Editor;
+use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
+use editor::Editor;
 use crate::app::window::dialogs::InfoDialogKind;
-use editor_core::ExportFormat;
-use editor_core::document::{
+use editor::ExportFormat;
+use editor::view::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
 use config::language::{apply_configured_language, I18nManager};
@@ -524,4 +524,5 @@ pub(crate) fn init(cx: &mut App) {
     install_menus(cx);
     cx.activate(true);
 }
+
 

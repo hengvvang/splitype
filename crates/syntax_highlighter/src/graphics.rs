@@ -126,3 +126,4 @@ pub fn render_graphic_preview_box(
                 .child(preview_content),
         )
 }
+

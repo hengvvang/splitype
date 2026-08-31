@@ -243,10 +243,8 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "config",
- "editor_builder",
- "editor_core",
- "editor_model",
- "editor_wysiwyg",
+ "core_contracts",
+ "editor",
  "embed-resource",
  "explorer",
  "explorer_fs",
@@ -254,6 +252,9 @@ dependencies = [
  "gpui",
  "gpui_platform",
  "notify",
+ "pane_preview",
+ "pane_source_code",
+ "pane_wysiwyg",
  "regex",
  "schemars",
  "serde",
@@ -1405,6 +1406,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "core_contracts"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "gpui",
+ "regex",
+ "serde",
+ "splitter",
+ "theme",
+ "thiserror 2.0.18",
+ "uuid",
+ "workspace",
+]
+
+[[package]]
 name = "core_maths"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1726,118 +1742,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
-name = "editor_builder"
-version = "0.0.1"
-dependencies = [
- "editor_core",
- "editor_model",
- "editor_preview",
- "editor_source_code",
- "editor_wysiwyg",
- "gpui",
- "workspace",
-]
-
-[[package]]
-name = "editor_core"
+name = "editor"
 version = "0.0.1"
 dependencies = [
  "anyhow",
  "config",
- "editor_model",
- "editor_outline",
- "editor_search",
+ "core_contracts",
  "futures",
  "gpui",
  "splitter",
  "theme",
  "ui",
- "workspace",
-]
-
-[[package]]
-name = "editor_model"
-version = "0.0.1"
-dependencies = [
- "editor_outline",
- "editor_search",
- "gpui",
- "splitter",
- "theme",
- "workspace",
-]
-
-[[package]]
-name = "editor_outline"
-version = "0.0.1"
-dependencies = [
- "gpui",
- "theme",
-]
-
-[[package]]
-name = "editor_preview"
-version = "0.0.1"
-dependencies = [
- "config",
- "editor_model",
- "editor_outline",
- "editor_search",
- "gpui",
- "markdown_ast_parser",
- "syntax_highlighter",
- "theme",
- "uuid",
-]
-
-[[package]]
-name = "editor_search"
-version = "0.0.1"
-dependencies = [
- "gpui",
- "regex",
- "theme",
- "uuid",
-]
-
-[[package]]
-name = "editor_source_code"
-version = "0.0.1"
-dependencies = [
- "editor_model",
- "editor_outline",
- "editor_search",
- "gpui",
- "syntax_highlighter",
- "theme",
-]
-
-[[package]]
-name = "editor_wysiwyg"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "base64",
- "chromiumoxide",
- "config",
- "editor_model",
- "editor_outline",
- "editor_search",
- "futures",
- "gpui",
- "image",
- "markdown_ast_parser",
- "pulldown-cmark",
- "reqwest",
- "syntax_highlighter",
- "theme",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "ui",
- "unicode-segmentation",
- "url",
- "uuid",
  "workspace",
 ]
 
@@ -3683,13 +3598,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "markdown_ast_parser"
+name = "markdown_parser"
 version = "0.0.1"
 dependencies = [
  "cssparser",
  "gpui",
  "regex",
- "theme",
  "tree-sitter",
  "tree-sitter-html",
  "unicode-segmentation",
@@ -4405,6 +4319,56 @@ checksum = "9aa2b01e1d916879f73a53d01d1d6cee68adbb31d6d9177a8cfce093cced1d50"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+]
+
+[[package]]
+name = "pane_preview"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "core_contracts",
+ "gpui",
+ "markdown_parser",
+ "syntax_highlighter",
+ "theme",
+ "uuid",
+]
+
+[[package]]
+name = "pane_source_code"
+version = "0.0.1"
+dependencies = [
+ "core_contracts",
+ "gpui",
+ "syntax_highlighter",
+ "theme",
+]
+
+[[package]]
+name = "pane_wysiwyg"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "base64",
+ "chromiumoxide",
+ "config",
+ "core_contracts",
+ "futures",
+ "gpui",
+ "image",
+ "markdown_parser",
+ "pulldown-cmark",
+ "reqwest",
+ "syntax_highlighter",
+ "theme",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "ui",
+ "unicode-segmentation",
+ "url",
+ "uuid",
+ "workspace",
 ]
 
 [[package]]
@@ -6361,7 +6325,7 @@ dependencies = [
  "anyhow",
  "directories",
  "gpui",
- "markdown_ast_parser",
+ "markdown_parser",
  "mermaid-rs-renderer",
  "ratex-layout",
  "ratex-parser",

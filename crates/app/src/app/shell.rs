@@ -18,9 +18,10 @@ use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::actions::{OpenInEditor, OpenInSplit};
 use workspace::{PanelId, PanelKindId};
-use editor_core::{DocumentTab, Editor, EditorSession, OpenFileMode};
+use editor::{DocumentTab, Editor, EditorSession};
+use core_contracts::{EditorHost, OpenFileMode};
 pub use crate::app::window::dialogs::InfoDialogKind;
-use editor_model::EditorHost;
+
 use config::language::I18nManager;
 use theme::ThemeManager;
 use splitter::NodeId;
@@ -103,7 +104,7 @@ impl Shell {
             .values()
             .find_map(|view| {
                 view.as_any()
-                    .downcast_ref::<editor_core::EditorPanelView>()
+                    .downcast_ref::<editor::EditorPanelView>()
                     .map(|p| &p.editor)
             })
     }
@@ -145,7 +146,7 @@ impl Shell {
             .iter()
             .filter_map(|(panel_id, view)| {
                 view.as_any()
-                    .downcast_ref::<editor_core::EditorPanelView>()
+                    .downcast_ref::<editor::EditorPanelView>()
                     .map(|p| (*panel_id, p.editor.clone()))
             })
             .collect();
@@ -380,10 +381,7 @@ impl Shell {
     ) -> Entity<Editor> {
         let panel_id = panel_id.into();
         let shell = cx.entity().downgrade();
-        let editor = editor_builder::EditorBuilder::new()
-            .with_panel_id(panel_id)
-            .with_session(session)
-            .build_in(cx);
+        let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
 
         editor.update(cx, |editor, cx| {
             editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
@@ -392,7 +390,7 @@ impl Shell {
             }
         });
         self.panel_views
-            .insert(panel_id, Box::new(editor_core::EditorPanelView::new(editor.clone())));
+            .insert(panel_id, Box::new(editor::EditorPanelView::new(editor.clone())));
         editor
     }
 
@@ -407,7 +405,7 @@ impl Shell {
         match change {
             ExplorerChange::Moved { from, to } | ExplorerChange::Renamed { from, to } => {
                 for view in self.panel_views.values() {
-                    if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                    if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                         panel.editor.update(cx, |ed, _cx| {
                             ed.update_tab_path(from, to);
                         });
@@ -497,7 +495,7 @@ impl Shell {
     ) -> Option<EditorSession> {
         let panel_id = panel_id.into();
         let view = self.panel_views.remove(&panel_id)?;
-        let panel = view.as_any().downcast_ref::<editor_core::EditorPanelView>()?;
+        let panel = view.as_any().downcast_ref::<editor::EditorPanelView>()?;
         let entity = panel.editor.clone();
         Some(entity.update(cx, |editor, cx| {
             editor.clear_search_highlights_from_document(cx);
@@ -520,13 +518,13 @@ impl Shell {
         let view_a = self.panel_views.remove(&a);
         let view_b = self.panel_views.remove(&b);
         if let Some(view) = view_a {
-            if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+            if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                 panel.editor.update(cx, |editor, _cx| editor.panel_id = b);
             }
             self.panel_views.insert(b, view);
         }
         if let Some(view) = view_b {
-            if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+            if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                 panel.editor.update(cx, |editor, _cx| editor.panel_id = a);
             }
             self.panel_views.insert(a, view);
@@ -568,7 +566,7 @@ impl Shell {
         if source_first {
             // target_id gets source content
             if let Some(view) = source_view {
-                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                     panel.editor.update(cx, |editor, _cx| editor.panel_id = target_id);
                 }
                 self.panel_views.insert(target_id, view);
@@ -578,7 +576,7 @@ impl Shell {
             }
             // new_leaf_id gets target content
             if let Some(view) = target_view {
-                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                     panel.editor.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
                 }
                 self.panel_views.insert(new_leaf_id, view);
@@ -589,7 +587,7 @@ impl Shell {
         } else {
             // target_id keeps target content
             if let Some(view) = target_view {
-                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                     panel.editor.update(cx, |editor, _cx| editor.panel_id = target_id);
                 }
                 self.panel_views.insert(target_id, view);
@@ -599,7 +597,7 @@ impl Shell {
             }
             // new_leaf_id gets source content
             if let Some(view) = source_view {
-                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                     panel.editor.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
                 }
                 self.panel_views.insert(new_leaf_id, view);
@@ -658,7 +656,7 @@ impl Shell {
             }
         }
         for view in self.panel_views.values() {
-            if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+            if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                 if let Some(dirty) = panel.editor.read(cx).first_dirty_tab() {
                     return Some(dirty);
                 }
@@ -707,7 +705,7 @@ impl Shell {
     pub(crate) fn editor_for(&self, panel_id: impl Into<PanelId>) -> Option<&Entity<Editor>> {
         self.panel_views
             .get(&panel_id.into())
-            .and_then(|v| v.as_any().downcast_ref::<editor_core::EditorPanelView>())
+            .and_then(|v| v.as_any().downcast_ref::<editor::EditorPanelView>())
             .map(|p| &p.editor)
     }
 
@@ -1222,3 +1220,4 @@ impl EditorHost for ShellEditorHost {
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 }
+

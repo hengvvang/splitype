@@ -1,8 +1,8 @@
 use gpui::*;
 use theme::Theme;
-use markdown_ast_parser::inline::html::HtmlCssColor;
-use markdown_ast_parser::block::html::HtmlNode;
-use markdown_ast_parser::block::CalloutKind;
+use markdown_parser::inline::html::HtmlCssColor;
+use markdown_parser::block::html::HtmlNode;
+use markdown_parser::block::CalloutKind;
 
 /// Converts an HtmlCssColor to GPUI's Hsla.
 pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
@@ -80,7 +80,7 @@ pub fn html_node_visual_style(
         _ => {}
     }
 
-    let inline_style = markdown_ast_parser::block::html::style_for_node(node);
+    let inline_style = markdown_parser::block::html::style_for_node(node);
     if let Some(color) = inline_style.color {
         computed.color = html_css_color_to_hsla(color, computed.color);
     }
@@ -158,7 +158,34 @@ fn roman_list_marker(ordinal: usize) -> String {
     out.to_lowercase()
 }
 
+pub fn callout_style(variant: CalloutKind, theme: &Theme) -> theme::CalloutStyle {
+    let c = &theme.colors;
+    match variant {
+        CalloutKind::Note => theme::CalloutStyle {
+            border_color: c.callout_note_border,
+            background_color: c.callout_note_bg,
+        },
+        CalloutKind::Tip => theme::CalloutStyle {
+            border_color: c.callout_tip_border,
+            background_color: c.callout_tip_bg,
+        },
+        CalloutKind::Important => theme::CalloutStyle {
+            border_color: c.callout_important_border,
+            background_color: c.callout_important_bg,
+        },
+        CalloutKind::Warning => theme::CalloutStyle {
+            border_color: c.callout_warning_border,
+            background_color: c.callout_warning_bg,
+        },
+        CalloutKind::Caution => theme::CalloutStyle {
+            border_color: c.callout_caution_border,
+            background_color: c.callout_caution_bg,
+        },
+    }
+}
+
 pub fn callout_colors(variant: CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
-    let style = variant.callout_style(theme);
+    let style = callout_style(variant, theme);
     (style.border_color, style.background_color)
 }
+

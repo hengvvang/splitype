@@ -4,7 +4,7 @@
 //!
 //! Owns:
 //! - [`PanelId`] / [`PanelKindId`] — window panel identity and kind vocabulary
-//!   (the editor-internal pane vocabulary lives in `crates/editor_model`);
+//!   (the editor-internal pane vocabulary lives in `crates/core_contracts`);
 //! - the default window layout ([`default_layout`]) and its constants;
 //! - window-level layout actions ([`actions`]) that panels dispatch and the
 //!   shell handles;
@@ -31,3 +31,4 @@ pub use panels::{
     DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID,
 };
 pub use plugin::*;
+

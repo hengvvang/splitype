@@ -14,14 +14,14 @@ use futures::FutureExt;
 use futures::channel::oneshot;
 
 use crate::app::shell::Shell;
-use editor_core::{Editor, FileState};
+use editor::{Editor, FileState};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InfoDialogKind {
     CheckForUpdates,
     About,
 }
-use editor_core::document::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use editor::view::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use config::language::{I18nManager, I18nStrings};
 use splitype_installer::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
@@ -61,7 +61,7 @@ impl Shell {
         self.panel_views
             .values()
             .find_map(|view| {
-                let panel = view.as_any().downcast_ref::<editor_core::EditorPanelView>()?;
+                let panel = view.as_any().downcast_ref::<editor::EditorPanelView>()?;
                 let editor = panel.editor.read(cx);
                 if editor.session.tabs().any(|tab| show(&tab.file)) {
                     Some(panel.editor.clone())
@@ -150,7 +150,7 @@ impl Shell {
             match dialog.scope {
                 crate::app::shell::UnsavedDialogScope::Window => {
                     for view in self.panel_views.values() {
-                        if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                        if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                             panel.editor.update(cx, |ed, cx| {
                                 ed.save_all_dirty_tabs(window, cx);
                             });
@@ -207,7 +207,7 @@ impl Shell {
                         }
                     }
                     for view in self.panel_views.values() {
-                        if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                        if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
                             panel.editor.update(cx, |ed, cx| {
                                 for tab in ed.session.tabs_mut() {
                                     tab.file.dirty = false;
@@ -964,4 +964,5 @@ fn format_update_message(template: &str, current_version: &str, latest_version: 
         .replace("{current}", current_version)
         .replace("{latest}", latest_version)
 }
+
 

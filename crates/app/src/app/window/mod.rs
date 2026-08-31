@@ -14,7 +14,7 @@ use crate::app::shell::{Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, PanelKindId, PanelView, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID};
-use editor_core::{Editor, EditorSession};
+use editor::{Editor, EditorSession};
 
 use explorer::ExplorerState;
 
@@ -60,24 +60,11 @@ pub(crate) fn open_editor_window(
                 // The explorer state is app-wide global; install a fresh
                 // one per window (the shell renders it from the global).
                 cx.set_global(explorer::ExplorerState::default());
-                let editor = if markdown.is_empty() && file_path.is_none() {
-                    editor_builder::EditorBuilder::new()
-                        .with_panel_id(PanelId(DEFAULT_EDITOR_PANEL_ID))
-                        .with_session(editor_core::EditorSession::welcome())
-                        .build(cx)
-                } else {
-                    let mut builder = editor_builder::EditorBuilder::new()
-                        .with_panel_id(PanelId(DEFAULT_EDITOR_PANEL_ID))
-                        .with_text(markdown);
-                    if let Some(path) = file_path {
-                        builder = builder.with_file_path(path);
-                    }
-                    builder.build(cx)
-                };
+                let editor = cx.new(|cx| { let mut ed = Editor::new(markdown, file_path, cx); ed.set_panel_id(PanelId(DEFAULT_EDITOR_PANEL_ID)); ed });
                 let explorer_view: Box<dyn PanelView> =
                     Box::new(explorer::ExplorerPanelView::new(PanelId(ROOT_PANEL_ID)));
                 let editor_view: Box<dyn PanelView> =
-                    Box::new(editor_core::EditorPanelView::new(editor.clone()));
+                    Box::new(editor::EditorPanelView::new(editor.clone()));
 
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right).
@@ -135,8 +122,8 @@ pub(crate) fn open_cloned_window(
                 // Materialize one Editor entity per cloned session, and ensure all leaves exist.
                 let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
                 for (panel_id, session) in sessions {
-                    let editor = cx.new(|cx| editor_core::Editor::with_session(panel_id, session, cx));
-                    panel_views.insert(panel_id, Box::new(editor_core::EditorPanelView::new(editor)));
+                    let editor = cx.new(|cx| editor::Editor::with_session(panel_id, session, cx));
+                    panel_views.insert(panel_id, Box::new(editor::EditorPanelView::new(editor)));
                 }
 
                 let mut leaf_ids = Vec::new();
@@ -185,7 +172,7 @@ pub(crate) fn open_cloned_window(
                     .read(cx)
                     .panel_views
                     .values()
-                    .filter_map(|view| view.as_any().downcast_ref::<editor_core::EditorPanelView>())
+                    .filter_map(|view| view.as_any().downcast_ref::<editor::EditorPanelView>())
                     .map(|p| p.editor.clone())
                     .collect();
                 for editor in editors {
@@ -224,3 +211,4 @@ pub(crate) fn record_recent_file_and_refresh(path: &Path, cx: &mut App) {
     install_menus(cx);
     cx.refresh_windows();
 }
+

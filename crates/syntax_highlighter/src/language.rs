@@ -106,3 +106,4 @@ pub fn code_language_display_name(value: &str) -> &str {
         .map(|option| option.label)
         .unwrap_or(value)
 }
+

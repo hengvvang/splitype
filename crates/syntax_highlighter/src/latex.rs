@@ -14,7 +14,7 @@ use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 use gpui::{Hsla, Rgba};
 
-use markdown_ast_parser::block::math::DisplayMathSource;
+use markdown_parser::block::math::DisplayMathSource;
 
 /// Upper bound on formulas retained in the in-memory SVG cache. Content
 /// is addresses by hash, so eviction is safe: the disk cache still holds
@@ -175,4 +175,5 @@ fn recolor_default_black(svg: &str, color: &str) -> String {
     svg.replace("rgba(0,0,0,1)", color)
         .replace("rgba(0, 0, 0, 1)", color)
 }
+
 
