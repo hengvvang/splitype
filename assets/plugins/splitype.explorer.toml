@@ -1,0 +1,17 @@
+# Splitype Explorer sidebar panel plugin manifest.
+manifest_version = 1
+plugin = "splitype.explorer"
+name = "Explorer"
+version = "0.1.0"
+description = "File-tree sidebar with worktree scanning, selection, and drag-and-drop."
+
+[entry]
+kind = "in_process"
+registration = "explorer"
+
+[capabilities]
+panes = []
+panels = ["splitype.panel.explorer"]
+
+[resources]
+icon_root = "icons/explorer"

@@ -1,0 +1,14 @@
+# Splitype Source Code pane plugin manifest.
+manifest_version = 1
+plugin = "splitype.source-code"
+name = "Source Code"
+version = "0.1.0"
+description = "Plain-text Markdown source pane with layered display maps."
+
+[entry]
+kind = "in_process"
+registration = "source-code"
+
+[capabilities]
+panes = ["splitype.pane.source_code"]
+panels = []

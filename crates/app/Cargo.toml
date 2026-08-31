@@ -39,6 +39,7 @@ gpui = { workspace = true }
 gpui_platform = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+toml = "1"
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = "0.1"

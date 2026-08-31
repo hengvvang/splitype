@@ -1,0 +1,14 @@
+# Splitype Preview pane plugin manifest.
+manifest_version = 1
+plugin = "splitype.preview"
+name = "Preview"
+version = "0.1.0"
+description = "Read-only rendered Markdown preview pane."
+
+[entry]
+kind = "in_process"
+registration = "preview"
+
+[capabilities]
+panes = ["splitype.pane.preview"]
+panels = []

@@ -279,6 +279,17 @@ transitional hardcoding listed below is removed.
   Explorer and Settings panels opt in too: the explorer persists its drawer
   visibility and open folder paths (worktrees re-scan from disk on restore),
   and settings persists its active tab.
+- Plugins are declared through versioned TOML manifests
+  (`PluginManifest`: reverse-domain `PluginId`, entry point, declared pane
+  and panel capabilities, resource roots) and recorded in a global
+  `PluginRegistry`. The composition root discovers bundled manifests and
+  maps their in-process registration keys to descriptor factories — the
+  only place allowed to know concrete plugin types — then registers
+  descriptors into the pane/panel registries after validating every kind
+  against the manifest. `plugin://<id>/<path>` resource URLs resolve
+  through the owning manifest's `resources.icon_root` into the asset
+  catalog, and panel icons now flow through that namespace (visible in the
+  panel-kind dropdown).
 - Document routing is a panel role, not an editor privilege:
   `PanelCapabilities { documents, sidebar }` is declared by descriptors and
   views, and panels that declare `documents` implement the `DocumentPanel`
@@ -306,10 +317,11 @@ transitional hardcoding listed below is removed.
 1. `core_contracts` still depends on `theme` and GPUI presentation helpers
    (outline HUD, search UI); split the stable vocabulary/API from UI adapters
    so the contracts crate stays presentation-free.
-2. There is no plugin manifest, discovery runtime, API negotiation, permission
-   model, resource namespace (`plugin://`), unregister/shutdown protocol, or
-   missing-plugin placeholder. Third-party icons cannot resolve through the
-   embedded asset catalog yet.
+2. External plugin loading is not implemented yet: no user-installed plugin
+   discovery directory, WASM/subprocess transports, permission model,
+   unregister/shutdown protocol, or missing-plugin placeholder panel.
+   `AssetSource::list` returns nothing, so third-party plugins cannot ship
+   resource directories yet.
 3. Per-pane view state (cursor, scroll, selections) is not persisted, and the
    explorer restores folder roots without their expansion state.
 4. Preview selection/navigation and common autoscroll have incomplete wiring.

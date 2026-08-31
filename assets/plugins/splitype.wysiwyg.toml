@@ -1,0 +1,14 @@
+# Splitype WYSIWYG pane plugin manifest.
+manifest_version = 1
+plugin = "splitype.wysiwyg"
+name = "WYSIWYG"
+version = "0.1.0"
+description = "Rich visual block editor pane with dual-direction text projection."
+
+[entry]
+kind = "in_process"
+registration = "wysiwyg"
+
+[capabilities]
+panes = ["splitype.pane.wysiwyg"]
+panels = []

@@ -8,6 +8,9 @@ use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext,
 /// Stable kind identifier of the settings panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.settings";
 
+/// Stable plugin identifier of the settings plugin.
+pub const PLUGIN_ID: &str = "splitype.settings";
+
 /// Asset directory holding the settings panel's topbar chrome icons.
 pub const TOPBAR_ICON_PREFIX: &str = "icons/settings";
 
@@ -42,7 +45,7 @@ impl PanelView for SettingsPanelView {
     }
 
     fn icon(&self) -> Option<&'static str> {
-        Some("icons/settings/panel.svg")
+        Some("plugin://splitype.settings/panel.svg")
     }
 
     fn render(
@@ -113,7 +116,7 @@ impl PanelDescriptor for SettingsPanelDescriptor {
     }
 
     fn icon(&self) -> Option<&'static str> {
-        Some("icons/settings/panel.svg")
+        Some("plugin://splitype.settings/panel.svg")
     }
 
     fn create_panel(

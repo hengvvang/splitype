@@ -158,3 +158,17 @@ runtime entities are rebuilt from the restored text. The explorer persists its
 drawer visibility and open folder paths (worktrees are re-scanned from disk on
 restore), and the settings panel persists its active tab. Loaders reject
 snapshots whose schema version they do not understand.
+
+## ADR-016: Plugins are declared by manifests, discovered by the composition root
+
+**Status:** Accepted
+
+Every plugin — built-in or third-party — is described by a versioned TOML
+manifest (`PluginManifest`) with a reverse-domain `PluginId`, an entry-point
+declaration, declared pane/panel kinds, and resource roots. Manifests are
+recorded in a global `PluginRegistry`; the composition root is the only place
+allowed to map an in-process registration key to concrete descriptor
+factories, and registration validates every registered kind against the
+manifest's declarations. Plugin resources are addressed through
+`plugin://<id>/<path>`, resolved via the owning manifest's `icon_root` into
+pluggable asset catalogs — kind strings never encode resource locations.

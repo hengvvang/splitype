@@ -1,0 +1,17 @@
+# Splitype Settings panel plugin manifest.
+manifest_version = 1
+plugin = "splitype.settings"
+name = "Settings"
+version = "0.1.0"
+description = "Application configuration panel."
+
+[entry]
+kind = "in_process"
+registration = "settings"
+
+[capabilities]
+panes = []
+panels = ["splitype.panel.settings"]
+
+[resources]
+icon_root = "icons/settings"

@@ -17,6 +17,7 @@ pub mod keybindings;
 pub mod layout;
 pub mod menus;
 pub mod platform;
+pub mod plugins;
 pub mod shell;
 pub mod window;
 pub mod window_state;

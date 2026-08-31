@@ -1,0 +1,17 @@
+# Splitype Editor panel plugin manifest.
+manifest_version = 1
+plugin = "splitype.editor"
+name = "Editor"
+version = "0.1.0"
+description = "Document tab management, pane hosting, and Markdown workflows."
+
+[entry]
+kind = "in_process"
+registration = "editor"
+
+[capabilities]
+panes = []
+panels = ["splitype.panel.editor"]
+
+[resources]
+icon_root = "icons/editor"

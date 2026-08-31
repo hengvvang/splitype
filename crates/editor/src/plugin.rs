@@ -10,6 +10,9 @@ use window::{PanelDescriptor, PanelHost, PanelId, PanelRenderContext, PanelView}
 /// Stable kind identifier of the editor panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.editor";
 
+/// Stable plugin identifier of the editor plugin.
+pub const PLUGIN_ID: &str = "splitype.editor";
+
 /// Asset directory holding the editor panel's topbar chrome icons.
 pub const TOPBAR_ICON_PREFIX: &str = "icons/editor";
 
@@ -46,7 +49,7 @@ impl PanelView for EditorPanelView {
     }
 
     fn icon(&self) -> Option<&'static str> {
-        Some("icons/editor/panel.svg")
+        Some("plugin://splitype.editor/panel.svg")
     }
 
     fn is_dirty(&self, cx: &App) -> bool {
@@ -380,7 +383,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
     }
 
     fn icon(&self) -> Option<&'static str> {
-        Some("icons/editor/panel.svg")
+        Some("plugin://splitype.editor/panel.svg")
     }
 
     fn create_panel(

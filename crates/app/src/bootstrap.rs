@@ -134,7 +134,7 @@ pub fn run(args: Args) {
         ThemeManager::init_with_theme_id(cx, &settings.interface.theme_id);
         theme::TypographyStore::init(cx, settings.typography.clone());
         install_http_client(cx);
-        register_pane_descriptors();
+        crate::plugins::init_plugins();
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
@@ -216,39 +216,4 @@ pub fn run(args: Args) {
         install_menus(cx);
         cx.refresh_windows();
     });
-}
-
-/// Registers all built-in pane and panel descriptors into their global registries.
-pub(crate) fn register_pane_descriptors() {
-    core_contracts::PaneRegistry::register_global(
-        std::sync::Arc::new(pane_wysiwyg::WysiwygDescriptor::new()),
-        true,
-    )
-    .expect("built-in WYSIWYG pane kind must be unique");
-    core_contracts::PaneRegistry::register_global(
-        std::sync::Arc::new(pane_source_code::SourceCodeDescriptor::new()),
-        false,
-    )
-    .expect("built-in source pane kind must be unique");
-    core_contracts::PaneRegistry::register_global(
-        std::sync::Arc::new(pane_preview::PreviewDescriptor::new()),
-        false,
-    )
-    .expect("built-in preview pane kind must be unique");
-
-    window::PanelRegistry::register_global(
-        std::sync::Arc::new(editor::EditorPanelDescriptor::new()),
-        true,
-    )
-    .expect("built-in editor panel kind must be unique");
-    window::PanelRegistry::register_global(
-        std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()),
-        false,
-    )
-    .expect("built-in explorer panel kind must be unique");
-    window::PanelRegistry::register_global(
-        std::sync::Arc::new(settings::SettingsPanelDescriptor::new()),
-        false,
-    )
-    .expect("built-in settings panel kind must be unique");
 }

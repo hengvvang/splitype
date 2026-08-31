@@ -55,6 +55,9 @@ pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         ))),
 
         // ── Explorer: panel top bar (panel header) ──────────────
+        "icons/explorer/panel.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../../../../assets/icons/explorer/panel.svg"
+        ))),
         "icons/explorer/topbar/check.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/explorer/topbar/check.svg"
         ))),
@@ -137,6 +140,9 @@ pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         ))),
 
         // ── Settings: panel top bar (panel header) ──────────────
+        "icons/settings/panel.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../../../../assets/icons/settings/panel.svg"
+        ))),
         "icons/settings/topbar/check.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/settings/topbar/check.svg"
         ))),
@@ -157,6 +163,9 @@ pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         ))),
 
         // ── Editor: panel header ────────────────────────────────
+        "icons/editor/panel.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../../../../assets/icons/editor/panel.svg"
+        ))),
         "icons/editor/topbar/active.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/editor/topbar/active.svg"
         ))),

@@ -6,6 +6,7 @@ pub mod export;
 pub mod outline;
 pub mod pane;
 pub mod panel;
+pub mod plugin;
 pub mod search;
 
 pub use document::{
@@ -22,6 +23,10 @@ pub use pane::{
 pub use panel::{
     DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
     PanelRenderContext, PanelView, SidebarPanel,
+};
+pub use plugin::{
+    PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId, PluginManifest,
+    PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
 };
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputElement, SearchInputSnapshot,

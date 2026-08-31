@@ -15,6 +15,9 @@ use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext,
 /// Stable kind identifier of the explorer panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.explorer";
 
+/// Stable plugin identifier of the explorer plugin.
+pub const PLUGIN_ID: &str = "splitype.explorer";
+
 /// Asset directory holding the explorer panel's topbar chrome icons.
 pub const TOPBAR_ICON_PREFIX: &str = "icons/explorer";
 
@@ -67,7 +70,7 @@ impl PanelView for ExplorerPanelView {
     }
 
     fn icon(&self) -> Option<&'static str> {
-        Some("icons/explorer/panel.svg")
+        Some("plugin://splitype.explorer/panel.svg")
     }
 
     fn render(
@@ -177,7 +180,7 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
     }
 
     fn icon(&self) -> Option<&'static str> {
-        Some("icons/explorer/panel.svg")
+        Some("plugin://splitype.explorer/panel.svg")
     }
 
     fn create_panel(
