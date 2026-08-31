@@ -151,6 +151,3 @@ impl HttpClient for ReqwestTransportHttpClient {
         None
     }
 }
-
-
-

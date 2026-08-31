@@ -2,12 +2,12 @@ use gpui::*;
 
 use crate::ExplorerState;
 
-use window::PanelId;
 use crate::filename_editor::ExplorerFilenameInputElement;
 use crate::state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
 };
 use theme::Theme;
+use window::PanelId;
 
 impl ExplorerState {
     /// Render the inline create/rename row: a filename input with keyboard
@@ -128,4 +128,3 @@ impl ExplorerState {
             .into_any_element()
     }
 }
-

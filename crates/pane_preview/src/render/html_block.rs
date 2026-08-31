@@ -6,18 +6,22 @@
 use gpui::*;
 
 use crate::node::PreviewBlock;
-use syntax_highlighter::render_helpers::{
-    HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
-};
-use theme::Theme;
 use markdown_parser::block::html::{
     HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };
 use markdown_parser::block::image::resolve_image_source;
+use syntax_highlighter::render_helpers::{
+    HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
+};
+use theme::Theme;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
-pub(crate) fn render_preview_html_block(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
+pub(crate) fn render_preview_html_block(
+    block: &PreviewBlock,
+    base: Div,
+    theme: &Theme,
+) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -30,9 +34,12 @@ pub(crate) fn render_preview_html_block(block: &PreviewBlock, base: Div, theme: 
             &raw_fallback
         }
     };
-    let html = block.data.html.as_ref().cloned().unwrap_or_else(|| {
-        parse_html_document(raw)
-    });
+    let html = block
+        .data
+        .html
+        .as_ref()
+        .cloned()
+        .unwrap_or_else(|| parse_html_document(raw));
 
     if !html.is_semantic() {
         return base
@@ -131,7 +138,10 @@ fn render_preview_html_node(
                     div().child("\u{201D}").into_any_element(),
                 ]);
             if let Some(bg) = node_style.background {
-                element = element.bg(bg).rounded(px(theme.dimensions.code_bg_radius)).px(px(2.0));
+                element = element
+                    .bg(bg)
+                    .rounded(px(theme.dimensions.code_bg_radius))
+                    .px(px(2.0));
             }
             element.into_any_element()
         }
@@ -320,7 +330,10 @@ fn render_preview_html_inline_container(
                 .map(|child| render_preview_html_node(child, theme, node_style.computed)),
         );
     if let Some(bg) = node_style.background {
-        element = element.bg(bg).rounded(px(theme.dimensions.code_bg_radius)).px(px(2.0));
+        element = element
+            .bg(bg)
+            .rounded(px(theme.dimensions.code_bg_radius))
+            .px(px(2.0));
     }
     match node.tag_name.as_str() {
         "sup" => {
@@ -434,5 +447,3 @@ fn render_preview_html_details(
 
     container.into_any_element()
 }
-
-

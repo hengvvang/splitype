@@ -38,7 +38,7 @@ impl Editor {
         &mut self,
         node: &SplitTree<crate::session::PaneKind>,
         theme: &Theme,
-        strings: &I18nStrings,
+        _strings: &I18nStrings,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -131,8 +131,8 @@ impl Editor {
                 let split_id = *id;
                 let split_axis = *axis;
                 let r = *ratio;
-                let first_elem = self.render_editor_pane_node(first, theme, strings, window, cx);
-                let second_elem = self.render_editor_pane_node(second, theme, strings, window, cx);
+                let first_elem = self.render_editor_pane_node(first, theme, _strings, window, cx);
+                let second_elem = self.render_editor_pane_node(second, theme, _strings, window, cx);
                 let inner_editor = cx.entity().downgrade();
 
                 match axis {

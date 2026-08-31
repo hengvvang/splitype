@@ -6,8 +6,8 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
+use crate::ui_helpers::{SettingsClickHandler, SettingsKeyHandler};
 use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::SettingsClickHandler;
 use ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
 
 pub struct NumberFieldProps {
@@ -18,8 +18,8 @@ pub struct NumberFieldProps {
     pub focus_handle: FocusHandle,
     pub on_dec: SettingsClickHandler,
     pub on_inc: SettingsClickHandler,
-    pub on_start_edit: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
-    pub on_key_down: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
+    pub on_start_edit: SettingsClickHandler,
+    pub on_key_down: SettingsKeyHandler,
 }
 
 pub fn render_number_field(
@@ -113,4 +113,3 @@ pub fn render_number_field(
         )
         .into_any_element()
 }
-

@@ -14,8 +14,8 @@ pub use rows::*;
 
 use gpui::Entity;
 
-use crate::model::block::Block;
 use crate::markdown::block::table::TableCellPosition;
+use crate::model::block::Block;
 
 #[derive(Clone)]
 pub struct TableGrid {
@@ -35,5 +35,3 @@ impl TableGrid {
         }
     }
 }
-
-

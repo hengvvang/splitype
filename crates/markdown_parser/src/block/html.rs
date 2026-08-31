@@ -786,5 +786,3 @@ fn tree_sitter_reports_error(raw_source: &str) -> bool {
 fn tree_sitter_reports_error(_: &str) -> bool {
     true
 }
-
-

@@ -44,5 +44,3 @@ impl Block {
         self.tree_metadata_flags == self.kind_metadata_flags()
     }
 }
-
-

@@ -9,8 +9,8 @@ pub mod host_bridge;
 pub mod lifecycle;
 pub mod view;
 
-use std::collections::HashMap;
 use gpui::*;
+use std::collections::HashMap;
 
 pub(crate) use self::host_bridge::{ShellEditorHost, ShellPanelHost};
 use crate::chrome::MenuBarState;
@@ -95,13 +95,11 @@ impl Shell {
 
     /// The window's primary (first) editor area content, if any.
     pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
-        self.panel_views
-            .values()
-            .find_map(|view| {
-                view.as_any()
-                    .downcast_ref::<editor::EditorPanelView>()
-                    .map(|p| &p.editor)
-            })
+        self.panel_views.values().find_map(|view| {
+            view.as_any()
+                .downcast_ref::<editor::EditorPanelView>()
+                .map(|p| &p.editor)
+        })
     }
 
     /// The currently active/focused editor, or falls back to primary_editor.
@@ -118,13 +116,16 @@ impl Shell {
         let Some(_viewport) = self.last_viewport else {
             return;
         };
-        let active_tab_path = self.active_editor_tab(cx).and_then(|tab| tab.file.path.clone());
+        let active_tab_path = self
+            .active_editor_tab(cx)
+            .and_then(|tab| tab.file.path.clone());
         explorer::ExplorerState::set_active_file(cx, active_tab_path);
     }
 
     /// Closes the explorer row context menu, if open.
     pub(crate) fn close_explorer_file_menu(&mut self, cx: &mut Context<Self>) {
-        let was_open = explorer::ExplorerState::update(cx, |state, _cx| state.file_menu.take().is_some());
+        let was_open =
+            explorer::ExplorerState::update(cx, |state, _cx| state.file_menu.take().is_some());
         if was_open {
             cx.notify();
         }

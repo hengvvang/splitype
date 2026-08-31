@@ -90,16 +90,14 @@ impl Shell {
                     } else {
                         c.dialog_secondary_button_text
                     })
-                    .child(
-                        left_elem.unwrap_or_else(|| {
-                            div()
-                                .flex_1()
-                                .min_w(px(0.0))
-                                .truncate()
-                                .child(name.clone())
-                                .into_any_element()
-                        }),
-                    )
+                    .child(left_elem.unwrap_or_else(|| {
+                        div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .truncate()
+                            .child(name.clone())
+                            .into_any_element()
+                    }))
                     .when(is_theme_or_lang, |this| {
                         this.child(if is_selected {
                             svg()
@@ -202,7 +200,9 @@ impl Shell {
         let menu_panel_width = menu_panel_width_for_labels(&menu_item_labels, d);
         let main_left = menu_panel_left(open_index, menu_labels, d);
 
-        let (submenu_panel, submenu_bridge) = if let Some(submenu_index) = self.menu_bar.submenu_open {
+        let (submenu_panel, submenu_bridge) = if let Some(submenu_index) =
+            self.menu_bar.submenu_open
+        {
             if let Some(OwnedMenuItem::Submenu(submenu)) = menu_items.get(submenu_index) {
                 let submenu_labels = owned_menu_item_labels(&submenu.items);
                 let raw_left = main_left + menu_panel_width + d.menu_panel_gap;
@@ -215,31 +215,36 @@ impl Shell {
                     raw_left
                 };
                 let ideal_top = submenu_panel_top(&menu_items, submenu_index, d);
-                let total_submenu_height =
-                    menu_items_visual_height_with_gaps(&submenu.items, d)
-                        + d.menu_panel_padding * 2.0;
-                let top = if top_offset + ideal_top + total_submenu_height > viewport_height - 16.0 {
-                    (viewport_height - top_offset - total_submenu_height - 16.0).max(d.menu_panel_top)
+                let total_submenu_height = menu_items_visual_height_with_gaps(&submenu.items, d)
+                    + d.menu_panel_padding * 2.0;
+                let top = if top_offset + ideal_top + total_submenu_height > viewport_height - 16.0
+                {
+                    (viewport_height - top_offset - total_submenu_height - 16.0)
+                        .max(d.menu_panel_top)
                 } else {
                     ideal_top
                 };
-                let max_panel_height = (viewport_height - (top_offset + top) - 16.0)
-                    .max(d.menu_item_height * 3.0);
+                let max_panel_height =
+                    (viewport_height - (top_offset + top) - 16.0).max(d.menu_item_height * 3.0);
                 let is_submenu_scrollable = total_submenu_height > max_panel_height;
 
-                let rendered_sub_items = submenu.items.clone().into_iter().enumerate().map(
-                    |(sub_index, item)| {
-                        self.render_in_window_menu_item(
-                            item,
-                            submenu_index * 1000 + sub_index,
-                            "app-submenu",
-                            theme,
-                            shell.clone(),
-                            editor.clone(),
-                            cx,
-                        )
-                    },
-                );
+                let rendered_sub_items =
+                    submenu
+                        .items
+                        .clone()
+                        .into_iter()
+                        .enumerate()
+                        .map(|(sub_index, item)| {
+                            self.render_in_window_menu_item(
+                                item,
+                                submenu_index * 1000 + sub_index,
+                                "app-submenu",
+                                theme,
+                                shell.clone(),
+                                editor.clone(),
+                                cx,
+                            )
+                        });
 
                 let sub_panel = div()
                     .id(("app-submenu-panel", open_index * 1000 + submenu_index))
@@ -270,8 +275,8 @@ impl Shell {
                 };
                 let vertical_tolerance = d.menu_panel_padding + d.menu_panel_gap;
                 let bridge_top = (ideal_top - vertical_tolerance).max(d.menu_panel_top);
-                let bridge_height =
-                    menu_item_visual_height(&menu_items[submenu_index], d) + vertical_tolerance * 2.0;
+                let bridge_height = menu_item_visual_height(&menu_items[submenu_index], d)
+                    + vertical_tolerance * 2.0;
 
                 let bridge = div()
                     .id(("app-submenu-bridge", open_index * 1000 + submenu_index))

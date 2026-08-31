@@ -1,6 +1,6 @@
-use gpui::SharedString;
-use core_contracts::{PaneDescriptor, PaneKind, PaneView};
 use crate::state::PreviewState;
+use core_contracts::{PaneDescriptor, PaneKind, PaneView};
+use gpui::SharedString;
 
 /// Pane descriptor for Preview mode.
 #[derive(Clone, Debug, Default)]
@@ -47,4 +47,3 @@ impl PreviewBuilder {
         self.descriptor
     }
 }
-

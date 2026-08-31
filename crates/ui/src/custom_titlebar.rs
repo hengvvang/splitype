@@ -7,9 +7,8 @@
 
 use gpui::*;
 
-use theme::{Theme, ThemeColors, ThemeDimensions};
 use config::SPLITYPE_APP_ID;
-
+use theme::{Theme, ThemeColors, ThemeDimensions};
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
 const MAC_TRAFFIC_LIGHT_RESERVED_WIDTH: f32 = 84.0;
@@ -361,4 +360,3 @@ pub fn render_custom_titlebar<T: 'static>(
 
     Some(root.into_any_element())
 }
-

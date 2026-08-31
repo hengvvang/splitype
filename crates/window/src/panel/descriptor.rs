@@ -1,10 +1,10 @@
 //! Panel descriptor trait for registering panel plugins.
 
-use std::any::Any;
-use std::sync::Arc;
-use gpui::{App, SharedString};
 use crate::layout::PanelId;
 use crate::panel::{PanelHost, PanelKind, PanelView};
+use gpui::{App, SharedString};
+use std::any::Any;
+use std::sync::Arc;
 
 /// Factory descriptor for a Panel plugin.
 pub trait PanelDescriptor: Send + Sync + 'static {

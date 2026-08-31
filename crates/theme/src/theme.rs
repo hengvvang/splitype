@@ -678,4 +678,3 @@ fn required_string(object: &Map<String, Value>, key: &str) -> anyhow::Result<Str
     };
     Ok(text.to_string())
 }
-

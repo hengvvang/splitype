@@ -1,6 +1,6 @@
-use gpui::SharedString;
-use core_contracts::{PaneDescriptor, PaneKind, PaneView};
 use crate::plugin::WysiwygPaneState;
+use core_contracts::{PaneDescriptor, PaneKind, PaneView};
+use gpui::SharedString;
 
 /// Pane descriptor for WYSIWYG mode.
 #[derive(Clone, Debug, Default)]
@@ -47,5 +47,3 @@ impl WysiwygBuilder {
         self.descriptor
     }
 }
-
-

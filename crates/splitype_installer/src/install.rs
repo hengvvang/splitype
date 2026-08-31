@@ -6,11 +6,11 @@
 
 use gpui::*;
 
-use config::language::I18nManager;
 #[cfg(target_os = "macos")]
 use crate::cli_tool::applescript_string_literal;
 #[cfg(target_os = "macos")]
 use crate::cli_tool::{is_cli_symlink_current_app, run_osascript};
+use config::language::I18nManager;
 
 #[cfg(target_os = "macos")]
 const CLI_BIN_LINK: &str = "/usr/local/bin/splitype";

@@ -18,10 +18,7 @@ pub use crate::projection::source_map::mapping_buffer::{
 use crate::state::SourceTargetMapping;
 
 /// Builds source target mappings for the whole document.
-pub fn build_source_target_mappings(
-    doc: &Document,
-    cx: &App,
-) -> Vec<SourceTargetMapping> {
+pub fn build_source_target_mappings(doc: &Document, cx: &App) -> Vec<SourceTargetMapping> {
     build_source_target_mappings_with_block_ranges(doc, cx).0
 }
 
@@ -56,5 +53,3 @@ pub fn build_source_target_mappings_with_block_ranges(
 
     (mappings, block_ranges)
 }
-
-

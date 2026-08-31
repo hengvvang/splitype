@@ -311,6 +311,3 @@ fn prefixed_multiline(content: &str, first_prefix: &str, continuation_prefix: &s
 
     rendered
 }
-
-
-

@@ -969,4 +969,3 @@ pub(crate) fn apply_delimiter_style(style: InlineStyle, delimiter: Delimiter) ->
         Delimiter::SubscriptMarkdown | Delimiter::SubscriptHtml => style.with_subscript(),
     }
 }
-

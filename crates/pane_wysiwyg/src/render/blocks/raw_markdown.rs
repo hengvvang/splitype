@@ -32,5 +32,3 @@ pub fn render_raw_markdown(
         ))
         .into_any_element()
 }
-
-

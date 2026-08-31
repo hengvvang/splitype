@@ -18,6 +18,6 @@ pub(crate) mod window;
 pub use bottombar::render_settings_bottombar;
 pub use panel::render_settings_body;
 pub use plugin::*;
-pub use topbar::render_settings_topbar;
 pub use state::SettingsUiState;
+pub use topbar::render_settings_topbar;
 pub use window::open_settings_window;

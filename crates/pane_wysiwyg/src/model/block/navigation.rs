@@ -393,6 +393,3 @@ pub fn normalize_code_language_input(text: &str) -> String {
         .trim()
         .to_string()
 }
-
-
-

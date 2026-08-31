@@ -75,4 +75,3 @@ impl TabMap {
         line.len() as u32
     }
 }
-

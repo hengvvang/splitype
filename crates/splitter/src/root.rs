@@ -124,7 +124,9 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             .or_else(|| {
                 let mut leaves = Vec::new();
                 self.tree.leaf_ids(&mut leaves);
-                leaves.into_iter().find(|id| self.tree.find_leaf_kind(*id) == Some(kind))
+                leaves
+                    .into_iter()
+                    .find(|id| self.tree.find_leaf_kind(*id) == Some(kind))
             })
     }
 
@@ -231,9 +233,11 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             crate::sessions::AreaDockTarget::Left => {
                 (SplitAxis::Horizontal, ratio.clamp(0.01, 0.99), true)
             }
-            crate::sessions::AreaDockTarget::Right => {
-                (SplitAxis::Horizontal, (1.0 - ratio).clamp(0.01, 0.99), false)
-            }
+            crate::sessions::AreaDockTarget::Right => (
+                SplitAxis::Horizontal,
+                (1.0 - ratio).clamp(0.01, 0.99),
+                false,
+            ),
             crate::sessions::AreaDockTarget::Top => {
                 (SplitAxis::Vertical, ratio.clamp(0.01, 0.99), true)
             }
@@ -542,4 +546,3 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         self.active_border_menu = None;
     }
 }
-

@@ -20,4 +20,3 @@ pub(crate) fn first_dropped_markdown_path(paths: &[PathBuf]) -> Option<PathBuf> 
         .find(|path| is_markdown_file_path(path))
         .cloned()
 }
-

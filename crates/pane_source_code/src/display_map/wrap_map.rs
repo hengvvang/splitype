@@ -1,19 +1,10 @@
 //! Soft line-wrapping calculations.
 
 /// Settings and mapping for line wrapping.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct WrapMap {
     pub enabled: bool,
     pub wrap_columns: Option<u32>,
-}
-
-impl Default for WrapMap {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            wrap_columns: None,
-        }
-    }
 }
 
 impl WrapMap {
@@ -37,4 +28,3 @@ impl WrapMap {
         }
     }
 }
-

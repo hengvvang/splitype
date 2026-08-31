@@ -28,7 +28,9 @@ impl Editor {
         if let Some(tab) = self.session.active_tab_mut() {
             tab.panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
         } else {
-            self.session.empty_panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
+            self.session
+                .empty_panes
+                .retain(|pane, _| inner_tree.contains_leaf(pane.0));
         }
 
         if self.focused_pane_id.is_none() {
@@ -41,10 +43,7 @@ impl Editor {
         let is_maximized = maximized_pane.is_some();
         let inner_rendered = if let Some(maximized_pane) = maximized_pane {
             let single = splitter::tree::SplitTree::Leaf(
-                splitter::container::SplitterContainer::new(
-                    maximized_pane.id,
-                    maximized_pane.kind,
-                ),
+                splitter::container::SplitterContainer::new(maximized_pane.id, maximized_pane.kind),
             );
             self.render_editor_pane_split_tree(&single, theme, strings, window, cx)
         } else {
@@ -79,5 +78,3 @@ impl Editor {
             .into_any_element()
     }
 }
-
-

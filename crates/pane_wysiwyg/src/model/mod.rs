@@ -30,5 +30,3 @@ pub struct Document {
     pub structure_version: u64,
     pub metadata_rebuild_version: u64,
 }
-
-

@@ -2,8 +2,8 @@
 
 use gpui::*;
 
+use crate::ui_helpers::{SettingsClickHandler, SettingsOptionHandler, make_row, make_section};
 use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
 
@@ -12,13 +12,13 @@ pub(crate) struct ThemeLangProps {
     pub is_theme_dropdown_open: bool,
     pub on_toggle_theme_dropdown: SettingsClickHandler,
     pub available_themes: Vec<(String, String)>, // (id, display_name)
-    pub on_select_theme: Box<dyn Fn(String) -> SettingsClickHandler>,
+    pub on_select_theme: SettingsOptionHandler<String>,
 
     pub current_lang_name: String,
     pub is_lang_dropdown_open: bool,
     pub on_toggle_lang_dropdown: SettingsClickHandler,
     pub lang_options: Vec<(&'static str, &'static str)>, // (code, display_name)
-    pub on_select_lang: Box<dyn Fn(&'static str) -> SettingsClickHandler>,
+    pub on_select_lang: SettingsOptionHandler<&'static str>,
 }
 
 pub(crate) fn render_theme_and_language_section(
@@ -184,7 +184,15 @@ pub(crate) fn render_theme_and_language_section(
         ));
     }
 
-    make_section(c, d, id, "Visual Theme & Language", expanded, toggle_fn, rows)
+    make_section(
+        c,
+        d,
+        id,
+        "Visual Theme & Language",
+        expanded,
+        toggle_fn,
+        rows,
+    )
 }
 
 pub(crate) struct StatusBarProps {
@@ -287,5 +295,3 @@ pub(crate) fn render_status_bar_section(
 
     make_section(c, d, id, "Status Bar Options", expanded, toggle_fn, rows)
 }
-
-

@@ -4,8 +4,8 @@ pub mod code_language;
 pub mod edit_mode;
 pub mod events;
 pub mod footnotes;
-pub mod ime;
 pub mod image;
+pub mod ime;
 pub mod metadata;
 pub mod mutations;
 pub mod navigation;
@@ -26,11 +26,7 @@ use std::time::Instant;
 
 use gpui::*;
 
-use crate::model::protocol::BlockEvent;
-use crate::table::TableGrid;
 use crate::highlight::CodeHighlightResult;
-use crate::mermaid::MermaidSvgRender;
-use crate::projection::ExpandedInlineProjection;
 use crate::markdown::block::CalloutKind;
 use crate::markdown::block::image::ImageReferenceDefinitions;
 use crate::markdown::block::link::LinkReferenceDefinitions;
@@ -38,6 +34,10 @@ use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableCol
 use crate::markdown::inline::render_cache::InlineRenderCache;
 use crate::markdown::parse::BlockId;
 use crate::markdown::parse::{BlockData, BlockKind};
+use crate::mermaid::MermaidSvgRender;
+use crate::model::protocol::BlockEvent;
+use crate::projection::ExpandedInlineProjection;
+use crate::table::TableGrid;
 
 impl EventEmitter<BlockEvent> for Block {}
 
@@ -280,5 +280,3 @@ impl Block {
         }
     }
 }
-
-

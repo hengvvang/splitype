@@ -48,5 +48,3 @@ pub fn render_heading(
 
     element.child(inner.child(text_content)).into_any_element()
 }
-
-

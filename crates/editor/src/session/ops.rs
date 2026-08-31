@@ -47,14 +47,17 @@ impl Editor {
         }
     }
 
-    pub fn split_pane_with_ratio(&mut self, pane_id: impl Into<PaneId>, axis: SplitAxis, ratio: f32) {
+    pub fn split_pane_with_ratio(
+        &mut self,
+        pane_id: impl Into<PaneId>,
+        axis: SplitAxis,
+        ratio: f32,
+    ) {
         let pane_id = pane_id.into();
         if let Some(panel) = self.session.root.tree.find_leaf_mut(pane_id.0) {
             panel.maximized = false;
         }
-        self.session
-            .root
-            .split_leaf(pane_id.0, axis, ratio);
+        self.session.root.split_leaf(pane_id.0, axis, ratio);
     }
 
     pub fn swap_pane_kinds(&mut self, a: impl Into<PaneId>, b: impl Into<PaneId>) {
@@ -109,7 +112,9 @@ impl Editor {
         cx: &mut gpui::Context<Self>,
     ) {
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
-            pane_state.pane.handle_mouse_down(pane_id, event, window, cx);
+            pane_state
+                .pane
+                .handle_mouse_down(pane_id, event, window, cx);
             cx.notify();
         }
     }
@@ -122,7 +127,9 @@ impl Editor {
         cx: &mut gpui::Context<Self>,
     ) {
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
-            pane_state.pane.handle_mouse_move(pane_id, event, window, cx);
+            pane_state
+                .pane
+                .handle_mouse_move(pane_id, event, window, cx);
             cx.notify();
         }
     }
@@ -140,5 +147,3 @@ impl Editor {
         }
     }
 }
-
-

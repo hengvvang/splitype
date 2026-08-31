@@ -25,8 +25,5 @@ pub enum FsError {
         source: std::io::Error,
     },
     #[error("Symlink error for {path:?}: {message}")]
-    SymlinkError {
-        path: PathBuf,
-        message: String,
-    },
+    SymlinkError { path: PathBuf, message: String },
 }

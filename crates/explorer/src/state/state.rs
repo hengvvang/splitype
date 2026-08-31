@@ -12,7 +12,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
-use gpui::{AnyWindowHandle, BorrowAppContext, Bounds, Entity, FocusHandle, Global, Pixels, Task, UniformListScrollHandle};
+use gpui::{
+    AnyWindowHandle, BorrowAppContext, Bounds, Entity, FocusHandle, Global, Pixels, Task,
+    UniformListScrollHandle,
+};
 
 use super::undo::ExplorerUndoHistory;
 use super::worktree::{Worktree, WorktreeEntryKind, WorktreeSnapshot};
@@ -346,10 +349,7 @@ impl ExplorerState {
     ///
     /// The closure receives the state and the app context (for nested
     /// global access).
-    pub fn update<R>(
-        cx: &mut gpui::App,
-        f: impl FnOnce(&mut Self, &mut gpui::App) -> R,
-    ) -> R {
+    pub fn update<R>(cx: &mut gpui::App, f: impl FnOnce(&mut Self, &mut gpui::App) -> R) -> R {
         let result = cx.update_global::<Self, R>(f);
         cx.refresh_windows();
         result
@@ -467,9 +467,10 @@ pub fn build_explorer_rows(
             continue;
         };
         let root_path = &root_entry.path;
-        let root_is_expanded = expanded_set.map_or(true, |set| set.contains(&root_entry.id));
+        let root_is_expanded = expanded_set.is_none_or(|set| set.contains(&root_entry.id));
 
-        let mut flat_entries: Vec<VisibleExplorerEntry> = Vec::with_capacity(snapshot.entries_by_path.len());
+        let mut flat_entries: Vec<VisibleExplorerEntry> =
+            Vec::with_capacity(snapshot.entries_by_path.len());
         let mut collapsed_prefix: Option<PathBuf> = None;
 
         for entry in snapshot.entries_by_path.values() {
@@ -506,7 +507,7 @@ pub fn build_explorer_rows(
             let is_expanded = if path == root_path {
                 root_is_expanded
             } else if is_dir {
-                expanded_set.map_or(false, |set| set.contains(&entry.id))
+                expanded_set.is_some_and(|set| set.contains(&entry.id))
             } else {
                 false
             };
@@ -517,13 +518,18 @@ pub fn build_explorer_rows(
             // Determine entry kind
             let kind = if is_dir {
                 ExplorerEntryKind::Directory
-            } else if path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
+            } else if path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+            {
                 ExplorerEntryKind::MarkdownFile
             } else {
                 ExplorerEntryKind::File
             };
 
-            let parent_id = path.parent().and_then(|p| snapshot.id_for_path.get(p).copied());
+            let parent_id = path
+                .parent()
+                .and_then(|p| snapshot.id_for_path.get(p).copied());
 
             flat_entries.push(VisibleExplorerEntry {
                 worktree_id,
@@ -582,5 +588,3 @@ pub fn build_explorer_rows(
 
     rows
 }
-
-

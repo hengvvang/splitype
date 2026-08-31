@@ -84,11 +84,23 @@ fn preserve_case_adapts_to_casing_style() {
     use super::query::compute_preserve_case_replacement;
 
     // All uppercase
-    assert_eq!(compute_preserve_case_replacement("HELLO", "world", true), "WORLD");
+    assert_eq!(
+        compute_preserve_case_replacement("HELLO", "world", true),
+        "WORLD"
+    );
     // Title case
-    assert_eq!(compute_preserve_case_replacement("Hello", "world", true), "World");
+    assert_eq!(
+        compute_preserve_case_replacement("Hello", "world", true),
+        "World"
+    );
     // Lowercase
-    assert_eq!(compute_preserve_case_replacement("hello", "World", true), "world");
+    assert_eq!(
+        compute_preserve_case_replacement("hello", "World", true),
+        "world"
+    );
     // Preserve case disabled
-    assert_eq!(compute_preserve_case_replacement("HELLO", "world", false), "world");
+    assert_eq!(
+        compute_preserve_case_replacement("HELLO", "world", false),
+        "world"
+    );
 }

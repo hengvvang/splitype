@@ -1,8 +1,8 @@
 use gpui::*;
-use theme::Theme;
-use markdown_parser::inline::html::HtmlCssColor;
-use markdown_parser::block::html::HtmlNode;
 use markdown_parser::block::CalloutKind;
+use markdown_parser::block::html::HtmlNode;
+use markdown_parser::inline::html::HtmlCssColor;
+use theme::Theme;
 
 /// Converts an HtmlCssColor to GPUI's Hsla.
 pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
@@ -142,9 +142,19 @@ fn alphabetic_list_marker(ordinal: usize) -> String {
 
 fn roman_list_marker(ordinal: usize) -> String {
     const ROMAN_LOOKUP: &[(usize, &str)] = &[
-        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
-        (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
-        (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
     ];
 
     let mut num = ordinal.max(1);
@@ -188,4 +198,3 @@ pub fn callout_colors(variant: CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
     let style = callout_style(variant, theme);
     (style.border_color, style.background_color)
 }
-

@@ -7,4 +7,3 @@ pub mod point;
 pub use anchor::{Anchor, Bias};
 pub use line_map::LineMap;
 pub use point::BufferPoint;
-

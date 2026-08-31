@@ -92,7 +92,12 @@ impl Editor {
             || (f32::from(previous.height) - f32::from(current.height)).abs() > EPSILON
     }
 
-    pub(crate) fn bump_scrollbar_visibility(&mut self, pane_id: PaneId, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn bump_scrollbar_visibility(
+        &mut self,
+        pane_id: PaneId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let duration = Duration::from_millis(900);
         let Some(state) = self.pane_state_mut(pane_id) else {
             return;
@@ -209,7 +214,12 @@ impl Editor {
         }
     }
 
-    pub(crate) fn end_scrollbar_drag(&mut self, pane_id: PaneId, _window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn end_scrollbar_drag(
+        &mut self,
+        pane_id: PaneId,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(state) = self.pane_state_mut(pane_id) {
             if state.scroll.scrollbar_drag.take().is_some() {
                 cx.notify();
@@ -217,4 +227,3 @@ impl Editor {
         }
     }
 }
-

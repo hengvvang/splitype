@@ -39,10 +39,7 @@ pub fn parse_document_with_mode(markdown: &str, mode: ParseMode) -> Vec<BlockDat
     if markdown.is_empty() {
         return Vec::new();
     }
-    let lines = markdown
-        .lines()
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
+    let lines = markdown.lines().map(ToOwned::to_owned).collect::<Vec<_>>();
     build_blocks_from_lines_internal(&lines, mode, true)
 }
 
@@ -214,5 +211,3 @@ pub(crate) fn build_blocks_from_lines_internal(
 
     roots
 }
-
-

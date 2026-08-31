@@ -18,11 +18,7 @@ impl ExplorerState {
     /// Delete the effective selection with a confirmation prompt; after the
     /// background deletion the selection moves to the next surviving sibling
     /// (Zed's trash/delete flow, without the OS-trash variant).
-    pub(crate) fn delete_explorer_selections(
-        &mut self,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
+    pub(crate) fn delete_explorer_selections(&mut self, window: &mut Window, cx: &mut App) {
         let selections = self.effective_explorer_entries();
         if selections.is_empty() {
             return;
@@ -67,7 +63,7 @@ impl ExplorerState {
                     }
                 })
                 .await;
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 ExplorerState::update(cx, |state, cx| {
                     state.marked.clear();
                     state.rescan_explorer_worktrees(cx);
@@ -84,11 +80,7 @@ impl ExplorerState {
 
     /// Move the effective selection to the OS trash (recoverable, no
     /// confirmation — mirrors Zed's Trash menu item).
-    pub(crate) fn trash_explorer_selections(
-        &mut self,
-        _window: &mut Window,
-        cx: &mut App,
-    ) {
+    pub(crate) fn trash_explorer_selections(&mut self, _window: &mut Window, cx: &mut App) {
         let selections = self.effective_explorer_entries();
         if selections.is_empty() {
             return;
@@ -107,7 +99,7 @@ impl ExplorerState {
                     }
                 })
                 .await;
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 ExplorerState::update(cx, |state, cx| {
                     state.marked.clear();
                     state.rescan_explorer_worktrees(cx);
@@ -212,13 +204,11 @@ impl ExplorerState {
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&items, &target_dir, is_cut, true) })
                 .await;
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 ExplorerState::update(cx, |state, cx| {
                     if is_cut {
-                        state.clipboard = state
-                            .clipboard
-                            .take()
-                            .map(ExplorerClipboard::into_copied);
+                        state.clipboard =
+                            state.clipboard.take().map(ExplorerClipboard::into_copied);
                     }
                     state.marked.clear();
                     state.rescan_explorer_worktrees(cx);
@@ -280,13 +270,14 @@ impl ExplorerState {
         };
         let change_for_execution = change.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
-            let result = cx.background_executor()
+            let result = cx
+                .background_executor()
                 .spawn(async move { execute_explorer_change_inverse(&change_for_execution) })
                 .await;
             if let Err(err) = result {
                 tracing::error!(error = %err, "failed to execute explorer undo");
             }
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 ExplorerState::update(cx, |state, cx| {
                     state.undo_history.redo_stack.push(change);
                     state.rescan_explorer_worktrees(cx);
@@ -304,13 +295,14 @@ impl ExplorerState {
         };
         let change_for_execution = change.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
-            let result = cx.background_executor()
+            let result = cx
+                .background_executor()
                 .spawn(async move { execute_explorer_change(&change_for_execution) })
                 .await;
             if let Err(err) = result {
                 tracing::error!(error = %err, "failed to execute explorer redo");
             }
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 ExplorerState::update(cx, |state, cx| {
                     state.undo_history.undo_stack.push(change);
                     state.rescan_explorer_worktrees(cx);
@@ -321,4 +313,3 @@ impl ExplorerState {
         });
     }
 }
-

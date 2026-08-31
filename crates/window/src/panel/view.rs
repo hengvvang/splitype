@@ -1,12 +1,12 @@
 //! Panel view trait contract and rendering context.
 
-use std::any::Any;
-use std::path::Path;
-use gpui::{AnyElement, App, Bounds, FocusHandle, Pixels, Point, SharedString, Window};
-use theme::Theme;
-use config::language::I18nStrings;
 use crate::layout::PanelId;
 use crate::panel::PanelKind;
+use config::language::I18nStrings;
+use gpui::{AnyElement, App, Bounds, FocusHandle, Pixels, Point, SharedString, Window};
+use std::any::Any;
+use std::path::Path;
+use theme::Theme;
 
 /// Rendering context passed to a [`PanelView`] on every render frame.
 pub struct PanelRenderContext<'a> {
@@ -93,12 +93,8 @@ pub trait PanelView: 'static {
     }
 
     /// Renders the complete panel UI inside the window tile container.
-    fn render(
-        &mut self,
-        ctx: &PanelRenderContext,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement;
+    fn render(&mut self, ctx: &PanelRenderContext, window: &mut Window, cx: &mut App)
+    -> AnyElement;
 
     /// Updates the panel identifier owned by this view.
     fn set_panel_id(&mut self, _id: PanelId, _cx: &mut App) {}

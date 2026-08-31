@@ -1,7 +1,7 @@
 //! Menu action routing, target window lookup, and global menu action handlers.
 
-use std::path::PathBuf;
 use gpui::*;
+use std::path::PathBuf;
 
 use super::install_menus;
 use super::prompts;

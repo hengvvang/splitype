@@ -3,13 +3,13 @@
 
 use gpui::*;
 
-use crate::model::protocol::BlockEvent;
 use crate::actions::{
     BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll,
     SelectEnd, SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
     WordSelectRight,
 };
 use crate::model::block::Block;
+use crate::model::protocol::BlockEvent;
 impl Block {
     pub fn on_focus_previous(
         &mut self,
@@ -29,12 +29,7 @@ impl Block {
         }
     }
 
-    pub fn on_focus_next(
-        &mut self,
-        _: &FocusNext,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_focus_next(&mut self, _: &FocusNext, window: &mut Window, cx: &mut Context<Self>) {
         let preferred_x = self.vertical_anchor_x();
         if !self.move_cursor_vertically(1, preferred_x, cx) {
             if self.is_table_cell() {
@@ -55,12 +50,7 @@ impl Block {
         }
     }
 
-    pub fn on_move_left(
-        &mut self,
-        _: &MoveLeft,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_move_left(&mut self, _: &MoveLeft, _window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
             if let Some((target, affinity)) = self.projected_move_left_target(self.cursor_offset())
             {
@@ -82,12 +72,7 @@ impl Block {
         }
     }
 
-    pub fn on_move_right(
-        &mut self,
-        _: &MoveRight,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_move_right(&mut self, _: &MoveRight, _window: &mut Window, cx: &mut Context<Self>) {
         if self.selected_range.is_empty() {
             if let Some((target, affinity)) =
                 self.projected_move_right_target(self.selected_range.end)
@@ -118,12 +103,7 @@ impl Block {
         self.move_to(self.display_len(), cx);
     }
 
-    pub fn on_select_left(
-        &mut self,
-        _: &SelectLeft,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_select_left(&mut self, _: &SelectLeft, _window: &mut Window, cx: &mut Context<Self>) {
         if let Some((target, _)) = self.projected_move_left_target(self.cursor_offset()) {
             self.select_to(target, cx);
         } else {
@@ -180,21 +160,11 @@ impl Block {
         self.select_to(self.next_word_start(self.cursor_offset()), cx);
     }
 
-    pub fn on_block_up(
-        &mut self,
-        _: &BlockUp,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_block_up(&mut self, _: &BlockUp, _window: &mut Window, cx: &mut Context<Self>) {
         cx.emit(BlockEvent::RequestBlockUp);
     }
 
-    pub fn on_block_down(
-        &mut self,
-        _: &BlockDown,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_block_down(&mut self, _: &BlockDown, _window: &mut Window, cx: &mut Context<Self>) {
         cx.emit(BlockEvent::RequestBlockDown);
     }
 
@@ -203,12 +173,7 @@ impl Block {
         self.select_to(self.display_len(), cx);
     }
 
-    pub fn on_select_all(
-        &mut self,
-        _: &SelectAll,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
         if self.show_source_line_numbers() {
             self.select_all_text(cx);
         } else {
@@ -216,23 +181,11 @@ impl Block {
         }
     }
 
-    pub fn on_select_home(
-        &mut self,
-        _: &SelectHome,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_select_home(&mut self, _: &SelectHome, _window: &mut Window, cx: &mut Context<Self>) {
         self.select_to(0, cx);
     }
 
-    pub fn on_select_end(
-        &mut self,
-        _: &SelectEnd,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_select_end(&mut self, _: &SelectEnd, _window: &mut Window, cx: &mut Context<Self>) {
         self.select_to(self.display_len(), cx);
     }
 }
-
-

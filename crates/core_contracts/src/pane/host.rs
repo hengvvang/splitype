@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use gpui::{App, ScrollHandle, Window};
 use crate::pane::PaneId;
+use gpui::{App, ScrollHandle, Window};
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AutoscrollStrategy {
@@ -30,11 +30,41 @@ pub trait PaneHost: Send + Sync + 'static {
     fn undo(&self, window: &mut Window, cx: &mut App);
     fn redo(&self, window: &mut Window, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
-    fn set_outline_hovered(&self, pane_id: PaneId, hovered: bool, window: &mut Window, cx: &mut App);
-    fn handle_pane_key_down(&self, pane_id: PaneId, event: &gpui::KeyDownEvent, window: &mut Window, cx: &mut App) -> bool;
-    fn handle_pane_mouse_down(&self, pane_id: PaneId, event: &gpui::MouseDownEvent, window: &mut Window, cx: &mut App);
-    fn handle_pane_mouse_move(&self, pane_id: PaneId, event: &gpui::MouseMoveEvent, window: &mut Window, cx: &mut App);
-    fn handle_pane_mouse_up(&self, pane_id: PaneId, event: &gpui::MouseUpEvent, window: &mut Window, cx: &mut App);
+    fn set_outline_hovered(
+        &self,
+        pane_id: PaneId,
+        hovered: bool,
+        window: &mut Window,
+        cx: &mut App,
+    );
+    fn handle_pane_key_down(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::KeyDownEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool;
+    fn handle_pane_mouse_down(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::MouseDownEvent,
+        window: &mut Window,
+        cx: &mut App,
+    );
+    fn handle_pane_mouse_move(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::MouseMoveEvent,
+        window: &mut Window,
+        cx: &mut App,
+    );
+    fn handle_pane_mouse_up(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::MouseUpEvent,
+        window: &mut Window,
+        cx: &mut App,
+    );
 }
 
 pub struct PaneOutlineHost {
@@ -48,6 +78,7 @@ impl crate::outline::OutlineHost for PaneOutlineHost {
     }
 
     fn set_hovered(&self, hovered: bool, window: &mut Window, cx: &mut App) {
-        self.host.set_outline_hovered(self.pane_id, hovered, window, cx);
+        self.host
+            .set_outline_hovered(self.pane_id, hovered, window, cx);
     }
 }

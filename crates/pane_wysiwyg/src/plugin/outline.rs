@@ -1,9 +1,9 @@
 //! WYSIWYG pane outline extraction and heading navigation.
 
-use gpui::App;
-use core_contracts::OutlineNode;
-use crate::model::Document;
 use crate::markdown::parse::BlockKind;
+use crate::model::Document;
+use core_contracts::OutlineNode;
+use gpui::App;
 
 /// Extracts all heading nodes from the WYSIWYG document blocks.
 pub fn extract_outline_headings(doc: &Document, cx: &App) -> Vec<OutlineNode> {
@@ -24,11 +24,12 @@ pub fn extract_outline_headings(doc: &Document, cx: &App) -> Vec<OutlineNode> {
 
         let heading_text = block.data.text.plain_text().trim().to_string();
         let entity_id = entry.entity.entity_id();
-        let display_label = if let Some((_, parsed_text)) = BlockKind::parse_atx_heading_line(&heading_text) {
-            parsed_text
-        } else {
-            heading_text
-        };
+        let display_label =
+            if let Some((_, parsed_text)) = BlockKind::parse_atx_heading_line(&heading_text) {
+                parsed_text
+            } else {
+                heading_text
+            };
 
         list.push(OutlineNode {
             id: format!("outline:{entity_id}"),
@@ -44,5 +45,3 @@ pub fn extract_outline_headings(doc: &Document, cx: &App) -> Vec<OutlineNode> {
     }
     list
 }
-
-

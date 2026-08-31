@@ -63,4 +63,3 @@ pub fn explorer_is_copy_modifier(modifiers: &gpui::Modifiers) -> bool {
     cfg!(target_os = "macos") && modifiers.alt
         || cfg!(not(target_os = "macos")) && modifiers.control
 }
-

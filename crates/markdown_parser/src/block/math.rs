@@ -54,4 +54,3 @@ fn strip_display_indent(line: &str) -> Option<&str> {
     let indent = line.bytes().take_while(|byte| *byte == b' ').count();
     (indent <= 3).then_some(&line[indent..])
 }
-

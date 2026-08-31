@@ -430,4 +430,3 @@ pub(crate) fn build_native_callout_block(
     result.extend(child_blocks);
     Some(result)
 }
-

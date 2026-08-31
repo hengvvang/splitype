@@ -5,8 +5,8 @@ use gpui::*;
 use super::Document;
 use super::index::{BlockEntry, BlockIndex, BlockLocation, TreeInheritanceScope};
 
-use crate::model::block::{Block, BlockStructureContext};
 use crate::markdown::parse::BlockKind;
+use crate::model::block::{Block, BlockStructureContext};
 
 impl Document {
     pub fn insert_blocks_at(
@@ -58,15 +58,16 @@ impl Document {
             cx,
             &mut self.index,
         );
-        let items = self.index.entries.iter().map(|entry| entry.entity.read(cx).data.clone());
+        let items = self
+            .index
+            .entries
+            .iter()
+            .map(|entry| entry.entity.read(cx).data.clone());
         self.tree = crate::tree::SumTree::from_items(items, &());
         self.metadata_rebuild_version = self.structure_version;
     }
 
-    pub fn take_children(
-        block: &Entity<Block>,
-        cx: &mut App,
-    ) -> Vec<Entity<Block>> {
+    pub fn take_children(block: &Entity<Block>, cx: &mut App) -> Vec<Entity<Block>> {
         let mut children = Vec::new();
         block.update(cx, |block, _cx| {
             children = std::mem::take(&mut block.children);
@@ -275,9 +276,7 @@ impl Document {
         use crate::input::history::delta::DocDelta;
         match delta {
             DocDelta::UpdateBlockText {
-                block_id,
-                new_text,
-                ..
+                block_id, new_text, ..
             } => {
                 if let Some(target) = self.find_entity_by_block_id(*block_id, cx) {
                     target.update(cx, |block, cx| {
@@ -301,8 +300,7 @@ impl Document {
                 let del_count = deleted.len().min(self.roots.len().saturating_sub(idx));
                 let new_entities: Vec<Entity<Block>> = inserted
                     .iter()
-                    .cloned()
-                    .map(|data| cx.new(|cx| Block::with_data(cx, data)))
+                    .map(|data| cx.new(|cx| Block::with_data(cx, data.clone())))
                     .collect();
                 self.roots.splice(idx..idx + del_count, new_entities);
                 self.rebuild_metadata_and_snapshot(cx);
@@ -328,5 +326,3 @@ impl Document {
         any_applied
     }
 }
-
-

@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::model::block::Block;
 use crate::markdown::block::table::{TableAxis, TableAxisMarker};
+use crate::model::block::Block;
 use crate::state::TableAxisSelection;
 
 /// Converts a selection into an axis marker.
@@ -76,5 +76,3 @@ pub fn reorder_table_axis(
         block.data.table = Some(table);
     });
 }
-
-

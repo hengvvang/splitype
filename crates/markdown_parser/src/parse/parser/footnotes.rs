@@ -108,4 +108,3 @@ pub(crate) fn split_inline_footnote_heads(id: String, first_line: &str) -> Vec<(
     }
     result
 }
-

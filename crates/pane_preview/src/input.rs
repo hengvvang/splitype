@@ -3,33 +3,28 @@
 //! Pure state operations on [`PreviewState`]; the coordinating crate
 //! routes events here and notifies after a change.
 
-use gpui::{Point, Pixels};
+use gpui::{Pixels, Point};
 
 use crate::selection::{PreviewEndpoint, PreviewSelectionRange};
 use crate::state::PreviewState;
 
 /// Mouse-down on the preview block at `block_index`: start (or restart) a
 /// drag selection anchor at the clicked offset.
-pub fn handle_mouse_down(
-    state: &mut PreviewState,
-    block_index: usize,
-    position: Point<Pixels>,
-) {
+pub fn handle_mouse_down(state: &mut PreviewState, block_index: usize, position: Point<Pixels>) {
     let Some(block) = state.blocks.get(block_index) else {
         return;
     };
     let offset = block.index_for_mouse_position(position);
-    state.drag_anchor = Some(PreviewEndpoint { block_index, offset });
+    state.drag_anchor = Some(PreviewEndpoint {
+        block_index,
+        offset,
+    });
     state.selection = None;
 }
 
 /// Mouse-move while dragging over the preview block at `block_index`:
 /// extend the drag selection to the current offset.
-pub fn handle_mouse_move(
-    state: &mut PreviewState,
-    block_index: usize,
-    position: Point<Pixels>,
-) {
+pub fn handle_mouse_move(state: &mut PreviewState, block_index: usize, position: Point<Pixels>) {
     let Some(anchor) = state.drag_anchor else {
         return;
     };
@@ -37,7 +32,10 @@ pub fn handle_mouse_move(
         return;
     };
     let offset = block.index_for_mouse_position(position);
-    let focus = PreviewEndpoint { block_index, offset };
+    let focus = PreviewEndpoint {
+        block_index,
+        offset,
+    };
     let selection = PreviewSelectionRange::new(anchor, focus);
     if selection.is_empty() {
         state.selection = None;
@@ -78,4 +76,3 @@ pub fn selected_text(state: &PreviewState) -> Option<String> {
         Some(lines.join("\n\n"))
     }
 }
-

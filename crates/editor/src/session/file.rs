@@ -40,7 +40,13 @@ impl Editor {
     pub fn serialized_document_text(&self, cx: &App) -> String {
         if let Some(tab) = self.session.active_tab() {
             tab.serialized_text(cx)
-        } else if let Some(pane_id) = self.focused_pane_id.or_else(|| self.session.root.tree.first_leaf_id().map(core_contracts::PaneId)) {
+        } else if let Some(pane_id) = self.focused_pane_id.or_else(|| {
+            self.session
+                .root
+                .tree
+                .first_leaf_id()
+                .map(core_contracts::PaneId)
+        }) {
             if let Some(state) = self.session.empty_panes.get(&pane_id) {
                 state.pane.serialize_text(cx).unwrap_or_default()
             } else {
@@ -54,10 +60,9 @@ impl Editor {
     pub fn save_dialog_defaults(&self) -> (PathBuf, Option<String>) {
         if let Some(tab) = self.session.active_tab() {
             if let Some(path) = tab.file.path.as_ref() {
-                let directory = path
-                    .parent()
-                    .map(Path::to_path_buf)
-                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+                let directory = path.parent().map(Path::to_path_buf).unwrap_or_else(|| {
+                    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+                });
                 let suggested_name = path
                     .file_name()
                     .map(|name| name.to_string_lossy().to_string());
@@ -151,7 +156,10 @@ impl Editor {
     }
 
     pub fn save_document_via_prompt(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let should_close_after_save = self.session.active_tab().is_some_and(|t| t.file.pending_close_after_save);
+        let should_close_after_save = self
+            .session
+            .active_tab()
+            .is_some_and(|t| t.file.pending_close_after_save);
         let markdown = self.serialized_document_text(cx);
         let (default_dir, suggested_name) = self.save_dialog_defaults();
         let prompt = cx.prompt_for_new_path(&default_dir, suggested_name.as_deref());
@@ -229,9 +237,11 @@ impl Editor {
             let _ = weak_editor.update(cx, |this, cx| {
                 this.apply_successful_save(path, cx);
                 if should_close_after_save {
-                    window_handle.update(cx, |_view, window, _cx| {
-                        window.remove_window();
-                    }).ok();
+                    window_handle
+                        .update(cx, |_view, window, _cx| {
+                            window.remove_window();
+                        })
+                        .ok();
                 }
             });
         })
@@ -320,9 +330,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(path) =
-            crate::input::first_dropped_markdown_path(paths.paths())
-        else {
+        let Some(path) = crate::input::first_dropped_markdown_path(paths.paths()) else {
             let strings = cx.global::<I18nManager>().strings().clone();
             self.show_drop_open_failed_prompt(strings.drop_no_markdown_file_message, window, cx);
             return;
@@ -358,18 +366,16 @@ impl Editor {
     pub fn cancel_drop_replace_dialog(&mut self, cx: &mut Context<Self>) {
         self.clear_pending_drop_replace_state(cx);
         let pane = self.active_pane_state();
-        pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit {
-            margin: px(20.0),
-        });
+        pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit { margin: px(20.0) });
         cx.notify();
     }
 
-    pub fn discard_pending_drop_replace(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(path) = self.session.active_tab_mut().and_then(|t| t.file.pending_drop_replace_path.take()) else {
+    pub fn discard_pending_drop_replace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(path) = self
+            .session
+            .active_tab_mut()
+            .and_then(|t| t.file.pending_drop_replace_path.take())
+        else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -381,11 +387,7 @@ impl Editor {
         }
     }
 
-    pub fn save_and_replace_pending_drop(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn save_and_replace_pending_drop(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(tab) = self.session.active_tab_mut() else {
             self.clear_pending_drop_replace_state(cx);
             return;
@@ -411,12 +413,12 @@ impl Editor {
         cx.notify();
     }
 
-    pub fn replace_after_successful_save(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(drop_path) = self.session.active_tab_mut().and_then(|t| t.file.pending_drop_replace_path.take()) else {
+    pub fn replace_after_successful_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(drop_path) = self
+            .session
+            .active_tab_mut()
+            .and_then(|t| t.file.pending_drop_replace_path.take())
+        else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -433,7 +435,11 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(drop_path) = self.session.active_tab().and_then(|t| t.file.pending_drop_replace_path.clone()) else {
+        let Some(drop_path) = self
+            .session
+            .active_tab()
+            .and_then(|t| t.file.pending_drop_replace_path.clone())
+        else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -450,13 +456,15 @@ impl Editor {
             let mut save_path = match prompt.await {
                 Ok(Ok(Some(path))) => path,
                 Ok(Ok(None)) | Err(_) => {
-                    let _ = weak_editor_for_cancel
-                        .update(cx, |this, cx| this.abort_pending_drop_replace_after_save(cx));
+                    let _ = weak_editor_for_cancel.update(cx, |this, cx| {
+                        this.abort_pending_drop_replace_after_save(cx)
+                    });
                     return;
                 }
                 Ok(Err(err)) => {
-                    let _ = weak_editor_for_error
-                        .update(cx, |this, cx| this.abort_pending_drop_replace_after_save(cx));
+                    let _ = weak_editor_for_error.update(cx, |this, cx| {
+                        this.abort_pending_drop_replace_after_save(cx)
+                    });
                     let detail = err.to_string();
                     let _ = cx.update_window(
                         window_handle,
@@ -481,8 +489,9 @@ impl Editor {
             }
 
             if let Err(err) = std::fs::write(&save_path, &markdown) {
-                let _ = weak_editor_for_write_error
-                    .update(cx, |this, cx| this.abort_pending_drop_replace_after_save(cx));
+                let _ = weak_editor_for_write_error.update(cx, |this, cx| {
+                    this.abort_pending_drop_replace_after_save(cx)
+                });
                 let detail = err.to_string();
                 let _ = cx.update_window(
                     window_handle,
@@ -531,11 +540,12 @@ impl Editor {
         .detach();
     }
 
-    pub fn replace_after_successful_save_async(
-        &mut self,
-        cx: &mut Context<Self>,
-    ) -> Result<()> {
-        let Some(drop_path) = self.session.active_tab_mut().and_then(|t| t.file.pending_drop_replace_path.take()) else {
+    pub fn replace_after_successful_save_async(&mut self, cx: &mut Context<Self>) -> Result<()> {
+        let Some(drop_path) = self
+            .session
+            .active_tab_mut()
+            .and_then(|t| t.file.pending_drop_replace_path.take())
+        else {
             self.clear_pending_drop_replace_state(cx);
             return Ok(());
         };
@@ -551,9 +561,7 @@ impl Editor {
             tab.file.pending_drop_replace_path = None;
         }
         let pane = self.active_pane_state();
-        pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit {
-            margin: px(20.0),
-        });
+        pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit { margin: px(20.0) });
         cx.notify();
     }
 
@@ -613,4 +621,3 @@ impl Editor {
         Ok(())
     }
 }
-

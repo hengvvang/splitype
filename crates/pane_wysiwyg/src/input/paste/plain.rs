@@ -129,6 +129,3 @@ fn is_simple_separator(trimmed: &str) -> bool {
 fn is_simple_reference_definition(trimmed: &str) -> bool {
     trimmed.starts_with('[') && trimmed.contains("]:")
 }
-
-
-

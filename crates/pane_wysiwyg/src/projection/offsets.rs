@@ -2,8 +2,8 @@
 
 use std::ops::Range;
 
-use crate::projection::ExpandedInlineSegmentKind;
 use crate::model::block::{Block, CollapsedCaretAffinity};
+use crate::projection::ExpandedInlineSegmentKind;
 
 impl Block {
     pub fn plain_to_display_cursor_offset(&self, plain: usize) -> usize {
@@ -335,5 +335,3 @@ impl Block {
         start.min(end)..start.max(end)
     }
 }
-
-

@@ -3,10 +3,8 @@
 
 use gpui::*;
 
-use syntax_highlighter::highlight::{
-    code_highlight_color, highlight_code_block,
-};
 use crate::node::PreviewBlock;
+use syntax_highlighter::highlight::{code_highlight_color, highlight_code_block};
 use theme::Theme;
 
 /// Extracts the fence language tag from the raw source (e.g. `rust` from
@@ -25,7 +23,11 @@ fn fence_language(block: &PreviewBlock) -> Option<String> {
 }
 
 /// Renders a fenced code block read-only with syntax highlighting.
-pub(crate) fn render_preview_fenced_code(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
+pub(crate) fn render_preview_fenced_code(
+    block: &PreviewBlock,
+    base: Div,
+    theme: &Theme,
+) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -157,5 +159,3 @@ fn render_highlighted_lines(
 
     div().flex().flex_col().children(lines).into_any_element()
 }
-
-

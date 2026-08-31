@@ -38,10 +38,7 @@ fn clean_error_message(err: &str) -> String {
     }
 }
 
-pub fn render_empty_graphic_placeholder(
-    kind: GraphicKind,
-    theme: &Theme,
-) -> AnyElement {
+pub fn render_empty_graphic_placeholder(kind: GraphicKind, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -100,6 +97,3 @@ pub fn render_graphic_error_card(
         )
         .into_any_element()
 }
-
-
-

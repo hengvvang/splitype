@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::model::block::Block;
 use crate::markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
+use crate::model::block::Block;
 use crate::state::TableCellBinding;
 use crate::table::TableGrid;
 
@@ -11,7 +11,11 @@ use crate::table::TableGrid;
 pub fn install_table_grid_for_block(
     table_block: &Entity<Block>,
     table: &TableData,
-    mut create_cell: impl FnMut(crate::markdown::inline::text::BlockText, TableCellPosition, TableColumnAlignment) -> (Entity<Block>, TableCellBinding),
+    mut create_cell: impl FnMut(
+        crate::markdown::inline::text::BlockText,
+        TableCellPosition,
+        TableColumnAlignment,
+    ) -> (Entity<Block>, TableCellBinding),
     cx: &mut App,
 ) -> Vec<TableCellBinding> {
     let mut bindings = Vec::new();
@@ -101,5 +105,3 @@ pub fn sync_table_data_from_grid(table_block: &Entity<Block>, cx: &mut App) {
         });
     });
 }
-
-

@@ -3,12 +3,12 @@
 
 use gpui::*;
 
-use theme::{Theme, ThemeDimensions};
-use crate::model::BlockEntry;
 use crate::markdown::block::CalloutKind;
+use crate::model::BlockEntry;
 use crate::render::layout::{
-    callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap, RowSpacingInfo,
+    RowSpacingInfo, callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
 };
+use theme::{Theme, ThemeDimensions};
 
 #[derive(Clone, Debug)]
 pub enum PlannedInnerSegment {
@@ -34,11 +34,7 @@ pub struct PlannedRow {
 }
 
 /// Plans all virtualized rows for the given block entries.
-pub fn plan_document_rows(
-    blocks: &[BlockEntry],
-    d: &ThemeDimensions,
-    cx: &App,
-) -> Vec<PlannedRow> {
+pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) -> Vec<PlannedRow> {
     let spacing_for = |index: usize| -> RowSpacingInfo {
         blocks[index]
             .entity
@@ -70,8 +66,7 @@ pub fn plan_document_rows(
                     let mut row_gaps = Vec::new();
                     while footnote_end < blocks.len()
                         && spacing_for(footnote_end).callout_group_id == Some(callout_group_id)
-                        && spacing_for(footnote_end).footnote_group_id
-                            == Some(footnote_group_id)
+                        && spacing_for(footnote_end).footnote_group_id == Some(footnote_group_id)
                     {
                         let footnote_spacing = spacing_for(footnote_end);
                         row_gaps.push(footnote_row_top_gap(previous_footnote_row, d.block_gap));
@@ -183,11 +178,7 @@ where
                 };
                 let entity = blocks[block_offset].entity.clone();
                 let entity_id = entity.entity_id();
-                let row = div()
-                    .w_full()
-                    .flex_shrink_0()
-                    .mt(px(*gap))
-                    .child(entity);
+                let row = div().w_full().flex_shrink_0().mt(px(*gap)).child(entity);
                 children.push(attach_context_menu(row, entity_id).into_any_element());
                 block_offset += 1;
             }
@@ -209,13 +200,8 @@ where
                     PlannedInnerSegment::Block { gap } => {
                         let entity = blocks[block_offset].entity.clone();
                         let entity_id = entity.entity_id();
-                        let row = div()
-                            .w_full()
-                            .flex_shrink_0()
-                            .mt(px(*gap))
-                            .child(entity);
-                        group_children
-                            .push(attach_context_menu(row, entity_id).into_any_element());
+                        let row = div().w_full().flex_shrink_0().mt(px(*gap)).child(entity);
+                        group_children.push(attach_context_menu(row, entity_id).into_any_element());
                         block_offset += 1;
                     }
                     PlannedInnerSegment::FootnoteSubgroup { gap, row_gaps } => {
@@ -271,5 +257,3 @@ where
         }
     }
 }
-
-

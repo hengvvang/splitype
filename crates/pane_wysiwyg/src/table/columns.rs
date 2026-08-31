@@ -11,7 +11,11 @@ pub fn append_table_column(table: &mut TableData) {
     table.append_column(alignment);
 }
 
-pub fn set_table_column_alignment(table: &mut TableData, column: usize, alignment: TableColumnAlignment) {
+pub fn set_table_column_alignment(
+    table: &mut TableData,
+    column: usize,
+    alignment: TableColumnAlignment,
+) {
     table.set_column_alignment(column, alignment);
 }
 
@@ -37,5 +41,3 @@ pub fn insert_table_column_at(table: &mut TableData, column: usize) {
 pub fn duplicate_table_column(table: &mut TableData, column: usize) {
     table.duplicate_column(column);
 }
-
-

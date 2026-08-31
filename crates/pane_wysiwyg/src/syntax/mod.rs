@@ -3,5 +3,3 @@
 pub use markdown_parser as markdown;
 pub use markdown_parser::*;
 pub use syntax_highlighter::*;
-
-

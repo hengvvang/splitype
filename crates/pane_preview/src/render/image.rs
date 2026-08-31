@@ -5,8 +5,8 @@ use gpui::*;
 
 use crate::node::PreviewBlock;
 use crate::render::{paragraph, preview_centered_column_width};
-use theme::Theme;
 use markdown_parser::block::image::{ImageResolvedSource, parse_standalone_image};
+use theme::Theme;
 
 /// Renders a paragraph/list-item block that holds a lone image read-only.
 /// Falls back to the paragraph renderer when the block is not an image.
@@ -112,5 +112,3 @@ fn render_preview_image_placeholder(alt: &str, raw: &str, base: Div, theme: &The
         )
         .into_any_element()
 }
-
-

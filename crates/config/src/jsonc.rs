@@ -220,4 +220,3 @@ fn is_empty_json_value(value: &Value) -> bool {
         Value::Bool(_) | Value::Number(_) => false,
     }
 }
-

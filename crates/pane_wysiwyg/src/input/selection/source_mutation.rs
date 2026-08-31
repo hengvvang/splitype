@@ -5,8 +5,8 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::model::Document;
 use crate::input::selection::state::NormalizedCrossBlockSelection;
+use crate::model::Document;
 use crate::state::SourceTargetMapping;
 
 /// Slices a string safely on UTF-8 character boundaries.
@@ -72,8 +72,16 @@ pub fn cross_block_selected_markdown(
             if full_block || include_atomic {
                 safe_source_slice(source, mapping.full_source_range.clone()).to_string()
             } else {
-                let s_start = mapping.content_to_source.get(range.start).copied().unwrap_or(0);
-                let s_end = mapping.content_to_source.get(range.end).copied().unwrap_or(source.len());
+                let s_start = mapping
+                    .content_to_source
+                    .get(range.start)
+                    .copied()
+                    .unwrap_or(0);
+                let s_end = mapping
+                    .content_to_source
+                    .get(range.end)
+                    .copied()
+                    .unwrap_or(source.len());
                 safe_source_slice(source, s_start..s_end).to_string()
             }
         } else {
@@ -86,5 +94,3 @@ pub fn cross_block_selected_markdown(
 
     Some(result)
 }
-
-

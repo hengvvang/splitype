@@ -4,8 +4,8 @@
 
 use std::sync::Arc;
 
-use gpui::*;
 use core_contracts::{PaneHost, PaneId};
+use gpui::*;
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::state::SourceCodeState;
@@ -88,7 +88,10 @@ impl Element for EditorElement {
         let line_height = (font_size * theme.typography.text_line_height).round();
         let editor_padding = theme.dimensions.editor_padding;
 
-        let visible_lines = self.state.fold_map.visible_line_count(self.state.line_count() as u32);
+        let visible_lines = self
+            .state
+            .fold_map
+            .visible_line_count(self.state.line_count() as u32);
         let content_height = (visible_lines as f32) * line_height + editor_padding * 2.0;
 
         let mut style = Style::default();
@@ -118,7 +121,8 @@ impl Element for EditorElement {
         let font = TypographyStore::default_font(TypographyScope::Code);
 
         let focus_handle = self.state.focus_handle.lock().unwrap().clone();
-        let is_focused = self.is_focused || focus_handle.as_ref().map_or(false, |h| h.is_focused(window));
+        let is_focused =
+            self.is_focused || focus_handle.as_ref().is_some_and(|h| h.is_focused(window));
 
         let gutter_layout = self.state.gutter_layout(font_size);
         let gutter_width = gutter_layout.width();
@@ -131,7 +135,8 @@ impl Element for EditorElement {
         let total_visible_lines = self.state.fold_map.visible_line_count(total_buffer_rows);
 
         let start_visible_row_f = ((-scroll_y - editor_padding) / line_height).floor();
-        let start_visible_row = (start_visible_row_f.max(0.0) as u32).min(total_visible_lines.saturating_sub(1));
+        let start_visible_row =
+            (start_visible_row_f.max(0.0) as u32).min(total_visible_lines.saturating_sub(1));
         let visible_count = ((viewport_height / line_height).ceil() as u32) + 8;
         let end_visible_row = (start_visible_row + visible_count).min(total_visible_lines);
 
@@ -159,7 +164,11 @@ impl Element for EditorElement {
             .unwrap_or(&[]);
 
         for visible_row in start_visible_row..end_visible_row {
-            let buffer_row = self.state.fold_map.visible_row_to_buffer_row(visible_row, total_buffer_rows) as usize;
+            let buffer_row = self
+                .state
+                .fold_map
+                .visible_row_to_buffer_row(visible_row, total_buffer_rows)
+                as usize;
             let row_range = self.state.line_range(buffer_row);
             let line_start = row_range.start.min(self.state.text.len());
             let line_end = row_range.end.min(self.state.text.len());
@@ -198,10 +207,7 @@ impl Element for EditorElement {
             for col in indent_cols {
                 let guide_x = text_origin_x + px(col as f32 * char_width);
                 indent_guide_quads.push(fill(
-                    Bounds::new(
-                        point(guide_x, line_y),
-                        size(px(1.0), px(line_height)),
-                    ),
+                    Bounds::new(point(guide_x, line_y), size(px(1.0), px(line_height))),
                     theme.colors.dialog_border.opacity(0.25),
                 ));
             }
@@ -209,8 +215,14 @@ impl Element for EditorElement {
             // 3. Selection quads across all selections
             for sel in self.state.selections.all() {
                 if !sel.is_empty() && sel.start() <= row_range.end && sel.end() >= row_range.start {
-                    let sel_start_in_line = sel.start().saturating_sub(row_range.start).min(line_str.len());
-                    let sel_end_in_line = sel.end().saturating_sub(row_range.start).min(line_str.len());
+                    let sel_start_in_line = sel
+                        .start()
+                        .saturating_sub(row_range.start)
+                        .min(line_str.len());
+                    let sel_end_in_line = sel
+                        .end()
+                        .saturating_sub(row_range.start)
+                        .min(line_str.len());
 
                     let x_start = shaped_line.x_for_index(sel_start_in_line);
                     let x_end = if sel_end_in_line == line_str.len() && sel.end() > row_range.end {
@@ -234,8 +246,14 @@ impl Element for EditorElement {
             // 4. Search match highlights on this line
             for (m_range, is_active) in &self.state.search_matches {
                 if m_range.start <= row_range.end && m_range.end >= row_range.start {
-                    let m_start_in_line = m_range.start.saturating_sub(row_range.start).min(line_str.len());
-                    let m_end_in_line = m_range.end.saturating_sub(row_range.start).min(line_str.len());
+                    let m_start_in_line = m_range
+                        .start
+                        .saturating_sub(row_range.start)
+                        .min(line_str.len());
+                    let m_end_in_line = m_range
+                        .end
+                        .saturating_sub(row_range.start)
+                        .min(line_str.len());
 
                     let x_start = shaped_line.x_for_index(m_start_in_line);
                     let x_end = shaped_line.x_for_index(m_end_in_line);
@@ -386,7 +404,8 @@ impl Element for EditorElement {
 
         // 7. Paint Gutter line numbers (right-aligned with 10px padding)
         for (visible_row, shaped_num, _) in prepaint.gutter_numbers.drain(..) {
-            let line_y = bounds.top() + px(prepaint.editor_padding + (visible_row as f32) * prepaint.line_height);
+            let line_y = bounds.top()
+                + px(prepaint.editor_padding + (visible_row as f32) * prepaint.line_height);
             let num_x = bounds.left() + px(prepaint.gutter_width - 10.0) - shaped_num.width;
             shaped_num
                 .paint(
@@ -403,7 +422,8 @@ impl Element for EditorElement {
         // 8. Paint shaped syntax text lines
         let text_origin_x = bounds.left() + px(prepaint.gutter_width + 12.0);
         for (visible_row, shaped_line) in prepaint.shaped_lines.drain(..) {
-            let line_y = bounds.top() + px(prepaint.editor_padding + (visible_row as f32) * prepaint.line_height);
+            let line_y = bounds.top()
+                + px(prepaint.editor_padding + (visible_row as f32) * prepaint.line_height);
             shaped_line
                 .paint(
                     point(text_origin_x, line_y),
@@ -422,4 +442,3 @@ impl Element for EditorElement {
         }
     }
 }
-

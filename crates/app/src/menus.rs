@@ -1,7 +1,7 @@
 //! Native application menu, app-level actions, and window close routing.
 
-use std::path::Path;
 use gpui::*;
+use std::path::Path;
 
 use crate::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
@@ -10,9 +10,9 @@ use crate::actions::{
     SelectTheme, ShowAbout, ToggleExplorer,
 };
 use crate::window::record_recent_file_and_refresh;
-use theme::ThemeManager;
 use config::language::I18nManager;
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
+use theme::ThemeManager;
 
 pub mod builder;
 pub mod dispatch;

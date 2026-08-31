@@ -27,11 +27,7 @@ impl ExplorerState {
     }
 
     /// Expand a directory and all of its descendants.
-    pub(crate) fn expand_all_explorer_for_entry(
-        &mut self,
-        id: ExplorerEntryId,
-        cx: &mut App,
-    ) {
+    pub(crate) fn expand_all_explorer_for_entry(&mut self, id: ExplorerEntryId, cx: &mut App) {
         let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(id) else {
             return;
         };
@@ -45,22 +41,14 @@ impl ExplorerState {
             }
         }
         if !ids.is_empty() {
-            self
-                .expanded
-                .entry(worktree_id)
-                .or_default()
-                .extend(ids);
+            self.expanded.entry(worktree_id).or_default().extend(ids);
             self.rebuild_explorer_entries();
             cx.refresh_windows();
         }
     }
 
     /// Collapse a directory and all of its descendants.
-    pub(crate) fn collapse_all_explorer_for_entry(
-        &mut self,
-        id: ExplorerEntryId,
-        cx: &mut App,
-    ) {
+    pub(crate) fn collapse_all_explorer_for_entry(&mut self, id: ExplorerEntryId, cx: &mut App) {
         let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(id) else {
             return;
         };
@@ -74,8 +62,7 @@ impl ExplorerState {
             }
         }
         if !ids.is_empty() {
-            self
-                .expanded
+            self.expanded
                 .entry(worktree_id)
                 .or_default()
                 .retain(|expanded_id| !ids.contains(expanded_id));
@@ -93,11 +80,7 @@ impl ExplorerState {
                     ids.insert(entry.id);
                 }
             }
-            self
-                .expanded
-                .entry(snap.id())
-                .or_default()
-                .extend(ids);
+            self.expanded.entry(snap.id()).or_default().extend(ids);
         }
         self.rebuild_explorer_entries();
         cx.refresh_windows();
@@ -175,8 +158,7 @@ impl ExplorerState {
     pub(crate) fn rebuild_explorer_entries(&mut self) {
         let expanded = self.expanded.clone();
         let edit = self.edit.as_ref();
-        self.entries =
-            build_explorer_rows(&self.snapshots, &expanded, edit);
+        self.entries = build_explorer_rows(&self.snapshots, &expanded, edit);
     }
 
     /// Follow the active document (or a pending inline-create target) in the
@@ -239,8 +221,7 @@ impl ExplorerState {
         ) else {
             return;
         };
-        self
-            .scroll_handle
+        self.scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
     }
 
@@ -248,8 +229,7 @@ impl ExplorerState {
 
     /// Path of the last worktree root.
     pub(crate) fn last_explorer_root_path(&self) -> Option<PathBuf> {
-        self
-            .snapshots
+        self.snapshots
             .last()
             .and_then(|snap| snap.root_entry().map(|e| e.path.clone()))
     }
@@ -261,4 +241,3 @@ impl ExplorerState {
         Some((snap.id(), root_entry.path.clone(), root_entry.id))
     }
 }
-

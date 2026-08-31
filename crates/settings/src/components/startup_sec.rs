@@ -2,9 +2,9 @@
 
 use gpui::*;
 
+use crate::ui_helpers::{SettingsClickHandler, SettingsOptionHandler, make_row, make_section};
 use config::settings::StartupOpenSetting;
 use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
 
@@ -12,7 +12,7 @@ pub(crate) struct StartupProps {
     pub startup_open: StartupOpenSetting,
     pub is_startup_open: bool,
     pub on_toggle_startup: SettingsClickHandler,
-    pub on_select_startup: Box<dyn Fn(StartupOpenSetting) -> SettingsClickHandler>,
+    pub on_select_startup: SettingsOptionHandler<StartupOpenSetting>,
 
     pub restore_window_state: bool,
     pub on_toggle_restore_window_state: SettingsClickHandler,
@@ -129,4 +129,3 @@ pub(crate) fn render_startup_section(
         rows,
     )
 }
-

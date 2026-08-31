@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use gpui::EntityId;
+use std::path::PathBuf;
 
 /// A single heading item in the outline TOC.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,4 +35,3 @@ pub struct OutlineHudState {
     /// Debounce generation token for mouse leave closure.
     pub close_token: usize,
 }
-

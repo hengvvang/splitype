@@ -4,10 +4,10 @@ use std::collections::HashSet;
 
 use gpui::*;
 
-use config::settings::*;
-use config::language::{apply_configured_language, manager::I18nManager};
-use theme::{apply_configured_theme, Theme, ThemeManager};
 use crate::components::*;
+use config::language::{apply_configured_language, manager::I18nManager};
+use config::settings::*;
+use theme::{Theme, ThemeManager, apply_configured_theme};
 
 use crate::state::SettingsTab;
 use ui::custom_titlebar::{
@@ -176,19 +176,27 @@ impl SettingsWindow {
             }),
             show_word_count: app_settings.status_bar.show_word_count,
             on_toggle_word_count: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.status_bar.show_word_count = !s.status_bar.show_word_count);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_word_count = !s.status_bar.show_word_count
+                });
             }),
             show_cursor_pos: app_settings.status_bar.show_cursor_position,
             on_toggle_cursor_pos: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.status_bar.show_cursor_position = !s.status_bar.show_cursor_position);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_cursor_position = !s.status_bar.show_cursor_position
+                });
             }),
             show_character_count: app_settings.status_bar.show_character_count,
             on_toggle_character_count: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.status_bar.show_character_count = !s.status_bar.show_character_count);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_character_count = !s.status_bar.show_character_count
+                });
             }),
             show_reading_time: app_settings.status_bar.show_reading_time,
             on_toggle_reading_time: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.status_bar.show_reading_time = !s.status_bar.show_reading_time);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_reading_time = !s.status_bar.show_reading_time
+                });
             }),
         };
 
@@ -235,17 +243,29 @@ impl SettingsWindow {
         let is_prose_font_open = self.open_dropdown.as_deref() == Some("prose_font");
         let is_code_font_open = self.open_dropdown.as_deref() == Some("code_font");
 
-        let ui_font_name = app_settings.typography.ui_font_family.clone().unwrap_or_else(|| "Lexend (default)".to_string());
-        let prose_font_name = app_settings.typography.prose_font_family.clone().unwrap_or_else(|| "Lexend (default)".to_string());
-        let code_font_name = app_settings.typography.code_font_family.clone().unwrap_or_else(|| {
-            if cfg!(target_os = "windows") {
-                "Consolas (default)".to_string()
-            } else if cfg!(target_os = "macos") {
-                "Menlo (default)".to_string()
-            } else {
-                "monospace (default)".to_string()
-            }
-        });
+        let ui_font_name = app_settings
+            .typography
+            .ui_font_family
+            .clone()
+            .unwrap_or_else(|| "Lexend (default)".to_string());
+        let prose_font_name = app_settings
+            .typography
+            .prose_font_family
+            .clone()
+            .unwrap_or_else(|| "Lexend (default)".to_string());
+        let code_font_name = app_settings
+            .typography
+            .code_font_family
+            .clone()
+            .unwrap_or_else(|| {
+                if cfg!(target_os = "windows") {
+                    "Consolas (default)".to_string()
+                } else if cfg!(target_os = "macos") {
+                    "Menlo (default)".to_string()
+                } else {
+                    "monospace (default)".to_string()
+                }
+            });
 
         let has_custom_ui = app_settings.typography.ui_font_family.is_some();
         let has_custom_prose = app_settings.typography.prose_font_family.is_some();
@@ -294,7 +314,11 @@ impl SettingsWindow {
                 let win = select_ui_font_win.clone();
                 Box::new(move |_event, _window, cx| {
                     let _ = SettingsStore::update(cx, |s| {
-                        s.typography.ui_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                        s.typography.ui_font_family = if font_name == "default" {
+                            None
+                        } else {
+                            Some(font_name.clone())
+                        };
                     });
                     let _ = win.update(cx, |this, cx| {
                         this.open_dropdown = None;
@@ -334,7 +358,11 @@ impl SettingsWindow {
                 let win = select_prose_font_win.clone();
                 Box::new(move |_event, _window, cx| {
                     let _ = SettingsStore::update(cx, |s| {
-                        s.typography.prose_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                        s.typography.prose_font_family = if font_name == "default" {
+                            None
+                        } else {
+                            Some(font_name.clone())
+                        };
                     });
                     let _ = win.update(cx, |this, cx| {
                         this.open_dropdown = None;
@@ -374,7 +402,11 @@ impl SettingsWindow {
                 let win = select_code_font_win.clone();
                 Box::new(move |_event, _window, cx| {
                     let _ = SettingsStore::update(cx, |s| {
-                        s.typography.code_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                        s.typography.code_font_family = if font_name == "default" {
+                            None
+                        } else {
+                            Some(font_name.clone())
+                        };
                     });
                     let _ = win.update(cx, |this, cx| {
                         this.open_dropdown = None;
@@ -399,7 +431,11 @@ impl SettingsWindow {
             on_font_dec: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 4 } else { 1 };
                 let _ = SettingsStore::update(cx, |s| {
-                    s.typography.font_size = if s.typography.font_size > 8 + step { s.typography.font_size - step } else { 8 };
+                    s.typography.font_size = if s.typography.font_size > 8 + step {
+                        s.typography.font_size - step
+                    } else {
+                        8
+                    };
                 });
             }),
             on_font_inc: Box::new(move |event, _window, cx| {
@@ -433,7 +469,9 @@ impl SettingsWindow {
                                 }
                             }
                             "escape" => cancel = true,
-                            "backspace" => { buf.pop(); }
+                            "backspace" => {
+                                buf.pop();
+                            }
                             "up" => {
                                 let curr = buf.parse::<u32>().unwrap_or(16);
                                 let new_v = (curr + 1).min(72);
@@ -446,8 +484,11 @@ impl SettingsWindow {
                                 *buf = format!("{}", new_v);
                                 commit_val = Some(new_v);
                             }
-                            k if k.len() == 1 && k.chars().all(|c| c.is_ascii_digit()) => {
-                                if buf.len() < 2 { buf.push_str(k); }
+                            k if k.len() == 1
+                                && k.chars().all(|c| c.is_ascii_digit())
+                                && buf.len() < 2 =>
+                            {
+                                buf.push_str(k);
                             }
                             _ => {}
                         }
@@ -479,7 +520,8 @@ impl SettingsWindow {
             on_lh_dec: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 0.2 } else { 0.05 };
                 let _ = SettingsStore::update(cx, |s| {
-                    s.typography.line_height = ((s.typography.line_height - step) * 100.0).round() / 100.0;
+                    s.typography.line_height =
+                        ((s.typography.line_height - step) * 100.0).round() / 100.0;
                     if s.typography.line_height < 1.0 {
                         s.typography.line_height = 1.0;
                     }
@@ -488,7 +530,8 @@ impl SettingsWindow {
             on_lh_inc: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 0.2 } else { 0.05 };
                 let _ = SettingsStore::update(cx, |s| {
-                    s.typography.line_height = ((s.typography.line_height + step) * 100.0).round() / 100.0;
+                    s.typography.line_height =
+                        ((s.typography.line_height + step) * 100.0).round() / 100.0;
                     if s.typography.line_height > 3.0 {
                         s.typography.line_height = 3.0;
                     }
@@ -519,9 +562,15 @@ impl SettingsWindow {
                                 }
                             }
                             "escape" => cancel = true,
-                            "backspace" => { buf.pop(); }
-                            k if k.len() == 1 && (k.chars().all(|c| c.is_ascii_digit()) || (k == "." && !buf.contains('.'))) => {
-                                if buf.len() < 4 { buf.push_str(k); }
+                            "backspace" => {
+                                buf.pop();
+                            }
+                            k if k.len() == 1
+                                && (k.chars().all(|c| c.is_ascii_digit())
+                                    || (k == "." && !buf.contains('.')))
+                                && buf.len() < 4 =>
+                            {
+                                buf.push_str(k);
                             }
                             _ => {}
                         }
@@ -573,7 +622,8 @@ impl SettingsWindow {
         let editor_behavior_props = EditorBehaviorProps {
             line_numbers: app_settings.editor.line_numbers,
             on_toggle_line_numbers: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.editor.line_numbers = !s.editor.line_numbers);
+                let _ =
+                    SettingsStore::update(cx, |s| s.editor.line_numbers = !s.editor.line_numbers);
             }),
             word_wrap: app_settings.editor.word_wrap,
             on_toggle_word_wrap: Box::new(move |_event, _window, cx| {
@@ -585,7 +635,11 @@ impl SettingsWindow {
             tab_size_focus_handle: tab_size_focus,
             on_tab_size_dec: Box::new(move |_event, _window, cx| {
                 let _ = SettingsStore::update(cx, |s| {
-                    s.editor.tab_size = if s.editor.tab_size > 2 { s.editor.tab_size - 2 } else { 2 };
+                    s.editor.tab_size = if s.editor.tab_size > 2 {
+                        s.editor.tab_size - 2
+                    } else {
+                        2
+                    };
                 });
             }),
             on_tab_size_inc: Box::new(move |_event, _window, cx| {
@@ -617,9 +671,14 @@ impl SettingsWindow {
                                 }
                             }
                             "escape" => cancel = true,
-                            "backspace" => { buf.pop(); }
-                            k if k.len() == 1 && k.chars().all(|c| c.is_ascii_digit()) => {
-                                if buf.len() < 1 { buf.push_str(k); }
+                            "backspace" => {
+                                buf.pop();
+                            }
+                            k if k.len() == 1
+                                && k.chars().all(|c| c.is_ascii_digit())
+                                && buf.is_empty() =>
+                            {
+                                buf.push_str(k);
                             }
                             _ => {}
                         }
@@ -645,11 +704,14 @@ impl SettingsWindow {
             },
             insert_spaces: app_settings.editor.insert_spaces,
             on_toggle_insert_spaces: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.editor.insert_spaces = !s.editor.insert_spaces);
+                let _ =
+                    SettingsStore::update(cx, |s| s.editor.insert_spaces = !s.editor.insert_spaces);
             }),
             highlight_active_line: app_settings.editor.highlight_active_line,
             on_toggle_highlight_active_line: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.editor.highlight_active_line = !s.editor.highlight_active_line);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.editor.highlight_active_line = !s.editor.highlight_active_line
+                });
             }),
         };
 
@@ -679,7 +741,9 @@ impl SettingsWindow {
         let markdown_props = MarkdownProps {
             show_table_headers: app_settings.markdown.show_table_headers,
             on_toggle_table_headers: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.markdown.show_table_headers = !s.markdown.show_table_headers);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.markdown.show_table_headers = !s.markdown.show_table_headers
+                });
             }),
             image_paste_behavior: app_settings.markdown.image_paste_behavior,
             is_image_paste_open: self.open_dropdown.as_deref() == Some("image_paste"),
@@ -696,7 +760,8 @@ impl SettingsWindow {
             on_select_image_paste: Box::new(move |behavior| {
                 let win = select_paste_win.clone();
                 Box::new(move |_event, _window, cx| {
-                    let _ = SettingsStore::update(cx, |s| s.markdown.image_paste_behavior = behavior);
+                    let _ =
+                        SettingsStore::update(cx, |s| s.markdown.image_paste_behavior = behavior);
                     let _ = win.update(cx, |this, cx| {
                         this.open_dropdown = None;
                         cx.notify();
@@ -705,11 +770,14 @@ impl SettingsWindow {
             }),
             render_math: app_settings.markdown.render_math,
             on_toggle_render_math: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.markdown.render_math = !s.markdown.render_math);
+                let _ =
+                    SettingsStore::update(cx, |s| s.markdown.render_math = !s.markdown.render_math);
             }),
             render_diagrams: app_settings.markdown.render_diagrams,
             on_toggle_render_diagrams: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.markdown.render_diagrams = !s.markdown.render_diagrams);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.markdown.render_diagrams = !s.markdown.render_diagrams
+                });
             }),
         };
 
@@ -741,7 +809,8 @@ impl SettingsWindow {
         let explorer_props = ExplorerProps {
             hide_hidden: app_settings.explorer.hide_hidden,
             on_toggle_hide_hidden: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.explorer.hide_hidden = !s.explorer.hide_hidden);
+                let _ =
+                    SettingsStore::update(cx, |s| s.explorer.hide_hidden = !s.explorer.hide_hidden);
             }),
             sort_mode: app_settings.explorer.sort_mode,
             is_sort_mode_open: self.open_dropdown.as_deref() == Some("exp_sort_mode"),
@@ -789,7 +858,8 @@ impl SettingsWindow {
             }),
             auto_reveal: app_settings.explorer.auto_reveal,
             on_toggle_auto_reveal: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.explorer.auto_reveal = !s.explorer.auto_reveal);
+                let _ =
+                    SettingsStore::update(cx, |s| s.explorer.auto_reveal = !s.explorer.auto_reveal);
             }),
         };
 
@@ -841,7 +911,9 @@ impl SettingsWindow {
             }),
             restore_window_state: app_settings.startup.restore_window_state,
             on_toggle_restore_window_state: Box::new(move |_event, _window, cx| {
-                let _ = SettingsStore::update(cx, |s| s.startup.restore_window_state = !s.startup.restore_window_state);
+                let _ = SettingsStore::update(cx, |s| {
+                    s.startup.restore_window_state = !s.startup.restore_window_state
+                });
             }),
         };
 
@@ -958,11 +1030,7 @@ impl Render for SettingsWindow {
                 div()
                     .id(ElementId::Name(format!("win-nav-{}", tab_name).into()))
                     .w_full()
-                    .child(nav_item(
-                        tab_name,
-                        tab_name,
-                        is_selected,
-                    ))
+                    .child(nav_item(tab_name, tab_name, is_selected))
                     .on_click(move |_event, _window, cx| {
                         let _ = win.update(cx, |this, cx| {
                             this.nav = t;
@@ -1061,7 +1129,7 @@ pub fn open_settings_window(cx: &mut App) -> Option<WindowHandle<SettingsWindow>
 
     let handle = match cx.open_window(
         splitype_window_options(window_title, bounds),
-        move |_window, cx| cx.new(|cx| SettingsWindow::new(cx)),
+        move |_window, cx| cx.new(SettingsWindow::new),
     ) {
         Ok(handle) => handle,
         Err(err) => {
@@ -1079,5 +1147,3 @@ pub fn open_settings_window(cx: &mut App) -> Option<WindowHandle<SettingsWindow>
 
     Some(handle)
 }
-
-

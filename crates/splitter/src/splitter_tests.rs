@@ -66,7 +66,8 @@ fn rect_collection_partitions_the_area() {
     let mut root = new_root();
     root.split_leaf(1, SplitAxis::Vertical, 0.5);
     let mut rects = Vec::new();
-    root.tree.collect_leaf_rects(0.0, 0.0, 100.0, 100.0, &mut rects);
+    root.tree
+        .collect_leaf_rects(0.0, 0.0, 100.0, 100.0, &mut rects);
     assert_eq!(rects.len(), 2);
     for rect in &rects {
         assert!(rect.x >= 0.0 && rect.x + rect.width <= 100.0 + 0.001);

@@ -34,4 +34,3 @@ pub(crate) fn render_preview_blockquote(
         ))
         .into_any_element()
 }
-

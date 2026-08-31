@@ -213,12 +213,7 @@ fn cursor_action_panel(
                 .flex()
                 .items_center()
                 .gap(px(6.0))
-                .children(icon_path.map(|p| {
-                    svg()
-                        .path(p)
-                        .size(px(14.0))
-                        .text_color(style.accent)
-                }))
+                .children(icon_path.map(|p| svg().path(p).size(px(14.0)).text_color(style.accent)))
                 .child(
                     div()
                         .text_size(px(12.0))

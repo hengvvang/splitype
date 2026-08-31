@@ -1,5 +1,5 @@
-use gpui::SharedString;
 use crate::pane::{PaneKind, PaneView};
+use gpui::SharedString;
 
 pub trait PaneDescriptor: Send + Sync + 'static {
     fn kind(&self) -> PaneKind;

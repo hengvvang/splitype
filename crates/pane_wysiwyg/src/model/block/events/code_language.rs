@@ -3,14 +3,14 @@
 
 use gpui::*;
 
-use crate::model::protocol::BlockEvent;
 use crate::actions::{
     Delete, DeleteBackward, End, FocusNext, FocusPrevious, Home, IndentBlock, MoveLeft, MoveRight,
     Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
 };
-use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::code_language::code_language_options_matching;
 use crate::model::block::Block;
+use crate::model::protocol::BlockEvent;
+use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 impl Block {
     pub fn on_code_block_hover(
         &mut self,
@@ -180,12 +180,7 @@ impl Block {
         }
     }
 
-    pub fn on_code_language_home(
-        &mut self,
-        _: &Home,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_code_language_home(&mut self, _: &Home, window: &mut Window, cx: &mut Context<Self>) {
         if !self.code_language_focus_handle.is_focused(window) {
             return;
         }
@@ -193,12 +188,7 @@ impl Block {
         self.move_code_language_to(0, cx);
     }
 
-    pub fn on_code_language_end(
-        &mut self,
-        _: &End,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_code_language_end(&mut self, _: &End, window: &mut Window, cx: &mut Context<Self>) {
         if !self.code_language_focus_handle.is_focused(window) {
             return;
         }
@@ -252,12 +242,7 @@ impl Block {
         self.select_code_language_to(self.code_language_input_text().len(), cx);
     }
 
-    pub fn on_code_language_copy(
-        &mut self,
-        _: &Copy,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_code_language_copy(&mut self, _: &Copy, window: &mut Window, cx: &mut Context<Self>) {
         if !self.code_language_focus_handle.is_focused(window) {
             return;
         }
@@ -270,12 +255,7 @@ impl Block {
         }
     }
 
-    pub fn on_code_language_cut(
-        &mut self,
-        _: &Cut,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_code_language_cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
         if !self.code_language_focus_handle.is_focused(window) {
             return;
         }
@@ -435,5 +415,3 @@ impl Block {
         }
     }
 }
-
-

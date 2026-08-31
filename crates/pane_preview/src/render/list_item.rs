@@ -1,7 +1,7 @@
 use gpui::*;
 
-use crate::render::inline;
 use crate::node::PreviewBlock;
+use crate::render::inline;
 use syntax_highlighter::render_helpers::{numbered_list_marker, render_custom_bullet_marker};
 use theme::Theme;
 
@@ -36,10 +36,8 @@ pub(crate) fn render_preview_bulleted_list_item(
                 .items_center()
                 .justify_center()
                 .child(render_custom_bullet_marker(depth, c.text_default)),
-            div()
-                .min_w(px(0.0))
-                .flex_grow(1.0)
-                .child(inline::render_preview_inline_with_selection(
+            div().min_w(px(0.0)).flex_grow(1.0).child(
+                inline::render_preview_inline_with_selection(
                     &block.data.text,
                     c.text_default,
                     t.text_size,
@@ -47,7 +45,8 @@ pub(crate) fn render_preview_bulleted_list_item(
                     theme,
                     &block.search_matches,
                     selection_range,
-                )),
+                ),
+            ),
         ])
         .into_any_element()
 }
@@ -101,10 +100,8 @@ pub(crate) fn render_preview_task_list_item(
                             c.task_checkbox_border
                         }),
                 ),
-            div()
-                .min_w(px(0.0))
-                .flex_grow(1.0)
-                .child(inline::render_preview_inline_with_selection(
+            div().min_w(px(0.0)).flex_grow(1.0).child(
+                inline::render_preview_inline_with_selection(
                     &block.data.text,
                     text_color,
                     t.text_size,
@@ -112,7 +109,8 @@ pub(crate) fn render_preview_task_list_item(
                     theme,
                     &block.search_matches,
                     selection_range,
-                )),
+                ),
+            ),
         ])
         .into_any_element()
 }
@@ -144,10 +142,8 @@ pub(crate) fn render_preview_numbered_list_item(
                     depth,
                     block.list_ordinal.unwrap_or(1),
                 ))),
-            div()
-                .min_w(px(0.0))
-                .flex_grow(1.0)
-                .child(inline::render_preview_inline_with_selection(
+            div().min_w(px(0.0)).flex_grow(1.0).child(
+                inline::render_preview_inline_with_selection(
                     &block.data.text,
                     c.text_default,
                     t.text_size,
@@ -155,9 +151,8 @@ pub(crate) fn render_preview_numbered_list_item(
                     theme,
                     &block.search_matches,
                     selection_range,
-                )),
+                ),
+            ),
         ])
         .into_any_element()
 }
-
-

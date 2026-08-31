@@ -39,4 +39,3 @@ impl std::fmt::Display for BufferPoint {
         write!(f, "{}:{}", self.row, self.column)
     }
 }
-

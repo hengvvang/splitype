@@ -59,4 +59,3 @@ impl Editor {
         cx.notify();
     }
 }
-

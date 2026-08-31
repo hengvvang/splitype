@@ -30,4 +30,3 @@ impl std::fmt::Display for PaneKind {
         write!(f, "{}", self.0)
     }
 }
-

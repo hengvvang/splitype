@@ -1,7 +1,7 @@
 //! Unified navigation engine — zero compatibility, single source of truth.
 
-use gpui::*;
 pub use core_contracts::{NavigationExecutionPlan, NavigationTarget};
+use gpui::*;
 
 /// A request to navigate to a target from a keyboard modifier state.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,11 +18,7 @@ impl NavigationIntent {
 }
 
 impl crate::editor::Editor {
-    pub fn execute_navigation(
-        &mut self,
-        intent: NavigationIntent,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn execute_navigation(&mut self, intent: NavigationIntent, cx: &mut Context<Self>) {
         let pane = self.active_pane_state();
         let plan = pane
             .pane
@@ -69,4 +65,3 @@ impl crate::editor::Editor {
         }
     }
 }
-

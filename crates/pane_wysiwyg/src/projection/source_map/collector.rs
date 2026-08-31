@@ -5,9 +5,9 @@ use std::ops::Range;
 
 use gpui::*;
 
+use crate::markdown::parse::BlockKind;
 use crate::model::Document;
 use crate::model::block::Block;
-use crate::markdown::parse::BlockKind;
 use crate::projection::source_map::block_kinds::{
     push_code_block_mapping, push_fenced_block_mapping, push_footnote_definition_full_mapping,
     push_inline_block_mapping, push_raw_block_mapping, wrap_source_mapping_with_quotes,
@@ -225,9 +225,7 @@ pub fn collect_single_block_source_mappings(
     let mut total_len = own_len;
     for child in &children {
         let child_ref = child.read(cx);
-        if kind.is_list_item()
-            && Document::list_child_requires_leading_blank_line(child_ref)
-        {
+        if kind.is_list_item() && Document::list_child_requires_leading_blank_line(child_ref) {
             total_len += 1;
         }
         if total_len > 0 {
@@ -250,5 +248,3 @@ pub fn collect_single_block_source_mappings(
     );
     total_len
 }
-
-

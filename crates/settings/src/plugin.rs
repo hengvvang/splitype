@@ -1,9 +1,9 @@
-use std::any::Any;
-use std::sync::Arc;
-use gpui::*;
-use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 use crate::state::SettingsUiState;
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
+use gpui::*;
+use std::any::Any;
+use std::sync::Arc;
+use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 
 /// View wrapper implementing [`PanelView`] for the Settings panel.
 pub struct SettingsPanelView {

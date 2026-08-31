@@ -1,11 +1,11 @@
 //! Window builder for configuring and spawning window instances.
 
+use crate::layout::{PanelId, WindowLayout};
+use crate::panel::PanelKind;
 use gpui::{Bounds, Pixels, Point, px, size};
 use splitter::container::SplitterContainer;
 use splitter::root::SplitterRoot;
 use splitter::tree::{SplitAxis, SplitTree};
-use crate::layout::{PanelId, WindowLayout};
-use crate::panel::PanelKind;
 
 /// Fluent builder for constructing and configuring window layouts.
 pub struct WindowBuilder {
@@ -72,8 +72,12 @@ impl WindowBuilder {
                 id: split_id,
                 axis: SplitAxis::Horizontal,
                 ratio,
-                first: Box::new(SplitTree::Leaf(SplitterContainer::new(left_id.0, left_kind))),
-                second: Box::new(SplitTree::Leaf(SplitterContainer::new(right_id.0, right_kind))),
+                first: Box::new(SplitTree::Leaf(SplitterContainer::new(
+                    left_id.0, left_kind,
+                ))),
+                second: Box::new(SplitTree::Leaf(SplitterContainer::new(
+                    right_id.0, right_kind,
+                ))),
             },
             next_node_id: split_id + 1,
             active_splitter_drag: None,

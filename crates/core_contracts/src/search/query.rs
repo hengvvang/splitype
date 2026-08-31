@@ -3,8 +3,8 @@
 //! Decouples query parsing, regular expression compilation, and text scanning
 //! from GPUI contexts and UI view rendering.
 
-use std::ops::Range;
 use regex::Regex;
+use std::ops::Range;
 
 use super::state::{ceil_char_boundary, floor_char_boundary};
 
@@ -151,10 +151,7 @@ impl SearchQuery {
                 .collect();
 
             // Extract up to 20 Unicode chars on the same line after match
-            let preview_suffix: String = same_line_suffix
-                .chars()
-                .take(20)
-                .collect();
+            let preview_suffix: String = same_line_suffix.chars().take(20).collect();
 
             results.push(RawMatch {
                 line_number: actual_line,
@@ -171,13 +168,21 @@ impl SearchQuery {
 }
 
 /// Computes replacement string matching the casing style of `matched_slice` if `preserve_case` is true.
-pub fn compute_preserve_case_replacement(matched_slice: &str, replacement: &str, preserve_case: bool) -> String {
+pub fn compute_preserve_case_replacement(
+    matched_slice: &str,
+    replacement: &str,
+    preserve_case: bool,
+) -> String {
     if !preserve_case || matched_slice.is_empty() || replacement.is_empty() {
         return replacement.to_string();
     }
 
-    let is_all_upper = matched_slice.chars().all(|c| !c.is_alphabetic() || c.is_uppercase());
-    let is_all_lower = matched_slice.chars().all(|c| !c.is_alphabetic() || c.is_lowercase());
+    let is_all_upper = matched_slice
+        .chars()
+        .all(|c| !c.is_alphabetic() || c.is_uppercase());
+    let is_all_lower = matched_slice
+        .chars()
+        .all(|c| !c.is_alphabetic() || c.is_lowercase());
 
     let is_title_case = {
         let mut chars = matched_slice.chars();

@@ -97,5 +97,3 @@ impl ExplorerState {
         }
     }
 }
-
-

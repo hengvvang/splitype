@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::model::block::Block;
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::BlockKind;
+use crate::model::block::Block;
 
 /// Checks if a block is a candidate for Setext heading promotion.
 pub fn is_setext_heading_target(block: &Entity<Block>, cx: &App) -> bool {
@@ -24,8 +24,7 @@ pub fn apply_paragraph_shortcuts(
 ) -> (BlockKind, BlockText, usize) {
     if kind == BlockKind::Paragraph {
         let plain_text = text.plain_text();
-        if let Some((detected_kind, prefix_len)) =
-            BlockKind::detect_markdown_shortcut(&plain_text)
+        if let Some((detected_kind, prefix_len)) = BlockKind::detect_markdown_shortcut(&plain_text)
         {
             text.remove_plain_prefix(prefix_len);
             return (detected_kind, text, cursor.saturating_sub(prefix_len));
@@ -34,5 +33,3 @@ pub fn apply_paragraph_shortcuts(
 
     (kind, text, cursor)
 }
-
-

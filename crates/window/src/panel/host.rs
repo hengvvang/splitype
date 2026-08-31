@@ -1,9 +1,9 @@
 //! Host interface provided by the window shell to panel instances.
 
-use gpui::App;
-use splitter::tree::SplitAxis;
 use crate::layout::PanelId;
 use crate::panel::PanelKind;
+use gpui::App;
+use splitter::tree::SplitAxis;
 
 /// Host interface allowing any panel plugin to request window-level operations.
 pub trait PanelHost: Send + Sync + 'static {

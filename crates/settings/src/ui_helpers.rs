@@ -6,6 +6,9 @@ use theme::{ThemeColors, ThemeDimensions};
 use ui::section::{section_card, section_header, settings_row};
 
 pub(crate) type SettingsClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
+pub(crate) type SettingsKeyHandler = Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>;
+pub(crate) type SettingsSearchHandler = Box<dyn Fn(String, &mut Window, &mut App)>;
+pub(crate) type SettingsOptionHandler<T> = Box<dyn Fn(T) -> SettingsClickHandler>;
 
 pub(crate) fn make_row(
     inner_border_color: Hsla,
@@ -57,17 +60,12 @@ pub(crate) fn make_row_with_reset(
 
     settings_row(inner_border_color, c, d)
         .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(2.0))
-                .child(title_row)
-                .child(
-                    div()
-                        .text_size(px(11.0))
-                        .text_color(c.dialog_muted)
-                        .child(desc),
-                ),
+            div().flex().flex_col().gap(px(2.0)).child(title_row).child(
+                div()
+                    .text_size(px(11.0))
+                    .text_color(c.dialog_muted)
+                    .child(desc),
+            ),
         )
         .child(control)
         .into_any_element()
@@ -124,4 +122,3 @@ pub(crate) fn make_section(
 
     card.into_any_element()
 }
-

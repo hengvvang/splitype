@@ -21,4 +21,3 @@ pub fn compute_indent_guide_columns(line: &str, tab_size: u32) -> Vec<u32> {
     }
     guides
 }
-

@@ -691,5 +691,3 @@ fn is_escaped(input: &str, index: usize) -> bool {
     }
     backslashes % 2 == 1
 }
-
-

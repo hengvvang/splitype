@@ -32,5 +32,3 @@ pub fn render_blockquote(
         ))
         .into_any_element()
 }
-
-

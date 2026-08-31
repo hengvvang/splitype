@@ -122,8 +122,6 @@ impl Editor {
         self.replace_all_search_matches(cx);
     }
 
-
-
     /// Executes search with the current query, scope, and filter settings.
     pub fn execute_search(&mut self, cx: &mut Context<Self>) {
         self.search.search_generation = self.search.search_generation.wrapping_add(1);
@@ -445,7 +443,11 @@ impl Editor {
     }
 
     /// Jumps to the currently selected search match in the active pane.
-    pub fn jump_to_active_search_match(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
+    pub fn jump_to_active_search_match(
+        &mut self,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(active_idx) = self.search.active_match_index else {
             return;
         };
@@ -454,12 +456,7 @@ impl Editor {
         };
 
         if let Some(ref file_path) = match_item.file_path {
-            self.open_file_in_panel(
-                file_path,
-                crate::session::TabKind::Persistent,
-                window,
-                cx,
-            );
+            self.open_file_in_panel(file_path, crate::session::TabKind::Persistent, window, cx);
         }
 
         let active_pane = self.active_pane_id();
@@ -471,18 +468,18 @@ impl Editor {
         }
 
         self.sync_search_highlights_to_document(cx);
-        self.request_autoscroll(
-            active_pane,
-            core_contracts::AutoscrollStrategy::Center,
-            cx,
-        );
+        self.request_autoscroll(active_pane, core_contracts::AutoscrollStrategy::Center, cx);
         window.refresh();
         cx.notify();
     }
 
     /// Replaces the current search match in the document.
     /// Replaces the current search match in the document or source code.
-    pub fn replace_current_search_match(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
+    pub fn replace_current_search_match(
+        &mut self,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(active_idx) = self.search.active_match_index else {
             return;
         };
@@ -500,7 +497,9 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            let text = state.pane.replace_match(&match_item, &final_replace_str, cx);
+            let text = state
+                .pane
+                .replace_match(&match_item, &final_replace_str, cx);
             self.commit_pane_text(active_pane, text, cx);
         } else if let Some(ref file_path) = match_item.file_path {
             if let Ok(content) = fs::read_to_string(file_path) {

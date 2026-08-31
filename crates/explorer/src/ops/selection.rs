@@ -104,8 +104,7 @@ impl ExplorerState {
                 _ => Vec::new(),
             };
         }
-        self
-            .marked
+        self.marked
             .iter()
             .filter(|sel| filter(sel))
             .copied()
@@ -117,21 +116,14 @@ impl ExplorerState {
         &self,
         id: ExplorerEntryId,
     ) -> Option<&VisibleExplorerEntry> {
-        self
-            .entries
-            .iter()
-            .find_map(|row| match row {
-                ExplorerRow::Entry(entry) if entry.id == id => Some(entry),
-                _ => None,
-            })
+        self.entries.iter().find_map(|row| match row {
+            ExplorerRow::Entry(entry) if entry.id == id => Some(entry),
+            _ => None,
+        })
     }
 
     /// Toggle an entry in the multi-select mark set (Alt+click).
-    pub(crate) fn toggle_explorer_mark(
-        &mut self,
-        selection: SelectedEntry,
-        cx: &mut App,
-    ) {
+    pub(crate) fn toggle_explorer_mark(&mut self, selection: SelectedEntry, cx: &mut App) {
         if !self.marked.remove(&selection) {
             self.marked.insert(selection);
         }
@@ -140,11 +132,7 @@ impl ExplorerState {
     }
 
     /// Range-select from the current selection to `target_id` (Shift+click).
-    pub(crate) fn select_explorer_range(
-        &mut self,
-        target_id: ExplorerEntryId,
-        cx: &mut App,
-    ) {
+    pub(crate) fn select_explorer_range(&mut self, target_id: ExplorerEntryId, cx: &mut App) {
         let anchor = match self.selected {
             Some(sel) => sel.entry_id,
             _ => target_id,
@@ -190,10 +178,8 @@ impl ExplorerState {
         &self,
         deleted_selections: &[SelectedEntry],
     ) -> Option<SelectedEntry> {
-        let deleted: HashSet<ExplorerEntryId> = deleted_selections
-            .iter()
-            .map(|sel| sel.entry_id)
-            .collect();
+        let deleted: HashSet<ExplorerEntryId> =
+            deleted_selections.iter().map(|sel| sel.entry_id).collect();
         let rows = &self.entries;
         let last_deleted = rows.iter().rposition(
             |row| matches!(row, ExplorerRow::Entry(entry) if deleted.contains(&entry.id)),
@@ -231,8 +217,7 @@ impl ExplorerState {
 
     /// Whether `id` is a worktree root.
     pub(crate) fn is_explorer_root_entry(&self, id: ExplorerEntryId) -> bool {
-        self
-            .snapshots
+        self.snapshots
             .iter()
             .any(|snap| snap.root_entry().map(|e| e.id) == Some(id))
     }
@@ -242,23 +227,16 @@ impl ExplorerState {
     /// Row index of the currently selected file entry, if visible.
     fn explorer_selected_row_index(&self) -> Option<usize> {
         match self.selected {
-            Some(sel) => {
-                self.entries.iter().position(
-                    |row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == sel.entry_id),
-                )
-            }
+            Some(sel) => self.entries.iter().position(
+                |row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == sel.entry_id),
+            ),
             _ => None,
         }
     }
 
     /// Set the selection to the row at `index` and center it (Zed's
     /// `autoscroll`). With `extend`, the row is also added to the marks.
-    fn set_explorer_selection_at_index(
-        &mut self,
-        index: usize,
-        extend: bool,
-        cx: &mut App,
-    ) {
+    fn set_explorer_selection_at_index(&mut self, index: usize, extend: bool, cx: &mut App) {
         let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
@@ -270,8 +248,7 @@ impl ExplorerState {
             self.marked.insert(selection);
         }
         self.selected = Some(selection);
-        self
-            .scroll_handle
+        self.scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
         cx.refresh_windows();
     }
@@ -399,8 +376,7 @@ impl ExplorerState {
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        self
-            .scroll_handle
+        self.scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Center);
         cx.refresh_windows();
     }
@@ -414,8 +390,7 @@ impl ExplorerState {
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        self
-            .scroll_handle
+        self.scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Top);
         cx.refresh_windows();
     }
@@ -429,8 +404,7 @@ impl ExplorerState {
         let Some(index) = self.explorer_selected_row_index() else {
             return;
         };
-        self
-            .scroll_handle
+        self.scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Bottom);
         cx.refresh_windows();
     }
@@ -564,12 +538,7 @@ impl ExplorerState {
         if kind == ExplorerEntryKind::Directory {
             self.toggle_explorer_node(entry_id, cx);
         } else {
-            self.open_explorer_file(
-                path,
-                true,
-                window,
-                cx,
-            );
+            self.open_explorer_file(path, true, window, cx);
         }
     }
 
@@ -616,19 +585,17 @@ impl ExplorerState {
         self.trash_explorer_selections(window, cx);
     }
 
-    pub(crate) fn on_explorer_new_file(
-        &mut self,
-        _: &NewFile,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
+    pub(crate) fn on_explorer_new_file(&mut self, _: &NewFile, window: &mut Window, cx: &mut App) {
         let parent = match self.selected {
             Some(sel) => {
                 if let Some(node) = self.explorer_entry_by_id(sel.entry_id) {
                     if node.kind == ExplorerEntryKind::Directory {
                         node.path.clone()
                     } else {
-                        node.path.parent().map(Path::to_path_buf).unwrap_or_else(|| node.path.clone())
+                        node.path
+                            .parent()
+                            .map(Path::to_path_buf)
+                            .unwrap_or_else(|| node.path.clone())
                     }
                 } else {
                     self.last_explorer_root_path().unwrap_or_default()
@@ -653,7 +620,10 @@ impl ExplorerState {
                     if node.kind == ExplorerEntryKind::Directory {
                         node.path.clone()
                     } else {
-                        node.path.parent().map(Path::to_path_buf).unwrap_or_else(|| node.path.clone())
+                        node.path
+                            .parent()
+                            .map(Path::to_path_buf)
+                            .unwrap_or_else(|| node.path.clone())
                     }
                 } else {
                     self.last_explorer_root_path().unwrap_or_default()
@@ -666,4 +636,3 @@ impl ExplorerState {
         }
     }
 }
-

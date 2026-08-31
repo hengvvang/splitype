@@ -11,7 +11,14 @@ pub type NodeId = usize;
 
 /// Split orientation between adjacent leaves in the layout tree.
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
     schemars::JsonSchema,
 )]
 pub enum SplitAxis {
@@ -21,7 +28,14 @@ pub enum SplitAxis {
 
 /// Cardinal direction used for corner-drag gesture routing.
 #[derive(
-    Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
     schemars::JsonSchema,
 )]
 pub enum Direction {
@@ -498,4 +512,3 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 }
-

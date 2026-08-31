@@ -337,5 +337,3 @@ pub(crate) fn escape_html(input: &str) -> String {
     }
     escaped
 }
-
-

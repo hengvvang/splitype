@@ -39,4 +39,3 @@ impl std::fmt::Display for DisplayPoint {
         write!(f, "{}:{}", self.row, self.column)
     }
 }
-

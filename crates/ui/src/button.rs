@@ -20,15 +20,10 @@ pub fn primary_button(
     c: &ThemeColors,
     d: &ThemeDimensions,
 ) -> Stateful<Div> {
-    action_base(
-        id,
-        d,
-        d.dialog_button_height,
-        d.button_radius,
-    )
-    .bg(c.dialog_primary_button_bg)
-    .text_color(c.dialog_primary_button_text)
-    .hover(|this| this.bg(c.dialog_primary_button_hover))
+    action_base(id, d, d.dialog_button_height, d.button_radius)
+        .bg(c.dialog_primary_button_bg)
+        .text_color(c.dialog_primary_button_text)
+        .hover(|this| this.bg(c.dialog_primary_button_hover))
 }
 
 /// Standard secondary action button (36px height, standard radius).
@@ -37,17 +32,12 @@ pub fn secondary_button(
     c: &ThemeColors,
     d: &ThemeDimensions,
 ) -> Stateful<Div> {
-    action_base(
-        id,
-        d,
-        d.dialog_button_height,
-        d.button_radius,
-    )
-    .border(px(d.dialog_border_width))
-    .border_color(c.dialog_border)
-    .bg(c.dialog_secondary_button_bg)
-    .text_color(c.dialog_secondary_button_text)
-    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+    action_base(id, d, d.dialog_button_height, d.button_radius)
+        .border(px(d.dialog_border_width))
+        .border_color(c.dialog_border)
+        .bg(c.dialog_secondary_button_bg)
+        .text_color(c.dialog_secondary_button_text)
+        .hover(|this| this.bg(c.dialog_secondary_button_hover))
 }
 
 /// Compact primary action button (32px height, standard radius).
@@ -89,8 +79,6 @@ pub fn compact_danger_button(
         .text_color(c.dialog_danger_button_text)
         .hover(|this| this.bg(c.dialog_danger_button_hover))
 }
-
-
 
 /// Dynamically computes the square button chip size from bar height.
 pub fn toolbar_button_size(bar_height: f32) -> f32 {
@@ -171,4 +159,3 @@ fn action_base(
         .active(|this| this.opacity(0.92))
         .cursor_pointer()
 }
-

@@ -8,9 +8,9 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::model::block::Block;
 use crate::markdown::inline::footnote::InlineFootnoteHit;
 use crate::markdown::inline::link::InlineLinkHit;
+use crate::model::block::Block;
 
 const SOURCE_LINE_NUMBER_MIN_DIGITS: usize = 2;
 pub const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;
@@ -82,11 +82,7 @@ pub fn line_index_for_offset(ranges: &[Range<usize>], offset: usize) -> (usize, 
     (last, ranges[last].len())
 }
 
-pub fn aligned_line_left(
-    line: &WrappedLine,
-    bounds: Bounds<Pixels>,
-    align: TextAlign,
-) -> Pixels {
+pub fn aligned_line_left(line: &WrappedLine, bounds: Bounds<Pixels>, align: TextAlign) -> Pixels {
     let slack = (bounds.size.width - line.width()).max(px(0.0));
     match align {
         TextAlign::Left => bounds.left(),
@@ -99,11 +95,7 @@ pub fn wrapped_line_height(line: &WrappedLine, line_height: Pixels) -> Pixels {
     line.size(line_height).height.max(line_height)
 }
 
-pub fn wrapped_line_top(
-    lines: &[WrappedLine],
-    line_height: Pixels,
-    line_idx: usize,
-) -> Pixels {
+pub fn wrapped_line_top(lines: &[WrappedLine], line_height: Pixels, line_idx: usize) -> Pixels {
     lines.iter().take(line_idx).fold(px(0.0), |height, line| {
         height + wrapped_line_height(line, line_height)
     })
@@ -414,5 +406,3 @@ pub fn footnote_at_position<'a>(
 
     None
 }
-
-

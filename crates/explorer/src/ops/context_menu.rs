@@ -137,7 +137,9 @@ impl ExplorerState {
             let target_parent = if is_dir {
                 path.clone()
             } else {
-                path.parent().map(std::path::Path::to_path_buf).unwrap_or_else(|| path.clone())
+                path.parent()
+                    .map(std::path::Path::to_path_buf)
+                    .unwrap_or_else(|| path.clone())
             };
             let p = target_parent.clone();
             items.push(make_item(
@@ -452,4 +454,3 @@ impl ExplorerState {
         )
     }
 }
-

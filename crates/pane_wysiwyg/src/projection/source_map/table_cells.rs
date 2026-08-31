@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::model::block::Block;
 use crate::markdown::block::table::serialize_table_cell_markdown;
+use crate::model::block::Block;
 use crate::state::SourceTargetMapping;
 
 pub fn push_table_mappings(
@@ -84,5 +84,3 @@ pub fn push_table_mappings(
         .sum::<usize>()
         + lines.len().saturating_sub(1)
 }
-
-

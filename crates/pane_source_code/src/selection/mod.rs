@@ -5,4 +5,3 @@ pub mod selection;
 
 pub use collection::SelectionsCollection;
 pub use selection::Selection;
-

@@ -3,13 +3,17 @@
 
 use gpui::*;
 
-use syntax_highlighter::latex::{display_math_font_size, render_display_math_svg};
 use crate::node::PreviewBlock;
-use theme::Theme;
 use markdown_parser::block::math::parse_display_math_source;
+use syntax_highlighter::latex::{display_math_font_size, render_display_math_svg};
+use theme::Theme;
 
 /// Renders a LaTeX math block read-only.
-pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
+pub(crate) fn render_preview_latex_math(
+    block: &PreviewBlock,
+    base: Div,
+    theme: &Theme,
+) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -77,5 +81,3 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
             .into_any_element(),
     }
 }
-
-

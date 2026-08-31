@@ -11,10 +11,7 @@ pub(crate) fn render_preview_thematic_break(theme: &Theme) -> AnyElement {
     let t = &theme.typography;
 
     let line_slot_height = px(t.text_size * t.text_line_height);
-    let line = div()
-        .w_full()
-        .h(px(d.separator_thickness))
-        .bg(c.separator);
+    let line = div().w_full().h(px(d.separator_thickness)).bg(c.separator);
 
     div()
         .w_full()
@@ -28,4 +25,3 @@ pub(crate) fn render_preview_thematic_break(theme: &Theme) -> AnyElement {
         .child(line)
         .into_any_element()
 }
-

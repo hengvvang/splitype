@@ -17,10 +17,9 @@ impl Editor {
         let extension = format.extension();
         if let Some(tab) = self.session.active_tab() {
             if let Some(path) = tab.file.path.as_ref() {
-                let directory = path
-                    .parent()
-                    .map(Path::to_path_buf)
-                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+                let directory = path.parent().map(Path::to_path_buf).unwrap_or_else(|| {
+                    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+                });
                 let stem = path
                     .file_stem()
                     .and_then(|stem| stem.to_str())
@@ -60,9 +59,9 @@ impl Editor {
                 );
                 Ok(html.into_bytes())
             }
-            ExportFormat::Pdf => {
-                Err(ExportError::Render("PDF export is delegated to preview print driver".to_string()))
-            }
+            ExportFormat::Pdf => Err(ExportError::Render(
+                "PDF export is delegated to preview print driver".to_string(),
+            )),
         }
     }
 
@@ -175,4 +174,3 @@ fn show_export_error(window: &mut Window, cx: &mut App, detail: &str) {
         cx,
     );
 }
-

@@ -1,11 +1,11 @@
 use gpui::*;
 
-use crate::model::protocol::BlockEvent;
-use crate::table::measure::measure_table_column_layout;
-use crate::model::block::Block;
-use crate::render::effective_table_width;
-use theme::Theme;
 use crate::markdown::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
+use crate::model::block::Block;
+use crate::model::protocol::BlockEvent;
+use crate::render::effective_table_width;
+use crate::table::measure::measure_table_column_layout;
+use theme::Theme;
 
 /// Visual highlight priority state for table row and column axes: Dragging > Selected > Hovered > Editing > None.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -125,7 +125,8 @@ impl TableLayoutParameters {
         let mut column_cumulative_fractions = Vec::with_capacity(column_count + 1);
         column_cumulative_fractions.push(0.0);
         for &f in &column_fractions {
-            column_cumulative_fractions.push(column_cumulative_fractions.last().copied().unwrap_or(0.0) + f);
+            column_cumulative_fractions
+                .push(column_cumulative_fractions.last().copied().unwrap_or(0.0) + f);
         }
 
         Self {
@@ -148,14 +149,19 @@ impl TableLayoutParameters {
             return if x_frac < 0.5 { 0 } else { 1 };
         }
 
-        let mid_0 = (self.column_cumulative_fractions[0] + self.column_cumulative_fractions[1]) / 2.0;
+        let mid_0 =
+            (self.column_cumulative_fractions[0] + self.column_cumulative_fractions[1]) / 2.0;
         if x_frac < mid_0 {
             return 0;
         }
 
         for c in 0..(self.column_count - 1) {
-            let mid_c = (self.column_cumulative_fractions[c] + self.column_cumulative_fractions[c + 1]) / 2.0;
-            let mid_next = (self.column_cumulative_fractions[c + 1] + self.column_cumulative_fractions[c + 2]) / 2.0;
+            let mid_c = (self.column_cumulative_fractions[c]
+                + self.column_cumulative_fractions[c + 1])
+                / 2.0;
+            let mid_next = (self.column_cumulative_fractions[c + 1]
+                + self.column_cumulative_fractions[c + 2])
+                / 2.0;
             if x_frac >= mid_c && x_frac < mid_next {
                 return c + 1;
             }
@@ -358,7 +364,9 @@ pub fn render_table(
                 .w(px(1.5))
                 .bg(c.table_handle_icon),
         ),
-        TableAxisVisualState::Selected | TableAxisVisualState::Dragging | TableAxisVisualState::None => None,
+        TableAxisVisualState::Selected
+        | TableAxisVisualState::Dragging
+        | TableAxisVisualState::None => None,
     };
 
     let row_0_selection_box = if row_0_state >= TableAxisVisualState::Selected {
@@ -468,7 +476,9 @@ pub fn render_table(
                         .h(px(1.5))
                         .bg(c.table_handle_icon),
                 ),
-                TableAxisVisualState::Selected | TableAxisVisualState::Dragging | TableAxisVisualState::None => None,
+                TableAxisVisualState::Selected
+                | TableAxisVisualState::Dragging
+                | TableAxisVisualState::None => None,
             };
 
             let col_axis_theme = theme.clone();
@@ -598,7 +608,9 @@ pub fn render_table(
                         .w(px(1.5))
                         .bg(c.table_handle_icon),
                 ),
-                TableAxisVisualState::Selected | TableAxisVisualState::Dragging | TableAxisVisualState::None => None,
+                TableAxisVisualState::Selected
+                | TableAxisVisualState::Dragging
+                | TableAxisVisualState::None => None,
             };
 
             let row_selection_box = if row_state >= TableAxisVisualState::Selected {
@@ -620,8 +632,7 @@ pub fn render_table(
 
             let row_axis_band = div()
                 .id(ElementId::Name(
-                    format!("table-row-axis-band-{}-{}", block.data.id, body_row_index)
-                        .into(),
+                    format!("table-row-axis-band-{}-{}", block.data.id, body_row_index).into(),
                 ))
                 .absolute()
                 .left(px(-12.0))
@@ -954,7 +965,9 @@ pub fn render_table(
         };
 
         let table_box = div()
-            .id(ElementId::Name(format!("table-box-{}", block.data.id).into()))
+            .id(ElementId::Name(
+                format!("table-box-{}", block.data.id).into(),
+            ))
             .relative()
             .w_full()
             .flex()
@@ -980,33 +993,41 @@ pub fn render_table(
                 let bounds = drag.bounds;
                 let pos = drag.event.position;
 
-                let _ = table_drag_move_block.update(cx, |block, cx| {
-                    match kind {
-                        TableAxis::Column => {
-                            let rel_x = pos.x - bounds.origin.x;
-                            let x_frac = f32::from(rel_x) / f32::from(bounds.size.width.max(px(1.0)));
-                            let slot = drag_params.resolve_column_slot(x_frac);
+                let _ = table_drag_move_block.update(cx, |block, cx| match kind {
+                    TableAxis::Column => {
+                        let rel_x = pos.x - bounds.origin.x;
+                        let x_frac = f32::from(rel_x) / f32::from(bounds.size.width.max(px(1.0)));
+                        let slot = drag_params.resolve_column_slot(x_frac);
 
-                            if block.table_axis_preview != Some(TableAxisMarker { kind: TableAxis::Column, index: slot }) {
-                                cx.emit(BlockEvent::RequestTableAxisPreview {
-                                    kind: TableAxis::Column,
-                                    index: slot,
-                                    hovered: true,
-                                });
-                            }
+                        if block.table_axis_preview
+                            != Some(TableAxisMarker {
+                                kind: TableAxis::Column,
+                                index: slot,
+                            })
+                        {
+                            cx.emit(BlockEvent::RequestTableAxisPreview {
+                                kind: TableAxis::Column,
+                                index: slot,
+                                hovered: true,
+                            });
                         }
-                        TableAxis::Row => {
-                            let rel_y = pos.y - bounds.origin.y;
-                            let y_frac = f32::from(rel_y) / f32::from(bounds.size.height.max(px(1.0)));
-                            let slot = drag_params.resolve_row_slot(y_frac);
+                    }
+                    TableAxis::Row => {
+                        let rel_y = pos.y - bounds.origin.y;
+                        let y_frac = f32::from(rel_y) / f32::from(bounds.size.height.max(px(1.0)));
+                        let slot = drag_params.resolve_row_slot(y_frac);
 
-                            if block.table_axis_preview != Some(TableAxisMarker { kind: TableAxis::Row, index: slot }) {
-                                cx.emit(BlockEvent::RequestTableAxisPreview {
-                                    kind: TableAxis::Row,
-                                    index: slot,
-                                    hovered: true,
-                                });
-                            }
+                        if block.table_axis_preview
+                            != Some(TableAxisMarker {
+                                kind: TableAxis::Row,
+                                index: slot,
+                            })
+                        {
+                            cx.emit(BlockEvent::RequestTableAxisPreview {
+                                kind: TableAxis::Row,
+                                index: slot,
+                                hovered: true,
+                            });
                         }
                     }
                 });
@@ -1018,12 +1039,10 @@ pub fn render_table(
                     let _ = table_drop_block.update(cx, |block, cx| {
                         if let Some(prev) = block.table_axis_preview {
                             if prev.kind == kind {
-                                if let Some(to) = TableLayoutParameters::slot_to_target_index(from, prev.index) {
-                                    cx.emit(BlockEvent::RequestReorderTableAxis {
-                                        kind,
-                                        from,
-                                        to,
-                                    });
+                                if let Some(to) =
+                                    TableLayoutParameters::slot_to_target_index(from, prev.index)
+                                {
+                                    cx.emit(BlockEvent::RequestReorderTableAxis { kind, from, to });
                                 }
                             }
                         }
@@ -1046,6 +1065,3 @@ pub fn render_table(
             .into_any_element()
     }
 }
-
-
-

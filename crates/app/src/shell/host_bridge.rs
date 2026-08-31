@@ -1,8 +1,8 @@
 //! EditorHost trait implementation bridging editor callbacks back to the window Shell.
 
+use gpui::*;
 use std::path::Path;
 use std::sync::Arc;
-use gpui::*;
 
 use crate::menus::record_recent_file_from_editor;
 use crate::shell::Shell;
@@ -39,7 +39,9 @@ impl ShellPanelHost {
 
 impl PanelHost for ShellPanelHost {
     fn activate_panel(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
     }
 
     fn close_panel(&self, panel_id: PanelId, cx: &mut App) {
@@ -82,15 +84,15 @@ impl PanelHost for ShellPanelHost {
 
 impl EditorHost for ShellEditorHost {
     fn activate_panel(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| {
-            shell.activate_panel(panel_id, cx)
-        });
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
     }
 
     fn toggle_panel_dropdown(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| {
-            shell.toggle_panel_dropdown(panel_id, cx)
-        });
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.toggle_panel_dropdown(panel_id, cx));
     }
 
     fn split_panel(
@@ -107,21 +109,21 @@ impl EditorHost for ShellEditorHost {
     }
 
     fn toggle_panel_maximize(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| {
-            shell.toggle_panel_maximize(panel_id, cx)
-        });
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.toggle_panel_maximize(panel_id, cx));
     }
 
     fn request_close_panel(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| {
-            shell.request_close_panel(panel_id, cx)
-        });
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.request_close_panel(panel_id, cx));
     }
 
     fn prompt_close_tab(&self, panel_id: PanelId, index: usize, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| {
-            shell.prompt_close_tab(panel_id, index, cx)
-        });
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.prompt_close_tab(panel_id, index, cx));
     }
 
     fn open_file_in_active_editor(
@@ -139,13 +141,15 @@ impl EditorHost for ShellEditorHost {
     }
 
     fn hide_info_dialog(&self, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, cx| shell.hide_info_dialog(cx));
+        let _ = self
+            .shell
+            .update(cx, |shell, cx| shell.hide_info_dialog(cx));
     }
 
     fn clear_outer_dropdowns(&self, cx: &mut App) {
-        let _ = self.shell.update(cx, |shell, _cx| {
-            shell.panels.layout.clear_dropdowns()
-        });
+        let _ = self
+            .shell
+            .update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
     }
 
     fn sync_explorer_after_document_path_change(&self, cx: &mut App) {

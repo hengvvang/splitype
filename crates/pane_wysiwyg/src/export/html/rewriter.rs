@@ -8,14 +8,14 @@ use pulldown_cmark::{CowStr, Event, Tag};
 
 use crate::export::html::styles::escape_html;
 use crate::latex::{inline_math_font_size, render_latex_to_svg};
-use crate::mermaid::render_mermaid_to_svg;
-use theme::Theme;
 use crate::markdown::block::html::{parse_html_image_block, sanitize_html_for_export};
 use crate::markdown::block::image::is_remote_image_source;
 use crate::markdown::block::math::parse_display_math_source;
 use crate::markdown::block::mermaid::{
     is_mermaid_closing_fence, parse_mermaid_fence_source, parse_mermaid_fence_start,
 };
+use crate::mermaid::render_mermaid_to_svg;
+use theme::Theme;
 
 pub(crate) fn rewrite_visible_comment_blocks(markdown: &str) -> String {
     let lines = markdown.split('\n').collect::<Vec<_>>();
@@ -600,5 +600,3 @@ fn collect_display_math_region(lines: &[&str], start: usize) -> usize {
     }
     lines.len()
 }
-
-

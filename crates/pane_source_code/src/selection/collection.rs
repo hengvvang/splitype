@@ -48,13 +48,17 @@ impl SelectionsCollection {
     /// The primary selection / cursor.
     #[inline]
     pub fn primary(&self) -> &Selection {
-        &self.selections[self.primary_index.min(self.selections.len().saturating_sub(1))]
+        &self.selections[self
+            .primary_index
+            .min(self.selections.len().saturating_sub(1))]
     }
 
     /// The primary selection / cursor mutably.
     #[inline]
     pub fn primary_mut(&mut self) -> &mut Selection {
-        let idx = self.primary_index.min(self.selections.len().saturating_sub(1));
+        let idx = self
+            .primary_index
+            .min(self.selections.len().saturating_sub(1));
         &mut self.selections[idx]
     }
 
@@ -143,4 +147,3 @@ impl SelectionsCollection {
         id
     }
 }
-

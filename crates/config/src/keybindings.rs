@@ -517,5 +517,3 @@ pub fn normalize_shortcut_config(
         .filter_map(|(id, (custom, keys))| custom.then_some((id.to_string(), keys)))
         .collect()
 }
-
-

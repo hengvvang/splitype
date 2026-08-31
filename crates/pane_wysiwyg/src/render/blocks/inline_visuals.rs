@@ -3,6 +3,10 @@
 use gpui::*;
 
 use crate::latex::{inline_math_font_size, render_inline_math_svg};
+use crate::markdown::block::image::{
+    ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
+};
+use crate::markdown::inline::style::InlineScript;
 use crate::model::block::{Block, ImageHandle};
 use crate::render::LinkFollowCursor;
 use crate::render::html_document::html_css_color_to_hsla;
@@ -12,10 +16,6 @@ use crate::render::render_image_placeholder;
 use crate::render::render_loading_placeholder;
 use config::language::I18nStrings;
 use theme::Theme;
-use crate::markdown::block::image::{
-    ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
-};
-use crate::markdown::inline::style::InlineScript;
 
 impl Block {
     pub fn render_text_or_mixed_inline_visuals(
@@ -313,9 +313,11 @@ impl Block {
                     MouseButton::Left,
                     cx.listener(move |_block, _event: &MouseUpEvent, _window, cx| {
                         cx.stop_propagation();
-                        cx.emit(crate::model::protocol::BlockEvent::RequestJumpToFootnoteDefinition {
-                            id: footnote.id.clone(),
-                        });
+                        cx.emit(
+                            crate::model::protocol::BlockEvent::RequestJumpToFootnoteDefinition {
+                                id: footnote.id.clone(),
+                            },
+                        );
                     }),
                 );
             return element.into_any_element();
@@ -508,5 +510,3 @@ impl Block {
         )
     }
 }
-
-

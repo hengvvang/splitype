@@ -17,6 +17,9 @@ use editor::actions::{
     SaveDocumentAs, ToggleMaximizePane, TogglePaneKind, ToggleReplace, ToggleSearch, Undo,
 };
 
+use config::keybindings::{
+    SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
+};
 use pane_wysiwyg::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
     FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, MoveLeft, MoveRight, Newline,
@@ -25,9 +28,6 @@ use pane_wysiwyg::actions::{
     WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
 };
 use window::actions::{Copy, Cut, DismissTransientUi, Paste};
-use config::keybindings::{
-    SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
-};
 
 fn key_binding_for(
     command: ShortcutCommand,
@@ -115,8 +115,6 @@ pub(crate) fn install_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<St
 }
 
 /// Test-only: registers default key bindings for the block editor.
-
 pub(crate) fn init_with_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<String>>) {
     install_keybindings(cx, config);
 }
-

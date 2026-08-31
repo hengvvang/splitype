@@ -50,9 +50,7 @@ impl InlineRenderCache {
                     style: fragment.style,
                     html_style: fragment.html_style(),
                     link: fragment.link().map(InlineLink::hit),
-                    footnote: fragment
-                        .footnote()
-                        .and_then(InlineFootnoteReference::hit),
+                    footnote: fragment.footnote().and_then(InlineFootnoteReference::hit),
                     math: fragment.math().cloned(),
                 });
             }
@@ -121,4 +119,3 @@ impl InlineRenderCache {
             .map(|hit| hit.open_target.as_str())
     }
 }
-

@@ -141,10 +141,10 @@ pub fn is_adjacent_neighbor(a: &LeafRect, b: &LeafRect) -> bool {
 /// Returns (x, y, width, height) of the merged slice rectangle in normalized coordinates.
 pub fn calculate_join_slice_rect(source: &LeafRect, target: &LeafRect) -> (f32, f32, f32, f32) {
     const EPS: f32 = 0.01;
-    let shares_vertical_border =
-        (source.x + source.width - target.x).abs() <= EPS || (target.x + target.width - source.x).abs() <= EPS;
-    let shares_horizontal_border =
-        (source.y + source.height - target.y).abs() <= EPS || (target.y + target.height - source.y).abs() <= EPS;
+    let shares_vertical_border = (source.x + source.width - target.x).abs() <= EPS
+        || (target.x + target.width - source.x).abs() <= EPS;
+    let shares_horizontal_border = (source.y + source.height - target.y).abs() <= EPS
+        || (target.y + target.height - source.y).abs() <= EPS;
 
     if shares_vertical_border {
         let x = source.x.min(target.x);
@@ -199,7 +199,8 @@ pub fn calculate_dock_target(
     let is_source_below = (target_rect.y + target_rect.height - source_rect.y).abs() <= EPS;
     if is_source_above || is_source_below {
         let overlap_min_x = source_rect.x.max(target_rect.x);
-        let overlap_max_x = (source_rect.x + source_rect.width).min(target_rect.x + target_rect.width);
+        let overlap_max_x =
+            (source_rect.x + source_rect.width).min(target_rect.x + target_rect.width);
         let overlap_x = overlap_max_x - overlap_min_x;
         if overlap_x > EPS && px >= overlap_min_x - EPS && px <= overlap_max_x + EPS {
             let in_join_y = if is_source_above {
@@ -218,7 +219,8 @@ pub fn calculate_dock_target(
     let is_source_right = (target_rect.x + target_rect.width - source_rect.x).abs() <= EPS;
     if is_source_left || is_source_right {
         let overlap_min_y = source_rect.y.max(target_rect.y);
-        let overlap_max_y = (source_rect.y + source_rect.height).min(target_rect.y + target_rect.height);
+        let overlap_max_y =
+            (source_rect.y + source_rect.height).min(target_rect.y + target_rect.height);
         let overlap_y = overlap_max_y - overlap_min_y;
         if overlap_y > EPS && py >= overlap_min_y - EPS && py <= overlap_max_y + EPS {
             let in_join_x = if is_source_left {
@@ -303,4 +305,3 @@ pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<NodeId> {
     }
     None
 }
-

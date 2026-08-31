@@ -1,8 +1,8 @@
-use std::sync::Arc;
-use gpui::*;
-use theme::ThemeManager;
 use super::host::{SearchHost, SearchIme, SearchStateView};
 use super::state::SearchActiveField;
+use gpui::*;
+use std::sync::Arc;
+use theme::ThemeManager;
 
 pub struct SearchInputPrepaintState {
     line: Option<ShapedLine>,
@@ -74,7 +74,7 @@ impl Element for SearchInputElement {
             snap.cursor_offset,
             snap.focus_handle
                 .as_ref()
-                .map_or(false, |h| h.is_focused(window)),
+                .is_some_and(|h| h.is_focused(window)),
         );
 
         self.host.set_input_last_bounds(self.field, bounds, cx);
@@ -210,8 +210,15 @@ impl Element for SearchInputElement {
         }
 
         if let Some(line) = prepaint.line.take() {
-            line.paint(bounds.origin, bounds.size.height, TextAlign::Left, None, window, cx)
-                .ok();
+            line.paint(
+                bounds.origin,
+                bounds.size.height,
+                TextAlign::Left,
+                None,
+                window,
+                cx,
+            )
+            .ok();
         }
 
         if let Some(cursor) = prepaint.cursor.take() {

@@ -139,12 +139,7 @@ impl Editor {
             .panel_rect
             .map(|r| r.size)
             .unwrap_or_else(|| size(px(800.0), px(600.0)));
-        ui::render_corner_drag_preview(
-            &self.session.root,
-            &drag,
-            inner_size,
-            &overlay_style,
-        )
+        ui::render_corner_drag_preview(&self.session.root, &drag, inner_size, &overlay_style)
     }
 
     pub(crate) fn render_editor_pane_splitter_drag_preview(
@@ -154,4 +149,3 @@ impl Editor {
         None
     }
 }
-

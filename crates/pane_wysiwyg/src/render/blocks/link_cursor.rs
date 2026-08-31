@@ -67,5 +67,3 @@ impl Element for LinkFollowCursor {
         self.child.paint(window, cx);
     }
 }
-
-

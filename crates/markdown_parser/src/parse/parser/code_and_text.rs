@@ -22,7 +22,7 @@ pub(crate) fn collect_fenced_code_block(
 
     let code_lines = if is_closed {
         lines[start + 1..closing_index].to_vec()
-    } else if start + 1 <= lines.len() {
+    } else if start < lines.len() {
         lines[start + 1..].to_vec()
     } else {
         Vec::new()
@@ -78,4 +78,3 @@ pub(crate) fn collect_paragraph_block(lines: &[String], start: usize) -> (BlockD
         index,
     )
 }
-

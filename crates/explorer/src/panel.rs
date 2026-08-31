@@ -46,7 +46,12 @@ impl ExplorerState {
 
     /// Add a project root as a new worktree (mirrors Zed's
     /// `WorktreeStore::create_worktree`). The root row starts expanded.
-    pub(crate) fn add_explorer_worktree(&mut self, path: PathBuf, window: &mut Window, cx: &mut App) {
+    pub(crate) fn add_explorer_worktree(
+        &mut self,
+        path: PathBuf,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
         let explorer = &mut *self;
         if explorer
             .worktrees
@@ -116,12 +121,7 @@ impl ExplorerState {
     /// Reorder worktrees by dragging a root row onto another root
     /// (mirrors Zed's `Project::move_worktree`): the dragged root ends up
     /// directly before the drop-target root.
-    pub(crate) fn move_explorer_worktree(
-        &mut self,
-        from: usize,
-        to: usize,
-        cx: &mut App,
-    ) {
+    pub(crate) fn move_explorer_worktree(&mut self, from: usize, to: usize, cx: &mut App) {
         let explorer = &mut *self;
         let len = explorer.worktrees.len();
         if from == to || from >= len || to >= len {
@@ -175,7 +175,12 @@ impl ExplorerState {
         cx.refresh_windows();
     }
 
-    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, window: &mut Window, cx: &mut App) {
+    pub(crate) fn open_explorer_folder_path(
+        &mut self,
+        path: PathBuf,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
         self.add_explorer_worktree(path, window, cx);
     }
     pub fn sync_explorer_after_document_path_change(&mut self, cx: &mut App) {
@@ -189,11 +194,7 @@ impl ExplorerState {
         // outline from its active document when it renders.
         self.sync_explorer_file_tree(cx);
     }
-    pub(crate) fn prompt_open_explorer_folder(
-        &mut self,
-        _window: &mut Window,
-        cx: &mut App,
-    ) {
+    pub(crate) fn prompt_open_explorer_folder(&mut self, _window: &mut Window, cx: &mut App) {
         let prompt = cx.prompt_for_paths(PathPromptOptions {
             files: true,
             directories: true,
@@ -328,7 +329,9 @@ impl ExplorerState {
         let dir = if path.is_dir() {
             path.to_path_buf()
         } else {
-            path.parent().map(Path::to_path_buf).unwrap_or_else(|| path.to_path_buf())
+            path.parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| path.to_path_buf())
         };
         #[cfg(target_os = "windows")]
         {
@@ -432,4 +435,3 @@ impl ExplorerState {
         }
     }
 }
-

@@ -95,5 +95,3 @@ pub fn editor_editing_shortcuts() -> &'static [ShortcutItem] {
         },
     ]
 }
-
-

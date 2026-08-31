@@ -61,4 +61,3 @@ pub fn applescript_string_literal(value: &str) -> String {
 pub fn run_osascript(script: &str) -> std::io::Result<Output> {
     Command::new("osascript").arg("-e").arg(script).output()
 }
-

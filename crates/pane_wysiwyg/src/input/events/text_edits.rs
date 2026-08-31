@@ -6,5 +6,3 @@ use crate::markdown::parse::BlockKind;
 pub fn sibling_kind_on_newline(kind: BlockKind) -> BlockKind {
     kind.newline_sibling_kind()
 }
-
-

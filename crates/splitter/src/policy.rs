@@ -9,7 +9,9 @@ use gpui::{Pixels, Size};
 
 use crate::container::SplitterContainer;
 use crate::root::SplitterRoot;
-use crate::sessions::{AreaDockTarget, CornerDragModifier, CornerDragSession, past_shortcut_threshold};
+use crate::sessions::{
+    AreaDockTarget, CornerDragModifier, CornerDragSession, past_shortcut_threshold,
+};
 use crate::tree::{NodeId, SplitAxis, SplitTree};
 
 /// A whole container cloned for a Shift-drag "open clone window" gesture:
@@ -34,10 +36,7 @@ pub enum CornerDragResult<T: Copy + PartialEq> {
         ratio: f32,
     },
     /// Adjacent join performed: into_id absorbs removed_id.
-    Join {
-        into_id: NodeId,
-        removed_id: NodeId,
-    },
+    Join { into_id: NodeId, removed_id: NodeId },
     /// Move and dock performed: source_id moved and docked onto target_id.
     MoveAndDock {
         source_id: NodeId,
@@ -47,10 +46,7 @@ pub enum CornerDragResult<T: Copy + PartialEq> {
         ratio: f32,
     },
     /// Area swap performed between a and b.
-    Swap {
-        a: NodeId,
-        b: NodeId,
-    },
+    Swap { a: NodeId, b: NodeId },
     /// Shift-drag new window clone created.
     CloneWindow {
         source_id: NodeId,
@@ -166,4 +162,3 @@ pub fn apply_corner_drag_session<T: Copy + PartialEq>(
         CornerDragModifier::Alt => CornerDragResult::None,
     }
 }
-

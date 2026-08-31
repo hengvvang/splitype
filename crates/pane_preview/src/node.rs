@@ -7,9 +7,11 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use markdown_parser::footnotes::FootnoteMap;
-use markdown_parser::block::image::{ImageHandle, ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
+use markdown_parser::block::image::{
+    ImageHandle, ImageReferenceDefinitions, ImageSyntax, resolve_image_source,
+};
 use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::footnotes::FootnoteMap;
 use markdown_parser::parse::{BlockData, BlockId, BlockKind};
 
 /// A pure-Rust lightweight snapshot block for read-only preview rendering.
@@ -158,4 +160,3 @@ fn assign_list_ordinals(blocks: &mut [PreviewBlock]) {
         }
     }
 }
-

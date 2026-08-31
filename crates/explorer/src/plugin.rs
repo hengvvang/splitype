@@ -1,8 +1,8 @@
+use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
+use gpui::*;
 use std::any::Any;
 use std::sync::Arc;
-use gpui::*;
 use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
-use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
 
 /// View wrapper implementing [`PanelView`] for the Explorer sidebar.
 pub struct ExplorerPanelView {

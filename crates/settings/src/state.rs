@@ -13,11 +13,11 @@ use std::collections::HashSet;
 pub enum SettingsTab {
     #[default]
     Interface, // Interface, Theme & Status Bar metrics
-    Editor,    // Typography & Editor behavior (line numbers, wrapping, tab size)
-    Markdown,  // Markdown rendering, Table headers, LaTeX math, Mermaid & Asset paste behavior
-    Explorer,  // File Explorer tree, Hidden files, Sort mode & Sort order
-    Startup,   // Startup document selection & Window state restore
-    Keymap,    // Keymap / Keyboard Shortcuts list
+    Editor,   // Typography & Editor behavior (line numbers, wrapping, tab size)
+    Markdown, // Markdown rendering, Table headers, LaTeX math, Mermaid & Asset paste behavior
+    Explorer, // File Explorer tree, Hidden files, Sort mode & Sort order
+    Startup,  // Startup document selection & Window state restore
+    Keymap,   // Keymap / Keyboard Shortcuts list
 }
 
 impl SettingsTab {

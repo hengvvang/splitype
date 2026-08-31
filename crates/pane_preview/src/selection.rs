@@ -59,12 +59,6 @@ impl PreviewSelectionRange {
             block_len
         };
 
-        if start < end {
-            Some(start..end)
-        } else {
-            None
-        }
+        if start < end { Some(start..end) } else { None }
     }
 }
-
-

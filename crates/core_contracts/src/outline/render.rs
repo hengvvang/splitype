@@ -56,7 +56,9 @@ pub fn render_floating_outline_hud(
 
             items.push(
                 div()
-                    .id(ElementId::Name(format!("outline-popover-item-{idx}").into()))
+                    .id(ElementId::Name(
+                        format!("outline-popover-item-{idx}").into(),
+                    ))
                     .w_full()
                     .pl(px(indent))
                     .pr(px(10.0))
@@ -123,11 +125,7 @@ pub fn render_floating_outline_hud(
     let mut ticks = Vec::with_capacity(headings.len());
     for (idx, _node) in headings.iter().enumerate() {
         let is_active = idx == active_index;
-        let (w, h) = if is_active {
-            (18.0, 3.0)
-        } else {
-            (14.0, 2.0)
-        };
+        let (w, h) = if is_active { (18.0, 3.0) } else { (14.0, 2.0) };
 
         let tick_color = if is_active {
             c.focus_accent
@@ -146,13 +144,7 @@ pub fn render_floating_outline_hud(
                 .items_center()
                 .justify_end()
                 .cursor_pointer()
-                .child(
-                    div()
-                        .w(px(w))
-                        .h(px(h))
-                        .rounded_full()
-                        .bg(tick_color),
-                )
+                .child(div().w(px(w)).h(px(h)).rounded_full().bg(tick_color))
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     host_navigate.navigate_to(idx, cx);
                 }),
@@ -173,7 +165,9 @@ pub fn render_floating_outline_hud(
 
     let host_hover = host.clone();
     div()
-        .id(ElementId::Name(format!("floating-outline-hud-{pane_id}").into()))
+        .id(ElementId::Name(
+            format!("floating-outline-hud-{pane_id}").into(),
+        ))
         .absolute()
         .top(px(40.0))
         .right(px(14.0))

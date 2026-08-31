@@ -101,12 +101,26 @@ impl BlockStructureKind {
 /// Insertion operations for links, images, tables, formulas, etc.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InsertionKind {
-    Link { label: String, url: String },
-    Image { alt: String, url: String },
-    Table { rows: usize, cols: usize },
-    Footnote { label: String },
+    Link {
+        label: String,
+        url: String,
+    },
+    Image {
+        alt: String,
+        url: String,
+    },
+    Table {
+        rows: usize,
+        cols: usize,
+    },
+    Footnote {
+        label: String,
+    },
     MermaidDiagram,
-    CustomSnippet { snippet: String, caret_offset: usize },
+    CustomSnippet {
+        snippet: String,
+        caret_offset: usize,
+    },
 }
 
 /// The unified edit command representing any formatting or structure change.
@@ -201,7 +215,11 @@ impl Editor {
                 } else {
                     format!("[{label}]({url})")
                 };
-                let caret = if url.is_empty() { label.len() + 2 } else { snippet.len() };
+                let caret = if url.is_empty() {
+                    label.len() + 2
+                } else {
+                    snippet.len()
+                };
                 self.apply_snippet(target_entity, &snippet, caret, cx);
             }
             InsertionKind::Image { alt, url } => {
@@ -210,7 +228,11 @@ impl Editor {
                 } else {
                     format!("![{alt}]({url})")
                 };
-                let caret = if url.is_empty() { alt.len() + 3 } else { snippet.len() };
+                let caret = if url.is_empty() {
+                    alt.len() + 3
+                } else {
+                    snippet.len()
+                };
                 self.apply_snippet(target_entity, &snippet, caret, cx);
             }
             InsertionKind::Table { rows, cols } => {
@@ -225,7 +247,10 @@ impl Editor {
                 let snippet = "```mermaid\ngraph TD;\n    A-->B;\n```\n";
                 self.apply_snippet(target_entity, snippet, 23, cx);
             }
-            InsertionKind::CustomSnippet { snippet, caret_offset } => {
+            InsertionKind::CustomSnippet {
+                snippet,
+                caret_offset,
+            } => {
                 self.apply_snippet(target_entity, &snippet, caret_offset, cx);
             }
         }
@@ -239,9 +264,18 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let cols = cols.max(1);
-        let header_row = format!("| {} |\n", (0..cols).map(|_| "Header").collect::<Vec<_>>().join(" | "));
-        let sep_row = format!("| {} |\n", (0..cols).map(|_| "---").collect::<Vec<_>>().join(" | "));
-        let body_row = format!("| {} |\n", (0..cols).map(|_| " ").collect::<Vec<_>>().join(" | "));
+        let header_row = format!(
+            "| {} |\n",
+            (0..cols).map(|_| "Header").collect::<Vec<_>>().join(" | ")
+        );
+        let sep_row = format!(
+            "| {} |\n",
+            (0..cols).map(|_| "---").collect::<Vec<_>>().join(" | ")
+        );
+        let body_row = format!(
+            "| {} |\n",
+            (0..cols).map(|_| " ").collect::<Vec<_>>().join(" | ")
+        );
         let body = body_row.repeat(rows.max(1));
         let table_md = format!("\n{}{}{}\n", header_row, sep_row, body);
         self.apply_snippet(target_entity, &table_md, 3, cx);
@@ -251,7 +285,12 @@ impl Editor {
 
     fn execute_copy(&mut self, _cx: &mut Context<Self>) {}
 
-    fn execute_paste(&mut self, target_entity: Option<EntityId>, is_plain: bool, cx: &mut Context<Self>) {
+    fn execute_paste(
+        &mut self,
+        target_entity: Option<EntityId>,
+        is_plain: bool,
+        cx: &mut Context<Self>,
+    ) {
         let Some(clipboard_item) = cx.read_from_clipboard() else {
             return;
         };
@@ -293,18 +332,15 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        let text = self
-            .pane_state_mut(pane_id)
-            .map(|state| {
-                state.pane.apply_wrapped_or_template(
-                    empty_template,
-                    caret_offset_in_empty,
-                    wrap_prefix,
-                    wrap_suffix,
-                    cx,
-                )
-            })
-            .flatten();
+        let text = self.pane_state_mut(pane_id).and_then(|state| {
+            state.pane.apply_wrapped_or_template(
+                empty_template,
+                caret_offset_in_empty,
+                wrap_prefix,
+                wrap_suffix,
+                cx,
+            )
+        });
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }
@@ -318,8 +354,7 @@ impl Editor {
         let pane_id = self.active_pane_id();
         let text = self
             .pane_state_mut(pane_id)
-            .map(|state| state.pane.apply_line_prefix(prefix, cx))
-            .flatten();
+            .and_then(|state| state.pane.apply_line_prefix(prefix, cx));
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }
@@ -334,22 +369,16 @@ impl Editor {
         let pane_id = self.active_pane_id();
         let text = self
             .pane_state_mut(pane_id)
-            .map(|state| state.pane.apply_snippet(snippet, caret_offset, cx))
-            .flatten();
+            .and_then(|state| state.pane.apply_snippet(snippet, caret_offset, cx));
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }
 
-    pub fn apply_clear_format(
-        &mut self,
-        _target_entity: Option<EntityId>,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn apply_clear_format(&mut self, _target_entity: Option<EntityId>, cx: &mut Context<Self>) {
         let pane_id = self.active_pane_id();
         let text = self
             .pane_state_mut(pane_id)
-            .map(|state| state.pane.apply_clear_format(cx))
-            .flatten();
+            .and_then(|state| state.pane.apply_clear_format(cx));
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }

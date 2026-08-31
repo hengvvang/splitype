@@ -707,7 +707,6 @@ pub fn serialize_table_markdown_lines(table: &TableData) -> Vec<String> {
     lines
 }
 
-
 /// Runtime-only location of a cell inside a native table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TableCellPosition {
@@ -725,4 +724,3 @@ impl TableCellPosition {
         self.row.checked_sub(1)
     }
 }
-

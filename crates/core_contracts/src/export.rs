@@ -1,7 +1,7 @@
 //! Canonical document export formats and error types.
 
-use std::io;
 use serde::{Deserialize, Serialize};
+use std::io;
 
 /// Supported document export file formats.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -35,7 +35,9 @@ pub enum ExportError {
     Io(#[from] io::Error),
     #[error("Render error: {0}")]
     Render(String),
-    #[error("No Chrome/Chromium executable was found. Please install Chrome, Chromium, Edge, or Brave to export PDF.")]
+    #[error(
+        "No Chrome/Chromium executable was found. Please install Chrome, Chromium, Edge, or Brave to export PDF."
+    )]
     ChromiumNotFound,
     #[error("Failed to launch headless browser for PDF export: {0}")]
     ChromiumLaunch(String),
@@ -46,4 +48,3 @@ pub enum ExportError {
     #[error("Export error: {0}")]
     Other(#[from] anyhow::Error),
 }
-

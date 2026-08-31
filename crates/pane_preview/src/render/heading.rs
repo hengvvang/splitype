@@ -50,4 +50,3 @@ pub(crate) fn render_preview_heading(
 
     element.child(inner.child(text_content)).into_any_element()
 }
-

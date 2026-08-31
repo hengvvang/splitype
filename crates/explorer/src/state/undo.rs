@@ -138,5 +138,3 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), Fs
         }
     }
 }
-
-

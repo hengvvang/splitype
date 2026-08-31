@@ -42,4 +42,3 @@ pub struct FootnoteResolvedOccurrence {
     pub id: String,
     pub occurrence_index: usize,
 }
-

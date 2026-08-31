@@ -16,4 +16,3 @@ pub use pipeline::{
     ParseMode, build_preview_blocks_from_lines, build_wysiwyg_blocks_from_lines,
     parse_document_with_mode, parse_preview_document, parse_wysiwyg_document,
 };
-

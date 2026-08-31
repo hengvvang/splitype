@@ -261,8 +261,7 @@ impl ExpandedInlineProjection {
                     } else {
                         (id_len * offset) / fragment_len
                     };
-                    plain_to_display_cursor[plain_range.start + offset] =
-                        display_cursor + mapped;
+                    plain_to_display_cursor[plain_range.start + offset] = display_cursor + mapped;
                 }
                 for offset in 1..=id_len {
                     let mapped = if id_len == 0 {
@@ -612,10 +611,7 @@ impl ExpandedInlineProjection {
         })
     }
 
-    pub fn collapsed_affinity_for_display_offset(
-        &self,
-        offset: usize,
-    ) -> CollapsedCaretAffinity {
+    pub fn collapsed_affinity_for_display_offset(&self, offset: usize) -> CollapsedCaretAffinity {
         for segment in &self.segments {
             match segment.kind {
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
@@ -698,10 +694,7 @@ impl ExpandedInlineProjection {
         }
     }
 
-    pub fn move_left_target(
-        &self,
-        offset: usize,
-    ) -> Option<(usize, CollapsedCaretAffinity)> {
+    pub fn move_left_target(&self, offset: usize) -> Option<(usize, CollapsedCaretAffinity)> {
         for segment in &self.segments {
             match segment.kind {
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
@@ -723,10 +716,7 @@ impl ExpandedInlineProjection {
         None
     }
 
-    pub fn move_right_target(
-        &self,
-        offset: usize,
-    ) -> Option<(usize, CollapsedCaretAffinity)> {
+    pub fn move_right_target(&self, offset: usize) -> Option<(usize, CollapsedCaretAffinity)> {
         for segment in &self.segments {
             match segment.kind {
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
@@ -788,7 +778,11 @@ impl ExpandedInlineProjection {
                         | ExpandedInlineKind::SubscriptHtml
                 );
                 if always_expanded
-                    || Self::fragment_is_touched(fragment_range.clone(), plain_selected, plain_marked)
+                    || Self::fragment_is_touched(
+                        fragment_range.clone(),
+                        plain_selected,
+                        plain_marked,
+                    )
                 {
                     kinds.push(kind);
                 }
@@ -903,7 +897,9 @@ impl ExpandedInlineProjection {
                 }
                 ExpandedInlineSegmentKind::BlockPrefix => {
                     let prefix_text = &self.cache.text()[segment.display_range.clone()];
-                    if prefix_text.starts_with("[!") && let Some(bracket_end) = prefix_text.find(']') {
+                    if prefix_text.starts_with("[!")
+                        && let Some(bracket_end) = prefix_text.find(']')
+                    {
                         ranges.push(segment.display_range.start..segment.display_range.start + 2);
                         ranges.push(
                             segment.display_range.start + bracket_end
@@ -1030,5 +1026,3 @@ fn push_projected_fragment(
         *display_cursor += marker_len;
     }
 }
-
-

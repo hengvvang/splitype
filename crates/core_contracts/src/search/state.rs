@@ -1,8 +1,8 @@
 //! Search and replace state models and text input buffers.
 
+use gpui::{Bounds, EntityId, FocusHandle, Pixels};
 use std::ops::Range;
 use std::path::PathBuf;
-use gpui::{Bounds, EntityId, FocusHandle, Pixels};
 use uuid::Uuid;
 
 #[inline]
@@ -291,23 +291,20 @@ impl SearchTextInput {
         if self.history.is_empty() {
             return false;
         }
-        match self.history_index {
-            Some(idx) => {
-                if idx + 1 < self.history.len() {
-                    let next_idx = idx + 1;
-                    self.history_index = Some(next_idx);
-                    if let Some(entry) = self.history.get(next_idx).cloned() {
-                        self.set_text(entry);
-                        self.select_all();
-                        return true;
-                    }
-                } else {
-                    self.history_index = None;
-                    self.set_text(String::new());
+        if let Some(idx) = self.history_index {
+            if idx + 1 < self.history.len() {
+                let next_idx = idx + 1;
+                self.history_index = Some(next_idx);
+                if let Some(entry) = self.history.get(next_idx).cloned() {
+                    self.set_text(entry);
+                    self.select_all();
                     return true;
                 }
+            } else {
+                self.history_index = None;
+                self.set_text(String::new());
+                return true;
             }
-            None => {}
         }
         false
     }
@@ -472,6 +469,7 @@ impl SearchPanelState {
 
     /// Gets the currently selected match.
     pub fn current_match(&self) -> Option<&SearchMatch> {
-        self.active_match_index.and_then(|idx| self.matches.get(idx))
+        self.active_match_index
+            .and_then(|idx| self.matches.get(idx))
     }
 }

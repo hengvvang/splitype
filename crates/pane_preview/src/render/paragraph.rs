@@ -42,4 +42,3 @@ pub(crate) fn render_preview_raw_markdown(
 ) -> AnyElement {
     render_preview_paragraph(block, selection_range, base, theme)
 }
-

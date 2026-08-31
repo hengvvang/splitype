@@ -52,4 +52,3 @@ impl GutterLayout {
         format!("{:>width$}", line_num, width = self.digit_count())
     }
 }
-

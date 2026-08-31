@@ -4,10 +4,10 @@ use gpui::*;
 
 use crate::state::state::ExplorerState;
 
-use window::PanelId;
 use config::language::I18nStrings;
 use theme::Theme;
 use ui::empty_state::empty_state_container;
+use window::PanelId;
 
 impl ExplorerState {
     pub(crate) fn render_explorer_empty_state(
@@ -231,4 +231,3 @@ impl ExplorerState {
             .into_any_element()
     }
 }
-

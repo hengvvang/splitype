@@ -105,4 +105,3 @@ fn strip_fence_indent(line: &str) -> Option<&str> {
     let indent = line.bytes().take_while(|b| *b == b' ').count();
     (indent <= 3).then_some(&line[indent..])
 }
-

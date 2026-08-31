@@ -26,14 +26,13 @@ pub(crate) mod table_block;
 pub(crate) mod thematic_break;
 
 use std::ops::Range;
-use std::sync::Arc;
 
 use gpui::*;
 
-use core_contracts::{PaneHost, PaneId, PaneRenderContext};
 use config::language::I18nStrings;
-use theme::Theme;
+use core_contracts::PaneRenderContext;
 use markdown_parser::parse::BlockKind;
+use theme::Theme;
 
 use crate::node::PreviewBlock;
 use crate::state::PreviewState;
@@ -48,7 +47,7 @@ pub fn render_preview_pane(
     theme: &Theme,
     _strings: &I18nStrings,
     window: &mut Window,
-    cx: &App,
+    _cx: &App,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
@@ -63,18 +62,7 @@ pub fn render_preview_pane(
         .map(|(block_index, block)| {
             let selection_range = preview_selection
                 .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
-            render_preview_block(
-                block,
-                block_index,
-                selection_range,
-                0,
-                0,
-                view.pane_id,
-                &view.host,
-                theme,
-                window,
-                cx,
-            )
+            render_preview_block(block, selection_range, 0, 0, theme, window)
         })
         .collect();
     // Footnote definitions are collected out of the body flow and
@@ -84,7 +72,7 @@ pub fn render_preview_pane(
     collect_preview_footnote_definitions(&state.blocks, &mut footnotes);
     if !footnotes.is_empty() {
         block_elements.push(footnote::render_preview_footnotes_section(
-            &footnotes, view.pane_id, &view.host, theme, window, cx,
+            &footnotes, theme, window,
         ));
     }
 
@@ -133,15 +121,11 @@ pub fn render_preview_pane(
 /// the quote guide lines. Container blocks recurse into their children.
 pub(crate) fn render_preview_block(
     block: &PreviewBlock,
-    block_index: usize,
     selection_range: Option<Range<usize>>,
     depth: usize,
     quote_depth: usize,
-    pane_id: PaneId,
-    host: &Arc<dyn PaneHost>,
     theme: &Theme,
     window: &mut Window,
-    cx: &App,
 ) -> AnyElement {
     let d = &theme.dimensions;
     let depth_padding = d.block_padding_x + d.nested_block_indent * depth as f32;
@@ -166,30 +150,53 @@ pub(crate) fn render_preview_block(
         BlockKind::Heading { level } => {
             heading::render_preview_heading(block, level, selection_range.clone(), base, theme)
         }
-        BlockKind::BulletListItem => {
-            list_item::render_preview_bulleted_list_item(block, depth, selection_range.clone(), base, theme)
-        }
-        BlockKind::TaskListItem { checked } => {
-            list_item::render_preview_task_list_item(block, checked, depth, selection_range.clone(), base, theme)
-        }
-        BlockKind::NumberedListItem => {
-            list_item::render_preview_numbered_list_item(block, depth, selection_range.clone(), base, theme)
-        }
-        BlockKind::Blockquote => {
-            blockquote::render_preview_blockquote(block, depth, selection_range.clone(), base, theme)
-        }
-        BlockKind::Callout(variant) => {
-            callout::render_preview_callout(block, variant, depth, selection_range.clone(), base, theme)
-        }
+        BlockKind::BulletListItem => list_item::render_preview_bulleted_list_item(
+            block,
+            depth,
+            selection_range.clone(),
+            base,
+            theme,
+        ),
+        BlockKind::TaskListItem { checked } => list_item::render_preview_task_list_item(
+            block,
+            checked,
+            depth,
+            selection_range.clone(),
+            base,
+            theme,
+        ),
+        BlockKind::NumberedListItem => list_item::render_preview_numbered_list_item(
+            block,
+            depth,
+            selection_range.clone(),
+            base,
+            theme,
+        ),
+        BlockKind::Blockquote => blockquote::render_preview_blockquote(
+            block,
+            depth,
+            selection_range.clone(),
+            base,
+            theme,
+        ),
+        BlockKind::Callout(variant) => callout::render_preview_callout(
+            block,
+            variant,
+            depth,
+            selection_range.clone(),
+            base,
+            theme,
+        ),
         BlockKind::FootnoteDefinition => {
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
         BlockKind::CodeBlock { ref language } => {
             if markdown_parser::block::mermaid::is_mermaid_info_string(language.as_deref()) {
                 mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
-            } else if language.as_deref().map_or(false, |l| {
-                l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
-            }) {
+            } else if language
+                .as_deref()
+                .is_some_and(|l| l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex"))
+            {
                 latex_math::render_preview_latex_math(block, base, theme)
             } else {
                 fenced_code::render_preview_fenced_code(block, base, theme)
@@ -224,15 +231,11 @@ pub(crate) fn render_preview_block(
         .map(|child| {
             render_preview_block(
                 child,
-                block_index,
                 selection_range.clone(),
                 depth + 1,
                 effective_quote_depth,
-                pane_id,
-                host,
                 theme,
                 window,
-                cx,
             )
         })
         .collect();
@@ -335,5 +338,3 @@ pub(crate) fn wrap_with_preview_quote_guides(
         }))
         .into_any_element()
 }
-
-

@@ -1,7 +1,7 @@
 //! Preview pane outline extraction and heading navigation.
 
-use core_contracts::OutlineNode;
 use crate::PreviewState;
+use core_contracts::OutlineNode;
 
 /// Extracts all heading nodes from the serialized Markdown document.
 pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
@@ -78,7 +78,11 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
 }
 
 /// Calculates approximate scroll Y offset for the given outline node in the Preview render tree.
-pub fn calculate_scroll_offset_for_node(state: &PreviewState, node: &OutlineNode, line_height: f32) -> f32 {
+pub fn calculate_scroll_offset_for_node(
+    state: &PreviewState,
+    node: &OutlineNode,
+    line_height: f32,
+) -> f32 {
     let block_count = state.blocks.len().max(1);
     let target_idx = node.block_index.min(block_count.saturating_sub(1));
     (target_idx as f32 * line_height * 2.0).max(0.0)
@@ -128,4 +132,3 @@ mod tests {
         assert_eq!(headings[1].level, 3);
     }
 }
-

@@ -9,10 +9,10 @@ use gpui::*;
 
 use crate::shell::Shell;
 use config::language::I18nStrings;
-use theme::{Theme, ThemeManager};
 use splitter::policy::CornerDragResult;
 use splitter::sessions::CornerDragModifier;
 use splitter::tree::NodeId;
+use theme::{Theme, ThemeManager};
 use ui::corner_drag_preview::render_corner_drag_preview;
 use window::WindowLayout;
 
@@ -166,12 +166,7 @@ impl Shell {
             {
                 return None;
             }
-            render_corner_drag_preview(
-                &self.panels.layout,
-                &drag,
-                body_size,
-                &overlay_style,
-            )
+            render_corner_drag_preview(&self.panels.layout, &drag, body_size, &overlay_style)
         });
         let container = container.children(preview_overlay);
 
@@ -203,11 +198,26 @@ impl Shell {
             CornerDragResult::Split { new_leaf_id, .. } => {
                 self.seed_split_panel(new_leaf_id, cx);
             }
-            CornerDragResult::Join { into_id: _, removed_id } => {
+            CornerDragResult::Join {
+                into_id: _,
+                removed_id,
+            } => {
                 self.handle_joined_panel(removed_id, cx);
             }
-            CornerDragResult::MoveAndDock { source_id, target_id, new_leaf_id, dock_target, .. } => {
-                self.handle_moved_and_docked_panel(source_id, target_id, new_leaf_id, dock_target, cx);
+            CornerDragResult::MoveAndDock {
+                source_id,
+                target_id,
+                new_leaf_id,
+                dock_target,
+                ..
+            } => {
+                self.handle_moved_and_docked_panel(
+                    source_id,
+                    target_id,
+                    new_leaf_id,
+                    dock_target,
+                    cx,
+                );
             }
             CornerDragResult::Swap { a, b } => {
                 self.handle_swapped_panels(a, b, cx);

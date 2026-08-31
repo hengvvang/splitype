@@ -282,9 +282,11 @@ impl BlockText {
     /// express either per run. Once focused the text element takes over for
     /// editing, so both layouts must agree on line height to avoid a jump.
     pub fn has_mixed_inline_visuals(&self) -> bool {
-        self.fragments
-            .iter()
-            .any(|fragment| fragment.math().is_some() || fragment.footnote().is_some() || fragment.style.has_script())
+        self.fragments.iter().any(|fragment| {
+            fragment.math().is_some()
+                || fragment.footnote().is_some()
+                || fragment.style.has_script()
+        })
     }
 
     pub fn has_footnote_references(&self) -> bool {
@@ -732,5 +734,3 @@ impl BlockText {
         self.fragments = normalized;
     }
 }
-
-

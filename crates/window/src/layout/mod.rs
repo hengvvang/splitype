@@ -1,13 +1,26 @@
 //! Window layout tree and panel identifiers.
 
+use crate::panel::PanelKind;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use splitter::root::SplitterRoot;
 use splitter::tree::NodeId;
-use crate::panel::PanelKind;
 
 /// Strongly-typed identifier representing a top-level window panel tile.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Default,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+)]
 #[serde(transparent)]
 pub struct PanelId(pub NodeId);
 

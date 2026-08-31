@@ -986,9 +986,9 @@ impl core_contracts::PaneView for SourceCodeState {
 
         let outline_host: Arc<dyn core_contracts::OutlineHost> =
             Arc::new(core_contracts::PaneOutlineHost {
-            pane_id: ctx.pane_id,
-            host: ctx.host.clone(),
-        });
+                pane_id: ctx.pane_id,
+                host: ctx.host.clone(),
+            });
         let outline_hud = core_contracts::render_floating_outline_hud(
             ctx.pane_id.0,
             &self.outline_headings(cx),

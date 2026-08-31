@@ -1,8 +1,8 @@
 //! Native menu bar construction — the platform menu tree for the active
 //! theme, language pack, and recent-file history.
 
-use std::path::PathBuf;
 use gpui::*;
+use std::path::PathBuf;
 
 use crate::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
@@ -12,11 +12,11 @@ use crate::actions::{
 };
 #[cfg(target_os = "macos")]
 use crate::actions::{InstallCliTool, UninstallCliTool};
-use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use config::language::I18nManager;
-use theme::ThemeManager;
+use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 #[cfg(target_os = "macos")]
 use splitype_installer::cli_tool::is_cli_symlink_current_app;
+use theme::ThemeManager;
 
 pub(super) fn build_menus(
     theme_manager: &ThemeManager,

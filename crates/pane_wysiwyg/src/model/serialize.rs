@@ -3,12 +3,12 @@
 use gpui::*;
 
 use super::Document;
-use crate::model::block::Block;
 use crate::markdown::block::CalloutKind;
 use crate::markdown::block::image::parse_standalone_image;
 use crate::markdown::block::table::serialize_table_markdown_lines;
 use crate::markdown::parse::BlockKind;
 pub use crate::markdown::parse::fence::safe_code_fence_with_info;
+use crate::model::block::Block;
 
 impl Document {
     pub fn serialize_markdown(&self, cx: &App) -> String {
@@ -234,6 +234,3 @@ impl Document {
         }
     }
 }
-
-
-

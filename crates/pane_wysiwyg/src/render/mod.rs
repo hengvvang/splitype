@@ -22,9 +22,9 @@ pub const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 use crate::model::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
 
+use crate::markdown::parse::BlockKind;
 use config::language::I18nManager;
 use theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::markdown::parse::BlockKind;
 
 fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme) -> AnyElement {
     if quote_depth == 0 {
@@ -122,11 +122,16 @@ impl Block {
             .min_w(px(0.0))
             .flex_shrink_0()
             .min_h(px(dimensions.block_min_height))
-            .py(if matches!(self.kind(), BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock) {
-                px(0.0)
-            } else {
-                px(dimensions.block_padding_y)
-            })
+            .py(
+                if matches!(
+                    self.kind(),
+                    BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock
+                ) {
+                    px(0.0)
+                } else {
+                    px(dimensions.block_padding_y)
+                },
+            )
             .pl(px(padding_left))
             .pr(px(padding_right))
             .cursor(cursor_style);
@@ -196,8 +201,10 @@ impl Render for Block {
                 .unwrap_or(false);
             // The header row is only styled distinctly (shaded background, medium
             // weight) when the show-table-headers preference is enabled.
-            let style_as_header =
-                is_header && config::settings::SettingsStore::get(cx).markdown.show_table_headers;
+            let style_as_header = is_header
+                && config::settings::SettingsStore::get(cx)
+                    .markdown
+                    .show_table_headers;
             let base_bg = if style_as_header {
                 c.table_header_bg
             } else {
@@ -319,9 +326,13 @@ impl Render for Block {
                 .line_height(rems(t.text_line_height));
 
             let source_base = if self.kind() == BlockKind::HtmlComment {
-                source_base.bg(c.comment_bg).rounded(px(d.code_block_radius))
+                source_base
+                    .bg(c.comment_bg)
+                    .rounded(px(d.code_block_radius))
             } else if focused {
-                source_base.bg(c.source_mode_block_bg).rounded(px(d.code_block_radius))
+                source_base
+                    .bg(c.source_mode_block_bg)
+                    .rounded(px(d.code_block_radius))
             } else {
                 source_base
             };
@@ -487,7 +498,7 @@ impl Render for Block {
                         window,
                         cx,
                     )
-                } else if language.as_deref().map_or(false, |l| {
+                } else if language.as_deref().is_some_and(|l| {
                     l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
                 }) {
                     render_latex_math(
@@ -570,6 +581,3 @@ pub fn inline_word_chunks(text: &str, code: bool, has_background: bool) -> Vec<&
     }
     text.split_inclusive(char::is_whitespace).collect()
 }
-
-
-

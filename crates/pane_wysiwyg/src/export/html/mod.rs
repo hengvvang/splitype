@@ -8,7 +8,3 @@ pub use document::{
     contains_tibetan_text, render_chromium_pdf_html_with_base_dir, render_html,
     render_html_with_base_dir,
 };
-
-
-
-

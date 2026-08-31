@@ -65,4 +65,3 @@ impl Selection {
         self.head < self.anchor
     }
 }
-

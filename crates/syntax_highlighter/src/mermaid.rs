@@ -47,7 +47,6 @@ pub fn render_mermaid_svg_for_display(
     render_mermaid_svg_for_display_with(source, available_width, viewport_width, render_mermaid_raw)
 }
 
-
 fn render_mermaid_svg_for_display_with(
     source: &MermaidSource,
     available_width: f32,
@@ -131,8 +130,7 @@ fn render_mermaid_to_svg_cached_with(
     Ok(svg)
 }
 
-const CROSS_PLATFORM_MERMAID_FONT_STACK: &str =
-    r#""Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif"#;
+const CROSS_PLATFORM_MERMAID_FONT_STACK: &str = r#""Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif"#;
 
 fn inject_cjk_font_family(svg: &str) -> String {
     svg.replace(
@@ -147,10 +145,7 @@ fn inject_cjk_font_family(svg: &str) -> String {
         "\"Segoe UI\", sans-serif",
         CROSS_PLATFORM_MERMAID_FONT_STACK,
     )
-    .replace(
-        "'Segoe UI', sans-serif",
-        CROSS_PLATFORM_MERMAID_FONT_STACK,
-    )
+    .replace("'Segoe UI', sans-serif", CROSS_PLATFORM_MERMAID_FONT_STACK)
 }
 
 fn render_mermaid_raw(source: &str) -> anyhow::Result<String> {
@@ -526,5 +521,3 @@ fn looks_like_supported_mermaid_source(source: &str) -> bool {
     }
     false
 }
-
-

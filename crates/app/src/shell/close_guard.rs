@@ -40,13 +40,15 @@ impl Shell {
         (dirty, first_name.unwrap_or_else(|| "Untitled".to_string()))
     }
 
-    pub(crate) fn first_dirty_panel(&mut self, cx: &mut Context<Self>) -> Option<(PanelId, String)> {
+    pub(crate) fn first_dirty_panel(
+        &mut self,
+        cx: &mut Context<Self>,
+    ) -> Option<(PanelId, String)> {
         for (panel_id, retained) in &self.retained_panel_states {
             let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind) else {
                 continue;
             };
-            let (dirty, first_name) =
-                descriptor.retained_dirty_info(retained.state.as_ref(), cx);
+            let (dirty, first_name) = descriptor.retained_dirty_info(retained.state.as_ref(), cx);
             if dirty {
                 return Some((
                     *panel_id,
@@ -67,9 +69,7 @@ impl Shell {
     }
 
     pub(crate) fn has_unsaved_changes(&self, cx: &App) -> bool {
-        self.panel_views
-            .values()
-            .any(|panel| panel.is_dirty(cx))
+        self.panel_views.values().any(|panel| panel.is_dirty(cx))
     }
 
     pub(crate) fn prompt_close_window(&mut self, cx: &mut Context<Self>) {

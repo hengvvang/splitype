@@ -128,5 +128,3 @@ fn roman_unicode_token(remaining: &str) -> Option<(usize, &'static str)> {
             .then_some((ascii.len(), *unicode))
     })
 }
-
-

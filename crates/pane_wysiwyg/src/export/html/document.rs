@@ -42,7 +42,6 @@ pub fn render_chromium_pdf_html_with_base_dir(
     )
 }
 
-
 fn render_html_document(
     markdown: &str,
     theme: &Theme,
@@ -93,6 +92,3 @@ pub fn contains_tibetan_text(text: &str) -> bool {
     text.chars()
         .any(|ch| ('\u{0f00}'..='\u{0fff}').contains(&ch))
 }
-
-
-

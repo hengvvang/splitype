@@ -198,4 +198,3 @@ pub struct ThemeColors {
     /// Explorer panel row selection background (light blue).
     pub panel_row_selected: Hsla,
 }
-

@@ -23,7 +23,6 @@ use std::time::Duration;
 
 use gpui::*;
 
-
 use crate::state::state::*;
 use crate::state::undo::{ExplorerChange, explorer_change_destination};
 use crate::state::utils::{execute_entry_ops, explorer_is_copy_modifier};
@@ -190,11 +189,7 @@ impl ExplorerState {
         if !self.explorer_handle_drag_move(event, window, cx) {
             return;
         }
-        if self
-            .drag_target
-            .and_then(|t| t.entry_id())
-            .is_none()
-        {
+        if self.drag_target.and_then(|t| t.entry_id()).is_none() {
             self.drag_target = Some(DragExplorerTarget::Background);
             cx.refresh_windows();
         }
@@ -214,10 +209,7 @@ impl ExplorerState {
         if !self.explorer_handle_drag_move(event, window, cx) {
             return;
         }
-        if self
-            .drag_target
-            .and_then(|t| t.entry_id())
-            .is_none()
+        if self.drag_target.and_then(|t| t.entry_id()).is_none()
             && self.explorer_should_highlight_background(event.drag(cx))
         {
             self.drag_target = Some(DragExplorerTarget::Background);
@@ -286,10 +278,8 @@ impl ExplorerState {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let is_current_target = self
-            .drag_target
-            .and_then(|target| target.entry_id())
-            == Some(entry_id);
+        let is_current_target =
+            self.drag_target.and_then(|target| target.entry_id()) == Some(entry_id);
         if !event.bounds.contains(&event.event.position) {
             if is_current_target {
                 self.drag_target = None;
@@ -442,11 +432,10 @@ impl ExplorerState {
                     .iter()
                     .position(|snap| snap.path_for_id.contains_key(&entry_id))
                     .unwrap_or(0);
-                if let Some(from) = self
-                    .snapshots
-                    .iter()
-                    .position(|snap| snap.root_entry().is_some_and(|e| e.id == selection.entry_id))
-                {
+                if let Some(from) = self.snapshots.iter().position(|snap| {
+                    snap.root_entry()
+                        .is_some_and(|e| e.id == selection.entry_id)
+                }) {
                     self.move_explorer_worktree(from, to, cx);
                 }
             }
@@ -484,11 +473,10 @@ impl ExplorerState {
         let last_index = self.worktrees.len().saturating_sub(1);
         for selection in &payload.selections {
             if self.is_explorer_root_entry(selection.entry_id) {
-                if let Some(from) = self
-                    .snapshots
-                    .iter()
-                    .position(|snap| snap.root_entry().is_some_and(|e| e.id == selection.entry_id))
-                {
+                if let Some(from) = self.snapshots.iter().position(|snap| {
+                    snap.root_entry()
+                        .is_some_and(|e| e.id == selection.entry_id)
+                }) {
                     self.move_explorer_worktree(from, last_index, cx);
                 }
             }
@@ -644,7 +632,7 @@ impl ExplorerState {
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&paths, &target_dir, is_cut, disambiguate) })
                 .await;
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 ExplorerState::update(cx, |state, cx| {
                     state.clear_explorer_drag(cx);
                     if changes.len() > 1 {
@@ -735,4 +723,3 @@ impl Render for DraggedExplorerEntryView {
             )
     }
 }
-

@@ -19,6 +19,7 @@ pub mod table;
 pub use builder::*;
 pub use model::*;
 pub use net::install_http_client;
+pub use plugin::WysiwygPaneState;
 pub use plugin::actions;
 pub use plugin::actions::*;
 pub use plugin::outline;
@@ -27,13 +28,7 @@ pub use plugin::search;
 pub use plugin::search::*;
 pub use plugin::state;
 pub use plugin::state::*;
-pub use plugin::WysiwygPaneState;
 pub use render::presentation;
 pub use syntax::language as code_language;
 pub use syntax::{highlight, language, latex, markdown, mermaid};
 pub use table::*;
-
-
-
-
-

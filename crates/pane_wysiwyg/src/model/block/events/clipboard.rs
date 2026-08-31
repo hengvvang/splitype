@@ -3,11 +3,11 @@
 
 use gpui::*;
 
+use crate::input::paste::plain::should_split_plain_multiline_paste;
+use crate::markdown::inline::text::BlockText;
+use crate::model::block::Block;
 use crate::model::protocol::{BlockEvent, PastedImageSource, UndoCaptureKind};
 use window::actions::{Copy, Cut, Paste};
-use crate::input::paste::plain::should_split_plain_multiline_paste;
-use crate::model::block::Block;
-use crate::markdown::inline::text::BlockText;
 impl Block {
     pub fn pasted_image_source_from_clipboard(item: &ClipboardItem) -> Option<PastedImageSource> {
         item.entries().iter().find_map(|entry| match entry {
@@ -175,6 +175,3 @@ impl Block {
         }
     }
 }
-
-
-

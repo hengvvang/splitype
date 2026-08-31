@@ -58,4 +58,3 @@ pub fn find_matching_bracket(text: &str, cursor_offset: usize) -> Option<usize> 
 fn is_bracket(b: u8) -> bool {
     matches!(b, b'(' | b')' | b'[' | b']' | b'{' | b'}')
 }
-

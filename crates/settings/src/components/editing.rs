@@ -2,12 +2,13 @@
 
 use gpui::*;
 
-use theme::{ThemeColors, ThemeDimensions};
 use crate::components::font_picker::{SearchableFontPickerProps, render_searchable_font_picker};
 use crate::components::number_field::{NumberFieldProps, render_number_field};
 use crate::ui_helpers::{
-    SettingsClickHandler, make_row, make_row_with_reset, make_section,
+    SettingsClickHandler, SettingsKeyHandler, SettingsOptionHandler, SettingsSearchHandler,
+    make_row, make_row_with_reset, make_section,
 };
+use theme::{ThemeColors, ThemeDimensions};
 use ui::switch::Switch;
 
 pub(crate) struct TypographyProps {
@@ -15,24 +16,24 @@ pub(crate) struct TypographyProps {
     pub is_ui_font_open: bool,
     pub search_query_ui_font: String,
     pub on_toggle_ui_font: SettingsClickHandler,
-    pub on_search_ui_font: Box<dyn Fn(String, &mut Window, &mut App)>,
-    pub on_select_ui_font: Box<dyn Fn(String) -> SettingsClickHandler>,
+    pub on_search_ui_font: SettingsSearchHandler,
+    pub on_select_ui_font: SettingsOptionHandler<String>,
     pub on_reset_ui_font: Option<SettingsClickHandler>,
 
     pub prose_font_name: String,
     pub is_prose_font_open: bool,
     pub search_query_prose_font: String,
     pub on_toggle_prose_font: SettingsClickHandler,
-    pub on_search_prose_font: Box<dyn Fn(String, &mut Window, &mut App)>,
-    pub on_select_prose_font: Box<dyn Fn(String) -> SettingsClickHandler>,
+    pub on_search_prose_font: SettingsSearchHandler,
+    pub on_select_prose_font: SettingsOptionHandler<String>,
     pub on_reset_prose_font: Option<SettingsClickHandler>,
 
     pub code_font_name: String,
     pub is_code_font_open: bool,
     pub search_query_code_font: String,
     pub on_toggle_code_font: SettingsClickHandler,
-    pub on_search_code_font: Box<dyn Fn(String, &mut Window, &mut App)>,
-    pub on_select_code_font: Box<dyn Fn(String) -> SettingsClickHandler>,
+    pub on_search_code_font: SettingsSearchHandler,
+    pub on_select_code_font: SettingsOptionHandler<String>,
     pub on_reset_code_font: Option<SettingsClickHandler>,
 
     pub available_fonts: Vec<SharedString>,
@@ -43,8 +44,8 @@ pub(crate) struct TypographyProps {
     pub font_size_focus_handle: FocusHandle,
     pub on_font_dec: SettingsClickHandler,
     pub on_font_inc: SettingsClickHandler,
-    pub on_start_edit_font_size: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
-    pub on_key_down_font_size: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
+    pub on_start_edit_font_size: SettingsClickHandler,
+    pub on_key_down_font_size: SettingsKeyHandler,
     pub on_reset_font_size: Option<SettingsClickHandler>,
 
     pub line_height: f32,
@@ -53,8 +54,8 @@ pub(crate) struct TypographyProps {
     pub line_height_focus_handle: FocusHandle,
     pub on_lh_dec: SettingsClickHandler,
     pub on_lh_inc: SettingsClickHandler,
-    pub on_start_edit_line_height: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
-    pub on_key_down_line_height: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
+    pub on_start_edit_line_height: SettingsClickHandler,
+    pub on_key_down_line_height: SettingsKeyHandler,
     pub on_reset_line_height: Option<SettingsClickHandler>,
 }
 
@@ -228,8 +229,8 @@ pub(crate) struct EditorBehaviorProps {
     pub tab_size_focus_handle: FocusHandle,
     pub on_tab_size_dec: SettingsClickHandler,
     pub on_tab_size_inc: SettingsClickHandler,
-    pub on_start_edit_tab_size: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
-    pub on_key_down_tab_size: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
+    pub on_start_edit_tab_size: SettingsClickHandler,
+    pub on_key_down_tab_size: SettingsKeyHandler,
     pub on_reset_tab_size: Option<SettingsClickHandler>,
 
     pub insert_spaces: bool,
@@ -341,7 +342,13 @@ pub(crate) fn render_editor_behavior_section(
         ));
     }
 
-    make_section(c, d, id, "Editor Behaviors & Indentation", expanded, toggle_fn, rows)
+    make_section(
+        c,
+        d,
+        id,
+        "Editor Behaviors & Indentation",
+        expanded,
+        toggle_fn,
+        rows,
+    )
 }
-
-

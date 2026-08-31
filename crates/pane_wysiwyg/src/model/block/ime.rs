@@ -9,10 +9,10 @@ use std::ops::Range;
 
 use gpui::*;
 
+use crate::markdown::inline::offsets::ImeConverter;
+use crate::model::block::Block;
 use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::render::text_layout as element;
-use crate::model::block::Block;
-use crate::markdown::inline::offsets::ImeConverter;
 
 impl EntityInputHandler for Block {
     fn text_for_range(
@@ -130,9 +130,17 @@ impl EntityInputHandler for Block {
             && display_range.end <= display_text.len();
         if is_plain_selection {
             let selected_slice = &display_text[display_range.clone()];
-            if let Some((wrapped, inner_start, inner_end)) = wrap_selection_pair(selected_slice, new_text) {
+            if let Some((wrapped, inner_start, inner_end)) =
+                wrap_selection_pair(selected_slice, new_text)
+            {
                 let relative_sel = Some(inner_start..inner_end);
-                self.replace_text_in_display_range(display_range, &wrapped, relative_sel, false, cx);
+                self.replace_text_in_display_range(
+                    display_range,
+                    &wrapped,
+                    relative_sel,
+                    false,
+                    cx,
+                );
                 return;
             }
         }
@@ -294,5 +302,3 @@ pub fn wrap_selection_pair(selected: &str, input: &str) -> Option<(String, usize
         _ => None,
     }
 }
-
-

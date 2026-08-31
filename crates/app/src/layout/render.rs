@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::shell::Shell;
 use config::language::I18nStrings;
-use theme::Theme;
 use splitter::tree::{NodeId, SplitAxis, SplitTree};
+use theme::Theme;
 
 impl Shell {
     pub(crate) fn render_window_panel_node(
@@ -54,10 +54,22 @@ impl Shell {
                 let r = *ratio;
 
                 let first_elem = self.render_window_panel_node(
-                    first, theme, strings, leaf_count, leaf_bounds, window, cx,
+                    first,
+                    theme,
+                    strings,
+                    leaf_count,
+                    leaf_bounds,
+                    window,
+                    cx,
                 );
                 let second_elem = self.render_window_panel_node(
-                    second, theme, strings, leaf_count, leaf_bounds, window, cx,
+                    second,
+                    theme,
+                    strings,
+                    leaf_count,
+                    leaf_bounds,
+                    window,
+                    cx,
                 );
 
                 match axis {

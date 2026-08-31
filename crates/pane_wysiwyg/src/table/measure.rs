@@ -10,10 +10,10 @@
 
 use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
-use theme::Theme;
 use crate::markdown::block::table::{TableColumnLayout, TableData};
 use crate::markdown::inline::render_cache::InlineRenderCache;
 use crate::markdown::inline::text::BlockText;
+use theme::Theme;
 
 /// Measure preferred column widths with the window's text system and
 /// normalize them to fractions of the available table width.
@@ -152,5 +152,3 @@ fn cell_chrome_width(theme: &Theme) -> Pixels {
 fn minimum_column_width(theme: &Theme) -> f32 {
     theme.dimensions.table_cell_padding_x * 2.0 + theme.typography.text_size * 4.0 + 2.0
 }
-
-

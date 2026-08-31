@@ -16,4 +16,3 @@ fn main() {
     let args = splitype_cli::parse();
     app::bootstrap::run(args);
 }
-

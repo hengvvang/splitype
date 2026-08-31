@@ -1,9 +1,9 @@
 //! Unit tests for pane_source_code buffer, coordinates, selections, and display maps.
 
+use crate::SourceCodeState;
 use crate::buffer::{BufferPoint, LineMap};
 use crate::display_map::{FoldMap, FoldRange, TabMap};
 use crate::selection::SelectionsCollection;
-use crate::SourceCodeState;
 
 #[test]
 fn rebuild_lines_computes_accurate_byte_ranges() {
@@ -66,7 +66,10 @@ fn fold_map_markdown_discovery_and_projection() {
     assert_eq!(folds.len(), 2);
 
     let mut fold_map = FoldMap::new();
-    fold_map.fold(FoldRange { start_row: 0, end_row: 2 });
+    fold_map.fold(FoldRange {
+        start_row: 0,
+        end_row: 2,
+    });
 
     assert_eq!(fold_map.visible_line_count(5), 3);
     assert_eq!(fold_map.buffer_row_to_visible_row(0), 0);
@@ -120,5 +123,3 @@ fn multibyte_utf8_chinese_offset_conversions() {
     state.insert_text("Rust");
     assert_eq!(state.text, "你好Rust，世界。\n这是一个测试。");
 }
-
-

@@ -31,5 +31,3 @@ impl NormalizedCrossBlockSelection {
         self.block_index_range().contains(&index)
     }
 }
-
-

@@ -166,8 +166,10 @@ impl Worktree {
     ) -> Entity<Self> {
         let root_id = ExplorerEntryId(next_entry_id.fetch_add(1, Ordering::SeqCst));
         cx.new(|cx| {
-            let mut snapshot = WorktreeSnapshot::default();
-            snapshot.worktree_id = id;
+            let snapshot = WorktreeSnapshot {
+                worktree_id: id,
+                ..Default::default()
+            };
             let mut this = Self {
                 id,
                 root,
@@ -234,7 +236,7 @@ impl Worktree {
         let hide_hidden = self.hide_hidden;
         let root_id = self.root_id;
         let weak = self.self_weak.clone();
-        let window_handle = self.window_handle.clone();
+        let window_handle = self.window_handle;
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             let scanned = cx
                 .background_executor()
@@ -292,11 +294,11 @@ impl Worktree {
             match &window_handle {
                 Some(handle) => {
                     let _ = handle.update(cx, |_view, _window, cx| {
-                        let _ = weak.update(cx, |this, cx| run(this, cx));
+                        let _ = weak.update(cx, run);
                     });
                 }
                 None => {
-                    let _ = weak.update(cx, |this, cx| run(this, cx));
+                    let _ = weak.update(cx, run);
                 }
             }
         });
@@ -312,7 +314,7 @@ impl Worktree {
         {
             let root = self.root.clone();
             let weak = self.self_weak.clone();
-            let window_handle = self.window_handle.clone();
+            let window_handle = self.window_handle;
             let task = cx.spawn(async move |cx: &mut AsyncApp| {
                 let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
                 let mut watcher =
@@ -355,7 +357,7 @@ impl Worktree {
             return;
         }
         let weak = self.self_weak.clone();
-        let window_handle = self.window_handle.clone();
+        let window_handle = self.window_handle;
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             cx.background_executor()
                 .timer(std::time::Duration::from_millis(250))
@@ -577,4 +579,3 @@ fn assign_stable_ids(
     }
     out.entries_by_path = std::mem::take(new_entries);
 }
-

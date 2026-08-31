@@ -7,17 +7,13 @@
 
 use gpui::*;
 
-use window::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
+use window::PanelId;
 
 /// Bottom bar of a Settings area. Renders the shared bar shell with no
 /// content yet, so the area keeps the same layout as Editor / Explorer.
-pub fn render_settings_bottombar(
-    panel_id: PanelId,
-    theme: &Theme,
-    _cx: &mut App,
-) -> AnyElement {
+pub fn render_settings_bottombar(panel_id: PanelId, theme: &Theme, _cx: &mut App) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
 
@@ -25,4 +21,3 @@ pub fn render_settings_bottombar(
         .id(("settings-bottombar", panel_id.0))
         .into_any_element()
 }
-

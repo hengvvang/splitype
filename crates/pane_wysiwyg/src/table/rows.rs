@@ -37,5 +37,3 @@ pub fn insert_table_row_at(table: &mut TableData, visual_row: usize) {
 pub fn duplicate_table_row(table: &mut TableData, visual_row: usize) {
     table.duplicate_row(visual_row);
 }
-
-

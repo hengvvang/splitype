@@ -44,5 +44,3 @@ impl BlockEditMode {
         matches!(self, Self::RenderedRich)
     }
 }
-
-

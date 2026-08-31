@@ -1,7 +1,7 @@
 //! Rich keyboard input handling for SourceCode editor.
 
-use gpui::*;
 use core_contracts::PaneHost;
+use gpui::*;
 
 use crate::state::SourceCodeState;
 

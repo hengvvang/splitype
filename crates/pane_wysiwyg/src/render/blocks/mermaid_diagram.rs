@@ -72,5 +72,3 @@ pub fn render_mermaid_diagram(
             .into_any_element()
     }
 }
-
-

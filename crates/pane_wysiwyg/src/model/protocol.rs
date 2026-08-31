@@ -141,9 +141,7 @@ pub enum BlockEvent {
         position: Point<Pixels>,
     },
     /// Open the table size matrix picker from the bottom-right corner control.
-    RequestOpenTableSizePicker {
-        position: Point<Pixels>,
-    },
+    RequestOpenTableSizePicker { position: Point<Pixels> },
     /// Reorder a native table row or column by swapping positions.
     RequestReorderTableAxis {
         kind: TableAxis,
@@ -151,10 +149,7 @@ pub enum BlockEvent {
         to: usize,
     },
     /// Insert a table row or column at a specific boundary index.
-    RequestInsertTableAxisAt {
-        kind: TableAxis,
-        index: usize,
-    },
+    RequestInsertTableAxisAt { kind: TableAxis, index: usize },
     /// Cursor reached the top of this block; move focus to the previous
     /// visible block, preserving the preferred horizontal position.
     RequestFocusPrevious { preferred_x: Option<f32> },
@@ -264,6 +259,3 @@ pub enum UndoCaptureKind {
     /// Structural or discrete edits that always form their own undo entry.
     NonCoalescible,
 }
-
-
-

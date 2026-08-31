@@ -10,15 +10,12 @@ pub use quote::*;
 
 use gpui::{App, AppContext, Entity};
 
-use crate::model::block::Block;
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockKind};
+use crate::model::block::Block;
 
 /// Build one paragraph block per non-empty physical line.
-pub fn build_plain_paste_blocks_from_lines(
-    lines: &[String],
-    cx: &mut App,
-) -> Vec<Entity<Block>> {
+pub fn build_plain_paste_blocks_from_lines(lines: &[String], cx: &mut App) -> Vec<Entity<Block>> {
     let mut blocks = lines
         .iter()
         .filter(|line| !line.trim().is_empty())
@@ -43,5 +40,3 @@ pub fn build_plain_paste_blocks_from_lines(
 
     blocks
 }
-
-

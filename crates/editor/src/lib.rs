@@ -19,10 +19,8 @@ pub use plugin::*;
 pub use actions::defs as action_defs;
 pub use actions::defs::*;
 pub use actions::edit::*;
+pub use editor::Editor;
 pub use editor::export::ExportFormat;
 pub use editor::host_bridge::*;
-pub use editor::Editor;
 pub use navigation::{NavigationExecutionPlan, NavigationIntent, NavigationTarget};
 pub use session::*;
-
-

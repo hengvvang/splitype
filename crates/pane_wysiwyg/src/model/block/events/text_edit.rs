@@ -7,14 +7,14 @@
 
 use gpui::*;
 
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::actions::{
     Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward,
     WordDeleteForward,
 };
-use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::BlockKind;
+use crate::model::block::{Block, CollapsedCaretAffinity};
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 impl Block {
     pub fn is_leaf_quote(&self) -> bool {
         self.kind() == BlockKind::Blockquote
@@ -455,6 +455,3 @@ impl Block {
         cx.stop_propagation();
     }
 }
-
-
-

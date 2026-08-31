@@ -34,4 +34,3 @@ pub use tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
 
 #[cfg(test)]
 mod splitter_tests;
-

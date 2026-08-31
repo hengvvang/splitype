@@ -43,4 +43,3 @@ fn is_cjk_char(ch: char) -> bool {
         | 0xAC00..=0xD7AF
     )
 }
-

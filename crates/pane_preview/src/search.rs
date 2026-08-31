@@ -1,7 +1,7 @@
 //! Preview pane search matching and highlight navigation.
 
-use core_contracts::{SearchMatch, SearchQuery};
 use crate::PreviewState;
+use core_contracts::{SearchMatch, SearchQuery};
 
 /// Searches within the Markdown text source of the Preview pane.
 pub fn search_in_preview(markdown: &str, query: &SearchQuery) -> Vec<SearchMatch> {
@@ -27,7 +27,11 @@ pub fn search_in_preview(markdown: &str, query: &SearchQuery) -> Vec<SearchMatch
 }
 
 /// Calculates scroll Y offset to center the matched line/block in Preview.
-pub fn calculate_scroll_offset_for_match(state: &PreviewState, match_item: &SearchMatch, line_height: f32) -> f32 {
+pub fn calculate_scroll_offset_for_match(
+    state: &PreviewState,
+    match_item: &SearchMatch,
+    line_height: f32,
+) -> f32 {
     let line_number = match_item.line_number.saturating_sub(1);
     let block_count = state.blocks.len().max(1);
     let target_idx = line_number.min(block_count.saturating_sub(1));
@@ -48,4 +52,3 @@ mod tests {
         assert_eq!(matches[1].line_number, 3);
     }
 }
-

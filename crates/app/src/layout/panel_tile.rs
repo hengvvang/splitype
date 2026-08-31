@@ -157,38 +157,38 @@ impl Shell {
                     .into_iter()
                     .enumerate()
                     .map(|(idx, desc)| {
-                let kind_id = desc.kind();
-                let is_current = kind_id == current_kind;
-                let option_shell = shell.clone();
-                let display_name = desc.display_name();
-                menu_item(("panel-type-opt", idx), c, d)
-                    .w_full()
-                    .justify_between()
-                    .bg(if is_current {
-                        c.panel_row_selected
-                    } else {
-                        c.dialog_surface
-                    })
-                    .text_size(px(d.menu_text_size))
-                    .font_weight(t.dialog_button_weight.to_font_weight())
-                    .text_color(c.dialog_secondary_button_text)
-                    .child(display_name)
-                    .child(if is_current {
-                        svg()
-                            .path(panel_topbar_icon(current_kind, "check"))
-                            .size(px(13.0))
-                            .text_color(c.dialog_primary_button_bg)
+                        let kind_id = desc.kind();
+                        let is_current = kind_id == current_kind;
+                        let option_shell = shell.clone();
+                        let display_name = desc.display_name();
+                        menu_item(("panel-type-opt", idx), c, d)
+                            .w_full()
+                            .justify_between()
+                            .bg(if is_current {
+                                c.panel_row_selected
+                            } else {
+                                c.dialog_surface
+                            })
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_button_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
+                            .child(display_name)
+                            .child(if is_current {
+                                svg()
+                                    .path(panel_topbar_icon(current_kind, "check"))
+                                    .size(px(13.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |_event, _window, cx| {
+                                let _ = option_shell.update(cx, |shell, cx| {
+                                    shell.change_panel_kind(leaf_id, kind_id, cx);
+                                    cx.notify();
+                                });
+                            })
                             .into_any_element()
-                    } else {
-                        div().w(px(13.0)).into_any_element()
-                    })
-                    .on_click(move |_event, _window, cx| {
-                        let _ = option_shell.update(cx, |shell, cx| {
-                            shell.change_panel_kind(leaf_id, kind_id, cx);
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element()
                     }),
             )
             .into_any_element()

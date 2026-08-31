@@ -131,7 +131,10 @@ mod tests {
         let parsed = parse_from(&args(&["C:\\docs\\a.md", "relative.md"]));
         assert_eq!(
             parsed.input_paths,
-            vec![PathBuf::from("C:\\docs\\a.md"), PathBuf::from("relative.md")]
+            vec![
+                PathBuf::from("C:\\docs\\a.md"),
+                PathBuf::from("relative.md")
+            ]
         );
     }
 }

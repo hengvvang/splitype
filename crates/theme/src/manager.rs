@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use gpui::{App, BorrowAppContext, Global};
 
-
 use config::dirs::SplitypeConfigDirs;
 use config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
@@ -38,7 +37,6 @@ impl Default for ThemeManager {
         }
     }
 }
-
 
 impl ThemeManager {
     /// Installs a specific theme into GPUI's global state.
@@ -204,7 +202,6 @@ impl ThemeManager {
     }
 }
 
-
 /// Apply configured theme live and persist in `SettingsStore`.
 pub fn apply_configured_theme(cx: &mut gpui::App, theme_id: &str) -> anyhow::Result<bool> {
     let mut applied = false;
@@ -243,8 +240,8 @@ pub fn import_theme_config_and_select(
 #[cfg(test)]
 mod tests {
     use super::ThemeManager;
-    use config::dirs::SplitypeConfigDirs;
     use crate::Theme;
+    use config::dirs::SplitypeConfigDirs;
 
     use gpui::rgba;
 

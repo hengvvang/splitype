@@ -5,12 +5,16 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::model::protocol::BlockEvent;
-use crate::model::block::{Block, TableHoverRegion};
 use crate::markdown::parse::BlockKind;
+use crate::model::block::{Block, TableHoverRegion};
+use crate::model::protocol::BlockEvent;
 
 impl Block {
-    pub fn schedule_table_append_column_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn schedule_table_append_column_close(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if !self.table_interaction.column_append.is_active {
             return;
         }
@@ -184,6 +188,3 @@ impl Block {
         }
     }
 }
-
-
-

@@ -4,21 +4,19 @@ use gpui::*;
 
 use crate::ExplorerState;
 
-use window::PanelId;
 use crate::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
-    ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry,
-    file_type_icon,
+    ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry, file_type_icon,
 };
 use theme::Theme;
+use window::PanelId;
 
 impl ExplorerState {
     /// The path whose highlight extends to all of its descendants during a
     /// drag (the highlight target of the current drag, if any).
     pub(crate) fn explorer_drag_highlight_path(&self) -> Option<PathBuf> {
-        self
-            .drag_target
+        self.drag_target
             .and_then(|target| target.highlight_entry_id())
             .and_then(|id| self.explorer_entry_by_id(id))
             .map(|entry| entry.path.clone())
@@ -180,17 +178,17 @@ impl ExplorerState {
                     .child(entry.label.clone()),
             )
             .on_mouse_down(MouseButton::Right, {
-                let right_click_selection = mark_selection.clone();
+                let right_click_selection = mark_selection;
                 move |event, _window, cx| {
                     let path = right_click_path.clone();
                     let is_dir = right_click_is_dir;
-                    let selection = right_click_selection.clone();
+                    let selection = right_click_selection;
                     ExplorerState::update(cx, |state, cx| {
                         // Right-click selects the row (indicator feedback,
                         // mirroring Zed's deploy_context_menu); marked
                         // entries are cleared when the target is not one of
                         // them, so menu actions never surprise multi-selects.
-                        state.selected = Some(selection.clone());
+                        state.selected = Some(selection);
                         if !state.marked.contains(&selection) {
                             state.marked.clear();
                         }
@@ -204,7 +202,7 @@ impl ExplorerState {
                 let id = node_id;
                 let kind = click_kind;
                 let path = click_path.clone();
-                let selection = mark_selection.clone();
+                let selection = mark_selection;
                 let click_count = event.click_count();
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
@@ -287,4 +285,3 @@ impl ExplorerState {
             .into_any_element()
     }
 }
-

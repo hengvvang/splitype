@@ -12,12 +12,12 @@
 //! [`core_contracts::PaneRenderContext`].
 
 pub mod builder;
-pub mod node;
-pub mod render;
-pub mod outline;
-pub mod search;
 mod context;
 mod input;
+pub mod node;
+pub mod outline;
+pub mod render;
+pub mod search;
 mod selection;
 mod state;
 
@@ -29,5 +29,3 @@ pub use node::{PreviewBlock, blocks_to_preview_tree};
 pub use render::render_preview_pane;
 pub use selection::{PreviewEndpoint, PreviewSelectionRange};
 pub use state::PreviewState;
-
-

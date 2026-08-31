@@ -3,14 +3,12 @@
 use gpui::*;
 
 use crate::latex::{display_math_font_size, render_display_math_svg};
-use crate::mermaid::{
-    mermaid_content_fingerprint, render_mermaid_svg_for_display,
-};
+use crate::markdown::block::math::parse_display_math_source;
+use crate::markdown::block::mermaid::parse_mermaid_fence_source;
+use crate::mermaid::{mermaid_content_fingerprint, render_mermaid_svg_for_display};
 use crate::model::block::Block;
 use crate::render::media_placeholder::effective_image_width;
 use theme::{Theme, ThemeDimensions};
-use crate::markdown::block::math::parse_display_math_source;
-use crate::markdown::block::mermaid::parse_mermaid_fence_source;
 
 impl Block {
     pub fn render_math_content(&self, theme: &Theme) -> (AnyElement, bool) {
@@ -77,11 +75,7 @@ impl Block {
         }
     }
 
-    pub fn render_mermaid_content(
-        &mut self,
-        theme: &Theme,
-        window: &Window,
-    ) -> (AnyElement, bool) {
+    pub fn render_mermaid_content(&mut self, theme: &Theme, window: &Window) -> (AnyElement, bool) {
         let d = &theme.dimensions;
         let raw = self
             .data
@@ -208,10 +202,7 @@ impl Block {
 /// Features:
 /// - Container border using `c.code_bg` (matching the top source code background color).
 /// - Clean, minimalist layout with centered graphic content.
-pub fn render_graphic_preview_box(
-    preview_content: AnyElement,
-    theme: &Theme,
-) -> Div {
+pub fn render_graphic_preview_box(preview_content: AnyElement, theme: &Theme) -> Div {
     let c = &theme.colors;
     let d = &theme.dimensions;
 
@@ -234,6 +225,3 @@ pub fn render_graphic_preview_box(
                 .child(preview_content),
         )
 }
-
-
-

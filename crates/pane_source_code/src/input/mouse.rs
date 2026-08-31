@@ -18,16 +18,20 @@ pub fn hit_test(
     let padding = theme.dimensions.editor_padding;
     let font = TypographyStore::default_font(TypographyScope::Code);
 
-    let last_bounds = state.last_bounds.lock().unwrap().clone();
+    let last_bounds = *state.last_bounds.lock().unwrap();
     let total_lines = state.line_count();
 
     let gutter_width = state.gutter_layout(font_size).width();
 
-    let bounds_origin = last_bounds.map(|b| b.origin).unwrap_or(point(px(0.0), px(0.0)));
+    let bounds_origin = last_bounds
+        .map(|b| b.origin)
+        .unwrap_or(point(px(0.0), px(0.0)));
     let rel_y = f32::from(position.y - bounds_origin.y) - padding;
     let visible_row = (rel_y / line_height).floor().max(0.0) as u32;
 
-    let buffer_row = state.fold_map.visible_row_to_buffer_row(visible_row, total_lines as u32) as usize;
+    let buffer_row = state
+        .fold_map
+        .visible_row_to_buffer_row(visible_row, total_lines as u32) as usize;
     let buffer_row = buffer_row.min(total_lines.saturating_sub(1));
 
     let line_str = state.line_str(buffer_row);
@@ -99,4 +103,3 @@ pub fn handle_mouse_move(
 pub fn handle_mouse_up(state: &mut SourceCodeState) {
     state.end_drag();
 }
-

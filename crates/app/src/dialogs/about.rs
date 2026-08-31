@@ -186,17 +186,17 @@ impl Shell {
                                         .flex_col()
                                         .opacity(0.08)
                                         .children((0..5).map(|row| {
-                                            div()
-                                                .flex()
-                                                .w_full()
-                                                .flex_1()
-                                                .children((0..8).map(|col| {
+                                            div().flex().w_full().flex_1().children((0..8).map(
+                                                |col| {
                                                     let idx = self
                                                         .about_bg_emojis
                                                         .get(row * 8 + col)
                                                         .copied()
-                                                        .unwrap_or((row * 8 + col) % ABOUT_EMOJIS.len());
-                                                    let path = ABOUT_EMOJIS[idx % ABOUT_EMOJIS.len()];
+                                                        .unwrap_or(
+                                                            (row * 8 + col) % ABOUT_EMOJIS.len(),
+                                                        );
+                                                    let path =
+                                                        ABOUT_EMOJIS[idx % ABOUT_EMOJIS.len()];
                                                     div()
                                                         .flex_1()
                                                         .h_full()
@@ -209,7 +209,8 @@ impl Shell {
                                                                 .size(px(52.0))
                                                                 .text_color(c.text_default),
                                                         )
-                                                }))
+                                                },
+                                            ))
                                         })),
                                 )
                             } else {

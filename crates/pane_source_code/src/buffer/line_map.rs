@@ -34,7 +34,11 @@ impl LineMap {
     /// Total number of lines.
     #[inline]
     pub fn line_count(&self) -> usize {
-        if self.line_ranges.is_empty() { 1 } else { self.line_ranges.len() }
+        if self.line_ranges.is_empty() {
+            1
+        } else {
+            self.line_ranges.len()
+        }
     }
 
     /// Returns byte range of a given 0-indexed line.
@@ -113,4 +117,3 @@ impl LineMap {
         range.start + (point.column as usize).min(line_len)
     }
 }
-

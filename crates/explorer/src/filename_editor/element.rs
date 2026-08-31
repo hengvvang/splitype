@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::state::state::{EXPLORER_NODE_HEIGHT, ExplorerState};
 use crate::filename_editor::ExplorerFilenameImeHost;
+use crate::state::state::{EXPLORER_NODE_HEIGHT, ExplorerState};
 use theme::ThemeManager;
 
 pub fn shape_filename_line(window: &mut Window, text: &str) -> ShapedLine {
@@ -226,8 +226,15 @@ impl Element for ExplorerFilenameInputElement {
         }
 
         if let Some(line) = prepaint.line.take() {
-            line.paint(bounds.origin, bounds.size.height, TextAlign::Left, None, window, cx)
-                .ok();
+            line.paint(
+                bounds.origin,
+                bounds.size.height,
+                TextAlign::Left,
+                None,
+                window,
+                cx,
+            )
+            .ok();
         }
 
         if let Some(cursor) = prepaint.cursor.take() {
@@ -235,4 +242,3 @@ impl Element for ExplorerFilenameInputElement {
         }
     }
 }
-

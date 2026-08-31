@@ -78,7 +78,10 @@ mod tests {
             Some(PathBuf::from("workspace/docs/readme.md")),
         );
 
-        assert_eq!(snapshot.base_dir.as_deref(), Some(Path::new("workspace/docs")));
+        assert_eq!(
+            snapshot.base_dir.as_deref(),
+            Some(Path::new("workspace/docs"))
+        );
         assert_eq!(snapshot.revision, 7);
     }
 

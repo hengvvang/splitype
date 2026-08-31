@@ -11,7 +11,9 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::ExplorerState;
-use crate::filename_editor::buffer::{utf16_range_to_utf8_in, utf8_range_to_utf16_in, utf8_to_utf16_in_single};
+use crate::filename_editor::buffer::{
+    utf8_range_to_utf16_in, utf8_to_utf16_in_single, utf16_range_to_utf8_in,
+};
 use crate::filename_editor::element::shape_filename_line;
 
 /// Stateless IME host for the inline filename editor (one per edit).

@@ -1,16 +1,16 @@
 //! WYSIWYG search matching, rich-text-safe replacement, and block highlight mapping.
 
-use std::ops::Range;
-use gpui::{App, EntityId};
-use core_contracts::{SearchMatch, SearchQuery};
 use crate::model::Document;
+use core_contracts::{SearchMatch, SearchQuery};
+use gpui::{App, EntityId};
+use std::ops::Range;
 
 /// Searches across all blocks in the WYSIWYG document.
 pub fn search_in_document(doc: &Document, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {
     let mut results = Vec::new();
     let mut cumulative_line = 1;
 
-    for (_block_index, entry) in doc.blocks().iter().enumerate() {
+    for entry in doc.blocks().iter() {
         let block = entry.entity.read(cx);
         let block_text = block.display_text().to_string();
         let entity_id = entry.entity.entity_id();
@@ -76,5 +76,3 @@ pub fn clear_document_search_highlights(doc: &Document, cx: &mut App) {
         });
     }
 }
-
-

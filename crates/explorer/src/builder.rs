@@ -1,5 +1,5 @@
-use gpui::App;
 use crate::state::state::ExplorerState;
+use gpui::App;
 
 /// Fluent builder for the Explorer panel.
 pub struct ExplorerBuilder {}
@@ -19,4 +19,3 @@ impl ExplorerBuilder {
         cx.set_global(ExplorerState::default());
     }
 }
-

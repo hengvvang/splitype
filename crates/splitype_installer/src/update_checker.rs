@@ -255,4 +255,3 @@ fn update_request_headers() -> HeaderMap {
     headers.insert(ACCEPT, HeaderValue::from_static(UPDATE_ACCEPT));
     headers
 }
-

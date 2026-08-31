@@ -6,12 +6,12 @@ use std::time::Instant;
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::highlight::{CodeHighlightResult, highlight_code_block};
-use crate::model::block::Block;
-use crate::model::block::normalize_code_language_input;
 use crate::markdown::inline::offsets::ImeConverter;
 use crate::markdown::parse::BlockKind;
+use crate::model::block::Block;
+use crate::model::block::normalize_code_language_input;
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 
 impl Block {
     pub fn code_highlight_result(&self) -> Option<&CodeHighlightResult> {
@@ -54,10 +54,7 @@ impl Block {
         ImeConverter::utf8_range_to_utf16_in(self.code_language_input_text(), range)
     }
 
-    pub fn code_language_range_from_utf16(
-        &self,
-        range_utf16: &Range<usize>,
-    ) -> Range<usize> {
+    pub fn code_language_range_from_utf16(&self, range_utf16: &Range<usize>) -> Range<usize> {
         ImeConverter::utf16_range_to_utf8_in(self.code_language_input_text(), range_utf16)
     }
 
@@ -199,7 +196,9 @@ impl Block {
         let old_language = self.code_language_text().to_string();
         if normalized.eq_ignore_ascii_case("mermaid") || normalized.eq_ignore_ascii_case("mmd") {
             self.data.kind = BlockKind::MermaidBlock;
-        } else if normalized.eq_ignore_ascii_case("math") || normalized.eq_ignore_ascii_case("latex") {
+        } else if normalized.eq_ignore_ascii_case("math")
+            || normalized.eq_ignore_ascii_case("latex")
+        {
             self.data.kind = BlockKind::MathBlock;
         } else {
             self.data.kind = BlockKind::CodeBlock {
@@ -283,5 +282,3 @@ impl Block {
         cx.notify();
     }
 }
-
-

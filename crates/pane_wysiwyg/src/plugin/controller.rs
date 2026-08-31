@@ -439,7 +439,7 @@ impl WysiwygDocumentController {
         self.rebuild_from_markdown(&document.text, document.revision, cx);
     }
 
-        pub fn serialize_text(&self, cx: &App) -> Option<String> {
+    pub fn serialize_text(&self, cx: &App) -> Option<String> {
         self.document.as_ref().map(|d| d.serialize_markdown(cx))
     }
 
@@ -600,7 +600,12 @@ impl WysiwygDocumentController {
         self.apply_line_prefix(prefix, cx);
     }
 
-    pub fn apply_snippet(&mut self, snippet: &str, caret_offset: usize, cx: &mut Context<Self>) -> Option<String> {
+    pub fn apply_snippet(
+        &mut self,
+        snippet: &str,
+        caret_offset: usize,
+        cx: &mut Context<Self>,
+    ) -> Option<String> {
         if let Some(active) = self.active_entity.clone() {
             active.update(cx, |block, cx| {
                 let cursor = block.cursor_offset();
@@ -726,7 +731,7 @@ impl WysiwygDocumentController {
 
         if let Some(doc) = &self.document {
             let blocks = doc.blocks();
-            let plans = crate::render::viewport::plan_document_rows(&blocks, d, cx);
+            let plans = crate::render::viewport::plan_document_rows(blocks, d, cx);
             let centered_width = crate::render::layout::centered_column_width(
                 f32::from(ctx.scroll.bounds().size.width).max(600.0),
                 d,
@@ -737,7 +742,7 @@ impl WysiwygDocumentController {
                 .map(|plan| {
                     crate::render::viewport::build_planned_row_element(
                         plan,
-                        &blocks,
+                        blocks,
                         centered_width,
                         &theme,
                         d,

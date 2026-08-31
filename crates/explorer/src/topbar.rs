@@ -5,12 +5,12 @@
 
 use gpui::*;
 
-use window::{PanelId, PanelKind, panel_topbar_icon};
-use window::actions::{ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized};
-use theme::Theme;
 use splitter::SplitAxis;
+use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 use ui::topbar::topbar_container;
+use window::actions::{ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized};
+use window::{PanelId, PanelKind, panel_topbar_icon};
 
 /// Top bar of an Explorer area: type selector and split/close controls.
 pub fn render_explorer_topbar(
@@ -92,10 +92,7 @@ pub fn render_explorer_topbar(
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, window, cx| {
-                window.dispatch_action(
-                    Box::new(TogglePanelMaximized { panel: panel_id.0 }),
-                    cx,
-                );
+                window.dispatch_action(Box::new(TogglePanelMaximized { panel: panel_id.0 }), cx);
             });
 
         let close_button = icon_chip_button(c, d)
@@ -119,4 +116,3 @@ pub fn render_explorer_topbar(
         .child(div().flex().items_center().gap(px(6.0)).child(actions))
         .into_any_element()
 }
-

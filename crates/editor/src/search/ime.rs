@@ -1,7 +1,7 @@
 //! GPUI IME and text input bridge (EntityInputHandler) for Search & Replace inputs.
 
-use std::ops::Range;
 use gpui::*;
+use std::ops::Range;
 
 use crate::editor::Editor;
 use core_contracts::search::{ceil_char_boundary, floor_char_boundary};
@@ -158,10 +158,14 @@ impl EntityInputHandler for Editor {
         };
 
         if is_search {
-            self.search.search_input.replace_range(current_range, new_text);
+            self.search
+                .search_input
+                .replace_range(current_range, new_text);
             self.execute_search(cx);
         } else {
-            self.search.replace_input.replace_range(current_range, new_text);
+            self.search
+                .replace_input
+                .replace_range(current_range, new_text);
             cx.notify();
         }
     }
@@ -243,4 +247,3 @@ impl EntityInputHandler for Editor {
         None
     }
 }
-

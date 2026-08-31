@@ -5,8 +5,8 @@ use gpui::*;
 
 use crate::node::PreviewBlock;
 use crate::render::inline;
-use theme::Theme;
 use markdown_parser::block::CalloutKind;
+use theme::Theme;
 
 use std::ops::Range;
 
@@ -52,5 +52,3 @@ pub(crate) fn render_preview_callout(
 
     base.w_full().child(header_text).into_any_element()
 }
-
-

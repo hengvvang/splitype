@@ -324,5 +324,3 @@ impl ImeConverter {
         Utf16Offset(Self::utf8_to_utf16_in(text, offset.0))
     }
 }
-
-

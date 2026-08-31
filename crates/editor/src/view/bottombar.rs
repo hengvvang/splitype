@@ -272,39 +272,39 @@ impl Editor {
                     .into_iter()
                     .enumerate()
                     .map(|(idx, desc)| {
-                let kind_id = desc.kind();
-                let is_current = kind_id == current_kind;
-                let option_editor = editor.clone();
-                let display_name = desc.display_name();
-                menu_item(("pane-type-opt", idx), c, d)
-                    .w_full()
-                    .justify_between()
-                    .bg(if is_current {
-                        c.panel_row_selected
-                    } else {
-                        c.dialog_surface
-                    })
-                    .text_size(px(d.menu_text_size))
-                    .font_weight(t.dialog_button_weight.to_font_weight())
-                    .text_color(c.dialog_secondary_button_text)
-                    .child(display_name)
-                    .child(if is_current {
-                        svg()
-                            .path("icons/editor/topbar/check.svg")
-                            .size(px(13.0))
-                            .text_color(c.dialog_primary_button_bg)
+                        let kind_id = desc.kind();
+                        let is_current = kind_id == current_kind;
+                        let option_editor = editor.clone();
+                        let display_name = desc.display_name();
+                        menu_item(("pane-type-opt", idx), c, d)
+                            .w_full()
+                            .justify_between()
+                            .bg(if is_current {
+                                c.panel_row_selected
+                            } else {
+                                c.dialog_surface
+                            })
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_button_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
+                            .child(display_name)
+                            .child(if is_current {
+                                svg()
+                                    .path("icons/editor/topbar/check.svg")
+                                    .size(px(13.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |_event, _window, cx| {
+                                let _ = option_editor.update(cx, |ed, cx| {
+                                    ed.select_pane_kind(pane_id, kind_id, cx);
+                                    ed.pane_dropdown_open = false;
+                                    cx.notify();
+                                });
+                            })
                             .into_any_element()
-                    } else {
-                        div().w(px(13.0)).into_any_element()
-                    })
-                    .on_click(move |_event, _window, cx| {
-                        let _ = option_editor.update(cx, |ed, cx| {
-                            ed.select_pane_kind(pane_id, kind_id, cx);
-                            ed.pane_dropdown_open = false;
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element()
                     }),
             )
             .into_any_element()

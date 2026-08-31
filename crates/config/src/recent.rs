@@ -178,4 +178,3 @@ fn same_recent_path(left: &Path, right: &Path) -> bool {
         left == right
     }
 }
-

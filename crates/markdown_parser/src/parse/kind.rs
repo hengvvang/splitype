@@ -371,5 +371,3 @@ impl BlockKind {
         matches!(separator, b' ' | b'\t').then_some(digit_len + 2)
     }
 }
-
-

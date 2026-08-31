@@ -620,10 +620,7 @@ pub fn resolve_code_language_key(language: Option<&str>) -> Option<CodeLanguageK
     descriptor_for_language(normalized).map(|descriptor| descriptor.key)
 }
 
-pub fn highlight_code_block(
-    language: Option<&str>,
-    source: &str,
-) -> Option<CodeHighlightResult> {
+pub fn highlight_code_block(language: Option<&str>, source: &str) -> Option<CodeHighlightResult> {
     let key = resolve_code_language_key(language)?;
 
     #[cfg(feature = "code-highlight-core")]
@@ -904,7 +901,11 @@ pub fn build_line_text_runs(
             continue;
         }
 
-        let span_local_start = span.range.start.saturating_sub(l_start).min(line_text.len());
+        let span_local_start = span
+            .range
+            .start
+            .saturating_sub(l_start)
+            .min(line_text.len());
         let span_local_end = span.range.end.saturating_sub(l_start).min(line_text.len());
 
         if span_local_start > current_offset {
@@ -951,5 +952,3 @@ pub fn build_line_text_runs(
 
     runs
 }
-
-

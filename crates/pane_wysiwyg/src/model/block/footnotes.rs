@@ -20,7 +20,8 @@ pub struct FootnoteDefinitionBinding {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FootnoteMap {
     pub bindings: HashMap<String, FootnoteDefinitionBinding>,
-    pub block_occurrences: HashMap<crate::markdown::parse::BlockId, Vec<FootnoteResolvedOccurrence>>,
+    pub block_occurrences:
+        HashMap<crate::markdown::parse::BlockId, Vec<FootnoteResolvedOccurrence>>,
 }
 
 impl FootnoteMap {
@@ -42,5 +43,3 @@ pub struct FootnoteResolvedOccurrence {
     pub id: String,
     pub occurrence_index: usize,
 }
-
-

@@ -3,8 +3,8 @@
 
 use gpui::*;
 
-use crate::model::protocol::BlockEvent;
 use crate::model::block::Block;
+use crate::model::protocol::BlockEvent;
 impl Block {
     pub fn on_mouse_down(
         &mut self,
@@ -110,7 +110,9 @@ impl Block {
             )
         }) {
             cx.stop_propagation();
-            cx.emit(BlockEvent::RequestJumpToFootnoteDefinition { id: footnote.id.clone() });
+            cx.emit(BlockEvent::RequestJumpToFootnoteDefinition {
+                id: footnote.id.clone(),
+            });
         }
     }
 
@@ -174,10 +176,7 @@ impl Block {
         if hovered != self.hovered_footnote_id {
             let show = hovered.is_some();
             self.hovered_footnote_id = hovered.clone();
-            let anchor_pos = hit
-                .as_ref()
-                .map(|(_, pos)| *pos)
-                .unwrap_or(event.position);
+            let anchor_pos = hit.as_ref().map(|(_, pos)| *pos).unwrap_or(event.position);
             cx.emit(BlockEvent::RequestFootnoteTooltip {
                 id: hovered.unwrap_or_default(),
                 content: None,
@@ -213,5 +212,3 @@ impl Block {
         cx.emit(BlockEvent::RequestToggleTaskChecked);
     }
 }
-
-

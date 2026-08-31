@@ -47,17 +47,15 @@ impl Shell {
         cx: &App,
         show: fn(&FileState) -> bool,
     ) -> Option<Entity<Editor>> {
-        self.panel_views
-            .values()
-            .find_map(|view| {
-                let panel = view.as_any().downcast_ref::<editor::EditorPanelView>()?;
-                let editor = panel.editor.read(cx);
-                if editor.session.tabs().any(|tab| show(&tab.file)) {
-                    Some(panel.editor.clone())
-                } else {
-                    None
-                }
-            })
+        self.panel_views.values().find_map(|view| {
+            let panel = view.as_any().downcast_ref::<editor::EditorPanelView>()?;
+            let editor = panel.editor.read(cx);
+            if editor.session.tabs().any(|tab| show(&tab.file)) {
+                Some(panel.editor.clone())
+            } else {
+                None
+            }
+        })
     }
 
     /// The window-level dialog to render this frame, if any: the info

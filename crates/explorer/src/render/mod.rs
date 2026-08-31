@@ -9,11 +9,10 @@ use std::ops::Range;
 
 use gpui::*;
 
-
-use window::PanelId;
 use crate::state::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
 use theme::Theme;
+use window::PanelId;
 
 /// Free-function entry point: renders the explorer body (file tree or
 /// empty state) from the app-wide explorer state.
@@ -252,4 +251,3 @@ impl ExplorerState {
         self.render_explorer_files_tree(panel_id, theme, strings, cx)
     }
 }
-

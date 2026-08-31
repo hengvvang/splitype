@@ -2,13 +2,13 @@
 
 use std::ops::Range;
 
+use crate::markdown::inline::render_cache::InlineRenderCache;
+use crate::markdown::parse::BlockKind;
+use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedLinkSpan,
     ProjectedLinkSelectionSnapshot,
 };
-use crate::model::block::{Block, CollapsedCaretAffinity};
-use crate::markdown::inline::render_cache::InlineRenderCache;
-use crate::markdown::parse::BlockKind;
 use gpui::Pixels;
 
 impl Block {
@@ -28,18 +28,18 @@ impl Block {
 
         let projected_prefix_selection = if self.projection.is_some() {
             self.projection.as_ref().and_then(|projection| {
-                projection.block_prefix_range.as_ref().and_then(|prefix_range| {
-                    if self.selected_range.start <= prefix_range.end
-                        && self.selected_range.end <= prefix_range.end
-                    {
-                        Some((
-                            self.selected_range.clone(),
-                            self.selection_reversed,
-                        ))
-                    } else {
-                        None
-                    }
-                })
+                projection
+                    .block_prefix_range
+                    .as_ref()
+                    .and_then(|prefix_range| {
+                        if self.selected_range.start <= prefix_range.end
+                            && self.selected_range.end <= prefix_range.end
+                        {
+                            Some((self.selected_range.clone(), self.selection_reversed))
+                        } else {
+                            None
+                        }
+                    })
             })
         } else if matches!(self.kind(), BlockKind::Callout(_))
             && self.data.text.plain_text().is_empty()
@@ -291,5 +291,3 @@ impl Block {
         self.sync_collapsed_caret_affinity();
     }
 }
-
-

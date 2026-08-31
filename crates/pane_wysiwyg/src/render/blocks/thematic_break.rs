@@ -8,19 +8,13 @@ use theme::Theme;
 /// Render a thematic break (horizontal rule) when the block is not focused:
 /// a full-width line (matching the editing column), vertically centered on
 /// the row.
-pub fn render_thematic_break_unfocused(
-    focused_base: Stateful<Div>,
-    theme: &Theme,
-) -> AnyElement {
+pub fn render_thematic_break_unfocused(focused_base: Stateful<Div>, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
 
     let line_slot_height = px(t.text_size * t.text_line_height);
-    let line = div()
-        .w_full()
-        .h(px(d.separator_thickness))
-        .bg(c.separator);
+    let line = div().w_full().h(px(d.separator_thickness)).bg(c.separator);
 
     focused_base
         .w_full()
@@ -68,5 +62,3 @@ pub fn render_thematic_break_focused(
         .child(text_input)
         .into_any_element()
 }
-
-

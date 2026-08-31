@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use crate::components::shortcuts_data::ShortcutItem;
+use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
+use theme::{ThemeColors, ThemeDimensions};
 
 pub(crate) fn render_shortcuts_section(
     c: &ThemeColors,
@@ -32,10 +32,16 @@ pub(crate) fn render_shortcuts_section(
                 .child(item.shortcut)
                 .into_any_element();
 
-            rows.push(make_row(inner_border_color, c, d, item.name, item.description, ctrl_sc));
+            rows.push(make_row(
+                inner_border_color,
+                c,
+                d,
+                item.name,
+                item.description,
+                ctrl_sc,
+            ));
         }
     }
 
     make_section(c, d, id, title, expanded, toggle_fn, rows)
 }
-

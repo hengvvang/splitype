@@ -57,7 +57,9 @@ impl Item for markdown_parser::BlockData {
                 _ => 36.0,
             },
             markdown_parser::BlockKind::CodeBlock { .. } => 24.0 * line_count as f32 + 32.0,
-            markdown_parser::BlockKind::MathBlock | markdown_parser::BlockKind::MermaidBlock => 80.0,
+            markdown_parser::BlockKind::MathBlock | markdown_parser::BlockKind::MermaidBlock => {
+                80.0
+            }
             markdown_parser::BlockKind::Table => 28.0 * line_count as f32 + 32.0,
             markdown_parser::BlockKind::ThematicBreak => 24.0,
             markdown_parser::BlockKind::HtmlBlock => 24.0 * line_count as f32 + 16.0,
@@ -132,7 +134,10 @@ impl<T: Item> SumTree<T> {
     }
 
     /// Constructs a SumTree from a sequential iterator of items.
-    pub fn from_items(items: impl IntoIterator<Item = T>, cx: &<T::Summary as Summary>::Context) -> Self {
+    pub fn from_items(
+        items: impl IntoIterator<Item = T>,
+        cx: &<T::Summary as Summary>::Context,
+    ) -> Self {
         let mut tree = Self::new();
         for item in items {
             tree.push(item, cx);
@@ -175,7 +180,12 @@ impl<T: Item> SumTree<T> {
     }
 
     /// Replaces an item at the specified index.
-    pub fn replace(&mut self, index: usize, item: T, cx: &<T::Summary as Summary>::Context) -> Option<T> {
+    pub fn replace(
+        &mut self,
+        index: usize,
+        item: T,
+        cx: &<T::Summary as Summary>::Context,
+    ) -> Option<T> {
         let mut all_items = self.to_vec();
         if index >= all_items.len() {
             return None;
@@ -302,7 +312,9 @@ impl<T: Item<Summary = BlockSummary>> SumTree<T> {
                 Node::Leaf { items, .. } => {
                     for item in items {
                         let item_chars = item.summary(&()).total_characters;
-                        if target_offset < item_chars || (target_offset == item_chars && target_offset == 0) {
+                        if target_offset < item_chars
+                            || (target_offset == item_chars && target_offset == 0)
+                        {
                             return Some((block_idx, target_offset));
                         }
                         target_offset = target_offset.saturating_sub(item_chars);
@@ -315,7 +327,9 @@ impl<T: Item<Summary = BlockSummary>> SumTree<T> {
                     for child in children {
                         let child_chars = child.summary().total_characters;
                         let child_blocks = child.summary().total_blocks;
-                        if target_offset < child_chars || (target_offset == child_chars && target_offset == 0) {
+                        if target_offset < child_chars
+                            || (target_offset == child_chars && target_offset == 0)
+                        {
                             current = child;
                             found = true;
                             break;
@@ -346,7 +360,9 @@ impl<T: Item<Summary = BlockSummary>> SumTree<T> {
                 Node::Leaf { items, .. } => {
                     for item in items {
                         let item_lines = item.summary(&()).total_lines;
-                        if target_line < item_lines || (target_line == item_lines && target_line == 0) {
+                        if target_line < item_lines
+                            || (target_line == item_lines && target_line == 0)
+                        {
                             return Some((block_idx, target_line));
                         }
                         target_line = target_line.saturating_sub(item_lines);
@@ -359,7 +375,9 @@ impl<T: Item<Summary = BlockSummary>> SumTree<T> {
                     for child in children {
                         let child_lines = child.summary().total_lines;
                         let child_blocks = child.summary().total_blocks;
-                        if target_line < child_lines || (target_line == child_lines && target_line == 0) {
+                        if target_line < child_lines
+                            || (target_line == child_lines && target_line == 0)
+                        {
                             current = child;
                             found = true;
                             break;
@@ -447,9 +465,8 @@ impl<T: Item<Summary = BlockSummary>> SumTree<T> {
 fn child_item_count<T: Item>(node: &Node<T>) -> usize {
     match node {
         Node::Leaf { items, .. } => items.len(),
-        Node::Internal { children, .. } => children.iter().map(|c| child_item_count(c.as_ref())).sum(),
+        Node::Internal { children, .. } => {
+            children.iter().map(|c| child_item_count(c.as_ref())).sum()
+        }
     }
 }
-
-
-

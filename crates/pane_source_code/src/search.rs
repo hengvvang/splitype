@@ -1,8 +1,8 @@
 //! Source code search matching and slice replacement.
 
-use std::ops::Range;
-use core_contracts::{SearchMatch, SearchQuery};
 use crate::state::SourceCodeState;
+use core_contracts::{SearchMatch, SearchQuery};
+use std::ops::Range;
 
 /// Searches within the raw source text buffer.
 pub fn search_in_source(text: &str, query: &SearchQuery) -> Vec<SearchMatch> {
@@ -28,12 +28,18 @@ pub fn search_in_source(text: &str, query: &SearchQuery) -> Vec<SearchMatch> {
 }
 
 /// Replaces a search match within the source text buffer.
-pub fn replace_source_match(state: &mut SourceCodeState, match_item: &SearchMatch, replace_with: &str) {
+pub fn replace_source_match(
+    state: &mut SourceCodeState,
+    match_item: &SearchMatch,
+    replace_with: &str,
+) {
     let range = match_item.byte_range.clone();
     if range.start <= state.text.len() && range.end <= state.text.len() {
         state.text.replace_range(range.clone(), replace_with);
         state.rebuild_lines();
-        state.selections.set_single_point(range.start + replace_with.len());
+        state
+            .selections
+            .set_single_point(range.start + replace_with.len());
         state.highlight_cache = None;
     }
 }
@@ -43,13 +49,18 @@ pub fn replace_in_source(state: &mut SourceCodeState, range: Range<usize>, repla
     if range.start <= state.text.len() && range.end <= state.text.len() {
         state.text.replace_range(range.clone(), replacement);
         state.rebuild_lines();
-        state.selections.set_single_point(range.start + replacement.len());
+        state
+            .selections
+            .set_single_point(range.start + replacement.len());
         state.highlight_cache = None;
     }
 }
 
 /// Replaces multiple ranges in the source text in reverse order.
-pub fn replace_all_in_source(state: &mut SourceCodeState, mut replacements: Vec<(Range<usize>, String)>) {
+pub fn replace_all_in_source(
+    state: &mut SourceCodeState,
+    mut replacements: Vec<(Range<usize>, String)>,
+) {
     replacements.sort_by_key(|(r, _)| std::cmp::Reverse(r.start));
     for (range, replacement) in replacements {
         if range.start <= state.text.len() && range.end <= state.text.len() {
@@ -82,4 +93,3 @@ mod tests {
         assert_eq!(state.cursor(), 8);
     }
 }
-

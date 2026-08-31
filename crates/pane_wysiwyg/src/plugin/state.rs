@@ -8,14 +8,14 @@ use std::time::Instant;
 
 use gpui::{Entity, EntityId, Pixels, Point};
 
-use crate::model::block::{Block, footnotes::FootnoteMap};
 use crate::input::history::delta::Transaction;
-use crate::model::protocol::UndoCaptureKind;
 use crate::markdown::block::image::ImageReferenceDefinitions;
 use crate::markdown::block::link::LinkReferenceDefinitions;
 use crate::markdown::block::table::{TableAxis, TableCellPosition};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockId};
+use crate::model::block::{Block, footnotes::FootnoteMap};
+use crate::model::protocol::UndoCaptureKind;
 
 pub use core_contracts::AutoscrollStrategy;
 
@@ -240,5 +240,3 @@ pub struct TableSizePickerState {
     pub hovered_rows: Option<usize>,
     pub hovered_cols: Option<usize>,
 }
-
-

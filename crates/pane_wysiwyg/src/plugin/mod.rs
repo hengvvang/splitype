@@ -117,7 +117,12 @@ impl PaneView for WysiwygPaneState {
         controller.update(cx, |c, cx| c.apply_line_prefix(prefix, cx))
     }
 
-    fn apply_snippet(&mut self, snippet: &str, caret_offset: usize, cx: &mut App) -> Option<String> {
+    fn apply_snippet(
+        &mut self,
+        snippet: &str,
+        caret_offset: usize,
+        cx: &mut App,
+    ) -> Option<String> {
         let controller = self.ensure_controller(cx);
         controller.update(cx, |c, cx| c.apply_snippet(snippet, caret_offset, cx))
     }

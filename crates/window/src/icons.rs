@@ -1,8 +1,8 @@
 //! Window-chrome presentation helpers shared by the shell and the panels.
 
+use crate::panel::PanelKind;
 use gpui::SharedString;
 use theme::Theme;
-use crate::panel::PanelKind;
 
 /// Icon path for a window-panel top-bar button, per panel kind.
 pub fn panel_topbar_icon(kind: PanelKind, name: &str) -> SharedString {

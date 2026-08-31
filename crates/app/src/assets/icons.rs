@@ -241,9 +241,11 @@ pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "icons/editor/wysiwyg/codeblock/copy.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/editor/wysiwyg/codeblock/copy.svg"
         ))),
-        "icons/editor/wysiwyg/codeblock/select-checkmark.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../../../../assets/icons/editor/wysiwyg/codeblock/select-checkmark.svg"
-        ))),
+        "icons/editor/wysiwyg/codeblock/select-checkmark.svg" => {
+            Some(Cow::Borrowed(include_bytes!(
+                "../../../../assets/icons/editor/wysiwyg/codeblock/select-checkmark.svg"
+            )))
+        }
         "icons/editor/wysiwyg/codeblock/select-chevron.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/editor/wysiwyg/codeblock/select-chevron.svg"
         ))),

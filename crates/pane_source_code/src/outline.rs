@@ -1,7 +1,7 @@
 //! Source code pane outline extraction and heading navigation.
 
-use core_contracts::OutlineNode;
 use crate::SourceCodeState;
+use core_contracts::OutlineNode;
 
 /// Extracts all heading nodes from the raw Markdown source text.
 pub fn extract_source_headings(markdown: &str) -> Vec<OutlineNode> {
@@ -134,4 +134,3 @@ mod tests {
         assert_eq!(headings[2].level, 1);
     }
 }
-

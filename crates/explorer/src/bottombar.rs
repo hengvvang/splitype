@@ -1,19 +1,15 @@
 use gpui::*;
 
-use window::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, toolbar_icon_size};
+use window::PanelId;
 
 use crate::state::state::ExplorerState;
 
 /// Free-function entry point: renders the explorer bottom bar from the
 /// app-wide explorer state (the shell owns no explorer state).
-pub fn render_explorer_bottombar(
-    panel_id: PanelId,
-    theme: &Theme,
-    cx: &mut App,
-) -> AnyElement {
+pub fn render_explorer_bottombar(panel_id: PanelId, theme: &Theme, cx: &mut App) -> AnyElement {
     ExplorerState::update(cx, |state, cx| {
         state.render_explorer_bottombar(panel_id, theme, cx)
     })
@@ -75,4 +71,3 @@ impl ExplorerState {
             .into_any_element()
     }
 }
-

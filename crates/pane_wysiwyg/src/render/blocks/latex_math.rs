@@ -71,5 +71,3 @@ pub fn render_latex_math(
             .into_any_element()
     }
 }
-
-

@@ -156,10 +156,7 @@ impl I18nLanguagePack {
                     normalized_strings.insert((*key).into(), val.clone());
                 }
             }
-            merge_non_empty_json_values(
-                &mut merged_strings,
-                &Value::Object(normalized_strings),
-            );
+            merge_non_empty_json_values(&mut merged_strings, &Value::Object(normalized_strings));
         }
         let mut pack_object = Map::new();
         pack_object.insert("id".into(), Value::String(id));

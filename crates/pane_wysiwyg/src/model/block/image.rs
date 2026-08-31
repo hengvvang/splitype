@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use crate::model::block::{Block, ImageHandle};
 use crate::markdown::block::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
 use crate::markdown::parse::BlockKind;
+use crate::model::block::{Block, ImageHandle};
 
 impl Block {
     pub fn image_handle(&self) -> Option<&ImageHandle> {
@@ -86,5 +86,3 @@ impl Block {
         self.image_handle.is_some() && !self.is_verbatim_mode()
     }
 }
-
-

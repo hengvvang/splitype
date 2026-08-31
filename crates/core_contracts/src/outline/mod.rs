@@ -14,4 +14,3 @@ mod state;
 pub use render::{OutlineHost, render_floating_outline_hud};
 pub use state::{OutlineHudState, OutlineNode};
 pub type OutlineHeading = OutlineNode;
-

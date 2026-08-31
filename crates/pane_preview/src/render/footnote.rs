@@ -1,10 +1,7 @@
 //! Preview footnote definition rendering — real-id text plus content.
 
-use std::sync::Arc;
-
 use gpui::*;
 
-use core_contracts::PaneHost;
 use theme::Theme;
 
 use crate::node::PreviewBlock;
@@ -39,11 +36,7 @@ pub(crate) fn render_preview_footnote_definition(
                 .flex_row()
                 .flex_wrap()
                 .items_baseline()
-                .child(
-                    div()
-                        .text_color(c.footnote_backref)
-                        .child(id.to_string()),
-                )
+                .child(div().text_color(c.footnote_backref).child(id.to_string()))
                 .child(
                     div()
                         .text_color(c.text_default)
@@ -68,38 +61,19 @@ pub(crate) fn render_preview_footnote_definition(
     header.into_any_element()
 }
 
-use core_contracts::PaneId;
-
 /// Renders the collected GitHub-style footnotes section: a top divider line
 /// followed by every footnote definition in document order.
 pub(crate) fn render_preview_footnotes_section(
     footnotes: &[PreviewBlock],
-    pane_id: PaneId,
-    host: &Arc<dyn PaneHost>,
     theme: &Theme,
     window: &mut Window,
-    cx: &App,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
 
     let rows: Vec<AnyElement> = footnotes
         .iter()
-        .enumerate()
-        .map(|(idx, block)| {
-            super::render_preview_block(
-                block,
-                idx,
-                None,
-                0,
-                0,
-                pane_id,
-                host,
-                theme,
-                window,
-                cx,
-            )
-        })
+        .map(|block| super::render_preview_block(block, None, 0, 0, theme, window))
         .collect();
 
     div()
@@ -112,5 +86,3 @@ pub(crate) fn render_preview_footnotes_section(
         .children(rows)
         .into_any_element()
 }
-
-

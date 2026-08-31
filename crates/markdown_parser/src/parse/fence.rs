@@ -52,4 +52,3 @@ pub fn safe_code_fence_with_info(content: &str, info: Option<&str>) -> String {
 
     safe_code_fence(content)
 }
-

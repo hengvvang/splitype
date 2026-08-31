@@ -5,8 +5,8 @@ pub mod menu_bar;
 pub mod menu_dropdown;
 pub mod titlebar;
 
-use std::time::Duration;
 use gpui::*;
+use std::time::Duration;
 
 use crate::shell::Shell;
 
@@ -122,7 +122,12 @@ impl Shell {
         ));
     }
 
-    pub(crate) fn set_menu_panel_hovered(&mut self, hovered: bool, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn set_menu_panel_hovered(
+        &mut self,
+        hovered: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.menu_bar.panel_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
@@ -131,7 +136,12 @@ impl Shell {
         }
     }
 
-    pub(crate) fn set_menu_submenu_panel_hovered(&mut self, hovered: bool, window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn set_menu_submenu_panel_hovered(
+        &mut self,
+        hovered: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.menu_bar.submenu_panel_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;

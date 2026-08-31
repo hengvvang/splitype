@@ -2,9 +2,9 @@
 
 use gpui::*;
 
+use crate::ui_helpers::{SettingsClickHandler, SettingsOptionHandler, make_row, make_section};
 use config::settings::ImagePasteBehavior;
 use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
 
@@ -15,7 +15,7 @@ pub(crate) struct MarkdownProps {
     pub image_paste_behavior: ImagePasteBehavior,
     pub is_image_paste_open: bool,
     pub on_toggle_image_paste: SettingsClickHandler,
-    pub on_select_image_paste: Box<dyn Fn(ImagePasteBehavior) -> SettingsClickHandler>,
+    pub on_select_image_paste: SettingsOptionHandler<ImagePasteBehavior>,
 
     pub render_math: bool,
     pub on_toggle_render_math: SettingsClickHandler,
@@ -165,4 +165,3 @@ pub(crate) fn render_markdown_section(
         rows,
     )
 }
-

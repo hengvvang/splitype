@@ -2,9 +2,9 @@
 
 use gpui::*;
 
+use crate::ui_helpers::{SettingsClickHandler, SettingsOptionHandler, make_row, make_section};
 use config::settings::{ExplorerSortMode, ExplorerSortOrder};
 use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
 
@@ -15,12 +15,12 @@ pub(crate) struct ExplorerProps {
     pub sort_mode: ExplorerSortMode,
     pub is_sort_mode_open: bool,
     pub on_toggle_sort_mode: SettingsClickHandler,
-    pub on_select_sort_mode: Box<dyn Fn(ExplorerSortMode) -> SettingsClickHandler>,
+    pub on_select_sort_mode: SettingsOptionHandler<ExplorerSortMode>,
 
     pub sort_order: ExplorerSortOrder,
     pub is_sort_order_open: bool,
     pub on_toggle_sort_order: SettingsClickHandler,
-    pub on_select_sort_order: Box<dyn Fn(ExplorerSortOrder) -> SettingsClickHandler>,
+    pub on_select_sort_order: SettingsOptionHandler<ExplorerSortOrder>,
 
     pub auto_reveal: bool,
     pub on_toggle_auto_reveal: SettingsClickHandler,
@@ -223,4 +223,3 @@ pub(crate) fn render_explorer_section(
         rows,
     )
 }
-

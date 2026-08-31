@@ -6,11 +6,11 @@ use gpui::*;
 
 use super::Block;
 use super::state::CollapsedCaretAffinity;
-use crate::model::block::footnotes::FootnoteMap;
 use crate::markdown::block::link::LinkReferenceDefinitions;
 use crate::markdown::inline::render_cache::{InlineRenderCache, InlineSpan};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::BlockKind;
+use crate::model::block::footnotes::FootnoteMap;
 use std::sync::Arc;
 
 impl Block {
@@ -24,8 +24,14 @@ impl Block {
         if self.selected_range.is_empty() {
             return String::new();
         }
-        let start = crate::markdown::inline::serialize::clamp_to_char_boundary(text, self.selected_range.start);
-        let end = crate::markdown::inline::serialize::clamp_to_char_boundary(text, self.selected_range.end.max(start));
+        let start = crate::markdown::inline::serialize::clamp_to_char_boundary(
+            text,
+            self.selected_range.start,
+        );
+        let end = crate::markdown::inline::serialize::clamp_to_char_boundary(
+            text,
+            self.selected_range.end.max(start),
+        );
         text[start..end].to_string()
     }
 
@@ -336,5 +342,3 @@ impl Block {
         true
     }
 }
-
-

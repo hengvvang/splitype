@@ -4,12 +4,12 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
-use crate::projection::{ExpandedInlineSegmentKind, ExpandedLinkSpan};
-use crate::model::block::Block;
-use crate::model::block::CollapsedCaretAffinity;
 use crate::markdown::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use crate::markdown::parse::BlockKind;
+use crate::model::block::Block;
+use crate::model::block::CollapsedCaretAffinity;
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::projection::{ExpandedInlineSegmentKind, ExpandedLinkSpan};
 use std::time::Instant;
 
 impl Block {
@@ -108,10 +108,7 @@ impl Block {
         range.start.saturating_sub(removed_prefix_len)..range.end.saturating_sub(removed_prefix_len)
     }
 
-    pub fn clean_offset_before_fragment_index(
-        fragments: &[InlineFragment],
-        index: usize,
-    ) -> usize {
+    pub fn clean_offset_before_fragment_index(fragments: &[InlineFragment], index: usize) -> usize {
         fragments
             .iter()
             .take(index)
@@ -120,10 +117,7 @@ impl Block {
     }
 
     pub fn replacement_is_pure_link_span(fragments: &[InlineFragment]) -> bool {
-        let Some(first_link) = fragments
-            .first()
-            .and_then(|fragment| fragment.link())
-        else {
+        let Some(first_link) = fragments.first().and_then(|fragment| fragment.link()) else {
             return false;
         };
 
@@ -367,12 +361,9 @@ impl Block {
         self.numbered_list_restart_requested = should_restart_numbered_list;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
-        let has_styled_spans = self
-            .data
-            .text
-            .fragments
-            .iter()
-            .any(|f| f.style != crate::markdown::inline::style::InlineStyle::default() || f.extra.is_some());
+        let has_styled_spans = self.data.text.fragments.iter().any(|f| {
+            f.style != crate::markdown::inline::style::InlineStyle::default() || f.extra.is_some()
+        });
         if self.edit_mode.supports_inline_projection()
             && (keep_projection || caret_may_have_closed_span || has_styled_spans)
         {
@@ -510,9 +501,9 @@ impl Block {
             return false;
         }
 
-        let selected_source_range = selected_range_relative
-            .as_ref()
-            .map(|relative| display_range.start + relative.start..display_range.start + relative.end);
+        let selected_source_range = selected_range_relative.as_ref().map(|relative| {
+            display_range.start + relative.start..display_range.start + relative.end
+        });
         let cursor_source = selected_source_range
             .as_ref()
             .map(|range| range.end)
@@ -800,5 +791,3 @@ impl Block {
         );
     }
 }
-
-

@@ -4,9 +4,9 @@ use gpui::*;
 use std::collections::HashMap;
 use std::path::Path;
 
+use super::RetainedPanel;
 use super::Shell;
 use super::host_bridge::{ShellEditorHost, ShellPanelHost};
-use super::RetainedPanel;
 use crate::window::open_cloned_window;
 use core_contracts::TabKind;
 use splitter::NodeId;
@@ -40,9 +40,7 @@ impl Shell {
             return Some(PanelId(new_id));
         };
         let mut inserted = false;
-        if copy_content
-            && let Some(state) = self.clone_panel_state_for_kind(kind, cx)
-        {
+        if copy_content && let Some(state) = self.clone_panel_state_for_kind(kind, cx) {
             inserted = self.restore_retained_view(PanelId(new_id), kind, state, cx);
         }
         if !inserted {
@@ -148,7 +146,10 @@ impl Shell {
     }
 
     /// Removes a panel view of any kind from the layout-to-view mapping.
-    pub(crate) fn remove_panel_view(&mut self, panel_id: impl Into<PanelId>) -> Option<Box<dyn PanelView>> {
+    pub(crate) fn remove_panel_view(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+    ) -> Option<Box<dyn PanelView>> {
         self.panel_views.remove(&panel_id.into())
     }
 
@@ -417,8 +418,13 @@ impl Shell {
         if let Some(mut view) = self.remove_panel_view(panel_id) {
             let parked_kind = view.kind();
             if let Some(state) = view.suspend_state(cx) {
-                self.retained_panel_states
-                    .insert(panel_id, RetainedPanel { kind: parked_kind, state });
+                self.retained_panel_states.insert(
+                    panel_id,
+                    RetainedPanel {
+                        kind: parked_kind,
+                        state,
+                    },
+                );
             }
         }
 
@@ -427,7 +433,10 @@ impl Shell {
             .get(&panel_id)
             .is_some_and(|retained| retained.kind == kind)
         {
-            let retained = self.retained_panel_states.remove(&panel_id).expect("just checked");
+            let retained = self
+                .retained_panel_states
+                .remove(&panel_id)
+                .expect("just checked");
             if self.restore_retained_view(panel_id, kind, retained.state, cx) {
                 return;
             }
@@ -448,8 +457,7 @@ impl Shell {
                 continue;
             };
             if kind == window::PanelKind::new("explorer") {
-                cloned_explorer =
-                    Some(explorer::ExplorerState::global(cx).clone_for_new_window());
+                cloned_explorer = Some(explorer::ExplorerState::global(cx).clone_for_new_window());
                 continue;
             }
             let Some(state) = self

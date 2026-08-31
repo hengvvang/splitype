@@ -4,4 +4,3 @@ pub enum TabKind {
     Transient,
     Persistent,
 }
-

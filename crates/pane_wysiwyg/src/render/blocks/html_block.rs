@@ -32,5 +32,3 @@ pub fn render_html_block(
         .child(block.render_html_document(&html, theme, cx))
         .into_any_element()
 }
-
-

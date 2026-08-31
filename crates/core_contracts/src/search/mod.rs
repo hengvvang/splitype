@@ -11,9 +11,9 @@ mod query_tests;
 
 pub use host::{SearchHost, SearchIme, SearchInputSnapshot, SearchStateView};
 pub use input_element::SearchInputElement;
-pub use query::{compute_preserve_case_replacement, RawMatch, SearchQuery};
+pub use query::{RawMatch, SearchQuery, compute_preserve_case_replacement};
 pub use state::{
-    ceil_char_boundary, floor_char_boundary, SearchActiveField, SearchMatch, SearchPanelState,
-    SearchScope, SearchTextInput,
+    SearchActiveField, SearchMatch, SearchPanelState, SearchScope, SearchTextInput,
+    ceil_char_boundary, floor_char_boundary,
 };
 pub use ui::render_search_panel_overlay;

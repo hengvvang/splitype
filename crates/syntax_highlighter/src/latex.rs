@@ -70,7 +70,6 @@ pub fn render_inline_math_svg(
     render_latex_svg_to_cache(latex, text_color, font_size)
 }
 
-
 /// Resolve a formula to a cached SVG, rendering only on a total miss.
 ///
 /// The lookup order is in-memory hash cache -> disk cache file -> render.
@@ -175,5 +174,3 @@ fn recolor_default_black(svg: &str, color: &str) -> String {
     svg.replace("rgba(0,0,0,1)", color)
         .replace("rgba(0, 0, 0, 1)", color)
 }
-
-

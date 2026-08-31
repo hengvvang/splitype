@@ -33,5 +33,3 @@ pub fn set_block_selected_range(
         cx.notify();
     });
 }
-
-

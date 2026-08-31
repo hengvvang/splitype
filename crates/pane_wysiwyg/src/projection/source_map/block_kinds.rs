@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::model::block::Block;
 use crate::markdown::parse::BlockKind;
+use crate::model::block::Block;
 use crate::projection::source_map::mapping_buffer::{
     build_code_block_content_mapping, build_prefixed_content_mapping,
 };
@@ -272,5 +272,3 @@ pub fn wrap_source_mapping_with_quotes(
 
     (full_text, content_to_source, source_to_content)
 }
-
-

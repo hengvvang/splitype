@@ -11,5 +11,3 @@ pub fn cross_block_endpoint_for_block_offset(
 ) -> CrossBlockSelectionEndpoint {
     CrossBlockSelectionEndpoint { entity_id, offset }
 }
-
-

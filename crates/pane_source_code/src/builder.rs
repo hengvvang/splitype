@@ -1,6 +1,6 @@
-use gpui::SharedString;
-use core_contracts::{PaneDescriptor, PaneKind, PaneView};
 use crate::state::SourceCodeState;
+use core_contracts::{PaneDescriptor, PaneKind, PaneView};
+use gpui::SharedString;
 
 /// Pane descriptor for Source Code mode.
 #[derive(Clone, Debug, Default)]
@@ -47,4 +47,3 @@ impl SourceCodeBuilder {
         self.descriptor
     }
 }
-

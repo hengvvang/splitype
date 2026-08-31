@@ -1,7 +1,7 @@
 //! File-open and config-import prompts for app-menu actions.
 
-use std::path::{Path, PathBuf};
 use gpui::*;
+use std::path::{Path, PathBuf};
 
 use super::dispatch::{show_window_prompt, with_active_window};
 use super::install_menus;
@@ -92,12 +92,7 @@ pub(super) fn prompt_and_open_files_with_error_window(
 /// recent-file entry either way.
 pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     let opened_in_editor = with_active_window(cx, |editor, window, cx| {
-        editor.open_file_in_active_editor(
-            path,
-            core_contracts::TabKind::Persistent,
-            window,
-            cx,
-        )
+        editor.open_file_in_active_editor(path, core_contracts::TabKind::Persistent, window, cx)
     })
     .is_some_and(|opened| opened);
     if !opened_in_editor {

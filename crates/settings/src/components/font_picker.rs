@@ -5,8 +5,8 @@
 
 use gpui::*;
 
+use crate::ui_helpers::{SettingsClickHandler, SettingsOptionHandler, SettingsSearchHandler};
 use theme::{ThemeColors, ThemeDimensions};
-use crate::ui_helpers::SettingsClickHandler;
 use ui::select::{select_option, select_panel, select_trigger};
 
 pub(crate) struct SearchableFontPickerProps {
@@ -16,9 +16,9 @@ pub(crate) struct SearchableFontPickerProps {
     pub is_open: bool,
     pub search_query: String,
     pub on_toggle: SettingsClickHandler,
-    pub on_search_change: Box<dyn Fn(String, &mut Window, &mut App)>,
+    pub on_search_change: SettingsSearchHandler,
     pub available_fonts: Vec<SharedString>,
-    pub on_select_font: Box<dyn Fn(String) -> SettingsClickHandler>,
+    pub on_select_font: SettingsOptionHandler<String>,
 }
 
 pub(crate) fn render_searchable_font_picker(
@@ -119,13 +119,7 @@ pub(crate) fn render_searchable_font_picker(
                 })
                 .text_size(px(12.0))
                 .text_color(c.text_default)
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .child(f_name),
-                )
+                .child(div().flex_1().min_w(px(0.0)).truncate().child(f_name))
                 .child(if is_selected {
                     svg()
                         .path("icons/settings/checkmark.svg")
@@ -195,4 +189,3 @@ pub(crate) fn render_searchable_font_picker(
 
     btn_wrap.into_any_element()
 }
-

@@ -114,45 +114,45 @@ impl Editor {
                     .into_iter()
                     .enumerate()
                     .map(|(idx, descriptor)| {
-                let kind = descriptor.kind();
-                let name = descriptor.display_name();
-                let is_current = kind == current_kind;
-                let option_editor = editor.clone();
-                div()
-                    .id(("inner-pane-type-opt", idx))
-                    .w_full()
-                    .h(px(d.menu_item_height))
-                    .px(px(d.menu_item_padding_x))
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .rounded(px(d.menu_item_radius))
-                    .bg(if is_current {
-                        c.panel_row_selected
-                    } else {
-                        c.dialog_surface
-                    })
-                    .hover(|this| this.bg(c.panel_row_hover))
-                    .cursor_pointer()
-                    .text_size(px(d.menu_text_size))
-                    .font_weight(t.dialog_body_weight.to_font_weight())
-                    .text_color(c.dialog_secondary_button_text)
-                    .child(div().child(name.to_string()))
-                    .child(if is_current {
-                        svg()
-                            .path("icons/editor/bottombar/checkmark.svg")
-                            .size(px(14.0))
-                            .text_color(c.dialog_primary_button_bg)
-                            .into_any_element()
-                    } else {
-                        div().w(px(13.0)).into_any_element()
-                    })
-                    .on_click(move |_event, _window, cx| {
-                        let _ = option_editor.update(cx, |ed, cx| {
-                            ed.change_pane_kind(pane_id, kind);
-                            cx.notify();
-                        });
-                    })
+                        let kind = descriptor.kind();
+                        let name = descriptor.display_name();
+                        let is_current = kind == current_kind;
+                        let option_editor = editor.clone();
+                        div()
+                            .id(("inner-pane-type-opt", idx))
+                            .w_full()
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .rounded(px(d.menu_item_radius))
+                            .bg(if is_current {
+                                c.panel_row_selected
+                            } else {
+                                c.dialog_surface
+                            })
+                            .hover(|this| this.bg(c.panel_row_hover))
+                            .cursor_pointer()
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_body_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
+                            .child(div().child(name.to_string()))
+                            .child(if is_current {
+                                svg()
+                                    .path("icons/editor/bottombar/checkmark.svg")
+                                    .size(px(14.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |_event, _window, cx| {
+                                let _ = option_editor.update(cx, |ed, cx| {
+                                    ed.change_pane_kind(pane_id, kind);
+                                    cx.notify();
+                                });
+                            })
                     }),
             )
             .into_any_element()

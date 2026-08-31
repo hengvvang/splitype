@@ -93,5 +93,3 @@ pub fn format_image_markdown_tag(alt: &str, relative_path: &str) -> String {
     let normalized = relative_path.replace('\\', "/");
     format!("![{alt}]({normalized})")
 }
-
-

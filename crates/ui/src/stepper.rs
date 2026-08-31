@@ -38,7 +38,11 @@ pub fn stepper_step_button(id: impl Into<ElementId>, c: &ThemeColors) -> Statefu
 
 /// Thin divider between stepper sections.
 pub fn stepper_divider(c: &ThemeColors) -> Div {
-    div().w(px(1.0)).h_full().flex_shrink_0().bg(c.dialog_border)
+    div()
+        .w(px(1.0))
+        .h_full()
+        .flex_shrink_0()
+        .bg(c.dialog_border)
 }
 
 /// Stepper value display (editing background stays at call sites).

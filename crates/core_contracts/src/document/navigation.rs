@@ -4,10 +4,7 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NavigationTarget {
     /// External web URL or local file target.
-    External {
-        raw: String,
-        resolved: String,
-    },
+    External { raw: String, resolved: String },
     /// In-document footnote definition.
     FootnoteDefinition { id: String },
     /// In-document footnote back-reference.

@@ -37,10 +37,9 @@ pub mod topbar;
 
 pub use bottombar::render_explorer_bottombar;
 pub use builder::*;
-pub use filename_editor::buffer::{utf16_range_to_utf8_in, utf8_range_to_utf16_in};
+pub use filename_editor::buffer::{utf8_range_to_utf16_in, utf16_range_to_utf8_in};
 pub use filename_editor::element::shape_filename_line;
 pub use plugin::*;
 pub use render::{render_explorer_body, render_explorer_file_context_menu};
-pub use topbar::render_explorer_topbar;
 pub use state::state::{ExplorerFileMenuState, ExplorerState};
-
+pub use topbar::render_explorer_topbar;

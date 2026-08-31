@@ -2,10 +2,10 @@
 
 use gpui::*;
 
+use crate::markdown::block::CalloutKind;
 use crate::model::block::Block;
 use crate::render::layout::callout_colors;
 use theme::Theme;
-use crate::markdown::block::CalloutKind;
 
 /// Render a callout (admonition) block.
 pub fn render_callout(
@@ -35,5 +35,3 @@ pub fn render_callout(
         ))
         .into_any_element()
 }
-
-

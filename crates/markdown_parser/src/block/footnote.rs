@@ -44,4 +44,3 @@ pub fn parse_footnote_definition_head(line: &str) -> Option<(String, String)> {
         .to_string();
     Some((id, remainder))
 }
-

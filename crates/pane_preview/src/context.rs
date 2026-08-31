@@ -9,12 +9,12 @@ use std::sync::Arc;
 
 use gpui::EntityId;
 
-use markdown_parser::footnotes::{
-    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
-};
 use markdown_parser::block::footnote::split_footnote_definition_text;
 use markdown_parser::block::image::ImageReferenceDefinitions;
 use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::footnotes::{
+    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
+};
 use markdown_parser::parse::{BlockId, BlockKind};
 
 use crate::node::PreviewBlock;
@@ -28,8 +28,8 @@ pub fn build_preview_footnote_registry(roots: &[PreviewBlock]) -> FootnoteMap {
     walk_preview_blocks(roots, None, &mut definitions, &mut ordered);
 
     let mut bindings: HashMap<String, FootnoteDefinitionBinding> = definitions
-        .into_iter()
-        .map(|(id, _definition_block_id)| {
+        .into_keys()
+        .map(|id| {
             (
                 id,
                 FootnoteDefinitionBinding {
@@ -41,8 +41,7 @@ pub fn build_preview_footnote_registry(roots: &[PreviewBlock]) -> FootnoteMap {
         .collect();
 
     let mut occurrence_index = 0usize;
-    let mut block_occurrences: HashMap<BlockId, Vec<FootnoteResolvedOccurrence>> =
-        HashMap::new();
+    let mut block_occurrences: HashMap<BlockId, Vec<FootnoteResolvedOccurrence>> = HashMap::new();
     for block in &ordered {
         let block_id = block.data.id;
         let mut occurrences = Vec::new();
@@ -98,12 +97,7 @@ fn walk_preview_blocks(
                 .or_insert(block.id());
         }
         ordered.push(block.clone());
-        walk_preview_blocks(
-            &block.children,
-            Some(block.kind()),
-            definitions,
-            ordered,
-        );
+        walk_preview_blocks(&block.children, Some(block.kind()), definitions, ordered);
     }
 }
 
@@ -133,4 +127,3 @@ pub fn sync_preview_block_context(
         );
     }
 }
-

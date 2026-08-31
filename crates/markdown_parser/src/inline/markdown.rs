@@ -294,8 +294,7 @@ pub(crate) fn parse_until(
             }
 
             if (tokens[index].ch == '['
-                || (tokens[index].ch == '!'
-                    && tokens.get(index + 1).map(|t| t.ch) == Some('[')))
+                || (tokens[index].ch == '!' && tokens.get(index + 1).map(|t| t.ch) == Some('[')))
                 && let Some(next_index) = parse_inline_link(
                     tokens,
                     index,
@@ -606,7 +605,11 @@ pub(crate) fn parse_inline_link(
 ) -> Option<usize> {
     let located = locate_inline_link(tokens, index, reference_definitions)?;
     let label_end = located.label_end;
-    let bracket_index = if located.link.is_image() { index + 1 } else { index };
+    let bracket_index = if located.link.is_image() {
+        index + 1
+    } else {
+        index
+    };
     let label_tokens = &tokens[bracket_index + 1..label_end];
     let label_markdown = tokens_to_string(label_tokens);
     let mut label_result = BlockText::plain(label_markdown)
@@ -1303,5 +1306,3 @@ pub(crate) fn escaped_sequence_token_len(tokens: &[CharToken], index: usize) -> 
         None
     }
 }
-
-

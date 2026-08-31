@@ -18,8 +18,7 @@ pub const SPLITYPE_BUG_REPORT_URL: &str =
     "https://github.com/hengvvang/splitype/issues/new?template=bug_report.yml";
 pub const SPLITYPE_FEATURE_REQUEST_URL: &str =
     "https://github.com/hengvvang/splitype/issues/new?template=feature_request.yml";
-pub const SPLITYPE_DISCUSSIONS_URL: &str =
-    "https://github.com/hengvvang/splitype/discussions";
+pub const SPLITYPE_DISCUSSIONS_URL: &str = "https://github.com/hengvvang/splitype/discussions";
 pub const SPLITYPE_WIKI_URL: &str = "https://github.com/hengvvang/splitype/wiki";
 pub const SPLITYPE_RELEASES_URL: &str = "https://github.com/hengvvang/splitype/releases";
 
@@ -118,14 +117,13 @@ impl Render for Editor {
             )
             .child(self.render_editor_bottombar(&theme, &strings, cx));
 
-        let base = if let Some(search_overlay) = self.render_search_panel_overlay(&theme, window, cx) {
-            base.child(search_overlay)
-        } else {
-            base
-        };
+        let base =
+            if let Some(search_overlay) = self.render_search_panel_overlay(&theme, window, cx) {
+                base.child(search_overlay)
+            } else {
+                base
+            };
 
         base.into_any_element()
     }
 }
-
-

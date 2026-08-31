@@ -116,5 +116,3 @@ impl Document {
         self.rebuild_metadata_and_snapshot(cx);
     }
 }
-
-

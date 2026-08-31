@@ -10,4 +10,3 @@ pub use highlight::{
     prewarm_code_highlight_registry,
 };
 pub use indent_guides::compute_indent_guide_columns;
-

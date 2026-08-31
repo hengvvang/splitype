@@ -129,7 +129,9 @@ impl TypographyScope {
     pub fn display_description(&self) -> &'static str {
         match self {
             Self::Ui => "Font used for menus, explorer sidebar, and application chrome",
-            Self::Prose => "Font used for Markdown prose, headings, and tables (both Editor and Preview)",
+            Self::Prose => {
+                "Font used for Markdown prose, headings, and tables (both Editor and Preview)"
+            }
             Self::Code => "Monospace font used for code blocks and inline code",
         }
     }
@@ -201,7 +203,8 @@ impl TypographyStore {
     }
 
     pub fn default_font(scope: TypographyScope) -> gpui::Font {
-        let (ui, prose, code) = Self::resolve_fonts(&config::settings::TypographySettings::default());
+        let (ui, prose, code) =
+            Self::resolve_fonts(&config::settings::TypographySettings::default());
         match scope {
             TypographyScope::Ui => ui,
             TypographyScope::Prose => prose,
@@ -212,15 +215,9 @@ impl TypographyStore {
     fn resolve_fonts(
         settings: &config::settings::TypographySettings,
     ) -> (gpui::Font, gpui::Font, gpui::Font) {
-        let ui_family = settings
-            .ui_font_family
-            .as_deref()
-            .unwrap_or("Lexend");
-        let prose_family = settings
-            .prose_font_family
-            .as_deref()
-            .unwrap_or("Lexend");
-        let code_family = settings.code_font_family.as_deref().unwrap_or_else(|| {
+        let ui_family = settings.ui_font_family.as_deref().unwrap_or("Lexend");
+        let prose_family = settings.prose_font_family.as_deref().unwrap_or("Lexend");
+        let code_family = settings.code_font_family.as_deref().unwrap_or({
             if cfg!(target_os = "windows") {
                 "Consolas"
             } else if cfg!(target_os = "macos") {
@@ -250,7 +247,7 @@ impl FontFamilyCache {
         CACHED
             .get_or_init(|| {
                 let mut font_names: Vec<String> = cx.text_system().all_font_names();
-                font_names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                font_names.sort_by_key(|a| a.to_lowercase());
                 font_names.dedup();
                 font_names
                     .into_iter()
@@ -260,4 +257,3 @@ impl FontFamilyCache {
             .clone()
     }
 }
-

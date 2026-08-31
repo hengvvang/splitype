@@ -67,7 +67,9 @@ pub fn build_text_runs(
 
     let callout_prefix_ranges =
         if matches!(input.kind(), crate::markdown::parse::BlockKind::Callout(_)) {
-            if display_text.starts_with("[!") && let Some(marker_end) = display_text.find(']') {
+            if display_text.starts_with("[!")
+                && let Some(marker_end) = display_text.find(']')
+            {
                 Some((0..2, 2..marker_end, marker_end..marker_end + 1))
             } else {
                 None
@@ -255,9 +257,7 @@ pub fn build_code_text_runs(
             .map(|span| code_highlight_color(colors, span.class))
             .unwrap_or(base_run.color);
 
-        let code_font = theme::TypographyStore::default_font(
-            theme::TypographyScope::Code,
-        );
+        let code_font = theme::TypographyStore::default_font(theme::TypographyScope::Code);
         runs.push(TextRun {
             len: end - start,
             font: code_font,
@@ -278,6 +278,3 @@ pub fn build_code_text_runs(
         runs
     }
 }
-
-
-

@@ -188,7 +188,3 @@ impl Drop for PdfTempFiles {
         self.cleanup();
     }
 }
-
-
-
-

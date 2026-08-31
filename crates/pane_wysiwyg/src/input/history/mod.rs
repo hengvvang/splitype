@@ -7,5 +7,3 @@
 pub mod delta;
 
 pub use delta::{DocDelta, Transaction};
-
-

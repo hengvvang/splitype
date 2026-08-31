@@ -1,7 +1,7 @@
 //! Application asset loader for bundled SVG icons and fonts.
 
-use std::borrow::Cow;
 use gpui::*;
+use std::borrow::Cow;
 
 mod fonts;
 mod icons;

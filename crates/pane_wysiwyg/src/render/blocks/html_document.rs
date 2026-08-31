@@ -2,14 +2,14 @@
 
 use gpui::*;
 
-use crate::model::block::{Block, ImageHandle};
-use config::language::I18nManager;
-use theme::Theme;
 use crate::markdown::block::html::{
     HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
 };
 use crate::markdown::block::image::resolve_image_source;
 use crate::markdown::inline::html::HtmlCssColor;
+use crate::model::block::{Block, ImageHandle};
+use config::language::I18nManager;
+use theme::Theme;
 
 /// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.
 pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
@@ -394,7 +394,10 @@ impl Block {
                     .map(|child| self.render_html_node(child, theme, node_style.computed, cx)),
             );
         if let Some(bg) = node_style.background {
-            element = element.bg(bg).rounded(px(theme.dimensions.code_bg_radius)).px(px(2.0));
+            element = element
+                .bg(bg)
+                .rounded(px(theme.dimensions.code_bg_radius))
+                .px(px(2.0));
         }
         match node.tag_name.as_str() {
             "sup" => {
@@ -573,5 +576,3 @@ impl Block {
         container.into_any_element()
     }
 }
-
-

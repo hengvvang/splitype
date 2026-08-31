@@ -14,4 +14,3 @@ pub mod mermaid;
 pub mod table;
 
 pub use callout::CalloutKind;
-

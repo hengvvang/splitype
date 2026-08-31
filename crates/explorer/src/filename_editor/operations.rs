@@ -7,11 +7,11 @@ use gpui::*;
 use crate::ExplorerState;
 
 use crate::filename_editor::ExplorerFilenameImeHost;
-use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::state::state::{
     ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
 };
 use crate::state::undo::ExplorerChange;
+use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 
 impl ExplorerState {
     /// Real-time validation of the inline filename (mirrors Zed's
@@ -199,18 +199,17 @@ impl ExplorerState {
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_string();
-        let selection_end =
-            if entry.kind == crate::state::worktree::WorktreeEntryKind::Directory {
-                file_name.len()
-            } else if let Some(last_dot) = file_name.rfind('.') {
-                if last_dot > 0 {
-                    last_dot
-                } else {
-                    file_name.len()
-                }
+        let selection_end = if entry.kind == crate::state::worktree::WorktreeEntryKind::Directory {
+            file_name.len()
+        } else if let Some(last_dot) = file_name.rfind('.') {
+            if last_dot > 0 {
+                last_dot
             } else {
                 file_name.len()
-            };
+            }
+        } else {
+            file_name.len()
+        };
 
         let mut filename = ExplorerFilenameEditor::default();
         filename.set_text(file_name, Some(0..selection_end));
@@ -250,21 +249,20 @@ impl ExplorerState {
         // Zed: `EditorEvent::Blurred` -> confirm; an empty, duplicate, or
         // unchanged name drops the edit. Window deactivation never commits
         // nor cancels.
-        ime_host
-            .update(cx, |_host, cx| {
-                let focus_handle = focus_handle.clone();
-                cx.on_blur(&focus_handle, window, move |_host, window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
-                        if !window.is_window_active() {
-                            return;
-                        }
-                        if state.edit.is_some() && !state.confirm_explorer_edit(window, cx) {
-                            state.discard_explorer_edit(cx);
-                        }
-                    });
-                })
-                .detach();
-            });
+        ime_host.update(cx, |_host, cx| {
+            let focus_handle = focus_handle.clone();
+            cx.on_blur(&focus_handle, window, move |_host, window, cx| {
+                ExplorerState::update(cx, |state, cx| {
+                    if !window.is_window_active() {
+                        return;
+                    }
+                    if state.edit.is_some() && !state.confirm_explorer_edit(window, cx) {
+                        state.discard_explorer_edit(cx);
+                    }
+                });
+            })
+            .detach();
+        });
         self.selected = None;
         self.edit = Some(edit);
         self.rebuild_explorer_entries();
@@ -274,16 +272,11 @@ impl ExplorerState {
     }
 
     /// Scroll the edit row into view and keep it visible while typing.
-    pub(crate) fn autoscroll_explorer_edit(
-        &mut self,
-        _window: &mut Window,
-        cx: &mut App,
-    ) {
+    pub(crate) fn autoscroll_explorer_edit(&mut self, _window: &mut Window, cx: &mut App) {
         let Some(index) = self.explorer_edit_row_index() else {
             return;
         };
-        self
-            .scroll_handle
+        self.scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
         cx.refresh_windows();
     }
@@ -291,8 +284,7 @@ impl ExplorerState {
     /// Row index of the inline edit row in the flat list, if any.
     pub(crate) fn explorer_edit_row_index(&self) -> Option<usize> {
         self.edit.as_ref().and_then(|_| {
-            self
-                .entries
+            self.entries
                 .iter()
                 .position(|row| matches!(row, ExplorerRow::Edit { .. }))
         })
@@ -306,11 +298,7 @@ impl ExplorerState {
     /// when nothing was submitted (empty name, duplicate, or missing edit) —
     /// callers decide whether to keep the edit open (Enter) or discard it
     /// (blur, mirroring Zed).
-    pub(crate) fn confirm_explorer_edit(
-        &mut self,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> bool {
+    pub(crate) fn confirm_explorer_edit(&mut self, window: &mut Window, cx: &mut App) -> bool {
         let Some(edit) = self.edit.as_ref() else {
             return false;
         };
@@ -346,11 +334,7 @@ impl ExplorerState {
                 .unwrap_or_else(|| edit.path.clone())
         };
         let missing_dirs = if is_create {
-            if let Some(snapshot) = self
-                .snapshots
-                .iter()
-                .find(|snap| snap.id() == worktree_id)
-            {
+            if let Some(snapshot) = self.snapshots.iter().find(|snap| snap.id() == worktree_id) {
                 crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
             } else {
                 Vec::new()
@@ -390,55 +374,54 @@ impl ExplorerState {
                     }
                 })
                 .await;
-            let _ = cx.update(|cx| {
+            cx.update(|cx| {
                 let path_for_open = ExplorerState::update(cx, |state, cx| {
                     match result {
                         Ok(()) => {
                             state.edit = None;
-                        // Record the operation for panel undo/redo.
-                        let change = if is_create {
-                            if !missing_dirs.is_empty() {
-                                let mut batch = Vec::new();
-                                for dir in missing_dirs.into_iter().rev() {
-                                    batch.push(ExplorerChange::DirCreated(dir));
+                            // Record the operation for panel undo/redo.
+                            let change = if is_create {
+                                if !missing_dirs.is_empty() {
+                                    let mut batch = Vec::new();
+                                    for dir in missing_dirs.into_iter().rev() {
+                                        batch.push(ExplorerChange::DirCreated(dir));
+                                    }
+                                    batch.push(ExplorerChange::Created {
+                                        path: new_path_for_update.clone(),
+                                        is_dir,
+                                    });
+                                    ExplorerChange::Batch(batch)
+                                } else {
+                                    ExplorerChange::Created {
+                                        path: new_path_for_update.clone(),
+                                        is_dir,
+                                    }
                                 }
-                                batch.push(ExplorerChange::Created {
-                                    path: new_path_for_update.clone(),
-                                    is_dir,
-                                });
-                                ExplorerChange::Batch(batch)
                             } else {
-                                ExplorerChange::Created {
-                                    path: new_path_for_update.clone(),
-                                    is_dir,
+                                ExplorerChange::Renamed {
+                                    from: old_path_for_record,
+                                    to: new_path_for_update.clone(),
                                 }
+                            };
+                            state.record_explorer_change(change);
+                            state.pending_select = Some((worktree_id, new_path_for_update.clone()));
+                            state.expand_to_path(&new_path_for_update);
+                            state.rescan_explorer_worktrees(cx);
+                            state.sync_explorer_models(cx);
+                            if is_create && !is_dir {
+                                Some(new_path_for_update.clone())
+                            } else {
+                                None
                             }
-                        } else {
-                            ExplorerChange::Renamed {
-                                from: old_path_for_record,
-                                to: new_path_for_update.clone(),
+                        }
+                        Err(err) => {
+                            if let Some(edit) = state.edit.as_mut() {
+                                edit.processing = false;
+                                edit.validation = Some(ExplorerValidation::Error(err));
                             }
-                        };
-                        state.record_explorer_change(change);
-                        state.pending_select =
-                            Some((worktree_id, new_path_for_update.clone()));
-                        state.expand_to_path(&new_path_for_update);
-                        state.rescan_explorer_worktrees(cx);
-                        state.sync_explorer_models(cx);
-                        if is_create && !is_dir {
-                            Some(new_path_for_update.clone())
-                        } else {
                             None
                         }
                     }
-                    Err(err) => {
-                        if let Some(edit) = state.edit.as_mut() {
-                            edit.processing = false;
-                            edit.validation = Some(ExplorerValidation::Error(err));
-                        }
-                        None
-                    }
-                }
                 });
                 // Window-scoped work must run after the global lease above
                 // ends (nested global leases panic).
@@ -450,8 +433,8 @@ impl ExplorerState {
                     });
                 }
                 cx.refresh_windows();
-                });
-            })
+            });
+        })
         .detach();
         true
     }
@@ -554,12 +537,7 @@ impl ExplorerState {
         }
     }
 
-    pub(crate) fn on_explorer_filename_cut(
-        &mut self,
-        _: &Cut,
-        _window: &mut Window,
-        cx: &mut App,
-    ) {
+    pub(crate) fn on_explorer_filename_cut(&mut self, _: &Cut, _window: &mut Window, cx: &mut App) {
         if let Some(edit) = &mut self.edit {
             if !edit.filename.selection_range().is_empty() {
                 let text = edit.filename.selected_text().to_string();
@@ -592,4 +570,3 @@ impl ExplorerState {
 }
 
 // ── GPUI IME bridge ─────────────────────────────────────────────────────
-

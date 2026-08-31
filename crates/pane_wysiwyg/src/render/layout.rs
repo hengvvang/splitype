@@ -3,9 +3,8 @@
 //! Row layout and spacing helpers used by the main render pass; the render
 //! orchestration itself lives in `crate::core_contracts::panes::wysiwyg::render`.
 
-use gpui::*;
 use crate::markdown::parse::BlockId;
-
+use gpui::*;
 
 use ::theme::*;
 
@@ -104,9 +103,6 @@ pub fn callout_colors(variant: markdown_parser::block::CalloutKind, theme: &Them
     syntax_highlighter::render_helpers::callout_colors(variant, theme)
 }
 
-
-
-
 /// Linearly interpolates the editor content width ratio based on viewport
 /// width. The column stays full-width until `centered_shrink_start`, then
 /// shrinks to `centered_min_ratio` at `centered_shrink_end`.
@@ -129,5 +125,3 @@ pub fn centered_column_width(viewport_width: f32, dimensions: &ThemeDimensions) 
         .max(320.0)
         .min(available_content_width)
 }
-
-

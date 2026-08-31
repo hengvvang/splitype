@@ -17,5 +17,3 @@ pub fn is_interaction_event(event: &BlockEvent) -> bool {
             | BlockEvent::RequestFocus
     )
 }
-
-

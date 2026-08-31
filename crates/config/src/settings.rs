@@ -14,7 +14,6 @@ use crate::recent::read_recent_files;
 pub type SubsystemSyncHook = fn(&mut App, &AppSettings);
 static SYNC_HOOKS: std::sync::RwLock<Vec<SubsystemSyncHook>> = std::sync::RwLock::new(Vec::new());
 
-
 pub const DEFAULT_THEME_ID: &str = "splitype";
 pub const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
@@ -477,9 +476,14 @@ impl SettingsStore {
     }
 
     /// Mutate settings in-place, persist to disk, sync subsystems, and refresh windows.
-    pub fn update<R>(cx: &mut App, mutate: impl FnOnce(&mut AppSettings) -> R) -> anyhow::Result<R> {
+    pub fn update<R>(
+        cx: &mut App,
+        mutate: impl FnOnce(&mut AppSettings) -> R,
+    ) -> anyhow::Result<R> {
         let (result, new_settings) = {
-            let store = cx.try_global::<Self>().context("SettingsStore global not initialized")?;
+            let store = cx
+                .try_global::<Self>()
+                .context("SettingsStore global not initialized")?;
             let mut updated = store.settings.clone();
             let res = mutate(&mut updated);
             (res, updated)
@@ -569,7 +573,6 @@ where
     "en-US"
 }
 
-
 pub fn load_or_create_app_settings_with_dirs_and_locales<I, S>(
     dirs: &SplitypeConfigDirs,
     locales: I,
@@ -629,4 +632,3 @@ pub fn first_existing_recent_markdown_file() -> Option<PathBuf> {
     let recent_files = read_recent_files().ok()?;
     recent_files.into_iter().find(|path| path.is_file())
 }
-

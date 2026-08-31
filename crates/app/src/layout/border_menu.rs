@@ -3,8 +3,8 @@
 use gpui::*;
 
 use crate::shell::Shell;
-use theme::Theme;
 use splitter::tree::SplitAxis;
+use theme::Theme;
 
 impl Shell {
     pub(crate) fn render_window_panel_border_menu(

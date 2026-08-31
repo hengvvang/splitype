@@ -4,10 +4,10 @@
 
 use gpui::*;
 
-use markdown_parser::block::table::TableColumnLayout;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use crate::render::preview_centered_column_width;
+use markdown_parser::block::table::TableColumnLayout;
 use theme::Theme;
 
 /// Renders a native table block read-only with content-measured column
@@ -132,5 +132,3 @@ fn render_preview_table_cell(
         ))
         .into_any_element()
 }
-
-

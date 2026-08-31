@@ -64,5 +64,3 @@ pub fn render_footnote_definition(
         header.into_any_element()
     }
 }
-
-

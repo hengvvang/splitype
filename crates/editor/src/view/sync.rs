@@ -23,12 +23,7 @@ impl Editor {
         }
     }
 
-    pub fn apply_pending_autoscroll(
-        &mut self,
-        pane_id: PaneId,
-        window: &Window,
-        cx: &App,
-    ) {
+    pub fn apply_pending_autoscroll(&mut self, pane_id: PaneId, window: &Window, cx: &App) {
         if self
             .pane_state_ref(pane_id)
             .is_none_or(|state| state.scroll.scrollbar_drag.is_some())
@@ -127,7 +122,10 @@ impl Editor {
     }
 
     pub fn sync_pending_open_link(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(link) = self.active_tab_mut().and_then(|t| t.file.pending_open_link.take()) else {
+        let Some(link) = self
+            .active_tab_mut()
+            .and_then(|t| t.file.pending_open_link.take())
+        else {
             return;
         };
 
@@ -158,7 +156,10 @@ impl Editor {
     }
 
     pub fn sync_window_edited_state(&mut self, window: &mut Window) {
-        if self.active_tab().is_some_and(|t| t.file.pending_window_edited) {
+        if self
+            .active_tab()
+            .is_some_and(|t| t.file.pending_window_edited)
+        {
             if let Some(tab) = self.active_tab_mut() {
                 tab.file.pending_window_edited = false;
             }
@@ -191,20 +192,18 @@ impl Editor {
     }
 
     pub fn sync_window_title(&mut self, window: &mut Window, strings: &I18nStrings) {
-        if self.active_tab().is_some_and(|t| t.file.pending_window_title_refresh) {
+        if self
+            .active_tab()
+            .is_some_and(|t| t.file.pending_window_title_refresh)
+        {
             let (path, dirty) = if let Some(tab) = self.active_tab_mut() {
                 tab.file.pending_window_title_refresh = false;
                 (tab.file.path.clone(), tab.file.dirty)
             } else {
                 (None, false)
             };
-            let title = Self::window_title(
-                path.as_deref(),
-                dirty,
-                strings,
-            );
+            let title = Self::window_title(path.as_deref(), dirty, strings);
             window.set_window_title(&title);
         }
     }
 }
-

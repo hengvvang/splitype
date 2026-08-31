@@ -2,13 +2,13 @@
 
 use gpui::*;
 
-use crate::render::layout::centered_column_width;
+use crate::markdown::block::image::ImageResolvedSource;
+use crate::markdown::parse::BlockKind;
 use crate::model::block::{Block, ImageHandle};
+use crate::render::layout::centered_column_width;
 use crate::render::visible_quote_guides;
 use config::language::I18nStrings;
 use theme::{Theme, ThemeDimensions};
-use crate::markdown::block::image::ImageResolvedSource;
-use crate::markdown::parse::BlockKind;
 
 pub fn render_image_placeholder(
     runtime: &ImageHandle,
@@ -104,11 +104,7 @@ pub fn render_loading_placeholder(
         .into_any_element()
 }
 
-pub fn effective_table_width(
-    block: &Block,
-    viewport_width: f32,
-    d: &ThemeDimensions,
-) -> f32 {
+pub fn effective_table_width(block: &Block, viewport_width: f32, d: &ThemeDimensions) -> f32 {
     let centered_width = centered_column_width(viewport_width, d);
     let visible_quote_guides = visible_quote_guides(block);
     let quote_inset = d.quote_padding_left * visible_quote_guides as f32;
@@ -139,11 +135,7 @@ fn container_image_width_budget(block: &Block, viewport_width: f32, d: &ThemeDim
     centered_width - quote_inset - callout_inset
 }
 
-pub fn effective_image_width(
-    block: &Block,
-    viewport_width: f32,
-    d: &ThemeDimensions,
-) -> f32 {
+pub fn effective_image_width(block: &Block, viewport_width: f32, d: &ThemeDimensions) -> f32 {
     let list_inset = d.nested_block_indent * block.render_depth as f32;
     (container_image_width_budget(block, viewport_width, d) - d.block_padding_x * 2.0 - list_inset)
         .max(160.0)
@@ -244,5 +236,3 @@ impl Block {
         container.into_any_element()
     }
 }
-
-

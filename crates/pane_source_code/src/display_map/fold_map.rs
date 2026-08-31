@@ -46,10 +46,10 @@ impl FoldMap {
 
     /// Toggles folding for a range.
     pub fn toggle_fold(&mut self, range: FoldRange) {
-        if self.folds.contains_key(&range.start_row) {
-            self.folds.remove(&range.start_row);
+        if let std::collections::btree_map::Entry::Vacant(e) = self.folds.entry(range.start_row) {
+            e.insert(range);
         } else {
-            self.folds.insert(range.start_row, range);
+            self.folds.remove(&range.start_row);
         }
     }
 
@@ -108,7 +108,7 @@ impl FoldMap {
             // Heading detection
             if line.starts_with('#') {
                 let level = line.chars().take_while(|&c| c == '#').count() as u8;
-                if level >= 1 && level <= 6 && line[level as usize..].starts_with(' ') {
+                if (1..=6).contains(&level) && line[level as usize..].starts_with(' ') {
                     while let Some((prev_lvl, prev_row)) = heading_stack.pop() {
                         if prev_lvl < level {
                             heading_stack.push((prev_lvl, prev_row));
@@ -192,4 +192,3 @@ impl FoldMap {
         count.max(1)
     }
 }
-

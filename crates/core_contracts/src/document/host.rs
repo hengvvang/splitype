@@ -1,6 +1,6 @@
-use std::path::Path;
-use gpui::{App, Window};
 use crate::document::TabKind;
+use gpui::{App, Window};
+use std::path::Path;
 
 pub trait EditorHost: Send + Sync + 'static {
     fn activate_panel(&self, panel_id: window::PanelId, cx: &mut App);
@@ -28,4 +28,3 @@ pub trait EditorHost: Send + Sync + 'static {
     fn sync_explorer_after_document_path_change(&self, cx: &mut App);
     fn record_recent_file(&self, path: &Path, cx: &mut App);
 }
-

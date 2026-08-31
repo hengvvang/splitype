@@ -1,10 +1,10 @@
+use crate::EditorSession;
+use crate::editor::Editor;
+use gpui::*;
 use std::any::Any;
 use std::path::Path;
 use std::sync::Arc;
-use gpui::*;
 use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
-use crate::editor::Editor;
-use crate::EditorSession;
 
 /// View wrapper implementing [`PanelView`] for an Editor container panel.
 pub struct EditorPanelView {
@@ -46,7 +46,12 @@ impl PanelView for EditorPanelView {
         })
     }
 
-    fn save(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> { self.editor.update(cx, |editor, cx| { editor.save_document(window, cx); }); Ok(()) }
+    fn save(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_document(window, cx);
+        });
+        Ok(())
+    }
 
     fn save_as(&mut self, window: &mut Window, cx: &mut App) {
         self.editor.update(cx, |editor, cx| {
@@ -84,11 +89,13 @@ impl PanelView for EditorPanelView {
         window: &mut Window,
         cx: &mut App,
     ) -> bool {
-        self.editor.update(cx, |editor, _cx| editor.update_inner_drag(position, window))
+        self.editor
+            .update(cx, |editor, _cx| editor.update_inner_drag(position, window))
     }
 
     fn finish_inner_gestures(&mut self, window: &mut Window, cx: &mut App) {
-        self.editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
+        self.editor
+            .update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
     }
 
     fn suspend_state(&mut self, cx: &mut App) -> Option<Box<dyn Any>> {
@@ -103,7 +110,9 @@ impl PanelView for EditorPanelView {
 
     fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
         let editor = self.editor.clone();
-        Some(Box::new(editor.update(cx, |editor, cx| editor.clone_session(cx))))
+        Some(Box::new(
+            editor.update(cx, |editor, cx| editor.clone_session(cx)),
+        ))
     }
 
     fn render(
@@ -198,7 +207,10 @@ impl PanelDescriptor for EditorPanelDescriptor {
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
-        let session = state.downcast::<crate::EditorSession>().ok().map(|boxed| *boxed)?;
+        let session = state
+            .downcast::<crate::EditorSession>()
+            .ok()
+            .map(|boxed| *boxed)?;
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         Some(Box::new(EditorPanelView::new(editor)))
     }

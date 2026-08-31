@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use gpui::{App, BorrowAppContext, Global};
 
-
 use super::packs::{
     BUILTIN_LANGUAGE_EN_US_ID, I18nLanguagePack, LanguageCatalogEntry, builtin_language_catalog,
     custom_language_pack_from_value,

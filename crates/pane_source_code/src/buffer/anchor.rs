@@ -40,4 +40,3 @@ impl Anchor {
         self.offset.min(text_len)
     }
 }
-

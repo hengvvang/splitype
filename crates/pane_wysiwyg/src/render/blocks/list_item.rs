@@ -70,10 +70,8 @@ pub fn render_bulleted_list_item(
                     )
                 }
             } else {
-                div()
-                    .min_w(px(0.0))
-                    .flex_grow(1.0)
-                    .child(block.render_text_or_mixed_inline_visuals(
+                div().min_w(px(0.0)).flex_grow(1.0).child(
+                    block.render_text_or_mixed_inline_visuals(
                         theme,
                         focused,
                         is_placeholder,
@@ -81,7 +79,8 @@ pub fn render_bulleted_list_item(
                         t.text_size,
                         FontWeight::NORMAL,
                         cx,
-                    ))
+                    ),
+                )
             },
         ])
         .into_any_element()
@@ -178,10 +177,8 @@ pub fn render_task_list_item(
                     )
                 }
             } else {
-                div()
-                    .min_w(px(0.0))
-                    .flex_grow(1.0)
-                    .child(block.render_text_or_mixed_inline_visuals(
+                div().min_w(px(0.0)).flex_grow(1.0).child(
+                    block.render_text_or_mixed_inline_visuals(
                         theme,
                         focused,
                         is_placeholder,
@@ -189,7 +186,8 @@ pub fn render_task_list_item(
                         t.text_size,
                         FontWeight::NORMAL,
                         cx,
-                    ))
+                    ),
+                )
             },
         ])
         .into_any_element()
@@ -252,10 +250,8 @@ pub fn render_numbered_list_item(
                     )
                 }
             } else {
-                div()
-                    .min_w(px(0.0))
-                    .flex_grow(1.0)
-                    .child(block.render_text_or_mixed_inline_visuals(
+                div().min_w(px(0.0)).flex_grow(1.0).child(
+                    block.render_text_or_mixed_inline_visuals(
                         theme,
                         focused,
                         is_placeholder,
@@ -263,7 +259,8 @@ pub fn render_numbered_list_item(
                         t.text_size,
                         FontWeight::NORMAL,
                         cx,
-                    ))
+                    ),
+                )
             },
         ])
         .into_any_element()
@@ -276,5 +273,3 @@ fn strings_from_context(cx: &mut Context<Block>) -> config::language::I18nString
         .as_ref()
         .clone()
 }
-
-

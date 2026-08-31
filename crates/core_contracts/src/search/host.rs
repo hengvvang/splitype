@@ -1,6 +1,6 @@
-use std::ops::Range;
-use gpui::{App, Bounds, FocusHandle, KeyDownEvent, Pixels, Window};
 use super::state::SearchActiveField;
+use gpui::{App, Bounds, FocusHandle, KeyDownEvent, Pixels, Window};
+use std::ops::Range;
 
 pub trait SearchHost: Send + Sync + 'static {
     fn execute_search(&self, cx: &mut App);
@@ -21,12 +21,7 @@ pub trait SearchHost: Send + Sync + 'static {
     fn replace_all(&self, cx: &mut App);
     fn toggle_match_expanded(&self, index: usize, cx: &mut App);
     fn collapse_results(&self, cx: &mut App);
-    fn set_input_last_bounds(
-        &self,
-        field: SearchActiveField,
-        bounds: Bounds<Pixels>,
-        cx: &mut App,
-    );
+    fn set_input_last_bounds(&self, field: SearchActiveField, bounds: Bounds<Pixels>, cx: &mut App);
 }
 
 #[derive(Default)]

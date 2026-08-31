@@ -444,7 +444,6 @@ pub struct I18nStrings {
     pub settings_status_bar_show_cursor_position: String,
 }
 
-
 pub const I18N_STRING_KEYS: &[&str] = &[
     "dirty_title_marker",
     "unsaved_changes_title",
@@ -695,7 +694,6 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "settings_status_bar_show_word_count",
     "settings_status_bar_show_cursor_position",
 ];
-
 
 impl I18nStrings {
     /// Built-in Simplified Chinese UI strings.

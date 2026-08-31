@@ -38,7 +38,14 @@ fn main() -> anyhow::Result<()> {
             println!("✨ Running clippy across workspace...");
             run_cmd(
                 "cargo",
-                &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
+                &[
+                    "clippy",
+                    "--workspace",
+                    "--all-targets",
+                    "--",
+                    "-D",
+                    "warnings",
+                ],
             )?;
 
             println!("✅ All workspace checks passed!");
