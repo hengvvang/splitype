@@ -38,34 +38,47 @@ pub struct FileState {
 impl Editor {
     /// The active tab's current authoritative raw text.
     pub fn serialized_document_text(&self, cx: &App) -> String {
-        self.tab().serialized_text(cx)
-    }
-
-    pub fn save_dialog_defaults(&self) -> (PathBuf, Option<String>) {
-        if let Some(path) = self.tab().file.path.as_ref() {
-            let directory = path
-                .parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-            let suggested_name = path
-                .file_name()
-                .map(|name| name.to_string_lossy().to_string());
-            (directory, suggested_name)
+        if let Some(tab) = self.session.active_tab() {
+            tab.serialized_text(cx)
+        } else if let Some(pane_id) = self.focused_pane_id.or_else(|| self.session.root.tree.first_leaf_id().map(core_contracts::PaneId)) {
+            if let Some(state) = self.session.empty_panes.get(&pane_id) {
+                state.pane.serialize_text(cx).unwrap_or_default()
+            } else {
+                String::new()
+            }
         } else {
-            (
-                std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
-                Some("untitled.md".to_string()),
-            )
+            String::new()
         }
     }
 
+    pub fn save_dialog_defaults(&self) -> (PathBuf, Option<String>) {
+        if let Some(tab) = self.session.active_tab() {
+            if let Some(path) = tab.file.path.as_ref() {
+                let directory = path
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+                let suggested_name = path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().to_string());
+                return (directory, suggested_name);
+            }
+        }
+        (
+            std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            Some("untitled.md".to_string()),
+        )
+    }
+
     pub fn apply_successful_save(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-        self.tab_mut().file.path = Some(path.clone());
-        self.tab_mut().file.dirty = false;
-        self.tab_mut().file.pending_window_edited = false;
-        self.tab_mut().file.pending_window_title_refresh = true;
-        self.tab_mut().file.pending_close_after_save = false;
-        self.tab_mut().file.close_dialog_restore_focus = None;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.path = Some(path.clone());
+            tab.file.dirty = false;
+            tab.file.pending_window_edited = false;
+            tab.file.pending_window_title_refresh = true;
+            tab.file.pending_close_after_save = false;
+            tab.file.close_dialog_restore_focus = None;
+        }
         if let Some(host) = self.host.clone() {
             host.record_recent_file(&path, cx);
             host.sync_explorer_after_document_path_change(cx);
@@ -120,23 +133,25 @@ impl Editor {
     }
 
     pub fn save_document(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(path) = self.tab().file.path.clone() {
-            let should_close_after_save = self.tab().file.pending_close_after_save;
-            if self.save_to_existing_path(&path, window, cx) {
-                if should_close_after_save {
-                    window.remove_window();
+        if let Some(tab) = self.session.active_tab() {
+            if let Some(path) = tab.file.path.clone() {
+                let should_close_after_save = tab.file.pending_close_after_save;
+                if self.save_to_existing_path(&path, window, cx) {
+                    if should_close_after_save {
+                        window.remove_window();
+                    }
+                } else if should_close_after_save {
+                    self.abort_pending_close_after_save(cx);
                 }
-            } else if should_close_after_save {
-                self.abort_pending_close_after_save(cx);
+                return;
             }
-            return;
         }
 
         self.save_document_via_prompt(window, cx);
     }
 
     pub fn save_document_via_prompt(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let should_close_after_save = self.tab().file.pending_close_after_save;
+        let should_close_after_save = self.session.active_tab().is_some_and(|t| t.file.pending_close_after_save);
         let markdown = self.serialized_document_text(cx);
         let (default_dir, suggested_name) = self.save_dialog_defaults();
         let prompt = cx.prompt_for_new_path(&default_dir, suggested_name.as_deref());
@@ -184,7 +199,11 @@ impl Editor {
                 path.set_extension("md");
             }
 
-            if let Err(err) = std::fs::write(&path, &markdown) {
+            let file_content = markdown.clone();
+            let write_path = path.clone();
+            let write_result = std::fs::write(&write_path, file_content);
+
+            if let Err(err) = write_result {
                 if should_close_after_save {
                     let _ = weak_editor_for_write_error
                         .update(cx, |this, cx| this.abort_pending_close_after_save(cx));
@@ -207,19 +226,14 @@ impl Editor {
                 return;
             }
 
-            let path_for_state = path.clone();
-            let _ = weak_editor.update(cx, move |this, cx| {
-                this.apply_successful_save(path_for_state, cx);
-            });
-            let _ = cx.update_window(
-                window_handle,
-                move |_view: AnyView, window: &mut Window, _cx: &mut App| {
-                    window.set_window_edited(false);
-                    if should_close_after_save {
+            let _ = weak_editor.update(cx, |this, cx| {
+                this.apply_successful_save(path, cx);
+                if should_close_after_save {
+                    window_handle.update(cx, |_view, window, _cx| {
                         window.remove_window();
-                    }
-                },
-            );
+                    }).ok();
+                }
+            });
         })
         .detach();
     }
@@ -255,8 +269,7 @@ impl Editor {
     }
 
     pub fn save_all_dirty_tabs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let count = self.session.tab_count();
-        for i in 0..count {
+        for i in 0..self.session.tab_count() {
             if self.session.tab(i).is_some_and(|t| t.file.dirty) {
                 self.save_tab_at(i, window, cx);
             }
@@ -268,25 +281,33 @@ impl Editor {
     }
 
     pub fn abort_pending_close_after_save(&mut self, cx: &mut App) {
-        self.tab_mut().file.pending_close_after_save = false;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_close_after_save = false;
+        }
         cx.notify(self.entity_id);
     }
 
     pub fn cancel_close_dialog(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().file.show_unsaved_changes_dialog = false;
-        self.tab_mut().file.pending_close_after_save = false;
-        self.tab_mut().file.close_dialog_restore_focus = None;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.show_unsaved_changes_dialog = false;
+            tab.file.pending_close_after_save = false;
+            tab.file.close_dialog_restore_focus = None;
+        }
         cx.notify();
     }
 
     pub fn save_and_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.tab_mut().file.pending_close_after_save = true;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_close_after_save = true;
+        }
         self.save_document(window, cx);
     }
 
     pub fn discard_and_close(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().file.dirty = false;
-        self.tab_mut().file.show_unsaved_changes_dialog = false;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.dirty = false;
+            tab.file.show_unsaved_changes_dialog = false;
+        }
         if let Some(host) = self.host.clone() {
             host.request_close_panel(self.panel_id, cx);
         }
@@ -316,14 +337,16 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().file.dirty {
-            self.tab_mut().file.pending_drop_replace_path = Some(path);
-            if !self.tab().file.show_drop_replace_dialog {
-                self.tab_mut().file.show_drop_replace_dialog = true;
-                window.blur();
+        if let Some(tab) = self.session.active_tab_mut() {
+            if tab.file.dirty {
+                tab.file.pending_drop_replace_path = Some(path);
+                if !tab.file.show_drop_replace_dialog {
+                    tab.file.show_drop_replace_dialog = true;
+                    window.blur();
+                }
+                cx.notify();
+                return;
             }
-            cx.notify();
-            return;
         }
 
         match self.replace_document_from_path(&path, cx) {
@@ -346,7 +369,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(path) = self.tab_mut().file.pending_drop_replace_path.take() else {
+        let Some(path) = self.session.active_tab_mut().and_then(|t| t.file.pending_drop_replace_path.take()) else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -363,15 +386,19 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().file.pending_drop_replace_path.is_none() {
+        let Some(tab) = self.session.active_tab_mut() else {
+            self.clear_pending_drop_replace_state(cx);
+            return;
+        };
+        if tab.file.pending_drop_replace_path.is_none() {
             self.clear_pending_drop_replace_state(cx);
             return;
         }
 
-        self.tab_mut().file.show_drop_replace_dialog = false;
-        self.tab_mut().file.pending_drop_replace_after_save = true;
+        tab.file.show_drop_replace_dialog = false;
+        tab.file.pending_drop_replace_after_save = true;
 
-        if let Some(path) = self.tab().file.path.clone() {
+        if let Some(path) = tab.file.path.clone() {
             if self.save_to_existing_path(&path, window, cx) {
                 self.replace_after_successful_save(window, cx);
             } else {
@@ -389,7 +416,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(drop_path) = self.tab_mut().file.pending_drop_replace_path.take() else {
+        let Some(drop_path) = self.session.active_tab_mut().and_then(|t| t.file.pending_drop_replace_path.take()) else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -406,7 +433,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(drop_path) = self.tab().file.pending_drop_replace_path.clone() else {
+        let Some(drop_path) = self.session.active_tab().and_then(|t| t.file.pending_drop_replace_path.clone()) else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -477,7 +504,9 @@ impl Editor {
             let saved_path = save_path.clone();
             let replace_result = weak_editor.update(cx, move |this, cx| {
                 this.apply_successful_save(saved_path, cx);
-                this.tab_mut().file.pending_drop_replace_path = Some(drop_path);
+                if let Some(tab) = this.session.active_tab_mut() {
+                    tab.file.pending_drop_replace_path = Some(drop_path);
+                }
                 this.replace_after_successful_save_async(cx)
             });
             let _ = cx.update_window(
@@ -506,7 +535,7 @@ impl Editor {
         &mut self,
         cx: &mut Context<Self>,
     ) -> Result<()> {
-        let Some(drop_path) = self.tab_mut().file.pending_drop_replace_path.take() else {
+        let Some(drop_path) = self.session.active_tab_mut().and_then(|t| t.file.pending_drop_replace_path.take()) else {
             self.clear_pending_drop_replace_state(cx);
             return Ok(());
         };
@@ -516,9 +545,11 @@ impl Editor {
     }
 
     pub fn abort_pending_drop_replace_after_save(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().file.pending_drop_replace_after_save = false;
-        self.tab_mut().file.show_drop_replace_dialog = false;
-        self.tab_mut().file.pending_drop_replace_path = None;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_drop_replace_after_save = false;
+            tab.file.show_drop_replace_dialog = false;
+            tab.file.pending_drop_replace_path = None;
+        }
         let pane = self.active_pane_state();
         pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit {
             margin: px(20.0),
@@ -527,25 +558,17 @@ impl Editor {
     }
 
     pub fn clear_pending_drop_replace_state(&mut self, cx: &mut Context<Self>) {
-        let had_path = self
-            .tab_mut()
-            .file
-            .pending_drop_replace_path
-            .take()
-            .is_some();
-        let had_dialog = self.tab().file.show_drop_replace_dialog;
-        let had_after_save = self.tab().file.pending_drop_replace_after_save;
-        let had_restore_focus = self
-            .tab_mut()
-            .file
-            .drop_replace_restore_focus
-            .take()
-            .is_some();
-        let had_state = had_path || had_dialog || had_after_save || had_restore_focus;
-        self.tab_mut().file.show_drop_replace_dialog = false;
-        self.tab_mut().file.pending_drop_replace_after_save = false;
-        if had_state {
-            cx.notify();
+        if let Some(tab) = self.session.active_tab_mut() {
+            let had_path = tab.file.pending_drop_replace_path.take().is_some();
+            let had_dialog = tab.file.show_drop_replace_dialog;
+            let had_after_save = tab.file.pending_drop_replace_after_save;
+            let had_restore_focus = tab.file.drop_replace_restore_focus.take().is_some();
+            let had_state = had_path || had_dialog || had_after_save || had_restore_focus;
+            tab.file.show_drop_replace_dialog = false;
+            tab.file.pending_drop_replace_after_save = false;
+            if had_state {
+                cx.notify();
+            }
         }
     }
 

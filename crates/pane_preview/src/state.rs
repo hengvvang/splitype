@@ -136,6 +136,25 @@ impl PaneView for PreviewState {
             .into_any_element()
     }
 
+    fn handle_navigation(
+        &mut self,
+        target: &core_contracts::NavigationTarget,
+        _modifiers: gpui::Modifiers,
+        _cx: &mut gpui::App,
+    ) -> Option<core_contracts::NavigationExecutionPlan> {
+        match target {
+            core_contracts::NavigationTarget::External { resolved, .. } => {
+                Some(core_contracts::NavigationExecutionPlan::OpenExternalUrl(resolved.clone()))
+            }
+            core_contracts::NavigationTarget::FootnoteDefinition { id } => {
+                Some(core_contracts::NavigationExecutionPlan::ScrollToFootnote(id.clone()))
+            }
+            core_contracts::NavigationTarget::FootnoteReference { id } => {
+                Some(core_contracts::NavigationExecutionPlan::ScrollToFootnoteRef(id.clone()))
+            }
+        }
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

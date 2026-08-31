@@ -129,7 +129,7 @@ impl WysiwygDocumentController {
             BlockEvent::Changed => {
                 self.text_stale = true;
                 if let Some(host) = &self.host {
-                    host.sync_source_edit(self.pane_id, cx);
+                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                     host.mark_dirty(cx);
                 }
                 cx.notify();
@@ -161,7 +161,7 @@ impl WysiwygDocumentController {
                     });
                     self.text_stale = true;
                     if let Some(host) = &self.host {
-                        host.sync_source_edit(self.pane_id, cx);
+                        if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                         host.mark_dirty(cx);
                     }
                     cx.notify();
@@ -185,7 +185,7 @@ impl WysiwygDocumentController {
                     });
                     self.text_stale = true;
                     if let Some(host) = &self.host {
-                        host.sync_source_edit(self.pane_id, cx);
+                        if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                         host.mark_dirty(cx);
                     }
                     cx.notify();
@@ -217,7 +217,7 @@ impl WysiwygDocumentController {
                         self.focus.active_entity = Some(prev.entity_id());
                         self.text_stale = true;
                         if let Some(host) = &self.host {
-                            host.sync_source_edit(self.pane_id, cx);
+                            if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                             host.mark_dirty(cx);
                         }
                         cx.notify();
@@ -248,7 +248,7 @@ impl WysiwygDocumentController {
                     }
                     self.text_stale = true;
                     if let Some(host) = &self.host {
-                        host.sync_source_edit(self.pane_id, cx);
+                        if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                         host.mark_dirty(cx);
                     }
                     cx.notify();
@@ -305,7 +305,7 @@ impl WysiwygDocumentController {
                                 self.focus.active_entity = Some(block.entity_id());
                                 self.text_stale = true;
                                 if let Some(host) = &self.host {
-                                    host.sync_source_edit(self.pane_id, cx);
+                                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                                     host.mark_dirty(cx);
                                 }
                                 cx.notify();
@@ -329,7 +329,7 @@ impl WysiwygDocumentController {
                         }
                         self.text_stale = true;
                         if let Some(host) = &self.host {
-                            host.sync_source_edit(self.pane_id, cx);
+                            if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                             host.mark_dirty(cx);
                         }
                         cx.notify();
@@ -350,7 +350,7 @@ impl WysiwygDocumentController {
                 });
                 self.text_stale = true;
                 if let Some(host) = &self.host {
-                    host.sync_source_edit(self.pane_id, cx);
+                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                     host.mark_dirty(cx);
                 }
                 cx.notify();
@@ -371,8 +371,18 @@ impl WysiwygDocumentController {
         self.rebuild_from_markdown(text, revision, cx);
     }
 
-    pub fn serialize_text(&self, cx: &App) -> Option<String> {
+        pub fn serialize_text(&self, cx: &App) -> Option<String> {
         self.document.as_ref().map(|d| d.serialize_markdown(cx))
+    }
+
+    pub fn notify_document_changed(&mut self, cx: &mut App) {
+        self.text_stale = true;
+        if let Some(host) = &self.host {
+            if let Some(text) = self.serialize_text(cx) {
+                host.sync_source_text(self.pane_id, text, cx);
+            }
+            host.mark_dirty(cx);
+        }
     }
 
     pub fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
@@ -434,7 +444,7 @@ impl WysiwygDocumentController {
                 );
                 self.text_stale = true;
                 if let Some(host) = &self.host {
-                    host.sync_source_edit(self.pane_id, cx);
+                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                     host.mark_dirty(cx);
                 }
                 cx.notify();
@@ -485,7 +495,7 @@ impl WysiwygDocumentController {
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                host.sync_source_edit(self.pane_id, cx);
+                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -520,7 +530,7 @@ impl WysiwygDocumentController {
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                host.sync_source_edit(self.pane_id, cx);
+                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -563,7 +573,7 @@ impl WysiwygDocumentController {
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                host.sync_source_edit(self.pane_id, cx);
+                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -591,7 +601,7 @@ impl WysiwygDocumentController {
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                host.sync_source_edit(self.pane_id, cx);
+                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -681,5 +691,7 @@ impl WysiwygDocumentController {
         }
     }
 }
+
+
 
 

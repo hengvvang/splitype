@@ -2,16 +2,21 @@
 //! for the splitype editor family and application shell.
 
 pub mod document;
+pub mod export;
 pub mod outline;
 pub mod pane;
 pub mod search;
 
-pub use document::{DocumentSource, EditorDocument, EditorHost, OpenFileMode, TabKind};
+pub use document::{
+    DocumentSource, EditorDocument, EditorHost, NavigationExecutionPlan, NavigationTarget,
+    OpenFileMode, TabKind,
+};
+pub use export::{ExportError, ExportFormat};
 pub use outline::{
     OutlineHeading, OutlineHost, OutlineHudState, OutlineNode, render_floating_outline_hud,
 };
 pub use pane::{
-    AutoscrollStrategy, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneKindId, PaneOutlineHost,
+    AutoscrollStrategy, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost,
     PaneRegistry, PaneRenderContext, PaneView,
 };
 pub use search::{

@@ -1,10 +1,9 @@
 //! Editor pane layout — rendering and gesture driving for the
-//! `PaneKindId` split tree (WYSIWYG / Source Code / Preview / custom panes) inside each Editor panel.
+//! `PaneKind` split tree (WYSIWYG / Source Code / Preview / custom panes) inside each Editor panel.
 
 pub(crate) mod drag;
 pub(crate) mod menu;
 pub(crate) mod node;
-pub(crate) mod welcome;
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;
@@ -26,12 +25,13 @@ impl Editor {
         let c = &theme.colors;
         let inner_tree = self.session.root.tree.clone();
 
-        if self.has_tabs() {
-            let tab = self.tab_mut();
+        if let Some(tab) = self.session.active_tab_mut() {
             tab.panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
+        } else {
+            self.session.empty_panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
         }
 
-        if self.focused_pane_id.is_none() && self.has_tabs() {
+        if self.focused_pane_id.is_none() {
             if let Some(leaf_id) = inner_tree.first_leaf_id() {
                 self.focused_pane_id = Some(PaneId(leaf_id));
             }
@@ -79,4 +79,5 @@ impl Editor {
             .into_any_element()
     }
 }
+
 

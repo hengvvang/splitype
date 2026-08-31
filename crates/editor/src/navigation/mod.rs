@@ -1,58 +1,35 @@
 //! Unified navigation engine — zero compatibility, single source of truth.
 
 use gpui::*;
+pub use core_contracts::{NavigationExecutionPlan, NavigationTarget};
 
-use core_contracts::PaneKind;
-
-/// Target of a navigation request.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum NavigationTarget {
-    /// External web URL or local file target.
-    External {
-        raw: String,
-        resolved: String,
-    },
-    /// In-document footnote definition.
-    FootnoteDefinition { id: String },
-    /// In-document footnote back-reference.
-    FootnoteReference { id: String },
-}
-
-/// A request to navigate to a target from a specific pane kind and keyboard modifier state.
+/// A request to navigate to a target from a keyboard modifier state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NavigationIntent {
     pub target: NavigationTarget,
-    pub pane_kind: PaneKind,
     pub modifiers: Modifiers,
 }
 
 impl NavigationIntent {
     #[inline]
-    pub fn new(target: NavigationTarget, pane_kind: PaneKind, modifiers: Modifiers) -> Self {
-        Self {
-            target,
-            pane_kind,
-            modifiers,
-        }
+    pub fn new(target: NavigationTarget, modifiers: Modifiers) -> Self {
+        Self { target, modifiers }
     }
+}
 
-    pub fn resolve_policy(&self) -> Option<NavigationExecutionPlan> {
-        if self.pane_kind == core_contracts::PaneKind::new("preview") {
-            match &self.target {
-                NavigationTarget::External { resolved, .. } => {
-                    Some(NavigationExecutionPlan::OpenExternalUrl(resolved.clone()))
-                }
-                NavigationTarget::FootnoteDefinition { id } => {
-                    Some(NavigationExecutionPlan::ScrollPreviewToFootnote(id.clone()))
-                }
-                NavigationTarget::FootnoteReference { id } => {
-                    Some(NavigationExecutionPlan::ScrollPreviewToFootnoteRef(id.clone()))
-                }
-            }
-        } else {
-            match &self.target {
+impl crate::editor::Editor {
+    pub fn execute_navigation(
+        &mut self,
+        intent: NavigationIntent,
+        cx: &mut Context<Self>,
+    ) {
+        let pane = self.active_pane_state();
+        let plan = pane
+            .pane
+            .handle_navigation(&intent.target, intent.modifiers, cx)
+            .or_else(|| match &intent.target {
                 NavigationTarget::External { raw, resolved } => {
-                    if self.modifiers.secondary() {
+                    if intent.modifiers.secondary() {
                         Some(NavigationExecutionPlan::PromptAndOpenExternalUrl {
                             prompt_target: raw.clone(),
                             open_target: resolved.clone(),
@@ -62,37 +39,14 @@ impl NavigationIntent {
                     }
                 }
                 NavigationTarget::FootnoteDefinition { id } => {
-                    Some(NavigationExecutionPlan::JumpToFootnoteDefInEditor(id.clone()))
+                    Some(NavigationExecutionPlan::JumpToFootnoteDef(id.clone()))
                 }
                 NavigationTarget::FootnoteReference { id } => {
-                    Some(NavigationExecutionPlan::JumpToFootnoteRefInEditor(id.clone()))
+                    Some(NavigationExecutionPlan::JumpToFootnoteRef(id.clone()))
                 }
-            }
-        }
-    }
-}
+            });
 
-/// Resolved plan describing exactly what action the editor should execute.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum NavigationExecutionPlan {
-    OpenExternalUrl(String),
-    PromptAndOpenExternalUrl {
-        prompt_target: String,
-        open_target: String,
-    },
-    ScrollPreviewToFootnote(String),
-    ScrollPreviewToFootnoteRef(String),
-    JumpToFootnoteDefInEditor(String),
-    JumpToFootnoteRefInEditor(String),
-}
-
-impl crate::editor::Editor {
-    pub fn execute_navigation(
-        &mut self,
-        intent: NavigationIntent,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(plan) = intent.resolve_policy() else {
+        let Some(plan) = plan else {
             return;
         };
 
@@ -106,16 +60,10 @@ impl crate::editor::Editor {
             } => {
                 self.request_open_link_prompt(prompt_target, open_target, cx);
             }
-            NavigationExecutionPlan::ScrollPreviewToFootnote(_id) => {
-                cx.notify();
-            }
-            NavigationExecutionPlan::ScrollPreviewToFootnoteRef(_id) => {
-                cx.notify();
-            }
-            NavigationExecutionPlan::JumpToFootnoteDefInEditor(_id) => {
-                cx.notify();
-            }
-            NavigationExecutionPlan::JumpToFootnoteRefInEditor(_id) => {
+            NavigationExecutionPlan::ScrollToFootnote(_id)
+            | NavigationExecutionPlan::ScrollToFootnoteRef(_id)
+            | NavigationExecutionPlan::JumpToFootnoteDef(_id)
+            | NavigationExecutionPlan::JumpToFootnoteRef(_id) => {
                 cx.notify();
             }
         }

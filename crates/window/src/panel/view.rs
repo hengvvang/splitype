@@ -35,6 +35,11 @@ pub trait PanelView: 'static {
         false
     }
 
+    /// Title of the first unsaved document/item in this panel, if any.
+    fn first_dirty_title(&self, _cx: &App) -> Option<String> {
+        None
+    }
+
     /// Save modifications in this panel.
     fn save(&mut self, _window: &mut Window, _cx: &mut App) -> Result<(), String> {
         Ok(())
@@ -54,6 +59,9 @@ pub trait PanelView: 'static {
     /// Callback when a filesystem path is modified, renamed, or deleted.
     fn on_fs_change(&mut self, _target_path: Option<&Path>, _cx: &mut App) {}
 
+    /// Callback when a filesystem path is renamed or moved from one path to another.
+    fn on_fs_path_renamed(&mut self, _from: &Path, _to: &Path, _cx: &mut App) {}
+
     /// Renders the complete panel UI inside the window tile container.
     fn render(
         &mut self,
@@ -61,6 +69,17 @@ pub trait PanelView: 'static {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement;
+
+    /// Updates the panel identifier owned by this view.
+    fn set_panel_id(&mut self, _id: PanelId, _cx: &mut App) {}
+
+    /// Discards unsaved changes in this panel.
+    fn discard_changes(&mut self, _cx: &mut App) {}
+
+    /// Save all dirty tabs/items in this panel.
+    fn save_all(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> {
+        self.save(window, cx)
+    }
 
     /// The FocusHandle owned by this panel for keyboard navigation.
     fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {

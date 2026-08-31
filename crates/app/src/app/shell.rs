@@ -35,9 +35,9 @@ pub(crate) enum UnsavedDialogScope {
     /// Triggered by titlebar window close, App Menu "Close Window" / "Quit", or Cmd/Ctrl+Shift+W.
     /// Targets ALL editor panels in the window and ALL open tabs.
     Window,
-    /// Triggered by Editor panel topbar close button, or "Close Editor" command.
-    /// Targets ONLY the specified Editor Panel and its tabs.
-    EditorPanel(PanelId),
+    /// Triggered by Panel topbar close button, or "Close Panel" command.
+    /// Targets ONLY the specified Panel and its tabs.
+    Panel(PanelId),
     /// Triggered by a specific tab's 'x' close button, or Cmd/Ctrl+W.
     /// Targets ONLY the single specified tab.
     Tab { panel_id: PanelId, index: usize },
@@ -47,7 +47,7 @@ impl UnsavedDialogScope {
     pub(crate) fn panel_id(&self) -> Option<PanelId> {
         match self {
             Self::Window => None,
-            Self::EditorPanel(panel_id) => Some(*panel_id),
+            Self::Panel(panel_id) => Some(*panel_id),
             Self::Tab { panel_id, .. } => Some(*panel_id),
         }
     }
@@ -239,6 +239,12 @@ impl Shell {
         self.unsaved_dialog.is_some()
     }
 
+    pub(crate) fn has_unsaved_changes(&self, cx: &App) -> bool {
+        self.panel_views
+            .values()
+            .any(|panel| panel.is_dirty(cx))
+    }
+
     /// Toggles the maximized state of `panel_id`'s tile (topbar click).
     pub(crate) fn toggle_panel_maximize(
         &mut self,
@@ -270,9 +276,9 @@ impl Shell {
             let session = if copy_content {
                 self.primary_editor()
                     .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
-                    .unwrap_or_else(EditorSession::welcome)
+                    .unwrap_or_else(EditorSession::empty)
             } else {
-                EditorSession::welcome()
+                EditorSession::empty()
             };
             self.add_editor_panel(new_id, session, cx);
         }
@@ -289,7 +295,7 @@ impl Shell {
             let session = self
                 .primary_editor()
                 .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
-                .unwrap_or_else(EditorSession::welcome);
+                .unwrap_or_else(EditorSession::empty);
             self.add_editor_panel(new_id, session, cx);
         }
         self.sync_panel_states(cx);
@@ -501,7 +507,7 @@ impl Shell {
             editor.clear_search_highlights_from_document(cx);
             editor.search.visible = false;
             editor.search.matches.clear();
-            std::mem::replace(&mut editor.session, EditorSession::welcome())
+            std::mem::replace(&mut editor.session, EditorSession::empty())
         }))
     }
 
@@ -627,7 +633,7 @@ impl Shell {
             let session = self
                 .retained_editor_sessions
                 .remove(&panel_id)
-                .unwrap_or_else(EditorSession::welcome);
+                .unwrap_or_else(EditorSession::empty);
             self.add_editor_panel(panel_id, session, cx);
         } else {
             if let Some(session) = self.remove_editor_panel(panel_id, cx) {
@@ -801,7 +807,7 @@ impl Shell {
         }
 
         self.unsaved_dialog = Some(UnsavedDialogState {
-            scope: UnsavedDialogScope::EditorPanel(panel_id),
+            scope: UnsavedDialogScope::Panel(panel_id),
             document_name: first_dirty_name,
             restore_focus: None,
         });
@@ -1220,6 +1226,7 @@ impl EditorHost for ShellEditorHost {
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 }
+
 
 
 

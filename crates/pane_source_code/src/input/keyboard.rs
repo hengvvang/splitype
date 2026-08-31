@@ -8,11 +8,11 @@ use crate::state::SourceCodeState;
 /// Handles a key-down event against the SourceCodeState. Returns true if consumed.
 pub fn handle_key_down(
     state: &mut SourceCodeState,
-    pane_id: core_contracts::PaneId,
+    _pane_id: core_contracts::PaneId,
     event: &KeyDownEvent,
-    window: &mut Window,
+    _window: &mut Window,
     cx: &mut App,
-    host: &dyn PaneHost,
+    _host: &dyn PaneHost,
 ) -> bool {
     let key = event.keystroke.key.as_str();
     let ctrl = event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
@@ -23,7 +23,6 @@ pub fn handle_key_down(
         match key {
             "a" | "A" => {
                 state.select_all();
-                host.notify(cx);
                 return true;
             }
             "c" | "C" => {
@@ -40,7 +39,6 @@ pub fn handle_key_down(
                 }
                 if let Some(text) = text_to_copy {
                     cx.write_to_clipboard(ClipboardItem::new_string(text));
-                    host.sync_source_edit(pane_id, cx);
                     return true;
                 }
             }
@@ -49,63 +47,46 @@ pub fn handle_key_down(
                     && let Some(text) = clipboard.text()
                 {
                     state.insert_text(&text);
-                    host.sync_source_edit(pane_id, cx);
                     return true;
                 }
             }
-            "z" | "Z" => {
-                if shift {
-                    host.redo(window, cx);
-                } else {
-                    host.undo(window, cx);
-                }
-                return true;
-            }
-            "y" | "Y" => {
-                host.redo(window, cx);
-                return true;
+            "z" | "Z" | "y" | "Y" => {
+                // Let GPUI action handlers handle Undo/Redo without re-entrant lease
+                return false;
             }
             "home" => {
                 state.move_to(0, shift);
-                host.notify(cx);
                 return true;
             }
             "end" => {
                 let len = state.text.len();
                 state.move_to(len, shift);
-                host.notify(cx);
                 return true;
             }
             "backspace" => {
                 state.delete_word_backward();
-                host.sync_source_edit(pane_id, cx);
                 return true;
             }
             "delete" => {
                 state.delete_word_forward();
-                host.sync_source_edit(pane_id, cx);
                 return true;
             }
             "d" | "D" => {
                 state.duplicate_line();
-                host.sync_source_edit(pane_id, cx);
                 return true;
             }
             "k" | "K" => {
                 if shift {
                     state.delete_line();
-                    host.sync_source_edit(pane_id, cx);
                     return true;
                 }
             }
             "[" => {
                 state.outdent();
-                host.sync_source_edit(pane_id, cx);
                 return true;
             }
             "]" => {
                 state.indent();
-                host.sync_source_edit(pane_id, cx);
                 return true;
             }
             _ => {}
@@ -116,12 +97,10 @@ pub fn handle_key_down(
         match key {
             "up" | "arrowup" => {
                 state.add_cursor_above();
-                host.notify(cx);
                 return true;
             }
             "down" | "arrowdown" => {
                 state.add_cursor_below();
-                host.notify(cx);
                 return true;
             }
             _ => {}
@@ -131,17 +110,14 @@ pub fn handle_key_down(
     match key {
         "backspace" => {
             state.delete_backward();
-            host.sync_source_edit(pane_id, cx);
             true
         }
         "delete" => {
             state.delete_forward();
-            host.sync_source_edit(pane_id, cx);
             true
         }
         "enter" => {
             state.insert_newline_with_auto_indent();
-            host.sync_source_edit(pane_id, cx);
             true
         }
         "tab" => {
@@ -150,63 +126,52 @@ pub fn handle_key_down(
             } else {
                 state.indent();
             }
-            host.sync_source_edit(pane_id, cx);
             true
         }
         "space" => {
             state.insert_text(" ");
-            host.sync_source_edit(pane_id, cx);
             true
         }
         "left" | "arrowleft" => {
             state.move_left(shift, ctrl);
-            host.notify(cx);
             true
         }
         "right" | "arrowright" => {
             state.move_right(shift, ctrl);
-            host.notify(cx);
             true
         }
         "up" | "arrowup" => {
             state.move_up(shift);
-            host.notify(cx);
             true
         }
         "down" | "arrowdown" => {
             state.move_down(shift);
-            host.notify(cx);
             true
         }
         "home" => {
             state.move_to_line_start(shift);
-            host.notify(cx);
             true
         }
         "end" => {
             state.move_to_line_end(shift);
-            host.notify(cx);
             true
         }
         "pageup" => {
             for _ in 0..10 {
                 state.move_up(shift);
             }
-            host.notify(cx);
             true
         }
         "pagedown" => {
             for _ in 0..10 {
                 state.move_down(shift);
             }
-            host.notify(cx);
             true
         }
         "escape" => {
             if state.selections.count() > 1 {
                 let head = state.selections.primary().head;
                 state.selections.set_single_point(head);
-                host.notify(cx);
                 true
             } else {
                 false
@@ -218,12 +183,10 @@ pub fn handle_key_down(
                 if let Some(first) = chars.next() {
                     if chars.next().is_none() && !first.is_control() {
                         state.insert_text(key);
-                        host.sync_source_edit(pane_id, cx);
                         return true;
                     }
                 } else if !key.starts_with("arrow") && !key.starts_with("f") {
                     state.insert_text(key);
-                    host.sync_source_edit(pane_id, cx);
                     return true;
                 }
             }
@@ -231,4 +194,3 @@ pub fn handle_key_down(
         }
     }
 }
-

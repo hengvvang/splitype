@@ -5,7 +5,7 @@ use splitter::NodeId;
 use splitter::tree::SplitAxis;
 
 use crate::editor::Editor;
-use crate::session::{EditorSession, PaneKindId};
+use crate::session::{EditorSession, PaneKind};
 use core_contracts::PaneId;
 
 impl Editor {
@@ -42,7 +42,7 @@ impl Editor {
         }
     }
 
-    pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: PaneKindId) {
+    pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: PaneKind) {
         let pane_id = pane_id.into();
         self.session.root.set_kind(pane_id.0, kind);
         self.session.root.activate_leaf(pane_id.0);
@@ -82,17 +82,26 @@ impl Editor {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> bool {
-        let Some(tab) = self.session.active_tab_mut() else {
-            return false;
-        };
-        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
-            return false;
-        };
+        let prev_text = self
+            .pane_state_ref(pane_id)
+            .and_then(|p| p.pane.serialize_text(cx));
         let host = self.pane_host.clone();
-        let handled = pane_state
-            .pane
-            .handle_key_down(pane_id, event, window, cx, &*host);
+        let handled = if let Some(pane_state) = self.pane_state_mut(pane_id) {
+            pane_state
+                .pane
+                .handle_key_down(pane_id, event, window, cx, &*host)
+        } else {
+            false
+        };
         if handled {
+            let next_text = self
+                .pane_state_ref(pane_id)
+                .and_then(|p| p.pane.serialize_text(cx));
+            if let Some(next_text) = next_text {
+                if prev_text.as_ref() != Some(&next_text) {
+                    self.update_raw_document_text(next_text, pane_id, cx);
+                }
+            }
             cx.notify();
         }
         handled
@@ -105,14 +114,10 @@ impl Editor {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) {
-        let Some(tab) = self.session.active_tab_mut() else {
-            return;
-        };
-        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
-            return;
-        };
-        pane_state.pane.handle_mouse_down(pane_id, event, window, cx);
-        cx.notify();
+        if let Some(pane_state) = self.pane_state_mut(pane_id) {
+            pane_state.pane.handle_mouse_down(pane_id, event, window, cx);
+            cx.notify();
+        }
     }
 
     pub fn handle_pane_mouse_move(
@@ -122,14 +127,10 @@ impl Editor {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) {
-        let Some(tab) = self.session.active_tab_mut() else {
-            return;
-        };
-        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
-            return;
-        };
-        pane_state.pane.handle_mouse_move(pane_id, event, window, cx);
-        cx.notify();
+        if let Some(pane_state) = self.pane_state_mut(pane_id) {
+            pane_state.pane.handle_mouse_move(pane_id, event, window, cx);
+            cx.notify();
+        }
     }
 
     pub fn handle_pane_mouse_up(
@@ -139,14 +140,11 @@ impl Editor {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) {
-        let Some(tab) = self.session.active_tab_mut() else {
-            return;
-        };
-        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
-            return;
-        };
-        pane_state.pane.handle_mouse_up(pane_id, event, window, cx);
-        cx.notify();
+        if let Some(pane_state) = self.pane_state_mut(pane_id) {
+            pane_state.pane.handle_mouse_up(pane_id, event, window, cx);
+            cx.notify();
+        }
     }
 }
+
 

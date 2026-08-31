@@ -12,6 +12,17 @@ impl PaneKind {
     pub fn as_str(&self) -> &'static str {
         self.0
     }
+
+    #[inline]
+    pub const fn empty() -> Self {
+        Self("")
+    }
+}
+
+impl Default for PaneKind {
+    fn default() -> Self {
+        Self::empty()
+    }
 }
 
 impl std::fmt::Display for PaneKind {
@@ -20,4 +31,3 @@ impl std::fmt::Display for PaneKind {
     }
 }
 
-pub type PaneKindId = PaneKind;

@@ -108,6 +108,15 @@ pub trait PaneView: Any + Send + Sync + 'static {
         _cx: &mut App,
     ) {}
 
+    fn handle_navigation(
+        &mut self,
+        _target: &crate::document::NavigationTarget,
+        _modifiers: gpui::Modifiers,
+        _cx: &mut App,
+    ) -> Option<crate::document::NavigationExecutionPlan> {
+        None
+    }
+
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

@@ -185,7 +185,7 @@ impl ExplorerState {
     }
     pub(crate) fn sync_explorer_models(&mut self, cx: &mut App) {
         // The file tree only needs a root directory, so it syncs even in
-        // the welcome state (no tabs). Each Editor entity syncs its own
+        // the empty state (no tabs). Each Editor entity syncs its own
         // outline from its active document when it renders.
         self.sync_explorer_file_tree(cx);
     }

@@ -1,7 +1,7 @@
 //! The recursive binary split tree and its operations.
 //!
 //! Generic over the kind type `T` so that the outer layout uses `PanelKindId`
-//! while inner (Edit pane) layouts use `PaneKindId`.
+//! while inner (Edit pane) layouts use `PaneKind`.
 
 use crate::container::SplitterContainer;
 
@@ -498,3 +498,4 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 }
+

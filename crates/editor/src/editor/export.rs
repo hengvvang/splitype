@@ -10,58 +10,24 @@ use crate::editor::Editor;
 use config::language::I18nManager;
 use theme::{Theme, ThemeManager};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ExportFormat {
-    Html,
-    Pdf,
-}
-
-impl ExportFormat {
-    pub fn extension(&self) -> &'static str {
-        match self {
-            Self::Html => "html",
-            Self::Pdf => "pdf",
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ExportError {
-    Io(std::io::Error),
-    Render(String),
-}
-
-impl std::fmt::Display for ExportError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Io(err) => write!(f, "IO error: {err}"),
-            Self::Render(msg) => write!(f, "Render error: {msg}"),
-        }
-    }
-}
-
-impl std::error::Error for ExportError {}
-
-impl From<std::io::Error> for ExportError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Io(err)
-    }
-}
+pub use core_contracts::{ExportError, ExportFormat};
 
 impl Editor {
     pub fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
         let extension = format.extension();
-        if let Some(path) = self.tab().file.path.as_ref() {
-            let directory = path
-                .parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
-            let stem = path
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .filter(|stem| !stem.is_empty())
-                .unwrap_or("untitled");
-            return (directory, format!("{stem}.{extension}"));
+        if let Some(tab) = self.session.active_tab() {
+            if let Some(path) = tab.file.path.as_ref() {
+                let directory = path
+                    .parent()
+                    .map(Path::to_path_buf)
+                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+                let stem = path
+                    .file_stem()
+                    .and_then(|stem| stem.to_str())
+                    .filter(|stem| !stem.is_empty())
+                    .unwrap_or("untitled");
+                return (directory, format!("{stem}.{extension}"));
+            }
         }
 
         (
@@ -71,10 +37,9 @@ impl Editor {
     }
 
     pub fn export_title(&self) -> String {
-        self.tab()
-            .file
-            .path
-            .as_ref()
+        self.session
+            .active_tab()
+            .and_then(|tab| tab.file.path.as_ref())
             .and_then(|path| path.file_stem())
             .map(|stem| stem.to_string_lossy().to_string())
             .filter(|stem| !stem.is_empty())
@@ -126,10 +91,9 @@ impl Editor {
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
         let source_base_dir = self
-            .tab()
-            .file
-            .path
-            .as_ref()
+            .session
+            .active_tab()
+            .and_then(|tab| tab.file.path.as_ref())
             .and_then(|path| path.parent())
             .map(Path::to_path_buf);
         let (default_dir, suggested_name) = self.export_dialog_defaults(format);

@@ -88,6 +88,21 @@ pub fn render_preview_pane(
         ));
     }
 
+    if block_elements.is_empty() {
+        block_elements.push(
+            div()
+                .h_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .py(px(40.0))
+                .text_size(px(13.0))
+                .text_color(c.dialog_muted)
+                .child("No Markdown content to preview")
+                .into_any_element(),
+        );
+    }
+
     div()
         .w_full()
         .h_full()

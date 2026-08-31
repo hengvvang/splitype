@@ -336,7 +336,7 @@ pub(crate) fn dispatch_menu_action_for_editor(
     window.activate_window();
     let current_window = Some(window.window_handle());
 
-    // Document-dependent actions are no-ops in the welcome state (no tabs);
+    // Document-dependent actions are no-ops in the empty state (no tabs);
     // the UI hides them, but menu accelerators could still fire them.
     if action.as_any().is::<SaveDocument>()
         || action.as_any().is::<SaveDocumentAs>()

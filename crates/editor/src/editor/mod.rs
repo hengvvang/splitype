@@ -25,7 +25,7 @@ pub use splitter::root::SplitterRoot;
 pub use window::{PanelId, PanelKind};
 
 pub use crate::session::{
-    DocumentTab, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKindId,
+    DocumentTab, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKind,
     PaneState, PendingOpenLink, ScrollState, ScrollbarDragSession, TabKind,
 };
 pub use export::ExportFormat;
@@ -46,14 +46,13 @@ pub struct Editor {
     pub is_maximized: bool,
     pub leaf_count: usize,
     pub outline: OutlineHudState,
-    pub welcome_last_click: Option<Instant>,
     pub focused_pane_id: Option<PaneId>,
     pub pane_dropdown_open: bool,
     pub search: crate::search::SearchPanelState,
 }
 
 impl Editor {
-    /// Creates a fresh Editor entity with an untitled tab from markdown content (or welcome session if empty).
+    /// Creates a fresh Editor entity with an untitled tab from markdown content (or empty session if empty).
     pub fn new(markdown: String, file_path: Option<PathBuf>, cx: &mut Context<Self>) -> Self {
         let has_content = !markdown.is_empty() || file_path.is_some();
         let mut editor = Self {
@@ -64,13 +63,12 @@ impl Editor {
             pane_host: EditorPaneHost::new(cx.weak_entity()),
             search_view: EditorSearchView::new(cx.weak_entity()),
             search_ime: EditorSearchIme::new(cx.weak_entity()),
-            session: EditorSession::welcome(),
+            session: EditorSession::empty(),
             panel_rect: None,
             is_active_panel: false,
             is_maximized: false,
             leaf_count: 1,
             outline: OutlineHudState::default(),
-            welcome_last_click: None,
             focused_pane_id: None,
             pane_dropdown_open: false,
             search: crate::search::SearchPanelState::new(cx),
@@ -102,7 +100,6 @@ impl Editor {
             is_maximized: false,
             leaf_count: 1,
             outline: OutlineHudState::default(),
-            welcome_last_click: None,
             focused_pane_id: None,
             pane_dropdown_open: false,
             search: crate::search::SearchPanelState::new(cx),
@@ -129,19 +126,26 @@ impl Editor {
     }
 
     pub fn image_base_dir(&self) -> Option<PathBuf> {
-        self.tab().file.path.as_ref().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+        self.session
+            .active_tab()
+            .and_then(|t| t.file.path.as_ref())
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf())
     }
 
     /// Synchronizes all panes of the active tab with the current raw text.
     pub fn sync_panes_with_active_tab(&mut self, cx: &mut Context<Self>) {
-        let Some(tab) = self.session.active_tab() else {
-            return;
-        };
-        let text = tab.text.clone();
-        let revision = tab.document_revision;
-        if let Some(tab_mut) = self.session.active_tab_mut() {
-            for state in tab_mut.panes.values_mut() {
-                state.pane.sync_document_text(&text, revision, cx);
+        if let Some(tab) = self.session.active_tab() {
+            let text = tab.text.clone();
+            let revision = tab.document_revision;
+            if let Some(tab_mut) = self.session.active_tab_mut() {
+                for state in tab_mut.panes.values_mut() {
+                    state.pane.sync_document_text(&text, revision, cx);
+                }
+            }
+        } else {
+            for state in self.session.empty_panes.values_mut() {
+                state.pane.sync_document_text("", 0, cx);
             }
         }
     }
@@ -159,20 +163,29 @@ impl Editor {
         origin_pane: PaneId,
         cx: &mut Context<Self>,
     ) {
-        if let Some(tab) = self.session.active_tab_mut() {
-            tab.text = new_text;
-            tab.document_revision = tab.document_revision.wrapping_add(1);
-            tab.file.dirty = true;
-            tab.file.pending_window_edited = true;
-            tab.cached_word_count = None;
+        if self.session.has_tabs() {
+            if let Some(tab) = self.session.active_tab_mut() {
+                tab.text = new_text;
+                tab.document_revision = tab.document_revision.wrapping_add(1);
+                tab.file.dirty = true;
+                tab.file.pending_window_edited = true;
+                tab.cached_word_count = None;
 
-            let text = tab.text.clone();
-            let revision = tab.document_revision;
-            for (&pane_id, state) in tab.panes.iter_mut() {
-                if pane_id != origin_pane {
-                    state.pane.sync_document_text(&text, revision, cx);
+                let text = tab.text.clone();
+                let revision = tab.document_revision;
+                for (&pane_id, state) in tab.panes.iter_mut() {
+                    if pane_id != origin_pane {
+                        state.pane.sync_document_text(&text, revision, cx);
+                    }
                 }
             }
+        } else {
+            let mut tab = Self::new_tab_from_markdown(new_text, None);
+            tab.file.dirty = true;
+            tab.file.pending_window_edited = true;
+            tab.panes = std::mem::take(&mut self.session.empty_panes);
+            let last = self.session.push_tab(tab);
+            self.activate_tab(last, cx);
         }
         cx.notify();
     }
@@ -331,41 +344,54 @@ impl Editor {
     }
 
     #[inline]
-    pub fn default_pane_kind(&self) -> PaneKindId {
+    pub fn default_pane_kind(&self) -> PaneKind {
         core_contracts::PaneRegistry::global()
             .lock()
             .unwrap()
             .default_kind()
-            .unwrap_or(core_contracts::PaneKind::new("source_code"))
+            .unwrap_or_default()
     }
 
     pub fn pane_state(&mut self, pane_id: PaneId) -> &mut PaneState {
         let kind = self.pane_kind(pane_id).unwrap_or_else(|| self.default_pane_kind());
-        let tab = self.tab_mut();
-        let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
-        state.ensure_kind(kind);
-        state
+        if self.session.has_tabs() {
+            let tab = self.session.active_tab_mut().unwrap();
+            let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            state.ensure_kind(kind);
+            state
+        } else {
+            let state = self.session.empty_panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            state.ensure_kind(kind);
+            state
+        }
     }
 
     pub fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
         let kind = self.pane_kind(pane_id).unwrap_or_else(|| self.default_pane_kind());
-        let tab = self.session.active_tab_mut()?;
-        let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
-        state.ensure_kind(kind);
-        Some(state)
+        if self.session.has_tabs() {
+            let tab = self.session.active_tab_mut()?;
+            let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            state.ensure_kind(kind);
+            Some(state)
+        } else {
+            let state = self.session.empty_panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            state.ensure_kind(kind);
+            Some(state)
+        }
     }
 
     pub fn pane_state_ref(&self, pane_id: PaneId) -> Option<&PaneState> {
-        let tab = self.active_tab()?;
-        tab.panes.get(&pane_id)
+        if self.session.has_tabs() {
+            let tab = self.active_tab()?;
+            tab.panes.get(&pane_id)
+        } else {
+            self.session.empty_panes.get(&pane_id)
+        }
     }
 
-    pub fn active_pane_scroll(&self) -> &ScrollState {
-        &self
-            .pane_state_ref(self.active_pane_id())
-            .or_else(|| self.tab().panes.values().next())
-            .expect("tab always has at least one pane state")
-            .scroll
+    pub fn active_pane_scroll(&mut self) -> &ScrollState {
+        let active_id = self.active_pane_id();
+        &self.pane_state(active_id).scroll
     }
 
     pub fn defer_host_action(
@@ -405,18 +431,18 @@ impl Editor {
     }
 
     #[inline]
-    pub fn pane_kind(&self, pane_id: PaneId) -> Option<PaneKindId> {
+    pub fn pane_kind(&self, pane_id: PaneId) -> Option<PaneKind> {
         self.session.root.tree.find_leaf(pane_id.0).map(|l| l.kind)
     }
 
     #[inline]
-    pub fn active_pane_kind(&self) -> PaneKindId {
+    pub fn active_pane_kind(&self) -> PaneKind {
         self.pane_kind(self.active_pane_id())
             .unwrap_or_else(|| self.default_pane_kind())
     }
 
     #[inline]
-    pub fn is_pane_kind(&self, kind: PaneKindId) -> bool {
+    pub fn is_pane_kind(&self, kind: PaneKind) -> bool {
         self.active_pane_kind() == kind
     }
 
@@ -428,20 +454,6 @@ impl Editor {
     #[inline]
     pub fn active_tab_mut(&mut self) -> Option<&mut DocumentTab> {
         self.session.active_tab_mut()
-    }
-
-    #[inline]
-    pub fn tab(&self) -> &DocumentTab {
-        self.session
-            .active_tab()
-            .expect("active tab requested on empty editor")
-    }
-
-    #[inline]
-    pub fn tab_mut(&mut self) -> &mut DocumentTab {
-        self.session
-            .active_tab_mut()
-            .expect("active tab mut requested on empty editor")
     }
 
     #[inline]
@@ -478,6 +490,7 @@ impl Editor {
         EditorSession {
             tab_list: list,
             root,
+            empty_panes: std::collections::HashMap::new(),
         }
     }
 
@@ -520,6 +533,7 @@ impl Editor {
         None
     }
 }
+
 
 
 

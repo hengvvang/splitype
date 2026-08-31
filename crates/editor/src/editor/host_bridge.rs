@@ -320,14 +320,10 @@ impl PaneHost for EditorPaneHost {
         cx.notify(self.editor.entity_id());
     }
 
-    fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App) {
+    fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
-                if let Some(state) = editor.pane_state_ref(pane_id) {
-                    if let Some(text) = state.pane.serialize_text(cx) {
-                        editor.rebuild_document_from_markdown(&text, cx);
-                    }
-                }
+                editor.update_raw_document_text(text, pane_id, cx);
             });
         }
     }

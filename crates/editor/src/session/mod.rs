@@ -4,7 +4,7 @@ pub mod file;
 pub mod ops;
 pub mod tab;
 
-pub use core_contracts::{OpenFileMode, PaneKindId, TabKind};
+pub use core_contracts::{OpenFileMode, PaneKind, TabKind};
 pub use file::{FileState, PendingOpenLink};
 pub use tab::{DocumentTab, PaneState, ScrollState, ScrollbarDragSession};
 
@@ -171,20 +171,22 @@ impl<'a, T> IntoIterator for &'a mut EditorTabList<T> {
 /// The complete per-area editor state: the document tabs plus the inner panel split container.
 pub struct EditorSession {
     pub tab_list: EditorTabList<DocumentTab>,
-    pub root: SplitterRoot<PaneKindId>,
+    pub root: SplitterRoot<PaneKind>,
+    pub empty_panes: std::collections::HashMap<core_contracts::PaneId, PaneState>,
 }
 
 impl EditorSession {
     /// A fresh session: no tabs and a single default panel.
-    pub fn welcome() -> Self {
+    pub fn empty() -> Self {
         let default_kind = core_contracts::PaneRegistry::global()
             .lock()
             .unwrap()
             .default_kind()
-            .unwrap_or(core_contracts::PaneKind::new("source_code"));
+            .unwrap_or_default();
         Self {
             tab_list: EditorTabList::new(),
             root: SplitterRoot::single_leaf(1, default_kind),
+            empty_panes: std::collections::HashMap::new(),
         }
     }
 
@@ -258,4 +260,5 @@ impl EditorSession {
         self.tabs().any(|tab| tab.file.dirty)
     }
 }
+
 

@@ -12,7 +12,7 @@ use theme::Theme;
 impl Editor {
     pub(crate) fn render_editor_pane_split_tree(
         &mut self,
-        tree: &SplitTree<crate::session::PaneKindId>,
+        tree: &SplitTree<crate::session::PaneKind>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -36,7 +36,7 @@ impl Editor {
 
     pub(crate) fn render_editor_pane_node(
         &mut self,
-        node: &SplitTree<crate::session::PaneKindId>,
+        node: &SplitTree<crate::session::PaneKind>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -59,11 +59,7 @@ impl Editor {
                 let pane_id = PaneId(container.id);
                 let inner_editor = cx.entity().downgrade();
 
-                let inner_body: AnyElement = if self.is_editing() {
-                    self.render_pane(pane_id, window, cx)
-                } else {
-                    self.render_welcome_prompt(pane_id, theme, cx)
-                };
+                let inner_body = self.render_pane(pane_id, window, cx);
 
                 let corner_handles = splitter::interaction::corner_drag_handles(
                     "inner-corner",
@@ -346,4 +342,5 @@ impl Editor {
         }
     }
 }
+
 

@@ -160,7 +160,7 @@ impl Editor {
 
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
-        if kind.as_str() == "editor" {
+        {
             let list = self.tab_list_mut();
             let active_tab = list.active_index();
             let tab_infos: Vec<(String, bool, bool)> = list

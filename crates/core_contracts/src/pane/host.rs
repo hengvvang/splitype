@@ -24,7 +24,7 @@ pub trait PaneHost: Send + Sync + 'static {
     fn request_autoscroll(&self, pane_id: PaneId, strategy: AutoscrollStrategy, cx: &mut App);
     fn mark_dirty(&self, cx: &mut App);
     fn notify(&self, cx: &mut App);
-    fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App);
+    fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App);
     fn undo(&self, window: &mut Window, cx: &mut App);
     fn redo(&self, window: &mut Window, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);

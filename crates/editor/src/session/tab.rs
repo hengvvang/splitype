@@ -6,7 +6,7 @@ use std::time::Instant;
 use gpui::{App, Pixels, ScrollHandle, Size, Task};
 
 use crate::session::file::FileState;
-use crate::session::{PaneKindId, TabKind};
+use crate::session::{PaneKind, TabKind};
 use core_contracts::AutoscrollStrategy;
 
 /// One document tab: the authoritative raw text and all document-level metadata.
@@ -81,18 +81,18 @@ impl DocumentTab {
 }
 
 impl PaneState {
-    pub fn new(kind: PaneKindId) -> Self {
+    pub fn new(kind: PaneKind) -> Self {
         Self {
             scroll: ScrollState::default(),
             pane: new_pane_for_kind(kind),
         }
     }
 
-    pub fn kind(&self) -> PaneKindId {
+    pub fn kind(&self) -> PaneKind {
         self.pane.kind()
     }
 
-    pub fn ensure_kind(&mut self, kind: PaneKindId) {
+    pub fn ensure_kind(&mut self, kind: PaneKind) {
         if self.kind() == kind {
             return;
         }
@@ -100,11 +100,12 @@ impl PaneState {
     }
 }
 
-pub fn new_pane_for_kind(kind: PaneKindId) -> Box<dyn core_contracts::PaneView> {
+pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn core_contracts::PaneView> {
     core_contracts::PaneRegistry::global()
         .lock()
         .unwrap()
         .create(kind)
         .unwrap_or_else(|| panic!("no pane descriptor registered for {kind}"))
 }
+
 

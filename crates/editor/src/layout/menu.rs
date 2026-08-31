@@ -89,7 +89,7 @@ impl Editor {
     pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
         pane_id: impl Into<PaneId>,
-        current_kind: crate::session::PaneKindId,
+        current_kind: crate::session::PaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -153,5 +153,6 @@ impl Editor {
             .into_any_element()
     }
 }
+
 
 

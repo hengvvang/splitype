@@ -33,6 +33,18 @@ impl PanelView for EditorPanelView {
         self.editor.read(cx).session.has_dirty_tabs()
     }
 
+    fn first_dirty_title(&self, cx: &App) -> Option<String> {
+        let editor = self.editor.read(cx);
+        editor.session.tabs().find(|t| t.file.dirty).map(|t| {
+            t.file
+                .path
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Untitled".to_string())
+        })
+    }
+
     fn save(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> { self.editor.update(cx, |editor, cx| { editor.save_document(window, cx); }); Ok(()) }
 
     fn save_as(&mut self, window: &mut Window, cx: &mut App) {
@@ -59,6 +71,12 @@ impl PanelView for EditorPanelView {
         }
     }
 
+    fn on_fs_path_renamed(&mut self, from: &Path, to: &Path, cx: &mut App) {
+        self.editor.update(cx, |editor, _cx| {
+            editor.update_tab_path(from, to);
+        });
+    }
+
     fn render(
         &mut self,
         ctx: &PanelRenderContext,
@@ -71,6 +89,28 @@ impl PanelView for EditorPanelView {
             editor.set_maximized(ctx.is_maximized);
         });
         self.editor.clone().into_any_element()
+    }
+
+    fn set_panel_id(&mut self, id: PanelId, cx: &mut App) {
+        self.editor.update(cx, |editor, _cx| {
+            editor.set_panel_id(id);
+        });
+    }
+
+    fn discard_changes(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            for tab in editor.session.tabs_mut() {
+                tab.file.dirty = false;
+            }
+            cx.notify();
+        });
+    }
+
+    fn save_all(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_all_dirty_tabs(window, cx);
+        });
+        Ok(())
     }
 
     fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
@@ -115,7 +155,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
         _host: Option<Arc<dyn PanelHost>>,
         cx: &mut App,
     ) -> Box<dyn PanelView> {
-        let session = crate::EditorSession::welcome();
+        let session = crate::EditorSession::empty();
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         Box::new(EditorPanelView::new(editor))
     }

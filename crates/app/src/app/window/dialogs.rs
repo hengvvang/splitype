@@ -149,28 +149,17 @@ impl Shell {
         if let Some(dialog) = self.unsaved_dialog.take() {
             match dialog.scope {
                 crate::app::shell::UnsavedDialogScope::Window => {
-                    for view in self.panel_views.values() {
-                        if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
-                            panel.editor.update(cx, |ed, cx| {
-                                ed.save_all_dirty_tabs(window, cx);
-                            });
-                        }
+                    for view in self.panel_views.values_mut() {
+                        let _ = view.save_all(window, cx);
                     }
                     window.remove_window();
                 }
-                crate::app::shell::UnsavedDialogScope::EditorPanel(panel_id) => {
-                    if let Some(editor) = self.editor_for(panel_id) {
-                        editor.update(cx, |ed, cx| {
-                            ed.save_all_dirty_tabs(window, cx);
-                        });
+                crate::app::shell::UnsavedDialogScope::Panel(panel_id) => {
+                    if let Some(view) = self.panel_views.get_mut(&panel_id) {
+                        let _ = view.save_all(window, cx);
                     }
                     if self.layout_leaf_count() > 1 {
                         self.close_panel(panel_id, cx);
-                    } else if let Some(editor) = self.editor_for(panel_id) {
-                        editor.update(cx, |ed, cx| {
-                            ed.session.clear_tabs();
-                            cx.notify();
-                        });
                     }
                 }
                 crate::app::shell::UnsavedDialogScope::Tab { panel_id, index } => {
@@ -206,34 +195,17 @@ impl Shell {
                             tab.file.dirty = false;
                         }
                     }
-                    for view in self.panel_views.values() {
-                        if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
-                            panel.editor.update(cx, |ed, cx| {
-                                for tab in ed.session.tabs_mut() {
-                                    tab.file.dirty = false;
-                                }
-                                cx.notify();
-                            });
-                        }
+                    for view in self.panel_views.values_mut() {
+                        view.discard_changes(cx);
                     }
                     window.remove_window();
                 }
-                crate::app::shell::UnsavedDialogScope::EditorPanel(panel_id) => {
-                    if let Some(editor) = self.editor_for(panel_id) {
-                        editor.update(cx, |ed, cx| {
-                            for tab in ed.session.tabs_mut() {
-                                tab.file.dirty = false;
-                            }
-                            cx.notify();
-                        });
+                crate::app::shell::UnsavedDialogScope::Panel(panel_id) => {
+                    if let Some(view) = self.panel_views.get_mut(&panel_id) {
+                        view.discard_changes(cx);
                     }
                     if self.layout_leaf_count() > 1 {
                         self.close_panel(panel_id, cx);
-                    } else if let Some(editor) = self.editor_for(panel_id) {
-                        editor.update(cx, |ed, cx| {
-                            ed.session.clear_tabs();
-                            cx.notify();
-                        });
                     }
                 }
                 crate::app::shell::UnsavedDialogScope::Tab { panel_id, index } => {
@@ -253,8 +225,8 @@ impl Shell {
 
         if let Some(editor) = self.editor_with_dialog(cx, |file| file.show_unsaved_changes_dialog) {
             editor.update(cx, |editor, cx| editor.discard_and_close(cx));
-            if let Some((panel_id, index)) = self.first_dirty_tab(cx) {
-                self.prompt_close_tab(panel_id, index, cx);
+            if self.has_unsaved_changes(cx) {
+                self.prompt_close_window(cx);
             } else {
                 window.remove_window();
             }
@@ -277,7 +249,7 @@ impl Shell {
                     strings.unsaved_changes_window_title.clone(),
                     strings.unsaved_changes_window_message.clone(),
                 ),
-                crate::app::shell::UnsavedDialogScope::EditorPanel(_) => (
+                crate::app::shell::UnsavedDialogScope::Panel(_) => (
                     strings.unsaved_changes_editor_title.clone(),
                     strings.unsaved_changes_editor_message.clone(),
                 ),

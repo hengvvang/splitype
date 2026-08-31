@@ -99,11 +99,11 @@ async fn render_pdf_from_html_file_async(html_path: PathBuf) -> Result<Vec<u8>, 
         .user_data_dir(user_data_dir.clone())
         .build()
         .map_err(|err| {
-            ExportError::ChromiumLaunchFailed(format!("failed to build Chromium config: {err}"))
+            ExportError::ChromiumLaunch(format!("failed to build Chromium config: {err}"))
         })?;
 
     let (mut browser, mut handler) = Browser::launch(config).await.map_err(|err| {
-        ExportError::ChromiumLaunchFailed(
+        ExportError::ChromiumLaunch(
             format!("failed to launch Chromium: {err}. Install Chrome, Chromium, or Edge, or set the CHROME environment variable")
         )
     })?;
@@ -188,6 +188,7 @@ impl Drop for PdfTempFiles {
         self.cleanup();
     }
 }
+
 
 
 

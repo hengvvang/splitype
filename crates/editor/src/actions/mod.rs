@@ -13,7 +13,7 @@ use gpui::*;
 use crate::editor::export::ExportFormat;
 use crate::editor::Editor;
 use crate::session::PendingOpenLink;
-use core_contracts::{AutoscrollStrategy, PaneId, PaneKindId};
+use core_contracts::{AutoscrollStrategy, PaneId, PaneKind};
 
 impl Editor {
     /// Builds the OS window title, including the dirty marker when the document has unsaved changes.
@@ -49,10 +49,8 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.has_tabs() {
-            return;
-        }
-        if self.tab().file.path.is_none() {
+        let is_untitled = self.session.active_tab().is_some_and(|t| t.file.path.is_none());
+        if is_untitled {
             self.save_document_as(window, cx);
             return;
         }
@@ -138,7 +136,7 @@ impl Editor {
         );
     }
 
-    pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKindId, cx: &mut Context<Self>) {
+    pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKind, cx: &mut Context<Self>) {
         self.change_pane_kind(pane_id, kind);
         {
             let state = self.pane_state(pane_id);
@@ -147,8 +145,10 @@ impl Editor {
             });
             state.scroll.last_viewport_size = None;
         }
-        self.tab_mut().file.pending_window_title_refresh = true;
-        self.tab_mut().file.close_dialog_restore_focus = None;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_window_title_refresh = true;
+            tab.file.close_dialog_restore_focus = None;
+        }
         self.sync_panes_with_active_tab(cx);
         cx.notify();
     }
@@ -192,22 +192,20 @@ impl Editor {
     // ── Menu Request Helpers ────────────────────────────────────────────────
 
     pub fn request_save_document(&mut self, cx: &mut Context<Self>) {
-        if !self.has_tabs() {
-            return;
-        }
-        if !self.tab().file.pending_save {
-            self.tab_mut().file.pending_save = true;
-            cx.notify();
+        if let Some(tab) = self.session.active_tab_mut() {
+            if !tab.file.pending_save {
+                tab.file.pending_save = true;
+                cx.notify();
+            }
         }
     }
 
     pub fn request_save_document_as(&mut self, cx: &mut Context<Self>) {
-        if !self.has_tabs() {
-            return;
-        }
-        if !self.tab().file.pending_save_as {
-            self.tab_mut().file.pending_save_as = true;
-            cx.notify();
+        if let Some(tab) = self.session.active_tab_mut() {
+            if !tab.file.pending_save_as {
+                tab.file.pending_save_as = true;
+                cx.notify();
+            }
         }
     }
 
@@ -217,11 +215,13 @@ impl Editor {
         open_target: String,
         cx: &mut Context<Self>,
     ) {
-        self.tab_mut().file.pending_open_link = Some(PendingOpenLink {
-            prompt_target,
-            open_target,
-        });
-        cx.notify();
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_open_link = Some(PendingOpenLink {
+                prompt_target,
+                open_target,
+            });
+            cx.notify();
+        }
     }
 
     // ── Viewport Navigation & Page Scrolling ────────────────────────────────
@@ -312,4 +312,5 @@ impl Editor {
         cx.notify();
     }
 }
+
 
