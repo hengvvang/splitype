@@ -30,6 +30,16 @@ impl PaneView for PreviewState {
         PaneKind::new("preview")
     }
 
+    fn capabilities(&self) -> core_contracts::PaneCapabilities {
+        core_contracts::PaneCapabilities {
+            editable: false,
+            searchable: true,
+            replaceable: false,
+            outline: true,
+            navigable: true,
+        }
+    }
+
     fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, _cx: &mut App) {
         let text = document.text.as_ref();
         let revision = document.revision;

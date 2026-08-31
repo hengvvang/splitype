@@ -115,12 +115,12 @@ impl Element for EditorElement {
         let font_size = theme.typography.code_size.max(12.0);
         let line_height = (font_size * theme.typography.text_line_height).round();
         let editor_padding = theme.dimensions.editor_padding;
-        if let Ok(mut lb) = self.state.last_bounds.lock() {
+        if let Ok(mut lb) = self.state.last_bounds.try_borrow_mut() {
             *lb = Some(bounds);
         }
         let font = TypographyStore::default_font(TypographyScope::Code);
 
-        let focus_handle = self.state.focus_handle.lock().unwrap().clone();
+        let focus_handle = self.state.focus_handle.borrow().clone();
         let is_focused =
             self.is_focused || focus_handle.as_ref().is_some_and(|h| h.is_focused(window));
 

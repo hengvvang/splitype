@@ -54,7 +54,9 @@ impl Editor {
         self.outline.active_index = Some(index);
         let pane_id = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.navigate_to_outline(index, theme, cx);
+            if state.pane.capabilities().outline {
+                state.pane.navigate_to_outline(index, theme, cx);
+            }
         }
         cx.notify();
     }

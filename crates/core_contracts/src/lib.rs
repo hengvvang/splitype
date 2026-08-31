@@ -15,8 +15,8 @@ pub use outline::{
     OutlineHeading, OutlineHost, OutlineHudState, OutlineNode, render_floating_outline_hud,
 };
 pub use pane::{
-    AutoscrollStrategy, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost, PaneRegistry,
-    PaneRegistryError, PaneRenderContext, PaneView,
+    AutoscrollStrategy, PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind,
+    PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
 };
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputElement, SearchInputSnapshot,

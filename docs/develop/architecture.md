@@ -268,9 +268,12 @@ transitional hardcoding listed below is removed.
    policies of the composition root, not lifecycle hardcoding; they should
    migrate to a `DocumentPanel` capability plus typed document services so an
    alternative editor plugin can take over the role.
-2. `PaneView` remains broad and requires `Send + Sync`; default no-op methods
-   still express some optional behaviors, though mutating commands now return
-   `Option<String>` so unsupported operations cannot fake a dirty document.
+2. `PaneView` no longer requires `Send + Sync` and panes declare optional
+   behaviors through `PaneCapabilities`; hosts gate search, replacement,
+   editing, outline, and navigation on the declaration. Source pane state
+   uses `RefCell` and WYSIWYG owns its controller entity directly. The
+   remaining default no-op methods should eventually be folded into the
+   capability model, but callers already check capabilities first.
 5. The namespaced identifier migration is mostly done: `PaneKind` and
    `PanelKind` are owned `Arc<str>` values and the split tree only requires
    `Clone`. Built-in kind strings are still single words (`"editor"`); migrate

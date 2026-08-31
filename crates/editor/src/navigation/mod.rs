@@ -20,27 +20,30 @@ impl NavigationIntent {
 impl crate::editor::Editor {
     pub fn execute_navigation(&mut self, intent: NavigationIntent, cx: &mut Context<Self>) {
         let pane = self.active_pane_state();
-        let plan = pane
-            .pane
-            .handle_navigation(&intent.target, intent.modifiers, cx)
-            .or_else(|| match &intent.target {
-                NavigationTarget::External { raw, resolved } => {
-                    if intent.modifiers.secondary() {
-                        Some(NavigationExecutionPlan::PromptAndOpenExternalUrl {
-                            prompt_target: raw.clone(),
-                            open_target: resolved.clone(),
-                        })
-                    } else {
-                        None
-                    }
+        let plan = if pane.pane.capabilities().navigable {
+            pane.pane
+                .handle_navigation(&intent.target, intent.modifiers, cx)
+        } else {
+            None
+        }
+        .or_else(|| match &intent.target {
+            NavigationTarget::External { raw, resolved } => {
+                if intent.modifiers.secondary() {
+                    Some(NavigationExecutionPlan::PromptAndOpenExternalUrl {
+                        prompt_target: raw.clone(),
+                        open_target: resolved.clone(),
+                    })
+                } else {
+                    None
                 }
-                NavigationTarget::FootnoteDefinition { id } => {
-                    Some(NavigationExecutionPlan::JumpToFootnoteDef(id.clone()))
-                }
-                NavigationTarget::FootnoteReference { id } => {
-                    Some(NavigationExecutionPlan::JumpToFootnoteRef(id.clone()))
-                }
-            });
+            }
+            NavigationTarget::FootnoteDefinition { id } => {
+                Some(NavigationExecutionPlan::JumpToFootnoteDef(id.clone()))
+            }
+            NavigationTarget::FootnoteReference { id } => {
+                Some(NavigationExecutionPlan::JumpToFootnoteRef(id.clone()))
+            }
+        });
 
         let Some(plan) = plan else {
             return;

@@ -320,7 +320,11 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         let mut pane_matches = if let Some(state) = self.pane_state_ref(active_pane) {
-            state.pane.search_matches(query, cx)
+            if state.pane.capabilities().searchable {
+                state.pane.search_matches(query, cx)
+            } else {
+                Vec::new()
+            }
         } else {
             Vec::new()
         };
@@ -497,6 +501,9 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
+            if !state.pane.capabilities().replaceable {
+                return;
+            }
             let text = state
                 .pane
                 .replace_match(&match_item, &final_replace_str, cx);
@@ -531,6 +538,9 @@ impl Editor {
         );
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
+            if !state.pane.capabilities().replaceable {
+                return;
+            }
             let text = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
             self.commit_pane_text(active_pane, text, cx);
         }

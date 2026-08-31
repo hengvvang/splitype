@@ -90,3 +90,13 @@ Both `SettingsPanelView` and `ExplorerPanelView` own their state entities;
 explorer splits, clones, and multi-window instances are now independent.
 Application globals are reserved for true shared services such as
 configuration and theme management.
+
+## ADR-011: Panes are UI-thread objects with declared capabilities
+
+**Status:** Accepted
+
+`PaneView` no longer requires `Send + Sync`; pane instances live on the GPUI
+thread and use `RefCell` or plain fields for transient UI state. Optional
+behaviors are declared through `PaneCapabilities` and hosts gate search,
+replacement, editing, outline, and navigation on the declaration, so a
+read-only pane can never fake an edit or dirty document.

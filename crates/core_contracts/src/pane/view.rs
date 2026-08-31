@@ -6,8 +6,35 @@ use gpui::{AnyElement, App, FocusHandle, Window};
 use std::any::Any;
 use theme::Theme;
 
-pub trait PaneView: Any + Send + Sync + 'static {
+/// Optional behaviors a pane may offer. Hosts consult this before invoking
+/// the corresponding [`PaneView`] methods so unsupported operations never
+/// produce phantom edits, dirty state, or navigation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PaneCapabilities {
+    /// The pane can mutate the document through `apply_*` commands.
+    pub editable: bool,
+    /// The pane can answer `search_matches`.
+    pub searchable: bool,
+    /// The pane can apply search replacements through `replace_*`.
+    pub replaceable: bool,
+    /// The pane can produce `outline_headings` and navigate to them.
+    pub outline: bool,
+    /// The pane can resolve document navigation targets.
+    pub navigable: bool,
+}
+
+/// A pane instance runs on the GPUI UI thread only; it must not be shared
+/// across threads. Descriptors stay `Send + Sync` because the registry may
+/// live in a process-global lock.
+pub trait PaneView: Any + 'static {
     fn kind(&self) -> PaneKind;
+
+    /// The optional behaviors this pane supports. The default is empty —
+    /// panes opt in explicitly.
+    fn capabilities(&self) -> PaneCapabilities {
+        PaneCapabilities::default()
+    }
+
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement;
 
     fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {

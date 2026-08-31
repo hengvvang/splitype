@@ -18,7 +18,7 @@ pub fn hit_test(
     let padding = theme.dimensions.editor_padding;
     let font = TypographyStore::default_font(TypographyScope::Code);
 
-    let last_bounds = *state.last_bounds.lock().unwrap();
+    let last_bounds = *state.last_bounds.borrow();
     let total_lines = state.line_count();
 
     let gutter_width = state.gutter_layout(font_size).width();

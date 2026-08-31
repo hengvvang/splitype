@@ -332,15 +332,22 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        let text = self.pane_state_mut(pane_id).and_then(|state| {
-            state.pane.apply_wrapped_or_template(
-                empty_template,
-                caret_offset_in_empty,
-                wrap_prefix,
-                wrap_suffix,
-                cx,
-            )
-        });
+        let editable = self
+            .pane_state_ref(pane_id)
+            .is_some_and(|state| state.pane.capabilities().editable);
+        let text = if editable {
+            self.pane_state_mut(pane_id).and_then(|state| {
+                state.pane.apply_wrapped_or_template(
+                    empty_template,
+                    caret_offset_in_empty,
+                    wrap_prefix,
+                    wrap_suffix,
+                    cx,
+                )
+            })
+        } else {
+            None
+        };
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }
@@ -352,9 +359,15 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        let text = self
-            .pane_state_mut(pane_id)
-            .and_then(|state| state.pane.apply_line_prefix(prefix, cx));
+        let editable = self
+            .pane_state_ref(pane_id)
+            .is_some_and(|state| state.pane.capabilities().editable);
+        let text = if editable {
+            self.pane_state_mut(pane_id)
+                .and_then(|state| state.pane.apply_line_prefix(prefix, cx))
+        } else {
+            None
+        };
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }
@@ -367,18 +380,30 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        let text = self
-            .pane_state_mut(pane_id)
-            .and_then(|state| state.pane.apply_snippet(snippet, caret_offset, cx));
+        let editable = self
+            .pane_state_ref(pane_id)
+            .is_some_and(|state| state.pane.capabilities().editable);
+        let text = if editable {
+            self.pane_state_mut(pane_id)
+                .and_then(|state| state.pane.apply_snippet(snippet, caret_offset, cx))
+        } else {
+            None
+        };
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }
 
     pub fn apply_clear_format(&mut self, _target_entity: Option<EntityId>, cx: &mut Context<Self>) {
         let pane_id = self.active_pane_id();
-        let text = self
-            .pane_state_mut(pane_id)
-            .and_then(|state| state.pane.apply_clear_format(cx));
+        let editable = self
+            .pane_state_ref(pane_id)
+            .is_some_and(|state| state.pane.capabilities().editable);
+        let text = if editable {
+            self.pane_state_mut(pane_id)
+                .and_then(|state| state.pane.apply_clear_format(cx))
+        } else {
+            None
+        };
         self.commit_pane_text(pane_id, text, cx);
         cx.notify();
     }

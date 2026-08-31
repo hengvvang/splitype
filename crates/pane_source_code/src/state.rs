@@ -1,7 +1,8 @@
 //! Pure-Rust state for a raw Markdown source code editor pane.
 
+use std::cell::RefCell;
 use std::ops::Range;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use core_contracts::OutlineHeading;
 use core_contracts::{SearchMatch, SearchQuery};
@@ -27,14 +28,14 @@ pub struct SourceCodeState {
     pub fold_map: FoldMap,
     pub wrap_map: WrapMap,
     pub marked_range: Option<Range<usize>>,
-    pub last_bounds: Arc<Mutex<Option<Bounds<Pixels>>>>,
+    pub last_bounds: RefCell<Option<Bounds<Pixels>>>,
     pub search_matches: Vec<(Range<usize>, bool)>,
     pub synced_doc_hash: u64,
     pub synced_revision: Option<u64>,
     pub synced_tab_index: Option<usize>,
     pub is_dragging: bool,
     pub drag_anchor: Option<usize>,
-    pub focus_handle: Arc<Mutex<Option<FocusHandle>>>,
+    pub focus_handle: RefCell<Option<FocusHandle>>,
     pub highlight_cache: Option<CodeHighlightResult>,
     pub highlight_hash: u64,
 }
@@ -49,14 +50,14 @@ impl Default for SourceCodeState {
             fold_map: FoldMap::default(),
             wrap_map: WrapMap::default(),
             marked_range: None,
-            last_bounds: Arc::new(Mutex::new(None)),
+            last_bounds: RefCell::new(None),
             search_matches: Vec::new(),
             synced_doc_hash: 0,
             synced_revision: None,
             synced_tab_index: None,
             is_dragging: false,
             drag_anchor: None,
-            focus_handle: Arc::new(Mutex::new(None)),
+            focus_handle: RefCell::new(None),
             highlight_cache: None,
             highlight_hash: 0,
         }
@@ -791,8 +792,18 @@ impl core_contracts::PaneView for SourceCodeState {
         core_contracts::PaneKind::new("source_code")
     }
 
+    fn capabilities(&self) -> core_contracts::PaneCapabilities {
+        core_contracts::PaneCapabilities {
+            editable: true,
+            searchable: true,
+            replaceable: true,
+            outline: true,
+            navigable: true,
+        }
+    }
+
     fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
-        let mut handle = self.focus_handle.lock().unwrap();
+        let mut handle = self.focus_handle.borrow_mut();
         if handle.is_none() {
             *handle = Some(cx.focus_handle());
         }
