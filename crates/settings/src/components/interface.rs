@@ -288,3 +288,4 @@ pub(crate) fn render_status_bar_section(
     make_section(c, d, id, "Status Bar Options", expanded, toggle_fn, rows)
 }
 
+

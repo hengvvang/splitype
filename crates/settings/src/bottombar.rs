@@ -7,7 +7,7 @@
 
 use gpui::*;
 
-use workspace::PanelId;
+use window::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 
@@ -25,3 +25,4 @@ pub fn render_settings_bottombar(
         .id(("settings-bottombar", panel_id.0))
         .into_any_element()
 }
+

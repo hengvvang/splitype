@@ -212,8 +212,9 @@ pub(crate) fn register_pane_descriptors() {
     pane_registry.register(std::sync::Arc::new(pane_source_code::SourceCodeDescriptor::new()), false);
     pane_registry.register(std::sync::Arc::new(pane_preview::PreviewDescriptor::new()), false);
 
-    let mut panel_registry = workspace::PanelRegistry::global().lock().unwrap();
-    panel_registry.register(std::sync::Arc::new(editor::EditorPanelDescriptor::new()));
-    panel_registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()));
-    panel_registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()));
+    let mut panel_registry = window::PanelRegistry::global().lock().unwrap();
+    panel_registry.register(std::sync::Arc::new(editor::EditorPanelDescriptor::new()), true);
+    panel_registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()), false);
+    panel_registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()), false);
 }
+

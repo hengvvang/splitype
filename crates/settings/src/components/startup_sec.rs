@@ -129,3 +129,4 @@ pub(crate) fn render_startup_section(
         rows,
     )
 }
+

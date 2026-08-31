@@ -35,3 +35,4 @@ pub fn apply_paragraph_shortcuts(
     (kind, text, cursor)
 }
 
+

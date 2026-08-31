@@ -1,6 +1,8 @@
 use std::any::Any;
+use std::path::Path;
+use std::sync::Arc;
 use gpui::*;
-use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView};
+use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 use crate::editor::Editor;
 
 /// View wrapper implementing [`PanelView`] for an Editor container panel.
@@ -15,8 +17,8 @@ impl EditorPanelView {
 }
 
 impl PanelView for EditorPanelView {
-    fn kind(&self) -> PanelKindId {
-        PanelKindId::EDITOR
+    fn kind(&self) -> PanelKind {
+        PanelKind::new("editor")
     }
 
     fn display_name(&self) -> SharedString {
@@ -25,6 +27,36 @@ impl PanelView for EditorPanelView {
 
     fn icon(&self) -> Option<&'static str> {
         Some("icons/editor/panel.svg")
+    }
+
+    fn is_dirty(&self, cx: &App) -> bool {
+        self.editor.read(cx).session.has_dirty_tabs()
+    }
+
+    fn save(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> { self.editor.update(cx, |editor, cx| { editor.save_document(window, cx); }); Ok(()) }
+
+    fn save_as(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_document_as(window, cx);
+        });
+    }
+
+    fn on_active_changed(&mut self, _is_active: bool, cx: &mut App) {
+        cx.notify(self.editor.entity_id());
+    }
+
+    fn on_fs_change(&mut self, target_path: Option<&Path>, cx: &mut App) {
+        if let Some(path) = target_path {
+            self.editor.update(cx, |editor, _cx| {
+                for tab in editor.session.tabs_mut() {
+                    if let Some(p) = &tab.file.path {
+                        if p == path || p.starts_with(path) {
+                            tab.file.pending_window_title_refresh = true;
+                        }
+                    }
+                }
+            });
+        }
     }
 
     fn render(
@@ -65,8 +97,8 @@ impl EditorPanelDescriptor {
 }
 
 impl PanelDescriptor for EditorPanelDescriptor {
-    fn kind(&self) -> PanelKindId {
-        PanelKindId::EDITOR
+    fn kind(&self) -> PanelKind {
+        PanelKind::new("editor")
     }
 
     fn display_name(&self) -> SharedString {
@@ -77,7 +109,12 @@ impl PanelDescriptor for EditorPanelDescriptor {
         Some("icons/editor/panel.svg")
     }
 
-    fn create_panel(&self, panel_id: PanelId, cx: &mut App) -> Box<dyn PanelView> {
+    fn create_panel(
+        &self,
+        panel_id: PanelId,
+        _host: Option<Arc<dyn PanelHost>>,
+        cx: &mut App,
+    ) -> Box<dyn PanelView> {
         let session = crate::EditorSession::welcome();
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         Box::new(EditorPanelView::new(editor))

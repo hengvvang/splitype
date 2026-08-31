@@ -1,6 +1,7 @@
 use std::any::Any;
+use std::sync::Arc;
 use gpui::*;
-use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView};
+use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
 
 /// View wrapper implementing [`PanelView`] for the Explorer sidebar.
@@ -15,8 +16,8 @@ impl ExplorerPanelView {
 }
 
 impl PanelView for ExplorerPanelView {
-    fn kind(&self) -> PanelKindId {
-        PanelKindId::EXPLORER
+    fn kind(&self) -> PanelKind {
+        PanelKind::new("explorer")
     }
 
     fn display_name(&self) -> SharedString {
@@ -37,7 +38,7 @@ impl PanelView for ExplorerPanelView {
         let c = &theme.colors;
         let topbar = render_explorer_topbar(
             ctx.panel_id,
-            PanelKindId::EXPLORER,
+            PanelKind::new("explorer"),
             theme,
             ctx.leaf_count,
             ctx.is_maximized,
@@ -85,8 +86,8 @@ impl ExplorerPanelDescriptor {
 }
 
 impl PanelDescriptor for ExplorerPanelDescriptor {
-    fn kind(&self) -> PanelKindId {
-        PanelKindId::EXPLORER
+    fn kind(&self) -> PanelKind {
+        PanelKind::new("explorer")
     }
 
     fn display_name(&self) -> SharedString {
@@ -97,7 +98,12 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
         Some("icons/explorer/panel.svg")
     }
 
-    fn create_panel(&self, panel_id: PanelId, _cx: &mut App) -> Box<dyn PanelView> {
+    fn create_panel(
+        &self,
+        panel_id: PanelId,
+        _host: Option<Arc<dyn PanelHost>>,
+        _cx: &mut App,
+    ) -> Box<dyn PanelView> {
         Box::new(ExplorerPanelView::new(panel_id))
     }
 }

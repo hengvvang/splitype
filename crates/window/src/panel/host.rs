@@ -1,0 +1,33 @@
+//! Host interface provided by the window shell to panel instances.
+
+use gpui::App;
+use splitter::tree::SplitAxis;
+use crate::layout::PanelId;
+use crate::panel::PanelKind;
+
+/// Host interface allowing any panel plugin to request window-level operations.
+pub trait PanelHost: Send + Sync + 'static {
+    /// Request focus for this panel.
+    fn activate_panel(&self, panel_id: PanelId, cx: &mut App);
+
+    /// Close this panel tile.
+    fn close_panel(&self, panel_id: PanelId, cx: &mut App);
+
+    /// Split this panel along the specified axis.
+    fn split_panel(
+        &self,
+        panel_id: PanelId,
+        axis: SplitAxis,
+        new_kind: Option<PanelKind>,
+        cx: &mut App,
+    );
+
+    /// Toggle maximized state of this panel tile.
+    fn toggle_maximize(&self, panel_id: PanelId, cx: &mut App);
+
+    /// Notify the window shell of unsaved dirty state changes.
+    fn mark_dirty(&self, cx: &mut App);
+
+    /// Request a window redraw/notification.
+    fn notify(&self, cx: &mut App);
+}

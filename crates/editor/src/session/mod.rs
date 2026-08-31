@@ -252,5 +252,10 @@ impl EditorSession {
     pub fn clear_tabs(&mut self) {
         self.tab_list.clear();
     }
+
+    #[inline]
+    pub fn has_dirty_tabs(&self) -> bool {
+        self.tabs().any(|tab| tab.file.dirty)
+    }
 }
 

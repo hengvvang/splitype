@@ -10,3 +10,4 @@ pub mod app;
 pub mod keybindings;
 
 pub mod platform;
+

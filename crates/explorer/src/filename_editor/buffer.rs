@@ -192,3 +192,4 @@ impl ExplorerFilenameEditor {
 }
 
 // ── Editor-side handlers: validation, confirm/cancel, keyboard, clipboard ─
+

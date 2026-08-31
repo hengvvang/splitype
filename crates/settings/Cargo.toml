@@ -16,7 +16,8 @@ workspace = true
 config = { path = "../config" }
 theme = { path = "../theme" }
 ui = { path = "../ui" }
-workspace = { path = "../workspace" }
+window = { path = "../window" }
 splitter = { path = "../splitter" }
 gpui = { workspace = true }
 tracing = "0.1"
+

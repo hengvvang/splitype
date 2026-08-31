@@ -38,3 +38,4 @@ pub(crate) fn render_shortcuts_section(
 
     make_section(c, d, id, title, expanded, toggle_fn, rows)
 }
+

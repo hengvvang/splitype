@@ -165,3 +165,4 @@ pub(crate) fn render_markdown_section(
         rows,
     )
 }
+

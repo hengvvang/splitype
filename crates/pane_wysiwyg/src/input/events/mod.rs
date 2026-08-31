@@ -7,3 +7,4 @@ pub mod text_edits;
 
 pub use crate::model::protocol::{BlockEvent, BlockEventCategory};
 
+

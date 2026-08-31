@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::model::protocol::{BlockEvent, PastedImageSource, UndoCaptureKind};
-use workspace::actions::{Copy, Cut, Paste};
+use window::actions::{Copy, Cut, Paste};
 use crate::input::paste::plain::should_split_plain_multiline_paste;
 use crate::model::block::Block;
 use crate::markdown::inline::text::BlockText;
@@ -175,5 +175,6 @@ impl Block {
         }
     }
 }
+
 
 

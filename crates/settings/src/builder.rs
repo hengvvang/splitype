@@ -19,3 +19,4 @@ impl SettingsBuilder {
         cx.set_global(SettingsUiState::new());
     }
 }
+

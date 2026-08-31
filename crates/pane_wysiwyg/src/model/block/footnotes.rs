@@ -43,3 +43,4 @@ pub struct FootnoteResolvedOccurrence {
     pub occurrence_index: usize,
 }
 
+

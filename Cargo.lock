@@ -271,8 +271,8 @@ dependencies = [
  "ui",
  "url",
  "uuid",
+ "window",
  "windows 0.61.3",
- "workspace",
 ]
 
 [[package]]
@@ -1417,7 +1417,7 @@ dependencies = [
  "theme",
  "thiserror 2.0.18",
  "uuid",
- "workspace",
+ "window",
 ]
 
 [[package]]
@@ -1753,7 +1753,7 @@ dependencies = [
  "splitter",
  "theme",
  "ui",
- "workspace",
+ "window",
 ]
 
 [[package]]
@@ -1916,8 +1916,8 @@ dependencies = [
  "theme",
  "tracing",
  "ui",
+ "window",
  "windows 0.61.3",
- "workspace",
 ]
 
 [[package]]
@@ -4368,7 +4368,7 @@ dependencies = [
  "unicode-segmentation",
  "url",
  "uuid",
- "workspace",
+ "window",
 ]
 
 [[package]]
@@ -5826,7 +5826,7 @@ dependencies = [
  "theme",
  "tracing",
  "ui",
- "workspace",
+ "window",
 ]
 
 [[package]]
@@ -7795,6 +7795,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
+name = "window"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "gpui",
+ "schemars",
+ "serde",
+ "splitter",
+ "theme",
+]
+
+[[package]]
 name = "windows"
 version = "0.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8303,18 +8315,6 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
-
-[[package]]
-name = "workspace"
-version = "0.0.1"
-dependencies = [
- "config",
- "gpui",
- "schemars",
- "serde",
- "splitter",
- "theme",
-]
 
 [[package]]
 name = "writeable"

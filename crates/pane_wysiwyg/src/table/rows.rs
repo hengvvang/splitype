@@ -38,3 +38,4 @@ pub fn duplicate_table_row(table: &mut TableData, visual_row: usize) {
     table.duplicate_row(visual_row);
 }
 
+

@@ -130,3 +130,4 @@ pub fn centered_column_width(viewport_width: f32, dimensions: &ThemeDimensions) 
         .min(available_content_width)
 }
 
+

@@ -1,6 +1,6 @@
 use gpui::*;
 
-use workspace::PanelId;
+use window::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, toolbar_icon_size};
@@ -75,3 +75,4 @@ impl ExplorerState {
             .into_any_element()
     }
 }
+

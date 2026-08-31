@@ -102,3 +102,4 @@ pub fn sync_table_data_from_grid(table_block: &Entity<Block>, cx: &mut App) {
     });
 }
 
+

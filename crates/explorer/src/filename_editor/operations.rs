@@ -7,7 +7,7 @@ use gpui::*;
 use crate::ExplorerState;
 
 use crate::filename_editor::ExplorerFilenameImeHost;
-use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
+use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::state::state::{
     ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
 };
@@ -592,3 +592,4 @@ impl ExplorerState {
 }
 
 // ── GPUI IME bridge ─────────────────────────────────────────────────────
+

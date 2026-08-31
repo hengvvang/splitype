@@ -16,9 +16,10 @@ workspace = true
 gpui = { workspace = true }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
-workspace = { path = "../workspace" }
+window = { path = "../window" }
 regex = "1.10"
 uuid = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+

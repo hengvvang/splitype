@@ -8,7 +8,7 @@ use ui::button::{
     icon_chip_button, small_pill_button, toolbar_button_size, toolbar_icon_size,
 };
 use ui::topbar::topbar_container;
-use workspace::{panel_topbar_icon, PanelKindId};
+use window::{panel_topbar_icon, PanelKind};
 
 use crate::editor::Editor;
 
@@ -16,7 +16,7 @@ impl Editor {
     /// Top bar of an Editor area: type selector and split/close controls plus the Editor-specific tab bar.
     pub(crate) fn render_editor_topbar(
         &mut self,
-        kind: PanelKindId,
+        kind: PanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -160,7 +160,7 @@ impl Editor {
 
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
-        if kind == PanelKindId::EDITOR {
+        if kind.as_str() == "editor" {
             let list = self.tab_list_mut();
             let active_tab = list.active_index();
             let tab_infos: Vec<(String, bool, bool)> = list
@@ -296,4 +296,5 @@ impl Editor {
             .into_any_element()
     }
 }
+
 

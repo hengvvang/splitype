@@ -1,18 +1,10 @@
 //! Window-level layout actions and generic editing actions.
-//!
-//! Panels (explorer, settings, editor chrome) dispatch these actions from
-//! their topbar controls; the shell (`crates/app`) handles them against
-//! its window layout tree. This keeps the panel crates free of any shell
-//! dependency.
 
 use gpui::*;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use splitter::tree::{NodeId, SplitAxis};
 
-// Generic editing actions shared by every editing surface (editor panes,
-// explorer filename editor). Defined here so panels never depend on the
-// editor family.
 actions!(
     splitype,
     [
@@ -61,23 +53,23 @@ pub struct ClosePanel {
     pub panel: NodeId,
 }
 
-/// Open a path in the active editor panel (explorer row clicks).
+/// Open a path in the active panel area (explorer row clicks).
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
-pub struct OpenInEditor {
+pub struct OpenPath {
     /// Absolute path of the file to open.
     pub path: String,
-    /// True for double-click (permanent tab + focus editor); false for
+    /// True for double-click (permanent tab + focus); false for
     /// single click (transient preview tab).
     pub persistent: bool,
 }
 
-/// Open a path in a freshly split editor area (explorer Ctrl/Cmd+double-click).
+/// Open a path in a freshly split panel area (explorer Ctrl/Cmd+double-click).
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
-pub struct OpenInSplit {
+pub struct OpenPathInSplit {
     /// Absolute path of the file to open.
     pub path: String,
 }

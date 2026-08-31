@@ -77,3 +77,4 @@ pub fn clear_document_search_highlights(doc: &Document, cx: &mut App) {
     }
 }
 
+

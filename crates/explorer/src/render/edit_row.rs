@@ -2,7 +2,7 @@ use gpui::*;
 
 use crate::ExplorerState;
 
-use workspace::PanelId;
+use window::PanelId;
 use crate::filename_editor::ExplorerFilenameInputElement;
 use crate::state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
@@ -92,22 +92,22 @@ impl ExplorerState {
                     // listeners, so Esc must be handled as an action here
                     // (the focused node runs first) — on_key_down would
                     // never see it.
-                    .on_action(move |action: &workspace::DismissTransientUi, window, cx| {
+                    .on_action(move |action: &window::DismissTransientUi, window, cx| {
                         ExplorerState::update(cx, |state, cx| {
                             state.on_explorer_escape(action, window, cx);
                         });
                     })
-                    .on_action(move |action: &workspace::Copy, _window, cx| {
+                    .on_action(move |action: &window::Copy, _window, cx| {
                         ExplorerState::update(cx, |state, cx| {
                             state.on_explorer_filename_copy(action, _window, cx);
                         });
                     })
-                    .on_action(move |action: &workspace::Cut, _window, cx| {
+                    .on_action(move |action: &window::Cut, _window, cx| {
                         ExplorerState::update(cx, |state, cx| {
                             state.on_explorer_filename_cut(action, _window, cx);
                         });
                     })
-                    .on_action(move |action: &workspace::Paste, window, cx| {
+                    .on_action(move |action: &window::Paste, window, cx| {
                         ExplorerState::update(cx, |state, cx| {
                             state.on_explorer_filename_paste(action, window, cx);
                         });
@@ -128,3 +128,4 @@ impl ExplorerState {
             .into_any_element()
     }
 }
+

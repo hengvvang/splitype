@@ -577,3 +577,4 @@ fn assign_stable_ids(
     }
     out.entries_by_path = std::mem::take(new_entries);
 }
+

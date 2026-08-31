@@ -5,8 +5,8 @@
 
 use gpui::*;
 
-use workspace::{PanelId, PanelKindId, panel_topbar_icon};
-use workspace::actions::{ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized};
+use window::{PanelId, PanelKind, panel_topbar_icon};
+use window::actions::{ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized};
 use theme::Theme;
 use splitter::SplitAxis;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
@@ -15,7 +15,7 @@ use ui::topbar::topbar_container;
 /// Top bar of a Settings area: type selector and split/close controls.
 pub fn render_settings_topbar(
     panel_id: PanelId,
-    kind: PanelKindId,
+    kind: PanelKind,
     theme: &Theme,
     leaf_count: usize,
     is_maximized: bool,
@@ -119,3 +119,4 @@ pub fn render_settings_topbar(
         .child(div().flex().items_center().gap(px(6.0)).child(actions))
         .into_any_element()
 }
+

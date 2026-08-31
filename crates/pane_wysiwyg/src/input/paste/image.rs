@@ -94,3 +94,4 @@ pub fn format_image_markdown_tag(alt: &str, relative_path: &str) -> String {
     format!("![{alt}]({normalized})")
 }
 
+

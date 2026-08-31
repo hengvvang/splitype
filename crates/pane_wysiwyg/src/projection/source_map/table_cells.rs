@@ -85,3 +85,4 @@ pub fn push_table_mappings(
         + lines.len().saturating_sub(1)
 }
 
+

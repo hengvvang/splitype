@@ -9,7 +9,7 @@ use std::path::Path;
 
 use gpui::*;
 
-use workspace::actions::{OpenInEditor, OpenInSplit};
+use window::actions::{OpenPath, OpenPathInSplit};
 
 use crate::state::state::ExplorerState;
 
@@ -34,7 +34,7 @@ impl ExplorerState {
     ) {
         self.reveal_and_select(&path);
         window.dispatch_action(
-            Box::new(OpenInEditor {
+            Box::new(OpenPath {
                 path: path.to_string_lossy().into_owned(),
                 persistent,
             }),
@@ -62,7 +62,7 @@ impl ExplorerState {
         cx: &mut App,
     ) {
         window.dispatch_action(
-            Box::new(OpenInSplit {
+            Box::new(OpenPathInSplit {
                 path: path.to_string_lossy().into_owned(),
             }),
             cx,
@@ -97,3 +97,5 @@ impl ExplorerState {
         }
     }
 }
+
+

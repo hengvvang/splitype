@@ -153,3 +153,4 @@ fn minimum_column_width(theme: &Theme) -> f32 {
     theme.dimensions.table_cell_padding_x * 2.0 + theme.typography.text_size * 4.0 + 2.0
 }
 
+

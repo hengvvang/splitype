@@ -261,3 +261,4 @@ impl ExplorerState {
         Some((snap.id(), root_entry.path.clone(), root_entry.id))
     }
 }
+

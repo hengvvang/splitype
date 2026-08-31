@@ -10,7 +10,7 @@ use std::ops::Range;
 use gpui::*;
 
 
-use workspace::PanelId;
+use window::PanelId;
 use crate::state::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
 use theme::Theme;
@@ -252,3 +252,4 @@ impl ExplorerState {
         self.render_explorer_files_tree(panel_id, theme, strings, cx)
     }
 }
+

@@ -223,3 +223,4 @@ pub(crate) fn render_explorer_section(
         rows,
     )
 }
+

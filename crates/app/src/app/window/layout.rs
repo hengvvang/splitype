@@ -1,5 +1,5 @@
 //! Window-level tiled area layout — rendering and gestures for the outer
-//! `PanelKindId` split tree (Explorer / Settings / Editor panel views).
+//! `PanelKind` split tree (Explorer / Settings / Editor panel views).
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor.s pane layout rendering lives in
@@ -13,7 +13,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use workspace::panel_topbar_icon;
+use window::panel_topbar_icon;
 use ui::corner_drag_preview::render_corner_drag_preview;
 use config::language::I18nStrings;
 use theme::{Theme, ThemeManager};
@@ -198,7 +198,7 @@ impl Shell {
 
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &splitter::SplitTree<workspace::PanelKindId>,
+        node: &splitter::SplitTree<window::PanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -414,7 +414,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: NodeId,
-        kind: workspace::PanelKindId,
+        kind: window::PanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -427,8 +427,8 @@ impl Shell {
         let gap = d.panel_tile_gap;
         let radius = d.panel_tile_radius;
 
-        let panel_id = workspace::PanelId(leaf_id);
-        let render_ctx = workspace::PanelRenderContext {
+        let panel_id = window::PanelId(leaf_id);
+        let render_ctx = window::PanelRenderContext {
             panel_id,
             leaf_count,
             is_maximized,
@@ -437,12 +437,12 @@ impl Shell {
         };
 
         if !self.panel_views.contains_key(&panel_id) {
-            self.sync_panel_kind(panel_id, kind == workspace::PanelKindId::EDITOR, cx);
+            self.sync_panel_kind(panel_id, kind == ::window::PanelKind::new("editor"), cx);
         }
 
         let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {
             let rendered = view.render(&render_ctx, _window, cx);
-            if view.kind() == workspace::PanelKindId::EDITOR {
+            if view.kind() == ::window::PanelKind::new("editor") {
                 rendered
             } else {
                 let card = div()
@@ -480,7 +480,7 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
                     shell.panels.layout.focused_leaf = Some(leaf_id);
-                    if kind == workspace::PanelKindId::EDITOR {
+                    if kind == ::window::PanelKind::new("editor") {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -534,7 +534,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: NodeId,
-        current_kind: workspace::PanelKindId,
+        current_kind: window::PanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -543,7 +543,7 @@ impl Shell {
         let t = &theme.typography;
         let shell = cx.entity().downgrade();
 
-        let registry = workspace::PanelRegistry::global().lock().unwrap();
+        let registry = window::PanelRegistry::global().lock().unwrap();
         let available_descriptors = registry.all_descriptors();
 
         menu_panel(c, d)
@@ -598,7 +598,7 @@ impl Shell {
         let shell = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 
-        let menu_style = workspace::border_menu_style(theme);
+        let menu_style = window::border_menu_style(theme);
 
         let split_h_shell = shell.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
@@ -665,4 +665,6 @@ impl Shell {
 // ---------------------------------------------------------------------------
 // Window panels aggregate
 // ---------------------------------------------------------------------------
+
+
 

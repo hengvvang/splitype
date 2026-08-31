@@ -45,3 +45,4 @@ pub fn extract_outline_headings(doc: &Document, cx: &App) -> Vec<OutlineNode> {
     list
 }
 
+

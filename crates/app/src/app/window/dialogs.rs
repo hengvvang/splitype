@@ -966,3 +966,4 @@ fn format_update_message(template: &str, current_version: &str, latest_version: 
 }
 
 
+

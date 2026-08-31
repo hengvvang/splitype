@@ -38,3 +38,4 @@ pub fn duplicate_table_column(table: &mut TableData, column: usize) {
     table.duplicate_column(column);
 }
 
+

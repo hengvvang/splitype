@@ -16,8 +16,8 @@ use gpui::*;
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
-use workspace::actions::{OpenInEditor, OpenInSplit};
-use workspace::{PanelId, PanelKindId};
+use window::actions::{OpenPath, OpenPathInSplit};
+use window::{PanelId, PanelKind};
 use editor::{DocumentTab, Editor, EditorSession};
 use core_contracts::{EditorHost, OpenFileMode};
 pub use crate::app::window::dialogs::InfoDialogKind;
@@ -27,7 +27,7 @@ use theme::ThemeManager;
 use splitter::NodeId;
 use splitter::tree::SplitAxis;
 
-use workspace::PanelView;
+use window::PanelView;
 
 /// Scope of an unsaved-changes confirmation dialog.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -266,7 +266,7 @@ impl Shell {
         let panel_id = panel_id.into();
         let target_leaf_id = self.panels.layout.resolve_leaf(panel_id.0)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
-        if self.panels.layout.tree.find_leaf_kind(target_leaf_id) == Some(PanelKindId::EDITOR) {
+        if self.panels.layout.tree.find_leaf_kind(target_leaf_id) == Some(window::PanelKind::new("editor")) {
             let session = if copy_content {
                 self.primary_editor()
                     .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
@@ -285,7 +285,7 @@ impl Shell {
     /// entity. Non-Editor panel_contents have no content to copy.
     pub(crate) fn seed_split_panel(&mut self, new_id: impl Into<PanelId>, cx: &mut Context<Self>) {
         let new_id = new_id.into();
-        if self.panels.layout.tree.find_leaf_kind(new_id.0) == Some(PanelKindId::EDITOR) {
+        if self.panels.layout.tree.find_leaf_kind(new_id.0) == Some(window::PanelKind::new("editor")) {
             let session = self
                 .primary_editor()
                 .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
@@ -327,13 +327,13 @@ impl Shell {
     pub(crate) fn change_panel_kind(
         &mut self,
         panel_id: NodeId,
-        kind: PanelKindId,
+        kind: PanelKind,
         cx: &mut Context<Self>,
     ) {
         let previous = self.panels.layout.tree.find_leaf_kind(panel_id);
         self.panels.layout.set_kind(panel_id, kind);
-        self.sync_panel_kind(panel_id, kind == PanelKindId::EDITOR, cx);
-        if kind == PanelKindId::EDITOR && previous != Some(PanelKindId::EDITOR) {
+        self.sync_panel_kind(panel_id, kind == window::PanelKind::new("editor"), cx);
+        if kind == window::PanelKind::new("editor") && previous != Some(window::PanelKind::new("editor")) {
             // Entering Editor is an explicit interaction, so the area
             // becomes the active editor.
             self.panels.layout.activate_leaf(panel_id);
@@ -346,7 +346,7 @@ impl Shell {
     /// Editor (when only one exists) or the most recently activated Editor.
     #[inline]
     pub(crate) fn active_editor_panel(&self) -> Option<NodeId> {
-        self.panels.layout.active_leaf_of_kind(PanelKindId::EDITOR)
+        self.panels.layout.active_leaf_of_kind(window::PanelKind::new("editor"))
     }
 
     /// Opens `path` in the active editor's tab list, if an active editor
@@ -442,7 +442,7 @@ impl Shell {
     /// explorer; this is the shell-side handler.
     pub(crate) fn on_open_in_editor(
         &mut self,
-        action: &OpenInEditor,
+        action: &OpenPath,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -459,7 +459,7 @@ impl Shell {
     /// area and open the file in the fresh area (persistent tab).
     pub(crate) fn on_open_in_split(
         &mut self,
-        action: &OpenInSplit,
+        action: &OpenPathInSplit,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -636,8 +636,8 @@ impl Shell {
                 }
             }
             if let Some(kind) = self.panels.layout.tree.find_leaf_kind(panel_id.0) {
-                let registry = workspace::PanelRegistry::global().lock().unwrap();
-                if let Some(view) = registry.create_panel(kind, panel_id, cx) {
+                let registry = window::PanelRegistry::global().lock().unwrap();
+                if let Some(view) = registry.create_panel(kind, panel_id, None, cx) {
                     self.panel_views.insert(panel_id, view);
                 }
             }
@@ -671,20 +671,20 @@ impl Shell {
     /// (pane layout + tab list) and the explorer state is cloned.
     pub(crate) fn clone_container_into_new_window(
         &mut self,
-        cloned: splitter::policy::ClonedContainer<PanelKindId>,
+        cloned: splitter::policy::ClonedContainer<PanelKind>,
         cx: &mut Context<Self>,
     ) {
         let mut sessions = HashMap::new();
         let mut cloned_explorer = None;
         for (old_id, new_id) in &cloned.id_map {
             match cloned.tree.find_leaf_kind(*new_id) {
-                Some(PanelKindId::EDITOR) => {
+                Some(k) if k.as_str() == "editor" => {
                     if let Some(editor) = self.editor_for(*old_id) {
                         let session = editor.update(cx, |editor, cx| editor.clone_session(cx));
                         sessions.insert(PanelId(*new_id), session);
                     }
                 }
-                Some(PanelKindId::EXPLORER) => {
+                Some(k) if k.as_str() == "explorer" => {
                     // The explorer model is window-global: deep-copy it so
                     // the new window shows the same file tree.
                     cloned_explorer = Some(explorer::ExplorerState::global(cx).clone_for_new_window());
@@ -984,7 +984,7 @@ impl Shell {
 
     fn on_toggle_kind_dropdown(
         &mut self,
-        action: &workspace::actions::ToggleKindDropdown,
+        action: &window::actions::ToggleKindDropdown,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -994,7 +994,7 @@ impl Shell {
 
     fn on_split_panel(
         &mut self,
-        action: &workspace::actions::SplitPanel,
+        action: &window::actions::SplitPanel,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -1003,7 +1003,7 @@ impl Shell {
 
     fn on_toggle_panel_maximized(
         &mut self,
-        action: &workspace::actions::TogglePanelMaximized,
+        action: &window::actions::TogglePanelMaximized,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -1013,7 +1013,7 @@ impl Shell {
 
     fn on_close_panel(
         &mut self,
-        action: &workspace::actions::ClosePanel,
+        action: &window::actions::ClosePanel,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -1220,4 +1220,6 @@ impl EditorHost for ShellEditorHost {
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 }
+
+
 

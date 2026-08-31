@@ -21,4 +21,5 @@ gpui = { workspace = true }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 ui = { path = "../ui" }
-workspace = { path = "../workspace" }
+window = { path = "../window" }
+

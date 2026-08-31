@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::ExplorerState;
 
-use workspace::PanelId;
+use window::PanelId;
 use crate::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
@@ -287,3 +287,4 @@ impl ExplorerState {
             .into_any_element()
     }
 }
+

@@ -8,7 +8,7 @@ use crate::actions::{
     Delete, DeleteBackward, End, FocusNext, FocusPrevious, Home, IndentBlock, MoveLeft, MoveRight,
     Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
 };
-use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
+use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::code_language::code_language_options_matching;
 use crate::model::block::Block;
 impl Block {
@@ -435,4 +435,5 @@ impl Block {
         }
     }
 }
+
 

@@ -18,7 +18,7 @@ theme = { path = "../theme" }
 core_contracts = { path = "../core_contracts" }
 markdown_parser = { path = "../markdown_parser" }
 syntax_highlighter = { path = "../syntax_highlighter" }
-workspace = { path = "../workspace" }
+window = { path = "../window" }
 config = { path = "../config" }
 ui = { path = "../ui" }
 url = "2"
@@ -34,3 +34,4 @@ futures = "0.3"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
 tracing = "0.1"
+

@@ -60,3 +60,4 @@ pub struct OpenRecentFile {
     /// Path stored in splitype's recent-file history.
     pub path: String,
 }
+

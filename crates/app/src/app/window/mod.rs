@@ -13,7 +13,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
-use workspace::{PanelId, PanelKindId, PanelView, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID};
+use window::{PanelId, PanelKind, PanelView};
 use editor::{Editor, EditorSession};
 
 use explorer::ExplorerState;
@@ -60,17 +60,23 @@ pub(crate) fn open_editor_window(
                 // The explorer state is app-wide global; install a fresh
                 // one per window (the shell renders it from the global).
                 cx.set_global(explorer::ExplorerState::default());
-                let editor = cx.new(|cx| { let mut ed = Editor::new(markdown, file_path, cx); ed.set_panel_id(PanelId(DEFAULT_EDITOR_PANEL_ID)); ed });
+                let explorer_id = PanelId(1);
+                let editor_id = PanelId(2);
+                let editor = cx.new(|cx| {
+                    let mut ed = Editor::new(markdown, file_path, cx);
+                    ed.set_panel_id(editor_id);
+                    ed
+                });
                 let explorer_view: Box<dyn PanelView> =
-                    Box::new(explorer::ExplorerPanelView::new(PanelId(ROOT_PANEL_ID)));
+                    Box::new(explorer::ExplorerPanelView::new(explorer_id));
                 let editor_view: Box<dyn PanelView> =
                     Box::new(editor::EditorPanelView::new(editor.clone()));
 
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right).
                     panel_views: [
-                        (PanelId(ROOT_PANEL_ID), explorer_view),
-                        (PanelId(DEFAULT_EDITOR_PANEL_ID), editor_view),
+                        (explorer_id, explorer_view),
+                        (editor_id, editor_view),
                     ]
                     .into(),
                     retained_editor_sessions: HashMap::new(),
@@ -108,7 +114,7 @@ pub(crate) fn open_editor_window(
 /// session, inherits the window layout tree, and clones the file
 /// explorer state so the new window sees the same directory tree.
 pub(crate) fn open_cloned_window(
-    tree: SplitTree<PanelKindId>,
+    tree: SplitTree<PanelKind>,
     next_node_id: NodeId,
     sessions: HashMap<PanelId, EditorSession>,
     explorer: Option<ExplorerState>,
@@ -128,12 +134,12 @@ pub(crate) fn open_cloned_window(
 
                 let mut leaf_ids = Vec::new();
                 tree.leaf_ids(&mut leaf_ids);
-                let registry = workspace::PanelRegistry::global().lock().unwrap();
+                let registry = window::PanelRegistry::global().lock().unwrap();
                 for leaf_id in leaf_ids {
                     let panel_id = PanelId(leaf_id);
                     if let Some(kind) = tree.find_leaf_kind(leaf_id) {
                         if !panel_views.contains_key(&panel_id) {
-                            if let Some(view) = registry.create_panel(kind, panel_id, cx) {
+                            if let Some(view) = registry.create_panel(kind, panel_id, None, cx) {
                                 panel_views.insert(panel_id, view);
                             }
                         }
@@ -148,7 +154,7 @@ pub(crate) fn open_cloned_window(
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
                 // Activate the first Editor leaf of the cloned layout
-                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(PanelKindId::EDITOR) {
+                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(window::PanelKind::new("editor")) {
                     panels.layout.activate_leaf(container.id);
                 } else {
                     panels.layout.active_leaf = None;
@@ -211,4 +217,5 @@ pub(crate) fn record_recent_file_and_refresh(path: &Path, cx: &mut App) {
     install_menus(cx);
     cx.refresh_windows();
 }
+
 

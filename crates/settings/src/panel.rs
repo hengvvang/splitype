@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use workspace::PanelId;
+use window::PanelId;
 use config::settings::*;
 use config::language::{apply_configured_language, I18nStrings};
 use theme::{apply_configured_theme, Theme, ThemeManager};
@@ -951,3 +951,4 @@ use ui::tab::nav_tab;
 
         sections
     }
+

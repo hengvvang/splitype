@@ -344,3 +344,4 @@ pub(crate) fn render_editor_behavior_section(
     make_section(c, d, id, "Editor Behaviors & Indentation", expanded, toggle_fn, rows)
 }
 
+

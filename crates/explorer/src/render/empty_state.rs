@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::state::state::ExplorerState;
 
-use workspace::PanelId;
+use window::PanelId;
 use config::language::I18nStrings;
 use theme::Theme;
 use ui::empty_state::empty_state_container;
@@ -231,3 +231,4 @@ impl ExplorerState {
             .into_any_element()
     }
 }
+

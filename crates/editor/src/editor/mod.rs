@@ -22,7 +22,7 @@ pub use gpui::*;
 pub use core_contracts::{AutoscrollStrategy, EditorHost, PaneId};
 pub use core_contracts::OutlineHudState;
 pub use splitter::root::SplitterRoot;
-pub use workspace::{PanelId, PanelKindId, DEFAULT_EDITOR_PANEL_ID};
+pub use window::{PanelId, PanelKind};
 
 pub use crate::session::{
     DocumentTab, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKindId,
@@ -57,7 +57,7 @@ impl Editor {
     pub fn new(markdown: String, file_path: Option<PathBuf>, cx: &mut Context<Self>) -> Self {
         let has_content = !markdown.is_empty() || file_path.is_some();
         let mut editor = Self {
-            panel_id: PanelId(DEFAULT_EDITOR_PANEL_ID),
+            panel_id: PanelId::default(),
             entity_id: cx.entity().entity_id(),
             self_weak: cx.weak_entity(),
             host: None,
@@ -520,4 +520,6 @@ impl Editor {
         None
     }
 }
+
+
 

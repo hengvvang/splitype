@@ -24,7 +24,7 @@ config = { path = "../config" }
 splitype_installer = { path = "../splitype_installer" }
 ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
-workspace = { path = "../workspace" }
+window = { path = "../window" }
 core_contracts = { path = "../core_contracts" }
 editor = { path = "../editor" }
 pane_wysiwyg = { path = "../pane_wysiwyg" }

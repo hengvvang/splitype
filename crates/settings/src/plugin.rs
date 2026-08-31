@@ -1,6 +1,7 @@
 use std::any::Any;
+use std::sync::Arc;
 use gpui::*;
-use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView};
+use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
 
 /// View wrapper implementing [`PanelView`] for the Settings panel.
@@ -15,8 +16,8 @@ impl SettingsPanelView {
 }
 
 impl PanelView for SettingsPanelView {
-    fn kind(&self) -> PanelKindId {
-        PanelKindId::SETTINGS
+    fn kind(&self) -> PanelKind {
+        PanelKind::new("settings")
     }
 
     fn display_name(&self) -> SharedString {
@@ -37,7 +38,7 @@ impl PanelView for SettingsPanelView {
         let c = &theme.colors;
         let topbar = render_settings_topbar(
             ctx.panel_id,
-            PanelKindId::SETTINGS,
+            PanelKind::new("settings"),
             theme,
             ctx.leaf_count,
             ctx.is_maximized,
@@ -85,8 +86,8 @@ impl SettingsPanelDescriptor {
 }
 
 impl PanelDescriptor for SettingsPanelDescriptor {
-    fn kind(&self) -> PanelKindId {
-        PanelKindId::SETTINGS
+    fn kind(&self) -> PanelKind {
+        PanelKind::new("settings")
     }
 
     fn display_name(&self) -> SharedString {
@@ -97,7 +98,12 @@ impl PanelDescriptor for SettingsPanelDescriptor {
         Some("icons/settings/panel.svg")
     }
 
-    fn create_panel(&self, panel_id: PanelId, _cx: &mut App) -> Box<dyn PanelView> {
+    fn create_panel(
+        &self,
+        panel_id: PanelId,
+        _host: Option<Arc<dyn PanelHost>>,
+        _cx: &mut App,
+    ) -> Box<dyn PanelView> {
         Box::new(SettingsPanelView::new(panel_id))
     }
 }

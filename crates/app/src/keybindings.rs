@@ -24,7 +24,7 @@ use pane_wysiwyg::actions::{
     StrikethroughSelection, UnderlineSelection, WordDeleteBackward, WordDeleteForward,
     WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
 };
-use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
+use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 use config::keybindings::{
     SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
 };
@@ -119,3 +119,4 @@ pub(crate) fn install_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<St
 pub(crate) fn init_with_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<String>>) {
     install_keybindings(cx, config);
 }
+

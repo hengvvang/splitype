@@ -10,7 +10,7 @@ members = [
     "crates/config",
     "crates/ui",
     "crates/explorer_fs",
-    "crates/workspace",
+    "crates/window",
     "crates/core_contracts",
     "crates/editor",
     "crates/pane_source_code",
@@ -42,7 +42,7 @@ theme = { path = "crates/theme" }
 config = { path = "crates/config" }
 ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
-workspace = { path = "crates/workspace" }
+window = { path = "crates/window" }
 editor = { path = "crates/editor" }
 pane_source_code = { path = "crates/pane_source_code" }
 pane_wysiwyg = { path = "crates/pane_wysiwyg" }
