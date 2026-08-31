@@ -7,7 +7,6 @@
 //! The panel never references the shell.
 
 pub mod bottombar;
-pub mod builder;
 pub(crate) mod components;
 pub mod panel;
 pub mod plugin;
@@ -17,10 +16,8 @@ pub(crate) mod ui_helpers;
 pub(crate) mod window;
 
 pub use bottombar::render_settings_bottombar;
-pub use builder::*;
 pub use panel::render_settings_body;
 pub use plugin::*;
 pub use topbar::render_settings_topbar;
 pub use state::SettingsUiState;
 pub use window::open_settings_window;
-

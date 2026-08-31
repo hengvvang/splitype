@@ -79,3 +79,12 @@ applies exactly one commit: replace authoritative text, bump revision, mark
 commit through `PaneHost::sync_source_text`. Panes no longer follow a text
 commit with a second `mark_dirty`, and unsupported commands return `None`
 instead of faking a dirty document.
+
+## ADR-010: Panel instance state belongs to the panel
+
+**Status:** Accepted
+
+Panel plugins own transient UI state in entities created by their descriptors.
+`SettingsPanelView` already owns its `SettingsUiState` entity; Explorer will
+follow the same pattern. Application globals are reserved for true shared
+services such as configuration and theme management.

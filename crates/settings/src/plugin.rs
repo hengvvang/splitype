@@ -2,16 +2,21 @@ use std::any::Any;
 use std::sync::Arc;
 use gpui::*;
 use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
+use crate::state::SettingsUiState;
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
 
 /// View wrapper implementing [`PanelView`] for the Settings panel.
 pub struct SettingsPanelView {
     pub panel_id: PanelId,
+    pub state: Entity<SettingsUiState>,
 }
 
 impl SettingsPanelView {
-    pub fn new(panel_id: PanelId) -> Self {
-        Self { panel_id }
+    pub fn new(panel_id: PanelId, cx: &mut App) -> Self {
+        Self {
+            panel_id,
+            state: cx.new(|_cx| SettingsUiState::new()),
+        }
     }
 }
 
@@ -36,6 +41,7 @@ impl PanelView for SettingsPanelView {
     ) -> AnyElement {
         let theme = ctx.theme;
         let c = &theme.colors;
+        let state = self.state.clone();
         let topbar = render_settings_topbar(
             ctx.panel_id,
             PanelKind::new("settings"),
@@ -44,7 +50,7 @@ impl PanelView for SettingsPanelView {
             ctx.is_maximized,
             cx,
         );
-        let body = render_settings_body(ctx.panel_id, theme, ctx.strings, cx);
+        let body = render_settings_body(ctx.panel_id, state, theme, ctx.strings, cx);
         let bottombar = render_settings_bottombar(ctx.panel_id, theme, cx);
 
         div()
@@ -102,8 +108,8 @@ impl PanelDescriptor for SettingsPanelDescriptor {
         &self,
         panel_id: PanelId,
         _host: Arc<dyn PanelHost>,
-        _cx: &mut App,
+        cx: &mut App,
     ) -> Box<dyn PanelView> {
-        Box::new(SettingsPanelView::new(panel_id))
+        Box::new(SettingsPanelView::new(panel_id, cx))
     }
 }
