@@ -48,34 +48,6 @@ pub struct Editor {
 }
 
 impl Editor {
-    /// Creates a fresh Editor entity with an untitled tab from markdown content (or empty session if empty).
-    pub fn new(markdown: String, file_path: Option<PathBuf>, cx: &mut Context<Self>) -> Self {
-        let has_content = !markdown.is_empty() || file_path.is_some();
-        let mut editor = Self {
-            panel_id: PanelId::default(),
-            entity_id: cx.entity().entity_id(),
-            self_weak: cx.weak_entity(),
-            host: None,
-            pane_host: EditorPaneHost::new(cx.weak_entity()),
-            search_view: EditorSearchView::new(cx.weak_entity()),
-            search_ime: EditorSearchIme::new(cx.weak_entity()),
-            session: EditorSession::empty(),
-            panel_rect: None,
-            is_active_panel: false,
-            is_maximized: false,
-            leaf_count: 1,
-            outline: OutlineHudState::default(),
-            focused_pane_id: None,
-            pane_dropdown_open: false,
-            search: core_contracts::SearchPanelState::new(cx),
-        };
-        if has_content {
-            let tab = Self::new_tab_from_markdown(markdown, file_path);
-            editor.session.push_tab(tab);
-        }
-        editor
-    }
-
     /// Creates an Editor initialized with an existing session (e.g. restored or cloned).
     pub fn with_session(panel_id: PanelId, session: EditorSession, cx: &mut Context<Self>) -> Self {
         Self {
@@ -257,19 +229,6 @@ impl Editor {
         if let Some(host) = &self.host {
             host.record_recent_file(path, cx);
         }
-    }
-
-    pub fn open_file_in_active_document_panel(
-        &mut self,
-        path: &std::path::Path,
-        kind: TabKind,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> bool {
-        let Some(host) = self.host.clone() else {
-            return false;
-        };
-        host.open_file_in_active_document_panel(path, kind, window, cx)
     }
 
     pub fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {

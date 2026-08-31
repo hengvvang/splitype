@@ -313,16 +313,6 @@ impl DocumentPanel for EditorPanelView {
         });
     }
 
-    fn focus_active_pane(&mut self, cx: &mut App) {
-        self.editor.update(cx, |editor, cx| {
-            let active_pane = editor.active_pane_id();
-            if let Some(state) = editor.pane_state_mut(active_pane) {
-                let _ = state.pane.focus_handle(cx);
-            }
-            cx.notify();
-        });
-    }
-
     fn request_save_document(&mut self, cx: &mut App) {
         self.editor.update(cx, |editor, cx| {
             editor.request_save_document(cx);

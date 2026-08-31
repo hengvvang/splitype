@@ -17,21 +17,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.unsaved_dialog.take() {
-            let target_id = dialog
-                .scope
-                .panel_id()
-                .filter(|id| self.document_panel_for(*id).is_some())
-                .or_else(|| self.active_document_panel_id());
-            if let Some(panel_id) = target_id {
-                if let Some(panel) = self.document_panel_mut_for(panel_id) {
-                    if dialog.restore_focus.is_some() {
-                        panel.focus_active_pane(cx);
-                    }
-                    cx.notify();
-                }
-            }
-        }
+        self.unsaved_dialog.take();
         if let Some(panel) = self.document_panel_with_unsaved_dialog_mut(cx) {
             panel.cancel_close_dialog(cx);
         }

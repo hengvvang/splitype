@@ -13,10 +13,6 @@ impl WysiwygDescriptor {
     pub fn new() -> Self {
         Self {}
     }
-
-    pub fn builder() -> WysiwygBuilder {
-        WysiwygBuilder::new()
-    }
 }
 
 impl PaneDescriptor for WysiwygDescriptor {
@@ -30,23 +26,5 @@ impl PaneDescriptor for WysiwygDescriptor {
 
     fn create_pane(&self) -> Box<dyn PaneView> {
         Box::new(WysiwygPaneState::default())
-    }
-}
-
-/// Fluent builder for WYSIWYG mode.
-#[derive(Clone, Debug, Default)]
-pub struct WysiwygBuilder {
-    descriptor: WysiwygDescriptor,
-}
-
-impl WysiwygBuilder {
-    pub fn new() -> Self {
-        Self {
-            descriptor: WysiwygDescriptor::new(),
-        }
-    }
-
-    pub fn build(self) -> WysiwygDescriptor {
-        self.descriptor
     }
 }

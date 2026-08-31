@@ -78,11 +78,6 @@ pub trait DocumentPanel: PanelView {
     /// Discard the current document and apply the pending drop replacement.
     fn discard_pending_drop_replace(&mut self, window: &mut Window, cx: &mut App);
 
-    // ── Focus ───────────────────────────────────────────────────────────
-
-    /// Re-focus the panel's active pane (used when a dialog is dismissed).
-    fn focus_active_pane(&mut self, cx: &mut App);
-
     // ── Menu-dispatched document commands ───────────────────────────────
 
     /// Save the active document, prompting for a path when untitled.

@@ -1,7 +1,6 @@
 //! Native application menu, app-level actions, and window close routing.
 
 use gpui::*;
-use std::path::Path;
 
 use crate::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
@@ -9,7 +8,6 @@ use crate::actions::{
     OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SelectLanguage,
     SelectTheme, ShowAbout, ToggleExplorer,
 };
-use crate::window::record_recent_file_and_refresh;
 use config::language::I18nManager;
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use theme::ThemeManager;
@@ -27,10 +25,6 @@ pub(crate) struct AppMenuState {
 }
 
 impl Global for AppMenuState {}
-
-pub(crate) fn record_recent_file_from_editor(path: &Path, cx: &mut App) {
-    record_recent_file_and_refresh(path, cx);
-}
 
 pub fn install_menus(cx: &mut App) {
     let recent_files = prompts::recent_files_for_menu();

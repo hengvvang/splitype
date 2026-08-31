@@ -13,10 +13,6 @@ impl SourceCodeDescriptor {
     pub fn new() -> Self {
         Self {}
     }
-
-    pub fn builder() -> SourceCodeBuilder {
-        SourceCodeBuilder::new()
-    }
 }
 
 impl PaneDescriptor for SourceCodeDescriptor {
@@ -30,23 +26,5 @@ impl PaneDescriptor for SourceCodeDescriptor {
 
     fn create_pane(&self) -> Box<dyn PaneView> {
         Box::new(SourceCodeState::default())
-    }
-}
-
-/// Fluent builder for Source Code mode.
-#[derive(Clone, Debug, Default)]
-pub struct SourceCodeBuilder {
-    descriptor: SourceCodeDescriptor,
-}
-
-impl SourceCodeBuilder {
-    pub fn new() -> Self {
-        Self {
-            descriptor: SourceCodeDescriptor::new(),
-        }
-    }
-
-    pub fn build(self) -> SourceCodeDescriptor {
-        self.descriptor
     }
 }

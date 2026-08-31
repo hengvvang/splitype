@@ -23,10 +23,4 @@ pub trait PanelHost: Send + Sync + 'static {
 
     /// Toggle maximized state of this panel tile.
     fn toggle_maximize(&self, panel_id: PanelId, cx: &mut App);
-
-    /// Notify the window shell of unsaved dirty state changes.
-    fn mark_dirty(&self, cx: &mut App);
-
-    /// Request a window redraw/notification.
-    fn notify(&self, cx: &mut App);
 }

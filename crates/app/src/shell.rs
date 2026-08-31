@@ -35,22 +35,11 @@ pub(crate) enum UnsavedDialogScope {
     Tab { panel_id: PanelId, index: usize },
 }
 
-impl UnsavedDialogScope {
-    pub(crate) fn panel_id(&self) -> Option<PanelId> {
-        match self {
-            Self::Window => None,
-            Self::Panel(panel_id) => Some(*panel_id),
-            Self::Tab { panel_id, .. } => Some(*panel_id),
-        }
-    }
-}
-
 /// State for the window-level unsaved-changes confirmation dialog.
 #[derive(Clone, Debug)]
 pub(crate) struct UnsavedDialogState {
     pub(crate) scope: UnsavedDialogScope,
     pub(crate) document_name: String,
-    pub(crate) restore_focus: Option<EntityId>,
 }
 
 /// Durable state of a panel that suspended itself during a kind switch.

@@ -81,7 +81,6 @@ impl Shell {
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Window,
             document_name: first_dirty_name,
-            restore_focus: None,
         });
         cx.notify();
     }
@@ -100,7 +99,6 @@ impl Shell {
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Panel(panel_id),
             document_name: first_dirty_name,
-            restore_focus: None,
         });
         cx.notify();
     }
@@ -120,7 +118,6 @@ impl Shell {
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Tab { panel_id, index },
             document_name,
-            restore_focus: None,
         });
         cx.notify();
     }

@@ -4,8 +4,8 @@ use gpui::*;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::menus::record_recent_file_from_editor;
 use crate::shell::Shell;
+use crate::window::record_recent_file_and_refresh;
 use core_contracts::{DocumentHost, TabKind};
 use core_contracts::{PanelHost, PanelId, PanelKind};
 use splitter::tree::SplitAxis;
@@ -71,14 +71,6 @@ impl PanelHost for ShellPanelHost {
         let _ = self
             .shell
             .update(cx, |shell, cx| shell.toggle_panel_maximize(panel_id, cx));
-    }
-
-    fn mark_dirty(&self, cx: &mut App) {
-        let _ = self.shell.update(cx, |_shell, cx| cx.notify());
-    }
-
-    fn notify(&self, cx: &mut App) {
-        let _ = self.shell.update(cx, |_shell, cx| cx.notify());
     }
 }
 
@@ -159,6 +151,6 @@ impl DocumentHost for ShellDocumentHost {
     }
 
     fn record_recent_file(&self, path: &Path, cx: &mut App) {
-        record_recent_file_from_editor(path, cx);
+        record_recent_file_and_refresh(path, cx);
     }
 }
