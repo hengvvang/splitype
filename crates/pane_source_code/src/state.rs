@@ -768,10 +768,6 @@ impl core_contracts::PaneView for SourceCodeState {
         core_contracts::PaneKind::new("source_code")
     }
 
-    fn document_source(&self, _doc: &dyn core_contracts::EditorDocument, _cx: &App) -> String {
-        self.text.clone()
-    }
-
     fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
         let mut handle = self.focus_handle.lock().unwrap();
         if handle.is_none() {

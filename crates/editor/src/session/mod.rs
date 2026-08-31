@@ -4,7 +4,7 @@ pub mod file;
 pub mod ops;
 pub mod tab;
 
-pub use core_contracts::{OpenFileMode, PaneKind, TabKind};
+pub use core_contracts::{PaneKind, TabKind};
 pub use file::{FileState, PendingOpenLink};
 pub use tab::{DocumentTab, PaneState, ScrollState, ScrollbarDragSession};
 

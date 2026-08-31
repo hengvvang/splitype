@@ -1,6 +1,6 @@
 use std::path::Path;
 use gpui::{App, Window};
-use crate::document::OpenFileMode;
+use crate::document::TabKind;
 
 pub trait EditorHost: Send + Sync + 'static {
     fn activate_panel(&self, panel_id: window::PanelId, cx: &mut App);
@@ -19,7 +19,7 @@ pub trait EditorHost: Send + Sync + 'static {
     fn open_file_in_active_editor(
         &self,
         path: &Path,
-        mode: OpenFileMode,
+        kind: TabKind,
         window: &mut Window,
         cx: &mut App,
     ) -> bool;

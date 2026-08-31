@@ -5,9 +5,3 @@ pub enum TabKind {
     Persistent,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum OpenFileMode {
-    #[default]
-    Transient,
-    Persistent,
-}

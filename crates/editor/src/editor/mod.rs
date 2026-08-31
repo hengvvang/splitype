@@ -25,7 +25,7 @@ pub use splitter::root::SplitterRoot;
 pub use window::{PanelId, PanelKind};
 
 pub use crate::session::{
-    DocumentTab, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKind,
+    DocumentTab, EditorSession, EditorTabList, FileState, PaneKind,
     PaneState, PendingOpenLink, ScrollState, ScrollbarDragSession, TabKind,
 };
 pub use export::ExportFormat;
@@ -212,7 +212,7 @@ impl Editor {
     pub fn open_file_in_panel(
         &mut self,
         path: &std::path::Path,
-        mode: OpenFileMode,
+        kind: TabKind,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -222,7 +222,7 @@ impl Editor {
             .iter()
             .position(|t| t.file.path.as_deref() == Some(path));
         if let Some(index) = already_open {
-            if mode == OpenFileMode::Persistent {
+            if kind == TabKind::Persistent {
                 if let Some(tab) = self.session.tab_mut(index) {
                     tab.persist();
                 }
@@ -244,12 +244,9 @@ impl Editor {
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
         let mut tab = Self::new_tab_from_markdown(markdown, Some(path.to_path_buf()));
-        tab.kind = match mode {
-            OpenFileMode::Transient => TabKind::Transient,
-            OpenFileMode::Persistent => TabKind::Persistent,
-        };
+        tab.kind = kind;
 
-        if mode == OpenFileMode::Transient {
+        if kind == TabKind::Transient {
             let clean_transient_idx = self
                 .session
                 .tab_list
@@ -277,14 +274,14 @@ impl Editor {
     pub fn open_file_in_active_editor(
         &mut self,
         path: &std::path::Path,
-        mode: OpenFileMode,
+        kind: TabKind,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
         let Some(host) = self.host.clone() else {
             return false;
         };
-        host.open_file_in_active_editor(path, mode, window, cx)
+        host.open_file_in_active_editor(path, kind, window, cx)
     }
 
     pub fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {

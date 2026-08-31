@@ -1,14 +1,12 @@
 use std::any::Any;
 use gpui::{AnyElement, App, FocusHandle, Window};
 use theme::Theme;
-use crate::document::EditorDocument;
 use crate::outline::OutlineHeading;
 use crate::pane::{PaneHost, PaneId, PaneKind, PaneRenderContext};
 use crate::search::{SearchMatch, SearchQuery};
 
 pub trait PaneView: Any + Send + Sync + 'static {
     fn kind(&self) -> PaneKind;
-    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String;
     fn render(
         &mut self,
         ctx: &PaneRenderContext,

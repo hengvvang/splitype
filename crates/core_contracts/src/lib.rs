@@ -8,8 +8,7 @@ pub mod pane;
 pub mod search;
 
 pub use document::{
-    DocumentSource, EditorDocument, EditorHost, NavigationExecutionPlan, NavigationTarget,
-    OpenFileMode, TabKind,
+    EditorHost, NavigationExecutionPlan, NavigationTarget, TabKind,
 };
 pub use export::{ExportError, ExportFormat};
 pub use outline::{

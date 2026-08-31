@@ -456,7 +456,7 @@ impl Editor {
         if let Some(ref file_path) = match_item.file_path {
             self.open_file_in_panel(
                 file_path,
-                crate::session::OpenFileMode::Persistent,
+                crate::session::TabKind::Persistent,
                 window,
                 cx,
             );

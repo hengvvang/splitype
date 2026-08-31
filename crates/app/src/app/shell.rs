@@ -19,7 +19,7 @@ use crate::app::window::panels::WindowPanels;
 use window::actions::{OpenPath, OpenPathInSplit};
 use window::{PanelId, PanelKind};
 use editor::{DocumentTab, Editor, EditorSession};
-use core_contracts::{EditorHost, OpenFileMode};
+use core_contracts::{EditorHost, TabKind};
 pub use crate::app::window::dialogs::InfoDialogKind;
 
 use config::language::I18nManager;
@@ -360,7 +360,7 @@ impl Shell {
     pub(crate) fn open_file_in_active_editor(
         &mut self,
         path: &std::path::Path,
-        mode: OpenFileMode,
+        kind: TabKind,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -371,7 +371,7 @@ impl Shell {
         let Some(editor) = self.editor_for(panel_id) else {
             return false;
         };
-        editor.update(cx, |editor, cx| editor.open_file_in_panel(path, mode, window, cx));
+        editor.update(cx, |editor, cx| editor.open_file_in_panel(path, kind, window, cx));
         cx.notify();
         true
     }
@@ -453,12 +453,12 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let path = std::path::PathBuf::from(&action.path);
-        let mode = if action.persistent {
-            OpenFileMode::Persistent
+        let kind = if action.persistent {
+            TabKind::Persistent
         } else {
-            OpenFileMode::Transient
+            TabKind::Transient
         };
-        self.open_file_in_active_editor(&path, mode, window, cx);
+        self.open_file_in_active_editor(&path, kind, window, cx);
     }
 
     /// Ctrl/Cmd+double-click from the explorer: split the active editor
@@ -471,7 +471,7 @@ impl Shell {
     ) {
         let path = std::path::PathBuf::from(&action.path);
         let open_in_active = |shell: &mut Self, window: &mut Window, cx: &mut Context<Self>| {
-            shell.open_file_in_active_editor(&path, OpenFileMode::Persistent, window, cx);
+            shell.open_file_in_active_editor(&path, TabKind::Persistent, window, cx);
         };
         let Some(active) = self.active_editor_panel() else {
             open_in_active(self, window, cx);
@@ -488,7 +488,7 @@ impl Shell {
         };
         self.panels.layout.activate_leaf(new_panel.0);
         editor.update(cx, |editor, cx| {
-            editor.open_file_in_panel(&path, OpenFileMode::Persistent, window, cx)
+            editor.open_file_in_panel(&path, TabKind::Persistent, window, cx)
         });
     }
 
@@ -1195,13 +1195,13 @@ impl EditorHost for ShellEditorHost {
     fn open_file_in_active_editor(
         &self,
         path: &Path,
-        mode: OpenFileMode,
+        kind: TabKind,
         window: &mut Window,
         cx: &mut App,
     ) -> bool {
         self.shell
             .update(cx, |shell, cx| {
-                shell.open_file_in_active_editor(path, mode, window, cx)
+                shell.open_file_in_active_editor(path, kind, window, cx)
             })
             .unwrap_or(false)
     }

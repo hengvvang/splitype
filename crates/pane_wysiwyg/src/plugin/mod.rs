@@ -18,7 +18,7 @@ use gpui::{
     AnyElement, App, AppContext, Entity, FocusHandle, Window,
 };
 use core_contracts::{
-    EditorDocument, PaneRenderContext, PaneView,
+    PaneRenderContext, PaneView,
 };
 use core_contracts::OutlineNode;
 use core_contracts::{SearchMatch, SearchQuery};
@@ -47,16 +47,6 @@ impl WysiwygPaneState {
 impl PaneView for WysiwygPaneState {
     fn kind(&self) -> core_contracts::PaneKind {
         core_contracts::PaneKind::new("wysiwyg")
-    }
-
-    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String {
-        let guard = self.controller.lock().unwrap();
-        if let Some(controller) = guard.as_ref() {
-            if let Some(text) = controller.read(cx).serialize_text(cx) {
-                return text;
-            }
-        }
-        doc.serialize_markdown(cx)
     }
 
     fn sync_document_text(&mut self, text: &str, revision: u64, cx: &mut App) {

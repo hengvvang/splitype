@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use core_contracts::{
-    EditorDocument, PaneKind, PaneOutlineHost, PaneRenderContext, PaneView,
+    PaneKind, PaneOutlineHost, PaneRenderContext, PaneView,
 };
 use core_contracts::OutlineNode;
 use core_contracts::{SearchMatch, SearchQuery};
@@ -30,10 +30,6 @@ pub struct PreviewState {
 impl PaneView for PreviewState {
     fn kind(&self) -> PaneKind {
         PaneKind::new("preview")
-    }
-
-    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String {
-        doc.serialize_markdown(cx)
     }
 
     fn sync_document_text(&mut self, text: &str, revision: u64, _cx: &mut App) {

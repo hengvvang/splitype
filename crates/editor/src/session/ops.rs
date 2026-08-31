@@ -19,12 +19,6 @@ impl Editor {
         &self.session
     }
 
-    /// True when the editor holds at least one document tab.
-    #[inline]
-    pub fn is_editing(&self) -> bool {
-        self.session.has_tabs()
-    }
-
     /// Splits a pane via the status-bar buttons. The new pane inherits the
     /// target pane's kind so the split keeps the same view style.
     pub fn split_pane(&mut self, pane_id: impl Into<PaneId>, axis: SplitAxis) {
