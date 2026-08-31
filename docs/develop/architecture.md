@@ -247,6 +247,11 @@ transitional hardcoding listed below is removed.
   and `Shell::retained_panel_states`. Editor document sessions participate
   as ordinary plugin state; the shell no longer owns an editor-specific
   session retention mechanism.
+- Host-driven pane commands (`replace`, `apply_*`) return the new authoritative
+  text and the editor commits it once; spontaneous pane edits commit through
+  `PaneHost::sync_source_text`, which bumps the revision and marks the document
+  dirty in a single atomic step. `PaneHost::mark_dirty` is gone, and read-only
+  panes no longer produce phantom dirty state.
 
 ### Remaining critical migration work
 
@@ -258,11 +263,10 @@ transitional hardcoding listed below is removed.
    alternative editor plugin can take over the role.
 2. Explorer and Settings transient state is application-global instead of
    instance-owned.
-4. `PaneView` remains broad, requires `Send + Sync`, and uses default no-op methods
-   for unsupported capabilities.
-5. Pane edits can update text and dirty/revision state more than once. Introduce
-   an atomic commit protocol.
-6. `PaneKind` and `PanelKind` still contain `&'static str`; migrate to owned,
+3. `PaneView` remains broad and requires `Send + Sync`; default no-op methods
+   still express some optional behaviors, though mutating commands now return
+   `Option<String>` so unsupported operations cannot fake a dirty document.
+5. `PaneKind` and `PanelKind` still contain `&'static str`; migrate to owned,
    namespaced IDs before manifest discovery or persistence.
 7. There is no plugin manifest, discovery runtime, API negotiation, permission
    model, resource namespace, unregister/shutdown protocol, or missing-plugin

@@ -36,13 +36,38 @@ pub trait PaneView: Any + Send + Sync + 'static {
 
     fn navigate_to_search_match(&mut self, _match_item: &SearchMatch, _cx: &mut App) {}
 
-    fn replace_match(&mut self, _match_item: &SearchMatch, _replace_with: &str, _cx: &mut App) {}
+    /// Replaces one search match and returns the new authoritative document
+    /// text, or `None` when this pane does not support replacement.
+    fn replace_match(
+        &mut self,
+        _match_item: &SearchMatch,
+        _replace_with: &str,
+        _cx: &mut App,
+    ) -> Option<String> {
+        None
+    }
 
-    fn replace_all_matches(&mut self, _query: &SearchQuery, _replace_with: &str, _cx: &mut App) {}
+    fn replace_all_matches(
+        &mut self,
+        _query: &SearchQuery,
+        _replace_with: &str,
+        _cx: &mut App,
+    ) -> Option<String> {
+        None
+    }
 
-    fn apply_line_prefix(&mut self, _prefix: &str, _cx: &mut App) {}
+    fn apply_line_prefix(&mut self, _prefix: &str, _cx: &mut App) -> Option<String> {
+        None
+    }
 
-    fn apply_snippet(&mut self, _snippet: &str, _caret_offset: usize, _cx: &mut App) {}
+    fn apply_snippet(
+        &mut self,
+        _snippet: &str,
+        _caret_offset: usize,
+        _cx: &mut App,
+    ) -> Option<String> {
+        None
+    }
 
     fn apply_wrapped_or_template(
         &mut self,
@@ -51,10 +76,13 @@ pub trait PaneView: Any + Send + Sync + 'static {
         _wrap_prefix: &str,
         _wrap_suffix: &str,
         _cx: &mut App,
-    ) {
+    ) -> Option<String> {
+        None
     }
 
-    fn apply_clear_format(&mut self, _cx: &mut App) {}
+    fn apply_clear_format(&mut self, _cx: &mut App) -> Option<String> {
+        None
+    }
 
     fn on_document_changed(&mut self, _new_text: &str, _cx: &mut App) {}
 

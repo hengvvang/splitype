@@ -22,8 +22,10 @@ pub trait PaneHost: Send + Sync + 'static {
     fn apply_pending_focus(&self, pane_id: PaneId, window: &mut Window, cx: &mut App);
     fn apply_pending_autoscroll(&self, pane_id: PaneId, window: &mut Window, cx: &mut App);
     fn request_autoscroll(&self, pane_id: PaneId, strategy: AutoscrollStrategy, cx: &mut App);
-    fn mark_dirty(&self, cx: &mut App);
     fn notify(&self, cx: &mut App);
+    /// Atomically replaces the authoritative document text. The editor bumps
+    /// the revision, marks the document dirty, invalidates caches, and
+    /// broadcasts the next snapshot to the other panes in one commit.
     fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App);
     fn undo(&self, window: &mut Window, cx: &mut App);
     fn redo(&self, window: &mut Window, cx: &mut App);

@@ -310,12 +310,6 @@ impl PaneHost for EditorPaneHost {
         }
     }
 
-    fn mark_dirty(&self, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, cx| editor.mark_dirty(cx));
-        }
-    }
-
     fn notify(&self, cx: &mut App) {
         cx.notify(self.editor.entity_id());
     }
@@ -427,4 +421,3 @@ impl PaneHost for EditorPaneHost {
         }
     }
 }
-

@@ -500,8 +500,8 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            state.pane.replace_match(&match_item, &final_replace_str, cx);
-            self.mark_dirty(cx);
+            let text = state.pane.replace_match(&match_item, &final_replace_str, cx);
+            self.commit_pane_text(active_pane, text, cx);
         } else if let Some(ref file_path) = match_item.file_path {
             if let Ok(content) = fs::read_to_string(file_path) {
                 if range.start <= content.len() && range.end <= content.len() {
@@ -532,11 +532,10 @@ impl Editor {
         );
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            state.pane.replace_all_matches(&query, &raw_replace_str, cx);
-            self.mark_dirty(cx);
+            let text = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
+            self.commit_pane_text(active_pane, text, cx);
         }
 
         self.execute_search(cx);
     }
 }
-

@@ -68,3 +68,14 @@ Panels own their durable state. Kind switches suspend a panel via
 through `PanelDescriptor::restore_panel`; dirty-state queries and discards of
 parked state go through the descriptor as well. The shell treats parked state
 as opaque and no longer keeps an editor-specific session map.
+
+## ADR-009: Pane edits commit atomically
+
+**Status:** Accepted
+
+Host-driven pane commands return the replacement document text and the editor
+applies exactly one commit: replace authoritative text, bump revision, mark
+`dirty`, invalidate caches, broadcast the snapshot. Spontaneous pane edits
+commit through `PaneHost::sync_source_text`. Panes no longer follow a text
+commit with a second `mark_dirty`, and unsupported commands return `None`
+instead of faking a dirty document.

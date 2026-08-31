@@ -263,12 +263,24 @@ impl Editor {
         }
         let text_len = text.len();
         self.apply_snippet(target_entity, &text, text_len, cx);
-        self.mark_dirty(cx);
-        cx.notify();
     }
 
     fn execute_select_all(&mut self, cx: &mut Context<Self>) {
         cx.notify();
+    }
+
+    /// Commits pane-produced document text once. The authoritative text is
+    /// replaced, the revision bumps, the tab becomes dirty, and the other
+    /// panes receive the next snapshot — all in one atomic step.
+    pub(crate) fn commit_pane_text(
+        &mut self,
+        pane_id: core_contracts::PaneId,
+        text: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(text) = text {
+            self.update_raw_document_text(text, pane_id, cx);
+        }
     }
 
     pub fn apply_inline_markup(
@@ -281,17 +293,20 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.apply_wrapped_or_template(
-                empty_template,
-                caret_offset_in_empty,
-                wrap_prefix,
-                wrap_suffix,
-                cx,
-            );
-            self.mark_dirty(cx);
-            cx.notify();
-        }
+        let text = self
+            .pane_state_mut(pane_id)
+            .map(|state| {
+                state.pane.apply_wrapped_or_template(
+                    empty_template,
+                    caret_offset_in_empty,
+                    wrap_prefix,
+                    wrap_suffix,
+                    cx,
+                )
+            })
+            .flatten();
+        self.commit_pane_text(pane_id, text, cx);
+        cx.notify();
     }
 
     pub fn apply_line_prefix(
@@ -301,11 +316,12 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.apply_line_prefix(prefix, cx);
-            self.mark_dirty(cx);
-            cx.notify();
-        }
+        let text = self
+            .pane_state_mut(pane_id)
+            .map(|state| state.pane.apply_line_prefix(prefix, cx))
+            .flatten();
+        self.commit_pane_text(pane_id, text, cx);
+        cx.notify();
     }
 
     pub fn apply_snippet(
@@ -316,11 +332,12 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.apply_snippet(snippet, caret_offset, cx);
-            self.mark_dirty(cx);
-            cx.notify();
-        }
+        let text = self
+            .pane_state_mut(pane_id)
+            .map(|state| state.pane.apply_snippet(snippet, caret_offset, cx))
+            .flatten();
+        self.commit_pane_text(pane_id, text, cx);
+        cx.notify();
     }
 
     pub fn apply_clear_format(
@@ -329,12 +346,11 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let pane_id = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.apply_clear_format(cx);
-            self.mark_dirty(cx);
-            cx.notify();
-        }
+        let text = self
+            .pane_state_mut(pane_id)
+            .map(|state| state.pane.apply_clear_format(cx))
+            .flatten();
+        self.commit_pane_text(pane_id, text, cx);
+        cx.notify();
     }
 }
-
-

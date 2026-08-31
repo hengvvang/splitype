@@ -95,11 +95,14 @@ impl PaneView for WysiwygPaneState {
             .unwrap_or_default()
     }
 
-    fn replace_match(&mut self, match_item: &SearchMatch, replace_with: &str, cx: &mut App) {
+    fn replace_match(
+        &mut self,
+        match_item: &SearchMatch,
+        replace_with: &str,
+        cx: &mut App,
+    ) -> Option<String> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.replace_match(match_item, replace_with, cx);
-        });
+        controller.update(cx, |c, cx| c.replace_match(match_item, replace_with, cx))
     }
 
     fn navigate_to_search_match(&mut self, match_item: &SearchMatch, cx: &mut App) {
@@ -109,18 +112,14 @@ impl PaneView for WysiwygPaneState {
         });
     }
 
-    fn apply_line_prefix(&mut self, prefix: &str, cx: &mut App) {
+    fn apply_line_prefix(&mut self, prefix: &str, cx: &mut App) -> Option<String> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.apply_line_prefix(prefix, cx);
-        });
+        controller.update(cx, |c, cx| c.apply_line_prefix(prefix, cx))
     }
 
-    fn apply_snippet(&mut self, snippet: &str, caret_offset: usize, cx: &mut App) {
+    fn apply_snippet(&mut self, snippet: &str, caret_offset: usize, cx: &mut App) -> Option<String> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.apply_snippet(snippet, caret_offset, cx);
-        });
+        controller.update(cx, |c, cx| c.apply_snippet(snippet, caret_offset, cx))
     }
 
     fn apply_wrapped_or_template(
@@ -130,7 +129,7 @@ impl PaneView for WysiwygPaneState {
         wrap_prefix: &str,
         wrap_suffix: &str,
         cx: &mut App,
-    ) {
+    ) -> Option<String> {
         let controller = self.ensure_controller(cx);
         controller.update(cx, |c, cx| {
             c.apply_wrapped_or_template(
@@ -139,15 +138,13 @@ impl PaneView for WysiwygPaneState {
                 wrap_prefix,
                 wrap_suffix,
                 cx,
-            );
-        });
+            )
+        })
     }
 
-    fn apply_clear_format(&mut self, cx: &mut App) {
+    fn apply_clear_format(&mut self, cx: &mut App) -> Option<String> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.apply_clear_format(cx);
-        });
+        controller.update(cx, |c, cx| c.apply_clear_format(cx))
     }
 
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement {

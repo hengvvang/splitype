@@ -848,30 +848,49 @@ impl core_contracts::PaneView for SourceCodeState {
         self.selections.set_single_range(start, end);
     }
 
-    fn replace_match(&mut self, match_item: &SearchMatch, replace_with: &str, _cx: &mut App) {
+    fn replace_match(
+        &mut self,
+        match_item: &SearchMatch,
+        replace_with: &str,
+        _cx: &mut App,
+    ) -> Option<String> {
         crate::search::replace_source_match(self, match_item, replace_with);
+        Some(self.text.clone())
     }
 
-    fn replace_all_matches(&mut self, query: &SearchQuery, replace_with: &str, _cx: &mut App) {
+    fn replace_all_matches(
+        &mut self,
+        query: &SearchQuery,
+        replace_with: &str,
+        _cx: &mut App,
+    ) -> Option<String> {
         let matches = self.search_matches(query, _cx);
         for m in matches.into_iter().rev() {
             crate::search::replace_source_match(self, &m, replace_with);
         }
+        Some(self.text.clone())
     }
 
-    fn apply_line_prefix(&mut self, prefix: &str, _cx: &mut App) {
+    fn apply_line_prefix(&mut self, prefix: &str, _cx: &mut App) -> Option<String> {
         let cursor = self.cursor();
         let (row, _) = self.line_and_column(cursor);
         let start = self.line_start_offset(row);
         self.text.insert_str(start, prefix);
         self.rebuild_lines();
         self.selections.set_single_point(cursor + prefix.len());
+        Some(self.text.clone())
     }
 
-    fn apply_snippet(&mut self, snippet: &str, caret_offset: usize, _cx: &mut App) {
+    fn apply_snippet(
+        &mut self,
+        snippet: &str,
+        caret_offset: usize,
+        _cx: &mut App,
+    ) -> Option<String> {
         let start_pos = self.selections.primary().start();
         self.insert_text(snippet);
         self.selections.set_single_point(start_pos + caret_offset);
+        Some(self.text.clone())
     }
 
     fn apply_wrapped_or_template(
@@ -881,16 +900,19 @@ impl core_contracts::PaneView for SourceCodeState {
         wrap_prefix: &str,
         wrap_suffix: &str,
         _cx: &mut App,
-    ) {
+    ) -> Option<String> {
         if let Some(selected) = self.selected_text() {
             let wrapped = format!("{}{}{}", wrap_prefix, selected, wrap_suffix);
             self.insert_text(&wrapped);
         } else {
-            self.apply_snippet(empty_template, caret_offset_in_empty, _cx);
+            let _ = self.apply_snippet(empty_template, caret_offset_in_empty, _cx);
         }
+        Some(self.text.clone())
     }
 
-    fn apply_clear_format(&mut self, _cx: &mut App) {}
+    fn apply_clear_format(&mut self, _cx: &mut App) -> Option<String> {
+        None
+    }
 
     fn handle_key_down(
         &mut self,
