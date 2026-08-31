@@ -7,13 +7,13 @@ use crate::actions::{NoRecentFiles, SelectLanguage, SelectTheme};
 use crate::menus::dispatch_menu_action_for_panel;
 use crate::shell::Shell;
 use config::language::I18nManager;
+use core_contracts::PanelId;
 use theme::{Theme, ThemeManager};
 use ui::menu_bar::{
     menu_item_visual_height, menu_items_visual_height_with_gaps, menu_panel_left,
     menu_panel_width_for_labels, owned_menu_item_labels, submenu_panel_top,
 };
 use ui::menu_item::{menu_item, menu_item_row};
-use window::PanelId;
 
 impl Shell {
     pub(crate) fn render_in_window_menu_item(

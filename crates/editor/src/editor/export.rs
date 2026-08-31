@@ -10,7 +10,7 @@ use crate::editor::Editor;
 use config::language::I18nManager;
 use theme::{Theme, ThemeManager};
 
-pub use core_contracts::{ExportError, ExportFormat};
+use core_contracts::{ExportError, ExportFormat};
 
 impl Editor {
     pub fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {

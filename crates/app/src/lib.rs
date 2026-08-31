@@ -23,4 +23,4 @@ pub mod shell;
 pub mod window;
 pub mod window_state;
 
-pub use ::window::PanelKind;
+pub use ::core_contracts::PanelKind;

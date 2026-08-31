@@ -1,7 +1,7 @@
 //! Window builder for configuring and spawning window instances.
 
-use crate::layout::{PanelId, WindowLayout};
-use crate::panel::PanelKind;
+use crate::layout::WindowLayout;
+use core_contracts::{PanelId, PanelKind};
 use gpui::{Bounds, Pixels, Point, px, size};
 use splitter::container::SplitterContainer;
 use splitter::root::SplitterRoot;

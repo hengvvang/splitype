@@ -1,6 +1,6 @@
 //! Unified navigation engine — zero compatibility, single source of truth.
 
-pub use core_contracts::{NavigationExecutionPlan, NavigationTarget};
+use core_contracts::{NavigationExecutionPlan, NavigationTarget};
 use gpui::*;
 
 /// A request to navigate to a target from a keyboard modifier state.

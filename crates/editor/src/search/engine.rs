@@ -460,7 +460,7 @@ impl Editor {
         };
 
         if let Some(ref file_path) = match_item.file_path {
-            self.open_file_in_panel(file_path, crate::session::TabKind::Persistent, window, cx);
+            self.open_file_in_panel(file_path, core_contracts::TabKind::Persistent, window, cx);
         }
 
         let active_pane = self.active_pane_id();

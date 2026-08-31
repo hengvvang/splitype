@@ -7,8 +7,8 @@ use std::sync::Arc;
 use crate::menus::record_recent_file_from_editor;
 use crate::shell::Shell;
 use core_contracts::{DocumentHost, TabKind};
+use core_contracts::{PanelHost, PanelId, PanelKind};
 use splitter::tree::SplitAxis;
-use window::{PanelHost, PanelId, PanelKind};
 
 /// Bridges the [`DocumentHost`] contract to the window shell. Constructed
 /// by the shell when it wires a document-routing panel.

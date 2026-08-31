@@ -1,9 +1,11 @@
 use crate::state::{PersistedSettingsState, SettingsUiState};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
+use core_contracts::{
+    PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView,
+};
 use gpui::*;
 use std::any::Any;
 use std::sync::Arc;
-use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 
 /// Stable kind identifier of the settings panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.settings";

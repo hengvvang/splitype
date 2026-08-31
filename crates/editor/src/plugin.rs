@@ -1,11 +1,11 @@
-use crate::EditorSession;
 use crate::editor::Editor;
+use crate::session::EditorSession;
 use core_contracts::{DocumentHost, DocumentPanel, PanelCapabilities, PanelKind, TabKind};
+use core_contracts::{PanelDescriptor, PanelHost, PanelId, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use window::{PanelDescriptor, PanelHost, PanelId, PanelRenderContext, PanelView};
 
 /// Stable kind identifier of the editor panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.editor";
@@ -392,7 +392,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
         _host: Arc<dyn PanelHost>,
         cx: &mut App,
     ) -> Box<dyn PanelView> {
-        let session = crate::EditorSession::empty();
+        let session = crate::session::EditorSession::empty();
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         Box::new(EditorPanelView::new(editor))
     }
@@ -405,7 +405,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
         let session = state
-            .downcast::<crate::EditorSession>()
+            .downcast::<crate::session::EditorSession>()
             .ok()
             .map(|boxed| *boxed)?;
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
@@ -413,7 +413,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
     }
 
     fn retained_dirty_info(&self, state: &dyn Any, _cx: &App) -> (bool, Option<String>) {
-        let Some(session) = state.downcast_ref::<crate::EditorSession>() else {
+        let Some(session) = state.downcast_ref::<crate::session::EditorSession>() else {
             return (false, None);
         };
         let mut first_name = None;
@@ -433,7 +433,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
     }
 
     fn discard_retained(&self, state: &mut Box<dyn Any>, _cx: &mut App) {
-        let Some(session) = state.downcast_mut::<crate::EditorSession>() else {
+        let Some(session) = state.downcast_mut::<crate::session::EditorSession>() else {
             return;
         };
         for tab in session.tabs_mut() {
@@ -442,12 +442,12 @@ impl PanelDescriptor for EditorPanelDescriptor {
     }
 
     fn serialize_state(&self, state: &dyn Any) -> Option<serde_json::Value> {
-        let session = state.downcast_ref::<crate::EditorSession>()?;
+        let session = state.downcast_ref::<crate::session::EditorSession>()?;
         serde_json::to_value(session).ok()
     }
 
     fn deserialize_state(&self, json: &serde_json::Value) -> Option<Box<dyn Any>> {
-        let session: crate::EditorSession = serde_json::from_value(json.clone()).ok()?;
+        let session: crate::session::EditorSession = serde_json::from_value(json.clone()).ok()?;
         Some(Box::new(session))
     }
 }

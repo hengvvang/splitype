@@ -5,7 +5,7 @@
 //! placeholder instead of a blank tile. The placeholder keeps the layout
 //! intact and names the owning plugin when its manifest is known.
 
-use crate::panel::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
+use core_contracts::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
 
@@ -109,7 +109,8 @@ impl PanelView for MissingPanelView {
 
 #[cfg(test)]
 mod tests {
-    use crate::panel::{MissingPanelView, PanelId, PanelKind, PanelView};
+    use crate::panel::MissingPanelView;
+    use core_contracts::{PanelId, PanelKind, PanelView};
     use gpui::SharedString;
 
     #[test]

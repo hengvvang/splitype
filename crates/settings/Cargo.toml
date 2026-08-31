@@ -14,6 +14,7 @@ workspace = true
 
 [dependencies]
 config = { path = "../config" }
+core_contracts = { path = "../core_contracts" }
 theme = { path = "../theme" }
 ui = { path = "../ui" }
 window = { path = "../window" }

@@ -19,17 +19,13 @@ use std::sync::Arc;
 
 pub use gpui::*;
 
-pub use core_contracts::OutlineHudState;
-pub use core_contracts::{AutoscrollStrategy, DocumentHost, PaneId};
-pub use splitter::root::SplitterRoot;
-pub use window::{PanelId, PanelKind};
+use core_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, PanelId, TabKind};
+use splitter::root::SplitterRoot;
 
-pub use crate::session::{
-    DocumentTab, EditorSession, EditorTabList, FileState, PaneKind, PaneState, PendingOpenLink,
-    ScrollState, ScrollbarDragSession, TabKind,
+use crate::editor::host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};
+use crate::session::{
+    DocumentTab, EditorSession, EditorTabList, FileState, PaneState, ScrollState,
 };
-pub use export::ExportFormat;
-pub use host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};
 
 /// The Editor aggregate root entity.
 pub struct Editor {
@@ -48,7 +44,7 @@ pub struct Editor {
     pub outline: OutlineHudState,
     pub focused_pane_id: Option<PaneId>,
     pub pane_dropdown_open: bool,
-    pub search: crate::search::SearchPanelState,
+    pub search: core_contracts::SearchPanelState,
 }
 
 impl Editor {
@@ -71,7 +67,7 @@ impl Editor {
             outline: OutlineHudState::default(),
             focused_pane_id: None,
             pane_dropdown_open: false,
-            search: crate::search::SearchPanelState::new(cx),
+            search: core_contracts::SearchPanelState::new(cx),
         };
         if has_content {
             let tab = Self::new_tab_from_markdown(markdown, file_path);
@@ -98,7 +94,7 @@ impl Editor {
             outline: OutlineHudState::default(),
             focused_pane_id: None,
             pane_dropdown_open: false,
-            search: crate::search::SearchPanelState::new(cx),
+            search: core_contracts::SearchPanelState::new(cx),
         }
     }
 

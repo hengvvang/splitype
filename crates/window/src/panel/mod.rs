@@ -1,16 +1,11 @@
 //! Panel framework of the window shell.
 //!
-//! The trait contracts and domain types live in `core_contracts::panel` so
-//! plugins can depend on them without pulling in the shell. This module
-//! hosts the window-side registry implementation and re-exports the contract
-//! types for convenience.
+//! The trait contracts and domain types live in `core_contracts::panel`; this
+//! module hosts the window-side implementations: the registry and the
+//! missing-plugin placeholder.
 
 pub mod missing;
 pub mod registry;
 
-pub use core_contracts::{
-    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
-    PanelRenderContext, PanelView, SidebarPanel,
-};
 pub use missing::MissingPanelView;
 pub use registry::*;

@@ -6,8 +6,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use gpui::App;
 
-use crate::layout::PanelId;
-use crate::panel::{PanelDescriptor, PanelHost, PanelKind, PanelView};
+use core_contracts::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelView};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PanelRegistryError {

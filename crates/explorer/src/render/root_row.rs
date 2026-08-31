@@ -9,9 +9,9 @@ use crate::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, FOLDER_ICON,
     VisibleExplorerEntry, file_type_icon,
 };
+use core_contracts::PanelId;
 use theme::Theme;
 use ui::button::icon_chip_button;
-use window::PanelId;
 
 impl ExplorerState {
     /// Render the root row: the folder name plus the title buttons (new

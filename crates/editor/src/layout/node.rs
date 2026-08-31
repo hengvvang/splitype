@@ -12,7 +12,7 @@ use theme::Theme;
 impl Editor {
     pub(crate) fn render_editor_pane_split_tree(
         &mut self,
-        tree: &SplitTree<crate::session::PaneKind>,
+        tree: &SplitTree<core_contracts::PaneKind>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -36,7 +36,7 @@ impl Editor {
 
     pub(crate) fn render_editor_pane_node(
         &mut self,
-        node: &SplitTree<crate::session::PaneKind>,
+        node: &SplitTree<core_contracts::PaneKind>,
         theme: &Theme,
         _strings: &I18nStrings,
         window: &mut Window,

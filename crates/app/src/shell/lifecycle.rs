@@ -9,12 +9,12 @@ use super::Shell;
 use super::host_bridge::{ShellDocumentHost, ShellPanelHost};
 use crate::window::open_cloned_window;
 use core_contracts::TabKind;
+use core_contracts::{PanelId, PanelKind, PanelView};
 use splitter::NodeId;
 use splitter::policy::ClonedContainer;
 use splitter::sessions::AreaDockTarget;
 use splitter::tree::SplitAxis;
 use window::actions::{OpenPath, OpenPathInSplit};
-use window::{PanelId, PanelKind, PanelView};
 
 impl Shell {
     /// Marks `panel_id` as the active editor area and re-pushes the

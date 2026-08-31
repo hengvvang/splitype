@@ -7,9 +7,9 @@
 
 use gpui::*;
 
+use core_contracts::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
-use window::PanelId;
 
 /// Bottom bar of a Settings area. Renders the shared bar shell with no
 /// content yet, so the area keeps the same layout as Editor / Explorer.

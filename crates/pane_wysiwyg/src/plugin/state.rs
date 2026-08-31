@@ -17,8 +17,6 @@ use crate::markdown::parse::{BlockData, BlockId};
 use crate::model::block::{Block, footnotes::FootnoteMap};
 use crate::model::protocol::UndoCaptureKind;
 
-pub use core_contracts::AutoscrollStrategy;
-
 /// Focus routing and deferred focus targets.
 #[derive(Default)]
 pub struct FocusState {

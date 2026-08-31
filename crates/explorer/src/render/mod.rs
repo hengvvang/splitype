@@ -11,8 +11,8 @@ use gpui::*;
 
 use crate::state::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
+use core_contracts::PanelId;
 use theme::Theme;
-use window::PanelId;
 
 /// Free-function entry point: renders the explorer body (file tree or
 /// empty state) from the given panel state entity.

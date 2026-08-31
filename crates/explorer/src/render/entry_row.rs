@@ -9,8 +9,8 @@ use crate::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
     ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry, file_type_icon,
 };
+use core_contracts::PanelId;
 use theme::Theme;
-use window::PanelId;
 
 impl ExplorerState {
     /// The path whose highlight extends to all of its descendants during a

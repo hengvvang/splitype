@@ -11,8 +11,8 @@ use std::path::Path;
 use gpui::*;
 
 use crate::editor::Editor;
-use crate::editor::export::ExportFormat;
 use crate::session::PendingOpenLink;
+use core_contracts::ExportFormat;
 use core_contracts::{AutoscrollStrategy, PaneId, PaneKind};
 
 impl Editor {

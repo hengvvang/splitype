@@ -5,12 +5,14 @@ use crate::{
     render_explorer_topbar,
 };
 use core_contracts::{PanelCapabilities, SidebarPanel};
+use core_contracts::{
+    PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView,
+};
 use gpui::*;
 use std::any::Any;
 use std::path::PathBuf;
 use std::sync::Arc;
 use theme::ThemeManager;
-use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 
 /// Stable kind identifier of the explorer panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.explorer";

@@ -10,8 +10,3 @@
 pub mod engine;
 pub mod ime;
 pub mod render;
-
-pub use core_contracts::{RawMatch, SearchQuery};
-pub use core_contracts::{
-    SearchActiveField, SearchMatch, SearchPanelState, SearchScope, SearchTextInput,
-};

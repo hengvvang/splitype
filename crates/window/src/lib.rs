@@ -13,9 +13,6 @@ pub use actions::{
 };
 pub use builder::WindowBuilder;
 pub use icons::{border_menu_style, panel_topbar_icon};
-pub use layout::{PanelId, WindowLayout};
-pub use panel::{
-    DocumentPanel, MissingPanelView, PanelCapabilities, PanelDescriptor, PanelHost, PanelKind,
-    PanelRegistry, PanelRenderContext, PanelView, SidebarPanel,
-};
+pub use layout::WindowLayout;
+pub use panel::{MissingPanelView, PanelRegistry};
 pub use persist::{PersistedPanel, PersistedWindowState, WINDOW_STATE_VERSION};

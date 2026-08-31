@@ -5,9 +5,9 @@ use gpui::*;
 use crate::state::state::ExplorerState;
 
 use config::language::I18nStrings;
+use core_contracts::PanelId;
 use theme::Theme;
 use ui::empty_state::empty_state_container;
-use window::PanelId;
 
 impl ExplorerState {
     pub(crate) fn render_explorer_empty_state(

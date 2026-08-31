@@ -13,7 +13,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: NodeId,
-        kind: window::PanelKind,
+        kind: core_contracts::PanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -27,9 +27,9 @@ impl Shell {
         let gap = d.panel_tile_gap;
         let radius = d.panel_tile_radius;
 
-        let panel_id = window::PanelId(leaf_id);
+        let panel_id = core_contracts::PanelId(leaf_id);
         let is_active = self.panels.layout.active_leaf == Some(leaf_id);
-        let render_ctx = window::PanelRenderContext {
+        let render_ctx = core_contracts::PanelRenderContext {
             panel_id,
             leaf_count,
             is_maximized,
@@ -133,7 +133,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: NodeId,
-        current_kind: window::PanelKind,
+        current_kind: core_contracts::PanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {

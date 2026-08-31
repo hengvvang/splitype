@@ -6,7 +6,7 @@ use theme::Theme;
 pub mod html;
 pub mod pdf;
 
-pub use core_contracts::{ExportError, ExportFormat};
+use core_contracts::ExportError;
 pub use html::{render_html, render_html_with_base_dir};
 
 /// Renders themed PDF bytes for the current document Markdown.

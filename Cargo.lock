@@ -5828,6 +5828,7 @@ name = "settings"
 version = "0.0.1"
 dependencies = [
  "config",
+ "core_contracts",
  "gpui",
  "serde",
  "serde_json",

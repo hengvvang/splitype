@@ -16,10 +16,10 @@ pub(crate) use self::host_bridge::{ShellDocumentHost, ShellPanelHost};
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
+use core_contracts::PanelView;
 use core_contracts::{DocumentPanel, PanelId, PanelKind};
 use splitter::tree::NodeId;
 use std::path::PathBuf;
-use window::PanelView;
 
 /// Scope of an unsaved-changes confirmation dialog.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,7 +56,7 @@ pub(crate) struct UnsavedDialogState {
 /// Durable state of a panel that suspended itself during a kind switch.
 /// Restored through the owning descriptor when its kind returns.
 pub struct RetainedPanel {
-    pub kind: window::PanelKind,
+    pub kind: core_contracts::PanelKind,
     pub state: Box<dyn std::any::Any>,
 }
 

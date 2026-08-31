@@ -15,6 +15,7 @@ use crate::dialogs::InfoDialogKind;
 use crate::shell::Shell;
 use crate::window::open_editor_window;
 use config::language::{I18nManager, apply_configured_language};
+use core_contracts::PanelId;
 use core_contracts::{DocumentPanel, ExportFormat};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use editor::view::{
@@ -23,7 +24,6 @@ use editor::view::{
 use settings::open_settings_window;
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use theme::apply_configured_theme;
-use window::PanelId;
 
 pub(crate) fn show_window_prompt(
     window: Option<AnyWindowHandle>,
