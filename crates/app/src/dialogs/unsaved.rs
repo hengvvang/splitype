@@ -94,7 +94,7 @@ impl Shell {
                 UnsavedDialogScope::Window => {
                     for retained in self.retained_panel_states.values_mut() {
                         if let Ok(Some(descriptor)) =
-                            window::PanelRegistry::registered(retained.kind)
+                            window::PanelRegistry::registered(retained.kind.clone())
                         {
                             descriptor.discard_retained(&mut retained.state, cx);
                         }

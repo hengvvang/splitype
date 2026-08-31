@@ -33,7 +33,7 @@ impl Shell {
         let Some(retained) = self.retained_panel_states.get(&panel_id) else {
             return (false, String::new());
         };
-        let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind) else {
+        let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone()) else {
             return (false, String::new());
         };
         let (dirty, first_name) = descriptor.retained_dirty_info(retained.state.as_ref(), cx);
@@ -45,7 +45,8 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> Option<(PanelId, String)> {
         for (panel_id, retained) in &self.retained_panel_states {
-            let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind) else {
+            let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone())
+            else {
                 continue;
             };
             let (dirty, first_name) = descriptor.retained_dirty_info(retained.state.as_ref(), cx);

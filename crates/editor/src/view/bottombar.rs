@@ -81,9 +81,9 @@ impl Editor {
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
+        if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind.clone()) {
             let toggle_editor = cx.entity().downgrade();
-            let label = core_contracts::PaneRegistry::registered(focused_kind)
+            let label = core_contracts::PaneRegistry::registered(focused_kind.clone())
                 .ok()
                 .flatten()
                 .map(|descriptor| descriptor.display_name().to_string())
@@ -128,7 +128,7 @@ impl Editor {
             .and_then(|id| self.session().root.tree.find_leaf(id.0))
             .is_some_and(|p| p.maximized);
 
-        if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind) {
+        if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind.clone()) {
             let editor = cx.entity().downgrade();
             let btn_icon_size = toolbar_icon_size(d.bottombar_height);
 
@@ -237,7 +237,7 @@ impl Editor {
             );
 
         if self.pane_dropdown_open
-            && let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind)
+            && let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind.clone())
         {
             let menu = self.render_pane_type_dropdown_menu(pane_id, focused_kind, theme, cx);
             bar = bar.child(menu);
@@ -298,6 +298,7 @@ impl Editor {
                                 div().w(px(13.0)).into_any_element()
                             })
                             .on_click(move |_event, _window, cx| {
+                                let kind_id = kind_id.clone();
                                 let _ = option_editor.update(cx, |ed, cx| {
                                     ed.select_pane_kind(pane_id, kind_id, cx);
                                     ed.pane_dropdown_open = false;

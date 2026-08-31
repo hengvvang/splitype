@@ -41,7 +41,7 @@ impl Shell {
         };
 
         if !self.panel_views.contains_key(&panel_id) {
-            self.sync_panel_kind(panel_id, kind, cx);
+            self.sync_panel_kind(panel_id, kind.clone(), cx);
         }
 
         let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {
@@ -70,6 +70,7 @@ impl Shell {
         };
 
         let tile_focus = cx.entity().downgrade();
+        let mouse_kind = kind.clone();
         let mut wrapped = div()
             .id(("panel-wrapper", leaf_id))
             .w_full()
@@ -81,7 +82,7 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
                     shell.panels.layout.focused_leaf = Some(leaf_id);
-                    if kind == window::PanelKind::new("editor") {
+                    if mouse_kind == window::PanelKind::new("editor") {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -175,7 +176,7 @@ impl Shell {
                             .child(display_name)
                             .child(if is_current {
                                 svg()
-                                    .path(panel_topbar_icon(current_kind, "check"))
+                                    .path(panel_topbar_icon(&current_kind, "check"))
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
@@ -183,6 +184,7 @@ impl Shell {
                                 div().w(px(13.0)).into_any_element()
                             })
                             .on_click(move |_event, _window, cx| {
+                                let kind_id = kind_id.clone();
                                 let _ = option_shell.update(cx, |shell, cx| {
                                     shell.change_panel_kind(leaf_id, kind_id, cx);
                                     cx.notify();

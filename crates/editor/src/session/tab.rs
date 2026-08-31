@@ -112,7 +112,7 @@ impl PaneState {
 }
 
 pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn core_contracts::PaneView> {
-    core_contracts::PaneRegistry::create_registered(kind)
+    core_contracts::PaneRegistry::create_registered(kind.clone())
         .unwrap_or_else(|error| panic!("failed to access pane registry: {error}"))
         .unwrap_or_else(|| panic!("no pane descriptor registered for {kind}"))
 }

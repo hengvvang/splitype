@@ -112,7 +112,7 @@ pub fn open_cloned_window(
                 let mut panels = WindowPanels::default();
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
-                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(window::PanelKind::new("editor")) {
+                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(&window::PanelKind::new("editor")) {
                     panels.layout.activate_leaf(container.id);
                 } else {
                     panels.layout.active_leaf = None;
@@ -136,7 +136,7 @@ pub fn open_cloned_window(
                 let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
                 for (panel_id, parked) in retained {
                     match window::PanelRegistry::restore_registered_panel(
-                        parked.kind,
+                        parked.kind.clone(),
                         panel_id,
                         panel_host.clone(),
                         parked.state,
@@ -160,7 +160,7 @@ pub fn open_cloned_window(
                         panel_views.entry(panel_id)
                     {
                         match window::PanelRegistry::create_registered_panel(
-                            kind,
+                            kind.clone(),
                             panel_id,
                             panel_host.clone(),
                             cx,

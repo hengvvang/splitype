@@ -349,7 +349,7 @@ impl Editor {
             let state = tab
                 .panes
                 .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind));
+                .or_insert_with(|| PaneState::new(kind.clone()));
             state.ensure_kind(kind);
             state
         } else {
@@ -357,7 +357,7 @@ impl Editor {
                 .session
                 .empty_panes
                 .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind));
+                .or_insert_with(|| PaneState::new(kind.clone()));
             state.ensure_kind(kind);
             state
         }
@@ -372,7 +372,7 @@ impl Editor {
             let state = tab
                 .panes
                 .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind));
+                .or_insert_with(|| PaneState::new(kind.clone()));
             state.ensure_kind(kind);
             Some(state)
         } else {
@@ -380,7 +380,7 @@ impl Editor {
                 .session
                 .empty_panes
                 .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind));
+                .or_insert_with(|| PaneState::new(kind.clone()));
             state.ensure_kind(kind);
             Some(state)
         }
@@ -438,7 +438,11 @@ impl Editor {
 
     #[inline]
     pub fn pane_kind(&self, pane_id: PaneId) -> Option<PaneKind> {
-        self.session.root.tree.find_leaf(pane_id.0).map(|l| l.kind)
+        self.session
+            .root
+            .tree
+            .find_leaf(pane_id.0)
+            .map(|l| l.kind.clone())
     }
 
     #[inline]

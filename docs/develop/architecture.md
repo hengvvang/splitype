@@ -271,8 +271,11 @@ transitional hardcoding listed below is removed.
 2. `PaneView` remains broad and requires `Send + Sync`; default no-op methods
    still express some optional behaviors, though mutating commands now return
    `Option<String>` so unsupported operations cannot fake a dirty document.
-5. `PaneKind` and `PanelKind` still contain `&'static str`; migrate to owned,
-   namespaced IDs before manifest discovery or persistence.
+5. The namespaced identifier migration is mostly done: `PaneKind` and
+   `PanelKind` are owned `Arc<str>` values and the split tree only requires
+   `Clone`. Built-in kind strings are still single words (`"editor"`); migrate
+   them to `splitype.pane.*` / `splitype.panel.*` namespaces and remove the
+   remaining kind-string comparisons in the shell in favor of capabilities.
 7. There is no plugin manifest, discovery runtime, API negotiation, permission
    model, resource namespace, unregister/shutdown protocol, or missing-plugin
    placeholder.

@@ -58,12 +58,12 @@ impl PanelRegistry {
             return Err(PanelRegistryError::DuplicateKind(kind));
         }
 
-        self.order.push(kind);
+        self.order.push(kind.clone());
         if is_primary || self.primary_kind.is_none() {
-            self.primary_kind = Some(kind);
+            self.primary_kind = Some(kind.clone());
         }
         if self.default_kind.is_none() {
-            self.default_kind = Some(kind);
+            self.default_kind = Some(kind.clone());
         }
         self.descriptors.insert(kind, descriptor);
         Ok(())
@@ -116,7 +116,9 @@ impl PanelRegistry {
     }
 
     pub fn default_kind(&self) -> Option<PanelKind> {
-        self.default_kind.or_else(|| self.order.first().copied())
+        self.default_kind
+            .clone()
+            .or_else(|| self.order.first().cloned())
     }
 
     pub fn registered_default_kind() -> Result<Option<PanelKind>, PanelRegistryError> {
@@ -127,7 +129,7 @@ impl PanelRegistry {
     }
 
     pub fn primary_kind(&self) -> Option<PanelKind> {
-        self.primary_kind.or_else(|| self.default_kind())
+        self.primary_kind.clone().or_else(|| self.default_kind())
     }
 
     pub fn registered_primary_kind() -> Result<Option<PanelKind>, PanelRegistryError> {
@@ -166,7 +168,7 @@ mod tests {
 
     impl PanelDescriptor for TestDescriptor {
         fn kind(&self) -> PanelKind {
-            self.0
+            self.0.clone()
         }
 
         fn display_name(&self) -> SharedString {
@@ -188,12 +190,12 @@ mod tests {
         let mut registry = PanelRegistry::new();
         let kind = PanelKind::new("test.panel");
         registry
-            .register(Arc::new(TestDescriptor(kind)), true)
+            .register(Arc::new(TestDescriptor(kind.clone())), true)
             .unwrap();
 
         assert_eq!(
-            registry.register(Arc::new(TestDescriptor(kind)), false),
-            Err(PanelRegistryError::DuplicateKind(kind))
+            registry.register(Arc::new(TestDescriptor(kind.clone())), false),
+            Err(PanelRegistryError::DuplicateKind(kind.clone()))
         );
         assert_eq!(registry.primary_kind(), Some(kind));
         assert_eq!(registry.all_descriptors().len(), 1);

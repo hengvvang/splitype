@@ -14,7 +14,7 @@ use splitter::tree::{LeafRect, SplitAxis};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
 /// show yet (no gesture direction).
-pub fn render_corner_drag_preview<T: Copy + PartialEq>(
+pub fn render_corner_drag_preview<T: Clone + PartialEq>(
     root: &SplitterRoot<T>,
     drag: &CornerDragSession,
     container_size: Size<Pixels>,

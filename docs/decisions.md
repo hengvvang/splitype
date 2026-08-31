@@ -53,11 +53,12 @@ Explorer and Settings state will be migrated accordingly.
 
 ## ADR-007: Use owned, namespaced plugin identifiers
 
-**Status:** Proposed
+**Status:** Accepted
 
-`PaneKind` and `PanelKind` will move from `&'static str` to owned, namespaced IDs.
-The registry rejects collisions and records contribution ownership. Persisted
-layout never stores references into plugin code or dynamic-library memory.
+`PaneKind` and `PanelKind` are owned `Arc<str>` identifiers. Registries reject
+collisions and record contribution ownership, and persisted layout no longer
+stores references into plugin code or dynamic-library memory. The split tree
+works on `Clone + PartialEq` payloads instead of requiring `Copy`.
 
 ## ADR-008: Suspend panels through their own descriptors
 

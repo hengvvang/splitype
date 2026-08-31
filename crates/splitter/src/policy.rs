@@ -18,7 +18,7 @@ use crate::tree::{NodeId, SplitAxis, SplitTree};
 /// the new tree, the id pool it was assigned from, and the mapping from
 /// each old node id to its new id.
 #[derive(Clone, Debug, PartialEq)]
-pub struct ClonedContainer<T: Copy + PartialEq> {
+pub struct ClonedContainer<T: Clone + PartialEq> {
     pub tree: SplitTree<T>,
     pub next_node_id: NodeId,
     /// Old node id → new node id.
@@ -27,7 +27,7 @@ pub struct ClonedContainer<T: Copy + PartialEq> {
 
 /// Result of evaluating and applying a finished corner drag gesture on a split root.
 #[derive(Clone, Debug, PartialEq)]
-pub enum CornerDragResult<T: Copy + PartialEq> {
+pub enum CornerDragResult<T: Clone + PartialEq> {
     /// Same-area split performed, creating a new sibling leaf.
     Split {
         target_id: NodeId,
@@ -58,7 +58,7 @@ pub enum CornerDragResult<T: Copy + PartialEq> {
 
 /// Evaluate and apply a finished corner drag session on a root, modifying the tree
 /// topology accordingly and returning the structured high-level result.
-pub fn apply_corner_drag_session<T: Copy + PartialEq>(
+pub fn apply_corner_drag_session<T: Clone + PartialEq>(
     root: &mut SplitterRoot<T>,
     facts: &CornerDragSession,
     container_size: Size<Pixels>,

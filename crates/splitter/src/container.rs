@@ -30,7 +30,7 @@ pub struct SplitterContainer<T> {
     pub maximized: bool,
 }
 
-impl<T: Copy + PartialEq> SplitterContainer<T> {
+impl<T: Clone + PartialEq> SplitterContainer<T> {
     pub fn new(id: NodeId, kind: T) -> Self {
         Self {
             id,

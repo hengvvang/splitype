@@ -5,8 +5,8 @@ use gpui::SharedString;
 use theme::Theme;
 
 /// Icon path for a window-panel top-bar button, per panel kind.
-pub fn panel_topbar_icon(kind: PanelKind, name: &str) -> SharedString {
-    format!("icons/{}/topbar/{name}.svg", kind.0).into()
+pub fn panel_topbar_icon(kind: &PanelKind, name: &str) -> SharedString {
+    format!("icons/{}/topbar/{name}.svg", kind.as_str()).into()
 }
 
 /// Map a theme to the splitter border-menu style parameters.

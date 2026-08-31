@@ -38,7 +38,7 @@ impl Editor {
 
     pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: PaneKind) {
         let pane_id = pane_id.into();
-        self.session.root.set_kind(pane_id.0, kind);
+        self.session.root.set_kind(pane_id.0, kind.clone());
         self.session.root.activate_leaf(pane_id.0);
         self.session.root.clear_dropdowns();
         self.focused_pane_id = Some(pane_id);

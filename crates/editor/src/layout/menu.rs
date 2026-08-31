@@ -148,6 +148,7 @@ impl Editor {
                                 div().w(px(13.0)).into_any_element()
                             })
                             .on_click(move |_event, _window, cx| {
+                                let kind = kind.clone();
                                 let _ = option_editor.update(cx, |ed, cx| {
                                     ed.change_pane_kind(pane_id, kind);
                                     cx.notify();

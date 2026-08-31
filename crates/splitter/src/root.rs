@@ -18,7 +18,7 @@ use crate::sessions::{
 use crate::tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
 
 /// One initialized split region: the panel tree plus tree-level state.
-pub struct SplitterRoot<T: Copy + PartialEq> {
+pub struct SplitterRoot<T: Clone + PartialEq> {
     /// The tree of panel containers hanging on this root.
     pub tree: SplitTree<T>,
     /// Id pool shared by every node of this root's tree.
@@ -38,7 +38,7 @@ pub struct SplitterRoot<T: Copy + PartialEq> {
     pub focused_leaf: Option<NodeId>,
 }
 
-impl<T: Copy + PartialEq> SplitterRoot<T> {
+impl<T: Clone + PartialEq> SplitterRoot<T> {
     /// A root with one leaf (one panel container), used to seed editor
     /// pane containers.
     pub fn single_leaf(initial_id: NodeId, kind: T) -> Self {
@@ -112,7 +112,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// 3. First available leaf of kind `kind` in tree traversal
     pub fn active_leaf_of_kind(&self, kind: T) -> Option<NodeId> {
         if let Some(active) = self.active_leaf {
-            if self.tree.find_leaf_kind(active) == Some(kind) {
+            if self.tree.find_leaf_kind(active).as_ref() == Some(&kind) {
                 return Some(active);
             }
         }
@@ -120,13 +120,13 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             .iter()
             .rev()
             .copied()
-            .find(|id| self.tree.find_leaf_kind(*id) == Some(kind))
+            .find(|id| self.tree.find_leaf_kind(*id).as_ref() == Some(&kind))
             .or_else(|| {
                 let mut leaves = Vec::new();
                 self.tree.leaf_ids(&mut leaves);
                 leaves
                     .into_iter()
-                    .find(|id| self.tree.find_leaf_kind(*id) == Some(kind))
+                    .find(|id| self.tree.find_leaf_kind(*id).as_ref() == Some(&kind))
             })
     }
 
@@ -162,7 +162,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// retires, no matter which kinds are involved.)
     pub fn set_kind(&mut self, leaf_id: NodeId, kind: T) {
         let previous = self.tree.find_leaf_kind(leaf_id);
-        self.tree.set_leaf_kind(leaf_id, kind);
+        self.tree.set_leaf_kind(leaf_id, kind.clone());
         if previous != Some(kind) {
             self.retire_leaf(leaf_id);
         }

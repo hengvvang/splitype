@@ -33,7 +33,7 @@ impl Shell {
         match node {
             SplitTree::Leaf(container) => self.render_window_panel_tile(
                 container.id,
-                container.kind,
+                container.kind.clone(),
                 theme,
                 strings,
                 leaf_count,

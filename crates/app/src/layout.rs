@@ -75,7 +75,7 @@ impl Shell {
         let layout_tree = if let Some(maximized_leaf) = root.find_maximized_leaf() {
             self.render_window_panel_tile(
                 maximized_leaf.id,
-                maximized_leaf.kind,
+                maximized_leaf.kind.clone(),
                 theme,
                 strings,
                 leaf_count,

@@ -39,7 +39,7 @@ pub fn render_settings_topbar(
         .id(("panel-topbar-split-h", panel_id.0))
         .child(
             svg()
-                .path(panel_topbar_icon(kind, "split-h"))
+                .path(panel_topbar_icon(&kind, "split-h"))
                 .size(px(btn_icon_size))
                 .text_color(c.dialog_muted),
         )
@@ -57,7 +57,7 @@ pub fn render_settings_topbar(
         .id(("panel-topbar-split-v", panel_id.0))
         .child(
             svg()
-                .path(panel_topbar_icon(kind, "split-v"))
+                .path(panel_topbar_icon(&kind, "split-v"))
                 .size(px(btn_icon_size))
                 .text_color(c.dialog_muted),
         )
@@ -84,9 +84,9 @@ pub fn render_settings_topbar(
             .child(
                 svg()
                     .path(if is_maximized {
-                        panel_topbar_icon(kind, "restore")
+                        panel_topbar_icon(&kind, "restore")
                     } else {
-                        panel_topbar_icon(kind, "maximize")
+                        panel_topbar_icon(&kind, "maximize")
                     })
                     .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
@@ -99,7 +99,7 @@ pub fn render_settings_topbar(
             .id(("panel-topbar-close", panel_id.0))
             .child(
                 svg()
-                    .path(panel_topbar_icon(kind, "close"))
+                    .path(panel_topbar_icon(&kind, "close"))
                     .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
             )

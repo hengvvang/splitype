@@ -40,8 +40,8 @@ impl Shell {
             return Some(PanelId(new_id));
         };
         let mut inserted = false;
-        if copy_content && let Some(state) = self.clone_panel_state_for_kind(kind, cx) {
-            inserted = self.restore_retained_view(PanelId(new_id), kind, state, cx);
+        if copy_content && let Some(state) = self.clone_panel_state_for_kind(kind.clone(), cx) {
+            inserted = self.restore_retained_view(PanelId(new_id), kind.clone(), state, cx);
         }
         if !inserted {
             self.ensure_registered_panel_view(PanelId(new_id), kind, cx);
@@ -100,7 +100,13 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> bool {
         let host = ShellPanelHost::shared(cx.entity().downgrade());
-        match window::PanelRegistry::restore_registered_panel(kind, panel_id, host, state, cx) {
+        match window::PanelRegistry::restore_registered_panel(
+            kind.clone(),
+            panel_id,
+            host,
+            state,
+            cx,
+        ) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true
@@ -129,7 +135,7 @@ impl Shell {
             return true;
         }
         let host = ShellPanelHost::shared(cx.entity().downgrade());
-        match window::PanelRegistry::create_registered_panel(kind, panel_id, host, cx) {
+        match window::PanelRegistry::create_registered_panel(kind.clone(), panel_id, host, cx) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true
@@ -160,8 +166,8 @@ impl Shell {
             return;
         };
         let mut inserted = false;
-        if let Some(state) = self.clone_panel_state_for_kind(kind, cx) {
-            inserted = self.restore_retained_view(new_id, kind, state, cx);
+        if let Some(state) = self.clone_panel_state_for_kind(kind.clone(), cx) {
+            inserted = self.restore_retained_view(new_id, kind.clone(), state, cx);
         }
         if !inserted {
             self.ensure_registered_panel_view(new_id, kind, cx);
@@ -201,8 +207,8 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let previous = self.panels.layout.tree.find_leaf_kind(panel_id);
-        self.panels.layout.set_kind(panel_id, kind);
-        self.sync_panel_kind(panel_id, kind, cx);
+        self.panels.layout.set_kind(panel_id, kind.clone());
+        self.sync_panel_kind(panel_id, kind.clone(), cx);
         if kind == window::PanelKind::new("editor")
             && previous != Some(window::PanelKind::new("editor"))
         {
@@ -437,7 +443,7 @@ impl Shell {
                 .retained_panel_states
                 .remove(&panel_id)
                 .expect("just checked");
-            if self.restore_retained_view(panel_id, kind, retained.state, cx) {
+            if self.restore_retained_view(panel_id, kind.clone(), retained.state, cx) {
                 return;
             }
         }

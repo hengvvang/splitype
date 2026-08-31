@@ -170,7 +170,7 @@ pub fn splitter_bar_v(
 ///
 /// `current_ratio` is the split ratio at drag start; the real span is
 /// refreshed on the first move event.
-pub fn start_splitter_drag<T: Copy + PartialEq>(
+pub fn start_splitter_drag<T: Clone + PartialEq>(
     container: &mut SplitterRoot<T>,
     split_id: NodeId,
     axis: SplitAxis,
@@ -187,7 +187,7 @@ pub fn start_splitter_drag<T: Copy + PartialEq>(
 }
 
 /// Open the border context menu on a split bar (right click).
-pub fn open_border_menu<T: Copy + PartialEq>(
+pub fn open_border_menu<T: Clone + PartialEq>(
     container: &mut SplitterRoot<T>,
     split_id: NodeId,
     axis: SplitAxis,
@@ -208,7 +208,7 @@ pub fn open_border_menu<T: Copy + PartialEq>(
 /// (the host should repaint). The host reads the root's drag sessions to
 /// apply its own policy; `finish_splitter_drag` returns the corner-drag
 /// facts on release.
-pub fn update_splitter_drag<T: Copy + PartialEq>(
+pub fn update_splitter_drag<T: Clone + PartialEq>(
     container: &mut SplitterRoot<T>,
     pos: Point<Pixels>,
     viewport: Size<Pixels>,
@@ -241,7 +241,7 @@ pub fn update_splitter_drag<T: Copy + PartialEq>(
 
 /// End the active drag gesture of a root; returns the final corner-
 /// drag facts (splitter-bar drags just end).
-pub fn finish_splitter_drag<T: Copy + PartialEq>(
+pub fn finish_splitter_drag<T: Clone + PartialEq>(
     container: &mut SplitterRoot<T>,
 ) -> Option<CornerDragSession> {
     if container.active_splitter_drag.is_some() {

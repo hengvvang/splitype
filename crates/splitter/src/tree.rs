@@ -74,7 +74,7 @@ pub struct LeafRect {
 /// replaces it with a `Split` node holding two containers — the original
 /// and the freshly created one — both hanging on this tree.
 #[derive(Clone, Debug)]
-pub enum SplitTree<T: Copy> {
+pub enum SplitTree<T: Clone> {
     Leaf(SplitterContainer<T>),
     Split {
         id: NodeId,
@@ -85,7 +85,7 @@ pub enum SplitTree<T: Copy> {
     },
 }
 
-impl<T: Copy + PartialEq> PartialEq for SplitTree<T> {
+impl<T: Clone + PartialEq> PartialEq for SplitTree<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Leaf(c1), Self::Leaf(c2)) => c1 == c2,
@@ -110,7 +110,7 @@ impl<T: Copy + PartialEq> PartialEq for SplitTree<T> {
     }
 }
 
-impl<T: Copy + PartialEq> SplitTree<T> {
+impl<T: Clone + PartialEq> SplitTree<T> {
     pub fn count_leaves(&self) -> usize {
         match self {
             Self::Leaf(_) => 1,
@@ -128,7 +128,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
 
     pub fn find_leaf_kind(&self, leaf_id: NodeId) -> Option<T> {
         match self {
-            Self::Leaf(container) => (container.id == leaf_id).then_some(container.kind),
+            Self::Leaf(container) => (container.id == leaf_id).then_some(container.kind.clone()),
             Self::Split { first, second, .. } => first
                 .find_leaf_kind(leaf_id)
                 .or_else(|| second.find_leaf_kind(leaf_id)),
@@ -166,9 +166,9 @@ impl<T: Copy + PartialEq> SplitTree<T> {
     }
 
     /// Finds the first leaf container matching the given `kind`, if any.
-    pub fn find_first_leaf_by_kind(&self, kind: T) -> Option<&SplitterContainer<T>> {
+    pub fn find_first_leaf_by_kind(&self, kind: &T) -> Option<&SplitterContainer<T>> {
         match self {
-            Self::Leaf(container) => (container.kind == kind).then_some(container),
+            Self::Leaf(container) => (&container.kind == kind).then_some(container),
             Self::Split { first, second, .. } => first
                 .find_first_leaf_by_kind(kind)
                 .or_else(|| second.find_first_leaf_by_kind(kind)),
@@ -186,7 +186,8 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.set_leaf_kind(leaf_id, new_kind) || second.set_leaf_kind(leaf_id, new_kind)
+                first.set_leaf_kind(leaf_id, new_kind.clone())
+                    || second.set_leaf_kind(leaf_id, new_kind)
             }
         }
     }
@@ -364,7 +365,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                     new_leaf_id,
                     axis,
                     ratio,
-                    next_kind,
+                    next_kind.clone(),
                 ) || second.split_leaf_with_ratio(
                     target_id,
                     split_id,
@@ -474,7 +475,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 *next_id += 1;
                 // The clone is a fresh panel: same kind, no interaction
                 // state (no drag session, dropdown, or maximized).
-                Self::Leaf(SplitterContainer::new(id, container.kind))
+                Self::Leaf(SplitterContainer::new(id, container.kind.clone()))
             }
             Self::Split {
                 axis,

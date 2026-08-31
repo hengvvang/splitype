@@ -42,9 +42,11 @@ impl Editor {
         let maximized_pane = inner_tree.find_maximized_leaf();
         let is_maximized = maximized_pane.is_some();
         let inner_rendered = if let Some(maximized_pane) = maximized_pane {
-            let single = splitter::tree::SplitTree::Leaf(
-                splitter::container::SplitterContainer::new(maximized_pane.id, maximized_pane.kind),
-            );
+            let single =
+                splitter::tree::SplitTree::Leaf(splitter::container::SplitterContainer::new(
+                    maximized_pane.id,
+                    maximized_pane.kind.clone(),
+                ));
             self.render_editor_pane_split_tree(&single, theme, strings, window, cx)
         } else {
             self.render_editor_pane_split_tree(&inner_tree, theme, strings, window, cx)

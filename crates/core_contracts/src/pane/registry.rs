@@ -43,9 +43,9 @@ impl PaneRegistry {
             return Err(PaneRegistryError::DuplicateKind(kind));
         }
 
-        self.order.push(kind);
+        self.order.push(kind.clone());
         if is_default || self.default_kind.is_none() {
-            self.default_kind = Some(kind);
+            self.default_kind = Some(kind.clone());
         }
         self.descriptors.insert(kind, descriptor);
         Ok(())
@@ -84,7 +84,9 @@ impl PaneRegistry {
     }
 
     pub fn default_kind(&self) -> Option<PaneKind> {
-        self.default_kind.or_else(|| self.order.first().copied())
+        self.default_kind
+            .clone()
+            .or_else(|| self.order.first().cloned())
     }
 
     pub fn registered_default_kind() -> Result<Option<PaneKind>, PaneRegistryError> {
@@ -119,7 +121,7 @@ mod tests {
 
     impl PaneDescriptor for TestDescriptor {
         fn kind(&self) -> PaneKind {
-            self.0
+            self.0.clone()
         }
 
         fn display_name(&self) -> SharedString {
@@ -136,12 +138,12 @@ mod tests {
         let mut registry = PaneRegistry::new();
         let kind = PaneKind::new("test.pane");
         registry
-            .register(Arc::new(TestDescriptor(kind)), true)
+            .register(Arc::new(TestDescriptor(kind.clone())), true)
             .unwrap();
 
         assert_eq!(
-            registry.register(Arc::new(TestDescriptor(kind)), false),
-            Err(PaneRegistryError::DuplicateKind(kind))
+            registry.register(Arc::new(TestDescriptor(kind.clone())), false),
+            Err(PaneRegistryError::DuplicateKind(kind.clone()))
         );
         assert_eq!(registry.default_kind(), Some(kind));
         assert_eq!(registry.all_descriptors().len(), 1);
