@@ -77,8 +77,7 @@ impl Editor {
         let mut right_items: Vec<AnyElement> = Vec::new();
 
         if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
-            let mode = self.panel_mode();
-            let editing = mode.is_editing();
+            let editing = self.is_editing();
             let toggle_editor = cx.entity().downgrade();
             let label = if editing {
                 editor_model::PaneRegistry::global()
@@ -88,7 +87,7 @@ impl Editor {
                     .map(|d| d.display_name().to_string())
                     .unwrap_or_else(|| focused_kind.as_str().to_string())
             } else {
-                mode.name().to_string()
+                "Welcome".to_string()
             };
             let mut mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))

@@ -1,6 +1,6 @@
 use std::any::Any;
 use gpui::*;
-use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView, WindowPanelKind};
+use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView};
 use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
 
 /// View wrapper implementing [`PanelView`] for the Explorer sidebar.
@@ -37,7 +37,7 @@ impl PanelView for ExplorerPanelView {
         let c = &theme.colors;
         let topbar = render_explorer_topbar(
             ctx.panel_id,
-            WindowPanelKind::Explorer,
+            PanelKindId::EXPLORER,
             theme,
             ctx.leaf_count,
             ctx.is_maximized,

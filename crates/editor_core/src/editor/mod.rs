@@ -22,7 +22,7 @@ pub use gpui::*;
 pub use editor_model::{AutoscrollStrategy, EditorHost, PaneId};
 pub use editor_outline::OutlineHudState;
 pub use splitter::root::SplitterRoot;
-pub use workspace::{PanelId, WindowPanelKind, DEFAULT_EDITOR_PANEL_ID};
+pub use workspace::{PanelId, PanelKindId, DEFAULT_EDITOR_PANEL_ID};
 
 pub use crate::session::{
     DocumentTab, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKindId,

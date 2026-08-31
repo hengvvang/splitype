@@ -1,5 +1,5 @@
 //! Window-level tiled area layout — rendering and gestures for the outer
-//! `WindowPanelKind` split tree (ExplorerState / Settings / Editor panel_contents).
+//! `PanelKindId` split tree (Explorer / Settings / Editor panel views).
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor.s pane layout rendering lives in
@@ -198,7 +198,7 @@ impl Shell {
 
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &splitter::SplitTree<workspace::WindowPanelKind>,
+        node: &splitter::SplitTree<workspace::PanelKindId>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -414,7 +414,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: NodeId,
-        kind: workspace::WindowPanelKind,
+        kind: workspace::PanelKindId,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -437,7 +437,7 @@ impl Shell {
         };
 
         if !self.panel_views.contains_key(&panel_id) {
-            self.sync_panel_kind(panel_id, kind == workspace::WindowPanelKind::Editor, cx);
+            self.sync_panel_kind(panel_id, kind == workspace::PanelKindId::EDITOR, cx);
         }
 
         let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {
@@ -480,7 +480,7 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
                     shell.panels.layout.focused_leaf = Some(leaf_id);
-                    if kind == workspace::WindowPanelKind::Editor {
+                    if kind == workspace::PanelKindId::EDITOR {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -534,7 +534,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: NodeId,
-        current_kind: workspace::WindowPanelKind,
+        current_kind: workspace::PanelKindId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -555,9 +555,7 @@ impl Shell {
             .w(px(d.menu_panel_width))
             .children(available_descriptors.into_iter().enumerate().map(|(idx, desc)| {
                 let kind_id = desc.kind();
-                let kind: workspace::WindowPanelKind =
-                    kind_id.try_into().unwrap_or(workspace::WindowPanelKind::Editor);
-                let is_current = kind == current_kind;
+                let is_current = kind_id == current_kind;
                 let option_shell = shell.clone();
                 let display_name = desc.display_name();
                 menu_item(("panel-type-opt", idx), c, d)
@@ -583,7 +581,7 @@ impl Shell {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_shell.update(cx, |shell, cx| {
-                            shell.change_panel_kind(leaf_id, kind, cx);
+                            shell.change_panel_kind(leaf_id, kind_id, cx);
                             cx.notify();
                         });
                     })

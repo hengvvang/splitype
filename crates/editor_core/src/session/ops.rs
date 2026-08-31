@@ -3,7 +3,6 @@
 use gpui::Context;
 use splitter::NodeId;
 use splitter::tree::SplitAxis;
-use workspace::EditorPanelMode;
 
 use crate::editor::Editor;
 use crate::session::{EditorSession, PaneKindId};
@@ -20,13 +19,10 @@ impl Editor {
         &self.session
     }
 
-    /// The editor panel's working mode, derived from whether its session holds tabs.
-    pub fn panel_mode(&self) -> EditorPanelMode {
-        if self.session.has_tabs() {
-            EditorPanelMode::Editing
-        } else {
-            EditorPanelMode::Welcome
-        }
+    /// True when the editor holds at least one document tab.
+    #[inline]
+    pub fn is_editing(&self) -> bool {
+        self.session.has_tabs()
     }
 
     /// Splits a pane via the status-bar buttons. The new pane inherits the

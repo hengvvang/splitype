@@ -3,20 +3,14 @@
 use gpui::SharedString;
 use theme::Theme;
 
-use crate::WindowPanelKind;
+use crate::plugin::PanelKindId;
 
 /// Icon path for a window-panel top-bar button, per panel kind.
 ///
-/// Every `WindowPanelKind` owns its own copies of the top-bar icons
-/// (decoupling — see `assets/icons/README.md`), so a button's asset
-/// path depends on the kind of the area it renders in.
-pub fn panel_topbar_icon(kind: WindowPanelKind, name: &str) -> SharedString {
-    let dir = match kind {
-        WindowPanelKind::Explorer => "explorer",
-        WindowPanelKind::Editor => "editor",
-        WindowPanelKind::Settings => "settings",
-    };
-    format!("icons/{dir}/topbar/{name}.svg").into()
+/// Every panel plugin owns its own copies of the top-bar icons, so a button's
+/// asset path dynamically derives from the kind identifier of the area it renders in.
+pub fn panel_topbar_icon(kind: PanelKindId, name: &str) -> SharedString {
+    format!("icons/{}/topbar/{name}.svg", kind.0).into()
 }
 
 /// Map a theme to the splitter border-menu style parameters.

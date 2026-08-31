@@ -3,9 +3,8 @@
 //! (`explorer`, `settings`).
 //!
 //! Owns:
-//! - [`PanelId`] / [`WindowPanelKind`] / [`EditorPanelMode`] — window panel
-//!   identity and kind vocabulary (the editor-internal pane vocabulary
-//!   lives in `crates/editor`);
+//! - [`PanelId`] / [`PanelKindId`] — window panel identity and kind vocabulary
+//!   (the editor-internal pane vocabulary lives in `crates/editor_model`);
 //! - the default window layout ([`default_layout`]) and its constants;
 //! - window-level layout actions ([`actions`]) that panels dispatch and the
 //!   shell handles;
@@ -28,7 +27,7 @@ pub use actions::{
 pub use builder::*;
 pub use icons::{border_menu_style, panel_topbar_icon};
 pub use panels::{
-    EditorPanelMode, PanelId, WindowPanelKind, WindowLayout, default_layout,
+    PanelId, WindowLayout, default_layout,
     DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID,
 };
 pub use plugin::*;

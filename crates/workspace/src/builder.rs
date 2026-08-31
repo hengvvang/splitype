@@ -1,9 +1,10 @@
-use crate::panels::{PanelId, WindowPanelKind};
+use crate::panels::PanelId;
+use crate::plugin::PanelKindId;
 
 /// Fluent builder for the Workspace shell.
 pub struct WorkspaceBuilder {
     default_panel_id: PanelId,
-    default_panel_kind: WindowPanelKind,
+    default_panel_kind: PanelKindId,
     dock_ratio: f32,
 }
 
@@ -17,12 +18,12 @@ impl WorkspaceBuilder {
     pub fn new() -> Self {
         Self {
             default_panel_id: PanelId(crate::DEFAULT_EDITOR_PANEL_ID),
-            default_panel_kind: WindowPanelKind::Editor,
+            default_panel_kind: PanelKindId::EDITOR,
             dock_ratio: 0.2,
         }
     }
 
-    pub fn with_default_panel(mut self, id: PanelId, kind: WindowPanelKind) -> Self {
+    pub fn with_default_panel(mut self, id: PanelId, kind: PanelKindId) -> Self {
         self.default_panel_id = id;
         self.default_panel_kind = kind;
         self
@@ -37,7 +38,7 @@ impl WorkspaceBuilder {
         self.default_panel_id
     }
 
-    pub fn default_panel_kind(&self) -> WindowPanelKind {
+    pub fn default_panel_kind(&self) -> PanelKindId {
         self.default_panel_kind
     }
 

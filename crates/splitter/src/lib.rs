@@ -1,6 +1,6 @@
 //! Tiled layout engine — the pure layout core shared by the window-level
-//! panel layout (`SplitterRoot<WindowPanelKind>`) and the editor's inner
-//! pane layout (`SplitterRoot<EditorPaneKind>`).
+//! panel layout (`SplitterRoot<PanelKindId>`) and the editor's inner
+//! pane layout (`SplitterRoot<PaneKindId>`).
 //!
 //! This module owns:
 //! - [`SplitterContainer`] — the panel container (one leaf): the panel
@@ -31,8 +31,6 @@ pub use sessions::{
     calculate_dock_target, calculate_join_slice_rect,
 };
 pub use tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
-
-
 
 #[cfg(test)]
 mod splitter_tests;

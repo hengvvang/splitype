@@ -1,6 +1,6 @@
 use std::any::Any;
 use gpui::*;
-use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView, WindowPanelKind};
+use workspace::{PanelDescriptor, PanelId, PanelKindId, PanelRenderContext, PanelView};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
 
 /// View wrapper implementing [`PanelView`] for the Settings panel.
@@ -37,7 +37,7 @@ impl PanelView for SettingsPanelView {
         let c = &theme.colors;
         let topbar = render_settings_topbar(
             ctx.panel_id,
-            WindowPanelKind::Settings,
+            PanelKindId::SETTINGS,
             theme,
             ctx.leaf_count,
             ctx.is_maximized,

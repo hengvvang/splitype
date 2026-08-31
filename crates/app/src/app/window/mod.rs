@@ -13,7 +13,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
-use workspace::{PanelId, PanelView, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
+use workspace::{PanelId, PanelKindId, PanelView, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID};
 use editor_core::{Editor, EditorSession};
 
 use explorer::ExplorerState;
@@ -118,7 +118,7 @@ pub(crate) fn open_editor_window(
 /// session, inherits the window layout tree, and clones the file
 /// explorer state so the new window sees the same directory tree.
 pub(crate) fn open_cloned_window(
-    tree: SplitTree<WindowPanelKind>,
+    tree: SplitTree<PanelKindId>,
     next_node_id: NodeId,
     sessions: HashMap<PanelId, EditorSession>,
     explorer: Option<ExplorerState>,
@@ -143,7 +143,7 @@ pub(crate) fn open_cloned_window(
                     let panel_id = PanelId(leaf_id);
                     if let Some(kind) = tree.find_leaf_kind(leaf_id) {
                         if !panel_views.contains_key(&panel_id) {
-                            if let Some(view) = registry.create_panel(kind.to_kind_id(), panel_id, cx) {
+                            if let Some(view) = registry.create_panel(kind, panel_id, cx) {
                                 panel_views.insert(panel_id, view);
                             }
                         }
@@ -158,7 +158,7 @@ pub(crate) fn open_cloned_window(
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
                 // Activate the first Editor leaf of the cloned layout
-                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(WindowPanelKind::Editor) {
+                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(PanelKindId::EDITOR) {
                     panels.layout.activate_leaf(container.id);
                 } else {
                     panels.layout.active_leaf = None;

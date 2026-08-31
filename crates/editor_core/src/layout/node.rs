@@ -59,7 +59,7 @@ impl Editor {
                 let pane_id = PaneId(container.id);
                 let inner_editor = cx.entity().downgrade();
 
-                let inner_body: AnyElement = if self.panel_mode().is_editing() {
+                let inner_body: AnyElement = if self.is_editing() {
                     self.render_pane(pane_id, window, cx)
                 } else {
                     self.render_welcome_prompt(pane_id, theme, cx)
