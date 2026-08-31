@@ -1,7 +1,4 @@
-pub(crate) mod chrome;
-pub(crate) mod dialogs;
-pub(crate) mod layout;
-pub mod panels;
+//! Window creation and lifecycle operations.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -9,27 +6,20 @@ use std::path::{Path, PathBuf};
 use anyhow::Context as _;
 use gpui::*;
 
-use crate::app::menus::install_menus;
-use crate::app::shell::{Shell, ShellEditorHost};
-use crate::app::window::chrome::MenuBarState;
-use crate::app::window::panels::WindowPanels;
-use window::{PanelId, PanelKind, PanelView};
-use editor::{Editor, EditorSession};
-
-use explorer::ExplorerState;
-
+use crate::chrome::MenuBarState;
+use crate::layout::WindowPanels;
+use crate::menus::install_menus;
+use crate::shell::{Shell, ShellEditorHost};
 use config::recent::record_recent_file;
+use editor::{Editor, EditorSession};
+use explorer::ExplorerState;
 use splitter::NodeId;
-use ui::custom_titlebar::splitype_window_options;
 use splitter::tree::SplitTree;
+use ui::custom_titlebar::splitype_window_options;
+use window::{PanelId, PanelKind, PanelView};
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {
-        // OsStr::to_string_lossy returns Cow<str>; calling .to_string() on
-        // it always allocates a fresh String, even for the valid-UTF-8 path
-        // (the common case). Borrow the Cow directly into format! — its
-        // Display impl writes the borrowed bytes straight into the output
-        // String, no intermediate allocation.
         format!(
             "Splitype - {}",
             path.file_name()
@@ -43,7 +33,7 @@ fn window_title(file_path: Option<&Path>) -> SharedString {
 }
 
 /// Opens an editor window for the given Markdown content and optional path.
-pub(crate) fn open_editor_window(
+pub fn open_editor_window(
     cx: &mut App,
     markdown: String,
     file_path: Option<PathBuf>,
@@ -57,8 +47,6 @@ pub(crate) fn open_editor_window(
         .open_window(
             splitype_window_options(title, bounds),
             move |_window, cx| {
-                // The explorer state is app-wide global; install a fresh
-                // one per window (the shell renders it from the global).
                 cx.set_global(explorer::ExplorerState::default());
                 let explorer_id = PanelId(1);
                 let editor_id = PanelId(2);
@@ -73,7 +61,6 @@ pub(crate) fn open_editor_window(
                     Box::new(editor::EditorPanelView::new(editor.clone()));
 
                 let shell = cx.new(move |_cx| Shell {
-                    // The default layout is Explorer (left) + Editor (right).
                     panel_views: [
                         (explorer_id, explorer_view),
                         (editor_id, editor_view),
@@ -89,7 +76,6 @@ pub(crate) fn open_editor_window(
                     close_guard_installed: false,
                     about_bg_emojis: Vec::new(),
                 });
-                // Wire the editor entity to its Shell.
                 let shell_weak = shell.downgrade();
                 editor.update(cx, |e, _cx| {
                     e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
@@ -109,11 +95,8 @@ pub(crate) fn open_editor_window(
     handle
 }
 
-/// Opens a new window hosting a cloned sub-tree handed over by a
-/// Shift-drag gesture. Materializes one `Editor` entity per cloned
-/// session, inherits the window layout tree, and clones the file
-/// explorer state so the new window sees the same directory tree.
-pub(crate) fn open_cloned_window(
+/// Opens a new window hosting a cloned sub-tree handed over by a Shift-drag gesture.
+pub fn open_cloned_window(
     tree: SplitTree<PanelKind>,
     next_node_id: NodeId,
     sessions: HashMap<PanelId, EditorSession>,
@@ -125,7 +108,6 @@ pub(crate) fn open_cloned_window(
         .open_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
-                // Materialize one Editor entity per cloned session, and ensure all leaves exist.
                 let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
                 for (panel_id, session) in sessions {
                     let editor = cx.new(|cx| editor::Editor::with_session(panel_id, session, cx));
@@ -146,14 +128,10 @@ pub(crate) fn open_cloned_window(
                     }
                 }
 
-                // The Shell owns the cloned outer layout; the explorer
-                // state travels as the app-wide global (a fresh state when
-                // the drag carried none).
                 cx.set_global(explorer.unwrap_or_else(explorer::ExplorerState::default));
                 let mut panels = WindowPanels::default();
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
-                // Activate the first Editor leaf of the cloned layout
                 if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(window::PanelKind::new("editor")) {
                     panels.layout.activate_leaf(container.id);
                 } else {
@@ -172,7 +150,6 @@ pub(crate) fn open_cloned_window(
                     close_guard_installed: false,
                     about_bg_emojis: Vec::new(),
                 });
-                // Wire every editor entity to its Shell.
                 let shell_weak = shell.downgrade();
                 let editors: Vec<Entity<Editor>> = shell
                     .read(cx)
@@ -201,7 +178,7 @@ pub(crate) fn open_cloned_window(
     handle
 }
 
-pub(crate) fn open_file_in_new_window(cx: &mut App, path: &Path) -> anyhow::Result<()> {
+pub fn open_file_in_new_window(cx: &mut App, path: &Path) -> anyhow::Result<()> {
     let markdown = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read '{}'", path.display()))?;
     open_editor_window(cx, markdown, Some(path.to_path_buf()));
@@ -209,7 +186,7 @@ pub(crate) fn open_file_in_new_window(cx: &mut App, path: &Path) -> anyhow::Resu
     Ok(())
 }
 
-pub(crate) fn record_recent_file_and_refresh(path: &Path, cx: &mut App) {
+pub fn record_recent_file_and_refresh(path: &Path, cx: &mut App) {
     if let Err(err) = record_recent_file(path) {
         tracing::warn!(path = %path.display(), error = %err, "failed to update recent file history");
         return;
@@ -217,5 +194,3 @@ pub(crate) fn record_recent_file_and_refresh(path: &Path, cx: &mut App) {
     install_menus(cx);
     cx.refresh_windows();
 }
-
-

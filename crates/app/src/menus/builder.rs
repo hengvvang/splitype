@@ -1,21 +1,17 @@
 //! Native menu bar construction — the platform menu tree for the active
 //! theme, language pack, and recent-file history.
-//!
-//! Owns [`build_menus`] only; the action dispatch and lifecycle live in
-//! `super::menus`, and the file/import prompts in `super::menu_prompts`.
 
 use std::path::PathBuf;
-
 use gpui::*;
 
-use crate::app::actions::{
+use crate::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
     NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest, OpenFile,
     OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SelectLanguage,
     SelectTheme, ShowAbout,
 };
 #[cfg(target_os = "macos")]
-use crate::app::actions::{InstallCliTool, UninstallCliTool};
+use crate::actions::{InstallCliTool, UninstallCliTool};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use config::language::I18nManager;
 use theme::ThemeManager;
@@ -73,15 +69,12 @@ pub(super) fn build_menus(
         recent_files
             .iter()
             .map(|path| {
-                // into_owned on a Cow<str> reuses the Cow::Owned variant
-                // (no copy) when the OS string is valid UTF-8 — the common
-                // case — and only allocates for the lossy fallback. The
-                // previous .to_string_lossy().to_string() always allocated.
                 let label = path.to_string_lossy().into_owned();
                 MenuItem::action(label.clone(), OpenRecentFile { path: label })
             })
             .collect()
     };
+
     #[cfg(target_os = "macos")]
     let help_items = {
         let cli_installed = is_cli_symlink_current_app();
@@ -181,6 +174,3 @@ pub(super) fn build_menus(
         },
     ]
 }
-
-
-

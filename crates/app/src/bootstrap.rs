@@ -13,21 +13,22 @@ use std::sync::{
 use futures::{StreamExt, channel::mpsc};
 use gpui::*;
 
-use splitype_cli::Args;
-use crate::app::menus::{init as init_app_menu, install_menus};
-use crate::app::window::open_editor_window;
-#[cfg(target_os = "macos")]
-use crate::app::window::open_file_in_new_window;
+use crate::assets::SplitypeAssets;
 use crate::keybindings::init_with_keybindings as init_editor;
+use crate::menus::{init as init_app_menu, install_menus};
+#[cfg(target_os = "macos")]
+use crate::platform::file_url::parse_file_url;
+use crate::window::open_editor_window;
+#[cfg(target_os = "macos")]
+use crate::window::open_file_in_new_window;
+use config::language::I18nManager;
 use config::settings::{
     SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
-use config::language::I18nManager;
 use pane_wysiwyg::install_http_client;
+use splitype_cli::Args;
 use theme::ThemeManager;
-#[cfg(target_os = "macos")]
-use crate::platform::file_url::parse_file_url;
 
 /// On macOS, re-launch the process detached from the terminal.
 #[cfg(target_os = "macos")]
@@ -89,8 +90,7 @@ pub fn run(args: Args) {
     #[cfg(target_os = "macos")]
     let open_file_requested = Arc::new(AtomicBool::new(false));
 
-    let app = gpui_platform::application().with_assets(crate::app::assets::SplitypeAssets);
-
+    let app = gpui_platform::application().with_assets(SplitypeAssets);
 
     #[cfg(target_os = "macos")]
     {
@@ -107,7 +107,7 @@ pub fn run(args: Args) {
     }
 
     app.run(move |cx: &mut App| {
-        if let Err(err) = crate::app::assets::SplitypeAssets::load_fonts(cx) {
+        if let Err(err) = SplitypeAssets::load_fonts(cx) {
             tracing::warn!(error = %err, "failed to load embedded Lexend fonts");
         }
 
@@ -125,7 +125,7 @@ pub fn run(args: Args) {
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
-        // Prewarm CPU-intensive resources (Tree-sitter grammars, font fallbacks) in a
+        // Prewarm CPU-intensive resources in background thread
         std::thread::Builder::new()
             .name("splitype-prewarm".to_string())
             .spawn(|| {
@@ -217,4 +217,3 @@ pub(crate) fn register_pane_descriptors() {
     panel_registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()), false);
     panel_registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()), false);
 }
-

@@ -3,7 +3,7 @@
 //!
 //! Document-level actions (save / export / view mode) live in
 //! `editor::actions`; text-editing actions live in
-//! `editor::input::actions`.
+//! `pane_wysiwyg::actions` or `pane_source_code::actions`.
 
 use gpui::*;
 use schemars::JsonSchema;
@@ -60,4 +60,3 @@ pub struct OpenRecentFile {
     /// Path stored in splitype's recent-file history.
     pub path: String,
 }
-

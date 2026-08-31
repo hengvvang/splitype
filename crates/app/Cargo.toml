@@ -18,22 +18,22 @@ name = "app"
 path = "src/main.rs"
 
 [dependencies]
-splitter = { path = "../splitter" }
-theme = { path = "../theme" }
-config = { path = "../config" }
-splitype_installer = { path = "../splitype_installer" }
-ui = { path = "../ui" }
-explorer_fs = { path = "../explorer_fs" }
-window = { path = "../window" }
-core_contracts = { path = "../core_contracts" }
-editor = { path = "../editor" }
-pane_wysiwyg = { path = "../pane_wysiwyg" }
-pane_source_code = { path = "../pane_source_code" }
-pane_preview = { path = "../pane_preview" }
-settings = { path = "../settings" }
-syntax_highlighter = { path = "../syntax_highlighter" }
-splitype_cli = { path = "../splitype_cli" }
-explorer = { path = "../explorer" }
+splitter = { workspace = true }
+theme = { workspace = true }
+config = { workspace = true }
+splitype_installer = { workspace = true }
+ui = { workspace = true }
+explorer_fs = { workspace = true }
+window = { workspace = true }
+core_contracts = { workspace = true }
+editor = { workspace = true }
+pane_wysiwyg = { workspace = true }
+pane_source_code = { workspace = true }
+pane_preview = { workspace = true }
+settings = { workspace = true }
+syntax_highlighter = { workspace = true }
+splitype_cli = { workspace = true }
+explorer = { workspace = true }
 
 gpui = { workspace = true }
 gpui_platform = { workspace = true }

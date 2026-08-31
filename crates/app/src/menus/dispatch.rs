@@ -1,57 +1,35 @@
-//! Native application menu, app-level actions, and window close routing.
-//!
-//! This module owns menu construction dispatch and the actions that
-//! operate on the active editor window. The Quit action is routed to the
-//! current window so the existing unsaved-changes dialog remains
-//! authoritative for that window.
-//!
-//! Submodules: `menu_build` (the platform menu tree), `menu_prompts`
-//! (file-open and config-import prompt flows).
+//! Menu action routing, target window lookup, and global menu action handlers.
 
-use std::path::{Path, PathBuf};
-
+use std::path::PathBuf;
 use gpui::*;
 
-use crate::app::actions::{
+use super::install_menus;
+use super::prompts;
+use crate::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
     InstallCliTool, NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest,
     OpenFile, OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication,
     SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
 };
-#[cfg(target_os = "macos")]
-use splitype_installer::{install_cli_tool, uninstall_cli_tool};
-#[cfg(not(target_os = "macos"))]
-use splitype_installer::{install_cli_tool, uninstall_cli_tool};
-use crate::app::shell::Shell;
-use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
+use crate::dialogs::InfoDialogKind;
+use crate::shell::Shell;
+use crate::window::open_editor_window;
+use config::language::{I18nManager, apply_configured_language};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use editor::Editor;
-use crate::app::window::dialogs::InfoDialogKind;
-use editor::ExportFormat;
 use editor::view::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
-use config::language::{apply_configured_language, I18nManager};
-use theme::{apply_configured_theme, ThemeManager};
+use editor::{Editor, ExportFormat};
 use settings::open_settings_window;
+use splitype_installer::{install_cli_tool, uninstall_cli_tool};
+use theme::apply_configured_theme;
 
-
-pub(crate) mod build;
-pub(crate) mod prompts;
-
-/// Global app-menu state for platform menu lifecycle hooks.
-#[derive(Default)]
-pub(crate) struct AppMenuState {
-    window_closed_subscription: Option<Subscription>,
-}
-
-impl Global for AppMenuState {}
-
-pub(crate) fn record_recent_file_from_editor(path: &Path, cx: &mut App) {
-    record_recent_file_and_refresh(path, cx);
-}
-
-fn show_window_prompt(window: Option<AnyWindowHandle>, title: &str, detail: &str, cx: &mut App) {
+pub(crate) fn show_window_prompt(
+    window: Option<AnyWindowHandle>,
+    title: &str,
+    detail: &str,
+    cx: &mut App,
+) {
     if let Some(window) = window {
         let ok = cx.global::<I18nManager>().strings().info_dialog_ok.clone();
         let _ = window.update(cx, |_view, window, cx| {
@@ -63,7 +41,7 @@ fn show_window_prompt(window: Option<AnyWindowHandle>, title: &str, detail: &str
     }
 }
 
-fn with_active_window<R>(
+pub(crate) fn with_active_window<R>(
     cx: &mut App,
     update: impl FnOnce(&mut Shell, &mut Window, &mut Context<Shell>) -> R,
 ) -> Option<R> {
@@ -71,11 +49,7 @@ fn with_active_window<R>(
     window.update(cx, update).ok()
 }
 
-/// Runs `update` against the first Shell-rooted window, falling back from
-/// the active window to every other window. Menu actions must not silently
-/// no-op just because the active window is a non-Shell window (settings),
-/// so native-menu dispatch walks the window candidates.
-fn with_shell_window<R>(
+pub(crate) fn with_shell_window<R>(
     cx: &mut App,
     update: impl Fn(&mut Shell, &mut Window, &mut Context<Shell>) -> R,
 ) -> Option<R> {
@@ -89,7 +63,7 @@ fn with_shell_window<R>(
     None
 }
 
-fn with_primary_editor<R>(
+pub(crate) fn with_primary_editor<R>(
     cx: &mut App,
     update: impl FnOnce(&mut Editor, &mut Window, &mut Context<Editor>) -> R,
 ) -> Option<R> {
@@ -103,19 +77,19 @@ fn with_primary_editor<R>(
     result.ok().flatten()
 }
 
-fn show_info_dialog_on_active_window(cx: &mut App, kind: InfoDialogKind) {
+pub(crate) fn show_info_dialog_on_active_window(cx: &mut App, kind: InfoDialogKind) {
     let _ = with_shell_window(cx, move |shell, _window, cx| {
         shell.show_info_dialog(kind, cx);
     });
 }
 
-fn request_update_check_on_active_window(cx: &mut App) {
+pub(crate) fn request_update_check_on_active_window(cx: &mut App) {
     let _ = with_shell_window(cx, |shell, window, cx| {
         shell.request_check_updates(window, cx);
     });
 }
 
-fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
+pub(crate) fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
     action.as_any().is::<SaveDocument>()
         || action.as_any().is::<SaveDocumentAs>()
         || action.as_any().is::<ExportHtml>()
@@ -130,7 +104,7 @@ fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
         || action.as_any().is::<CloseExplorerFolder>()
 }
 
-fn is_window_context_menu_action(action: &dyn Action) -> bool {
+pub(crate) fn is_window_context_menu_action(action: &dyn Action) -> bool {
     action.as_any().is::<NewWindow>()
         || action.as_any().is::<OpenFile>()
         || action.as_any().is::<OpenSettings>()
@@ -143,7 +117,7 @@ fn is_window_context_menu_action(action: &dyn Action) -> bool {
         || is_editor_scoped_menu_action(action)
 }
 
-fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
+pub(crate) fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
     let mut candidates = Vec::new();
     let mut push_unique = |window: AnyWindowHandle| {
         if candidates
@@ -169,8 +143,8 @@ fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
     candidates
 }
 
-fn request_close_editor_window(window: AnyWindowHandle, cx: &mut App) -> bool {
-    let Some(window) = window.downcast::<crate::app::shell::Shell>() else {
+pub(crate) fn request_close_editor_window(window: AnyWindowHandle, cx: &mut App) -> bool {
+    let Some(window) = window.downcast::<Shell>() else {
         return false;
     };
     window
@@ -180,7 +154,7 @@ fn request_close_editor_window(window: AnyWindowHandle, cx: &mut App) -> bool {
         .is_ok()
 }
 
-fn request_close_current_editor_window(cx: &mut App) {
+pub(crate) fn request_close_current_editor_window(cx: &mut App) {
     let candidates = current_window_candidates(cx);
     if candidates.is_empty() {
         cx.quit();
@@ -336,8 +310,6 @@ pub(crate) fn dispatch_menu_action_for_editor(
     window.activate_window();
     let current_window = Some(window.window_handle());
 
-    // Document-dependent actions are no-ops in the empty state (no tabs);
-    // the UI hides them, but menu accelerators could still fire them.
     if action.as_any().is::<SaveDocument>()
         || action.as_any().is::<SaveDocumentAs>()
         || action.as_any().is::<ExportHtml>()
@@ -383,10 +355,6 @@ pub(crate) fn dispatch_menu_action_for_editor(
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
-        // Downcast the window's root shell instead of reading it from the
-        // editor: the Shell's aggregated dirty check reads every editor
-        // entity, which would collide with an editor currently being
-        // updated.
         if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
             let _ = window_shell.update(cx, |shell, window, cx| {
                 shell.request_close_current_window(window, cx);
@@ -428,102 +396,3 @@ pub(crate) fn dispatch_menu_action_for_editor(
         }
     }
 }
-
-pub(crate) fn install_menus(cx: &mut App) {
-    let recent_files = prompts::recent_files_for_menu();
-    let menus = build::build_menus(
-        cx.global::<ThemeManager>(),
-        cx.global::<I18nManager>(),
-        &recent_files,
-    );
-    cx.set_menus(menus);
-}
-
-fn handle_window_closed(cx: &mut App) {
-    if cx.windows().is_empty() {
-        cx.quit();
-    }
-}
-
-/// Installs menu state, action handlers, and the native menu bar.
-pub(crate) fn init(cx: &mut App) {
-    cx.set_global(AppMenuState::default());
-    let subscription = cx.on_window_closed(|cx, _window_id| handle_window_closed(cx));
-    cx.global_mut::<AppMenuState>().window_closed_subscription = Some(subscription);
-
-    cx.on_action(|_: &NewWindow, cx| {
-        dispatch_menu_action(&NewWindow, cx);
-    });
-    cx.on_action(|_: &OpenFile, cx| {
-        dispatch_menu_action(&OpenFile, cx);
-    });
-    cx.on_action(|_: &OpenSettings, cx| {
-        dispatch_menu_action(&OpenSettings, cx);
-    });
-    cx.on_action(|action: &OpenRecentFile, cx| {
-        dispatch_menu_action(action, cx);
-    });
-    cx.on_action(|_: &NoRecentFiles, cx| {
-        dispatch_menu_action(&NoRecentFiles, cx);
-    });
-    cx.on_action(|_: &AddLanguageConfig, cx| {
-        dispatch_menu_action(&AddLanguageConfig, cx);
-    });
-    cx.on_action(|_: &AddThemeConfig, cx| {
-        dispatch_menu_action(&AddThemeConfig, cx);
-    });
-    cx.on_action(|_: &SaveDocument, cx| {
-        dispatch_menu_action(&SaveDocument, cx);
-    });
-    cx.on_action(|_: &SaveDocumentAs, cx| {
-        dispatch_menu_action(&SaveDocumentAs, cx);
-    });
-    cx.on_action(|_: &ExportHtml, cx| {
-        dispatch_menu_action(&ExportHtml, cx);
-    });
-    cx.on_action(|_: &ExportPdf, cx| {
-        dispatch_menu_action(&ExportPdf, cx);
-    });
-    cx.on_action(|action: &SelectTheme, cx| {
-        dispatch_menu_action(action, cx);
-    });
-    cx.on_action(|action: &SelectLanguage, cx| {
-        dispatch_menu_action(action, cx);
-    });
-    cx.on_action(|_: &CheckForUpdates, cx| {
-        dispatch_menu_action(&CheckForUpdates, cx);
-    });
-    cx.on_action(|_: &ShowAbout, cx| {
-        dispatch_menu_action(&ShowAbout, cx);
-    });
-    cx.on_action(|_: &ToggleExplorer, cx| {
-        dispatch_menu_action(&ToggleExplorer, cx);
-    });
-    cx.on_action(|_: &CloseExplorerFolder, cx| {
-        dispatch_menu_action(&CloseExplorerFolder, cx);
-    });
-    cx.on_action(|_: &QuitApplication, cx| {
-        dispatch_menu_action(&QuitApplication, cx);
-    });
-    cx.on_action(|_: &CloseWindow, cx| {
-        dispatch_menu_action(&CloseWindow, cx);
-    });
-    cx.on_action(|_: &OpenSplitypeRepository, cx| {
-        dispatch_menu_action(&OpenSplitypeRepository, cx);
-    });
-    cx.on_action(|_: &OpenBugReport, cx| {
-        dispatch_menu_action(&OpenBugReport, cx);
-    });
-    cx.on_action(|_: &OpenFeatureRequest, cx| {
-        dispatch_menu_action(&OpenFeatureRequest, cx);
-    });
-    cx.on_action(|_: &OpenDiscussions, cx| {
-        dispatch_menu_action(&OpenDiscussions, cx);
-    });
-
-    install_menus(cx);
-    cx.activate(true);
-}
-
-
-

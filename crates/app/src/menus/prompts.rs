@@ -1,20 +1,14 @@
 //! File-open and config-import prompts for app-menu actions.
-//!
-//! All functions here prompt for a path (open files, add theme/language
-//! config) or resolve a recent-file entry, then route into the active
-//! editor or a fresh window. The dispatch logic lives in `super::menus`;
-//! this module owns only the prompt flows and their error windows.
 
 use std::path::{Path, PathBuf};
-
 use gpui::*;
 
-use super::{install_menus, show_window_prompt, with_active_window};
-use crate::app::window::{open_file_in_new_window, record_recent_file_and_refresh};
+use super::dispatch::{show_window_prompt, with_active_window};
+use super::install_menus;
+use crate::window::{open_file_in_new_window, record_recent_file_and_refresh};
+use config::language::{I18nManager, import_language_config_and_select};
 use config::recent::{read_recent_files, remove_recent_file};
-use config::language::{import_language_config_and_select, I18nManager};
 use theme::import_theme_config_and_select;
-
 
 pub(super) fn open_recent_file(cx: &mut App, path: PathBuf) {
     let error_window = cx.active_window();
@@ -239,8 +233,7 @@ pub(super) fn prompt_and_import_theme_config_with_error_window(
     .detach();
 }
 
-/// Re-reads the recent-file list for menu construction; callers pass it to
-/// [`build_menus`](super::build::build_menus).
+/// Re-reads the recent-file list for menu construction.
 pub(super) fn recent_files_for_menu() -> Vec<PathBuf> {
     match read_recent_files() {
         Ok(paths) => paths,
@@ -250,5 +243,3 @@ pub(super) fn recent_files_for_menu() -> Vec<PathBuf> {
         }
     }
 }
-
-

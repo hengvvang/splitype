@@ -14,6 +14,6 @@ fn main() {
         .try_init();
 
     let args = splitype_cli::parse();
-    app::app::bootstrap::run(args);
+    app::bootstrap::run(args);
 }
 

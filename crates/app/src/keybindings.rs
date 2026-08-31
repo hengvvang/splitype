@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::app::actions::{
+use crate::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
 use editor::actions::{
