@@ -9,9 +9,8 @@ use gpui::*;
 use crate::chrome::MenuBarState;
 use crate::layout::WindowPanels;
 use crate::menus::install_menus;
-use crate::shell::{Shell, ShellEditorHost};
+use crate::shell::{Shell, ShellDocumentHost};
 use config::recent::record_recent_file;
-use editor::Editor;
 use splitter::NodeId;
 use splitter::tree::SplitTree;
 use ui::custom_titlebar::splitype_window_options;
@@ -32,6 +31,9 @@ fn window_title(file_path: Option<&Path>) -> SharedString {
 }
 
 /// Opens an editor window for the given Markdown content and optional path.
+///
+/// The window layout and every panel are built through the panel registry
+/// and capability declarations; no concrete plugin types are referenced.
 pub fn open_editor_window(
     cx: &mut App,
     markdown: String,
@@ -46,23 +48,25 @@ pub fn open_editor_window(
         .open_window(
             splitype_window_options(title, bounds),
             move |_window, cx| {
-                let explorer_id = PanelId(1);
-                let editor_id = PanelId(2);
-                let editor = cx.new(|cx| {
-                    let mut ed = Editor::new(markdown, file_path, cx);
-                    ed.set_panel_id(editor_id);
-                    ed
-                });
-                let explorer_view: Box<dyn PanelView> =
-                    Box::new(explorer::ExplorerPanelView::new(explorer_id, cx));
-                let editor_view: Box<dyn PanelView> =
-                    Box::new(editor::EditorPanelView::new(editor.clone()));
+                let panels = WindowPanels::default();
+                let mut leaf_ids = Vec::new();
+                panels.layout.tree.leaf_ids(&mut leaf_ids);
+                let leaf_kinds: Vec<(NodeId, PanelKind)> = leaf_ids
+                    .iter()
+                    .filter_map(|leaf_id| {
+                        panels
+                            .layout
+                            .tree
+                            .find_leaf_kind(*leaf_id)
+                            .map(|kind| (*leaf_id, kind))
+                    })
+                    .collect();
 
                 let shell = cx.new(move |_cx| Shell {
-                    panel_views: [(explorer_id, explorer_view), (editor_id, editor_view)].into(),
+                    panel_views: HashMap::new(),
                     retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
-                    panels: WindowPanels::default(),
+                    panels,
                     last_viewport: None,
                     info_dialog: None,
                     unsaved_dialog: None,
@@ -70,11 +74,11 @@ pub fn open_editor_window(
                     close_guard_installed: false,
                     about_bg_emojis: Vec::new(),
                 });
-                let shell_weak = shell.downgrade();
-                editor.update(cx, |e, _cx| {
-                    e.host = Some(std::sync::Arc::new(ShellEditorHost::new(
-                        shell_weak.clone(),
-                    )));
+                shell.update(cx, |shell, cx| {
+                    for (leaf_id, kind) in leaf_kinds {
+                        shell.ensure_registered_panel_view(PanelId(leaf_id), kind, cx);
+                    }
+                    shell.load_initial_document(markdown, file_path, cx);
                 });
                 shell
             },
@@ -112,8 +116,12 @@ pub fn open_cloned_window(
                 let mut panels = WindowPanels::default();
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
-                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(&window::PanelKind::new("editor")) {
-                    panels.layout.activate_leaf(container.id);
+                let active_container = leaf_kinds
+                    .iter()
+                    .find(|(_, kind)| Shell::kind_is_document_panel(kind))
+                    .map(|(leaf_id, _)| *leaf_id);
+                if let Some(leaf_id) = active_container {
+                    panels.layout.activate_leaf(leaf_id);
                 } else {
                     panels.layout.active_leaf = None;
                     panels.layout.activation_history.clear();
@@ -181,15 +189,12 @@ pub fn open_cloned_window(
                 shell.update(cx, |shell, cx| {
                     shell.panel_views = panel_views;
                     for view in shell.panel_views.values_mut() {
-                        // Wire editor document hosts for restored editor views.
-                        if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
-                            let editor = panel.editor.clone();
-                            editor.update(cx, |editor, cx| {
-                                editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
-                                if editor.session.has_tabs() {
-                                    editor.sync_panes_with_active_tab(cx);
-                                }
-                            });
+                        // Wire document hosts for restored document panels.
+                        if let Some(panel) = view.as_document_panel_mut() {
+                            panel.attach_document_host(
+                                std::sync::Arc::new(ShellDocumentHost::new(shell_weak.clone())),
+                                cx,
+                            );
                         }
                     }
                 });

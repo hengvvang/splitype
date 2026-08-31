@@ -16,10 +16,11 @@ workspace = true
 gpui = { workspace = true }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
-window = { path = "../window" }
+config = { path = "../config" }
 regex = "1.10"
 uuid = { workspace = true }
 serde = { workspace = true }
+schemars = "1"
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 

@@ -5,10 +5,11 @@ pub mod document;
 pub mod export;
 pub mod outline;
 pub mod pane;
+pub mod panel;
 pub mod search;
 
 pub use document::{
-    DocumentId, DocumentSnapshot, EditorHost, NavigationExecutionPlan, NavigationTarget, TabKind,
+    DocumentHost, DocumentId, DocumentSnapshot, NavigationExecutionPlan, NavigationTarget, TabKind,
 };
 pub use export::{ExportError, ExportFormat};
 pub use outline::{
@@ -17,6 +18,10 @@ pub use outline::{
 pub use pane::{
     AutoscrollStrategy, PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind,
     PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
+};
+pub use panel::{
+    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
+    PanelRenderContext, PanelView,
 };
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputElement, SearchInputSnapshot,

@@ -1,4 +1,4 @@
-//! EditorHost trait implementation bridging editor callbacks back to the window Shell.
+//! DocumentHost and PanelHost implementations bridging panel callbacks back to the window Shell.
 
 use gpui::*;
 use std::path::Path;
@@ -6,17 +6,17 @@ use std::sync::Arc;
 
 use crate::menus::record_recent_file_from_editor;
 use crate::shell::Shell;
-use core_contracts::{EditorHost, TabKind};
+use core_contracts::{DocumentHost, TabKind};
 use splitter::tree::SplitAxis;
 use window::{PanelHost, PanelId, PanelKind};
 
-/// Bridges the editor family's [`EditorHost`] contract to the window
-/// shell. Constructed by the shell when it spawns an editor entity.
-pub(crate) struct ShellEditorHost {
+/// Bridges the [`DocumentHost`] contract to the window shell. Constructed
+/// by the shell when it wires a document-routing panel.
+pub(crate) struct ShellDocumentHost {
     shell: WeakEntity<Shell>,
 }
 
-impl ShellEditorHost {
+impl ShellDocumentHost {
     pub(crate) fn new(shell: WeakEntity<Shell>) -> Self {
         Self { shell }
     }
@@ -82,7 +82,7 @@ impl PanelHost for ShellPanelHost {
     }
 }
 
-impl EditorHost for ShellEditorHost {
+impl DocumentHost for ShellDocumentHost {
     fn activate_panel(&self, panel_id: PanelId, cx: &mut App) {
         let _ = self
             .shell
@@ -126,7 +126,7 @@ impl EditorHost for ShellEditorHost {
             .update(cx, |shell, cx| shell.prompt_close_tab(panel_id, index, cx));
     }
 
-    fn open_file_in_active_editor(
+    fn open_file_in_active_document_panel(
         &self,
         path: &Path,
         kind: TabKind,
@@ -135,7 +135,7 @@ impl EditorHost for ShellEditorHost {
     ) -> bool {
         self.shell
             .update(cx, |shell, cx| {
-                shell.open_file_in_active_editor(path, kind, window, cx)
+                shell.open_file_in_active_document_panel(path, kind, window, cx)
             })
             .unwrap_or(false)
     }
@@ -152,7 +152,7 @@ impl EditorHost for ShellEditorHost {
             .update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
     }
 
-    fn sync_explorer_after_document_path_change(&self, cx: &mut App) {
+    fn on_document_path_changed(&self, cx: &mut App) {
         let Some(shell) = self.shell.upgrade() else {
             return;
         };

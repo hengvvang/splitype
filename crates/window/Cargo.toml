@@ -10,7 +10,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-config = { path = "../config" }
+core_contracts = { path = "../core_contracts" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 gpui = { workspace = true }

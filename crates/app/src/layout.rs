@@ -23,19 +23,52 @@ pub struct WindowPanels {
 
 impl Default for WindowPanels {
     fn default() -> Self {
+        Self {
+            layout: Self::default_layout(),
+        }
+    }
+}
+
+impl WindowPanels {
+    /// Builds the default window layout from the registered panel
+    /// capabilities: one sidebar panel on the left and one document panel
+    /// on the right. No built-in kind names are hardcoded here, so a
+    /// third-party sidebar or document plugin can take over the default
+    /// slots just by declaring the matching capability.
+    pub(crate) fn default_layout() -> WindowLayout {
+        let descriptors = window::PanelRegistry::registered_descriptors().unwrap_or_default();
+        let sidebar = descriptors
+            .iter()
+            .find(|descriptor| descriptor.capabilities().sidebar);
+        let documents = descriptors
+            .iter()
+            .find(|descriptor| descriptor.capabilities().documents);
         let left_id = window::PanelId(1);
         let right_id = window::PanelId(2);
-        let mut builder = window::WindowBuilder::new().with_split(
-            left_id,
-            window::PanelKind::new("explorer"),
-            right_id,
-            window::PanelKind::new("editor"),
-            0.3,
-            right_id,
-        );
-        Self {
-            layout: builder.take_layout().unwrap(),
+        let builder = window::WindowBuilder::new();
+        match (sidebar, documents) {
+            (Some(sidebar), Some(documents)) => builder.with_split(
+                left_id,
+                sidebar.kind(),
+                right_id,
+                documents.kind(),
+                0.3,
+                right_id,
+            ),
+            (None, Some(documents)) => builder.with_single_panel(left_id, documents.kind()),
+            (Some(sidebar), None) => builder.with_single_panel(left_id, sidebar.kind()),
+            (None, None) => {
+                let kind = descriptors
+                    .first()
+                    .map(|descriptor| descriptor.kind())
+                    .expect(
+                        "at least one panel descriptor must be registered before a window opens",
+                    );
+                builder.with_single_panel(left_id, kind)
+            }
         }
+        .take_layout()
+        .expect("window builder must produce a layout")
     }
 }
 

@@ -1,7 +1,6 @@
 //! Host interface provided by the window shell to panel instances.
 
-use crate::layout::PanelId;
-use crate::panel::PanelKind;
+use crate::panel::{PanelId, PanelKind};
 use gpui::App;
 use splitter::tree::SplitAxis;
 

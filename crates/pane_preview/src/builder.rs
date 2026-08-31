@@ -2,6 +2,9 @@ use crate::state::PreviewState;
 use core_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 
+/// Stable kind identifier of the Preview pane plugin.
+pub const PANE_KIND: &str = "splitype.pane.preview";
+
 /// Pane descriptor for Preview mode.
 #[derive(Clone, Debug, Default)]
 pub struct PreviewDescriptor {}
@@ -18,7 +21,7 @@ impl PreviewDescriptor {
 
 impl PaneDescriptor for PreviewDescriptor {
     fn kind(&self) -> PaneKind {
-        PaneKind::new("preview")
+        PaneKind::from_static(PANE_KIND)
     }
 
     fn display_name(&self) -> SharedString {

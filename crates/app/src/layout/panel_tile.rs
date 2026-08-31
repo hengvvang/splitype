@@ -8,7 +8,6 @@ use splitter::tree::NodeId;
 use theme::Theme;
 use ui::menu_item::menu_item;
 use ui::popover::menu_panel;
-use window::panel_topbar_icon;
 
 impl Shell {
     pub(crate) fn render_window_panel_tile(
@@ -46,7 +45,7 @@ impl Shell {
 
         let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {
             let rendered = view.render(&render_ctx, _window, cx);
-            if view.kind() == window::PanelKind::new("editor") {
+            if view.capabilities().documents {
                 rendered
             } else {
                 let card = div()
@@ -70,7 +69,7 @@ impl Shell {
         };
 
         let tile_focus = cx.entity().downgrade();
-        let mouse_kind = kind.clone();
+        let activates_on_click = Self::kind_is_document_panel(&kind);
         let mut wrapped = div()
             .id(("panel-wrapper", leaf_id))
             .w_full()
@@ -82,7 +81,7 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
                     shell.panels.layout.focused_leaf = Some(leaf_id);
-                    if mouse_kind == window::PanelKind::new("editor") {
+                    if activates_on_click {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -176,7 +175,7 @@ impl Shell {
                             .child(display_name)
                             .child(if is_current {
                                 svg()
-                                    .path(panel_topbar_icon(&current_kind, "check"))
+                                    .path("icons/chrome/check.svg")
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()

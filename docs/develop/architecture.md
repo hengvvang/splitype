@@ -259,39 +259,51 @@ transitional hardcoding listed below is removed.
   restores/clones it through the generic suspend/clone protocol; the shell
   routes active-file sync, drawer toggles, and menu rendering to every
   explorer instance instead of a shared app global.
+- Document routing is a panel role, not an editor privilege:
+  `PanelCapabilities { documents, sidebar }` is declared by descriptors and
+  views, and panels that declare `documents` implement the `DocumentPanel`
+  trait. The shell routes file opens, tab save/close/discard, dirty dialogs,
+  drop replacement, focus, and save/export entirely through
+  `dyn DocumentPanel` (opt-in downcast hooks on `PanelView`); it no longer
+  downcasts to `EditorPanelView` or compares `"editor"` kind strings. Menu
+  actions dispatch to panels by `PanelId`, and the default window layout is
+  derived from registry capabilities.
+- `EditorHost` is renamed `DocumentHost` (with `open_file_in_active_document_panel`
+  and `on_document_path_changed`); the shell hands it to any document panel via
+  `DocumentPanel::attach_document_host`.
+- `core_contracts` no longer depends on `window`: panel contracts (`PanelView`,
+  `PanelDescriptor`, `PanelHost`, `PanelKind`, `PanelId`, `PanelRenderContext`)
+  moved into `core_contracts::panel`, and `window` hosts the registry while
+  re-exporting the contract types. Built-in kinds are namespaced
+  (`splitype.pane.wysiwyg|source_code|preview`, `splitype.panel.editor|explorer|settings`)
+  and built via `from_static`; `panel_topbar_icon` takes a plugin-owned icon
+  prefix instead of deriving paths from kind strings. Both window open paths
+  (`open_editor_window`, `open_cloned_window`) create every panel through the
+  registry.
 
 ### Remaining critical migration work
 
-1. `app::Shell` still routes file opens, tab prompts, and editor host wiring
-   through editor-specific helpers (`editor_for`, `active_editor_panel`, the
-   `"editor"` kind check, `wire_editor_host`). These are document-service
-   policies of the composition root, not lifecycle hardcoding; they should
-   migrate to a `DocumentPanel` capability plus typed document services so an
-   alternative editor plugin can take over the role.
-2. `PaneView` no longer requires `Send + Sync` and panes declare optional
-   behaviors through `PaneCapabilities`; hosts gate search, replacement,
-   editing, outline, and navigation on the declaration. Source pane state
-   uses `RefCell` and WYSIWYG owns its controller entity directly. The
-   remaining default no-op methods should eventually be folded into the
-   capability model, but callers already check capabilities first.
-5. The namespaced identifier migration is mostly done: `PaneKind` and
-   `PanelKind` are owned `Arc<str>` values and the split tree only requires
-   `Clone`. Built-in kind strings are still single words (`"editor"`); migrate
-   them to `splitype.pane.*` / `splitype.panel.*` namespaces and remove the
-   remaining kind-string comparisons in the shell in favor of capabilities.
-7. There is no plugin manifest, discovery runtime, API negotiation, permission
-   model, resource namespace, unregister/shutdown protocol, or missing-plugin
-   placeholder.
-8. Window topology and per-panel state are not persisted despite the
+1. The shell still downcasts to `explorer::ExplorerPanelView` for active-file
+   sync, drawer toggles, and explorer menu routing (`Shell::explorer_states`).
+   These should become generic panel notifications or a sidebar role trait.
+2. `core_contracts` still depends on `theme` and GPUI presentation helpers
+   (outline HUD, search UI); split the stable vocabulary/API from UI adapters
+   so the contracts crate stays presentation-free.
+3. There is no plugin manifest, discovery runtime, API negotiation, permission
+   model, resource namespace (`plugin://`), unregister/shutdown protocol, or
+   missing-plugin placeholder. Third-party icons cannot resolve through the
+   embedded asset catalog yet.
+4. Window topology and per-panel state are not persisted despite the
    `restore_window_state` setting.
-9. Preview selection/navigation and common autoscroll have incomplete wiring.
-10. Editor still owns Markdown-specific command templates and incomplete export
-    rendering; these belong to registered contributions.
-11. `core_contracts` depends on `window`, `theme`, and GPUI presentation helpers.
-    Split the stable vocabulary/API from UI adapters to restore leaf dependency
-    direction.
-12. `markdown_parser` contains GPUI entity identity and consumer-specific parse
-    modes; replace them with domain IDs and recursive parse policy.
+5. Preview selection/navigation and common autoscroll have incomplete wiring.
+6. Editor still owns Markdown-specific command templates and incomplete export
+   rendering; these belong to registered contributions. Panel topbar chrome is
+   also duplicated per plugin; consider a shared chrome renderer driven by
+   descriptor metadata.
+7. `markdown_parser` contains GPUI entity identity and consumer-specific parse
+   modes; replace them with domain IDs and recursive parse policy.
+8. `PaneView` default no-op methods should eventually fold into the capability
+   model, but callers already check capabilities first.
 
 ## Migration plan and acceptance criteria
 

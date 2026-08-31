@@ -11,7 +11,6 @@ use gpui::*;
 
 use crate::shell::Shell;
 use config::language::I18nStrings;
-use editor::{Editor, FileState};
 use theme::Theme;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,22 +41,6 @@ pub(crate) const ABOUT_EMOJIS: &[&str] = &[
 ];
 
 impl Shell {
-    pub(crate) fn editor_with_dialog(
-        &self,
-        cx: &App,
-        show: fn(&FileState) -> bool,
-    ) -> Option<Entity<Editor>> {
-        self.panel_views.values().find_map(|view| {
-            let panel = view.as_any().downcast_ref::<editor::EditorPanelView>()?;
-            let editor = panel.editor.read(cx);
-            if editor.session.tabs().any(|tab| show(&tab.file)) {
-                Some(panel.editor.clone())
-            } else {
-                None
-            }
-        })
-    }
-
     /// The window-level dialog to render this frame, if any: the info
     /// dialog wins over the per-document confirmations.
     pub(crate) fn render_window_dialogs(
@@ -71,19 +54,20 @@ impl Shell {
                     .into_any_element(),
             );
         }
-        if self
-            .editor_with_dialog(cx, |file| file.show_drop_replace_dialog)
-            .is_some()
-        {
+        if self.panel_views.values().any(|view| {
+            view.as_document_panel()
+                .is_some_and(|panel| panel.has_drop_replace_dialog(cx))
+        }) {
             return Some(
                 self.render_drop_replace_overlay(theme, cx)
                     .into_any_element(),
             );
         }
         if self.unsaved_dialog.is_some()
-            || self
-                .editor_with_dialog(cx, |file| file.show_unsaved_changes_dialog)
-                .is_some()
+            || self.panel_views.values().any(|view| {
+                view.as_document_panel()
+                    .is_some_and(|panel| panel.has_unsaved_dialog(cx))
+            })
         {
             return Some(
                 self.render_unsaved_changes_overlay(theme, cx)

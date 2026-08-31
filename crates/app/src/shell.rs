@@ -12,12 +12,14 @@ pub mod view;
 use gpui::*;
 use std::collections::HashMap;
 
-pub(crate) use self::host_bridge::{ShellEditorHost, ShellPanelHost};
+pub(crate) use self::host_bridge::{ShellDocumentHost, ShellPanelHost};
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
-use editor::{DocumentTab, Editor};
-use window::{PanelId, PanelView};
+use core_contracts::{DocumentPanel, PanelId, PanelKind};
+use splitter::tree::NodeId;
+use std::path::PathBuf;
+use window::PanelView;
 
 /// Scope of an unsaved-changes confirmation dialog.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -86,29 +88,110 @@ pub struct Shell {
 }
 
 impl Shell {
-    /// The active editor area's active tab, if any.
-    pub(crate) fn active_editor_tab<'a>(&self, cx: &'a App) -> Option<&'a DocumentTab> {
-        let panel = self.active_editor_panel()?;
-        let editor = self.editor_for(panel)?;
-        editor.read(cx).active_tab()
+    /// Path of the active document panel's active tab, if any.
+    pub(crate) fn active_document_tab_path(&self, cx: &App) -> Option<PathBuf> {
+        let panel = self.active_document_panel_id()?;
+        self.document_panel_for(panel)?.active_tab_path(cx)
     }
 
-    /// The window's primary (first) editor area content, if any.
-    pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
-        self.panel_views.values().find_map(|view| {
-            view.as_any()
-                .downcast_ref::<editor::EditorPanelView>()
-                .map(|p| &p.editor)
-        })
+    /// The first document panel in this window, if any.
+    pub(crate) fn primary_document_panel_id(&self) -> Option<PanelId> {
+        self.panel_views
+            .iter()
+            .find(|(_, view)| view.capabilities().documents)
+            .map(|(id, _)| *id)
     }
 
-    /// The currently active/focused editor, or falls back to primary_editor.
-    pub(crate) fn active_editor(&self) -> Option<&Entity<Editor>> {
+    /// The active document panel, or the first document panel as fallback.
+    pub(crate) fn active_document_panel_id(&self) -> Option<PanelId> {
         self.panels
             .layout
             .active_leaf
-            .and_then(|leaf| self.editor_for(leaf))
-            .or_else(|| self.primary_editor())
+            .filter(|leaf| self.leaf_is_document_panel(*leaf))
+            .map(PanelId)
+            .or_else(|| self.primary_document_panel_id())
+    }
+
+    /// The active document panel, or the first document panel as fallback.
+    pub(crate) fn active_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
+        let panel_id = self.active_document_panel_id()?;
+        self.document_panel_mut_for(panel_id)
+    }
+
+    /// Whether `leaf` currently holds a document-routing panel.
+    ///
+    /// Consults the live view first and falls back to the registered
+    /// descriptor so unmaterialized leaves still answer correctly.
+    pub(crate) fn leaf_is_document_panel(&self, leaf: NodeId) -> bool {
+        if let Some(view) = self.panel_views.get(&PanelId(leaf)) {
+            return view.capabilities().documents;
+        }
+        let Some(kind) = self.panels.layout.tree.find_leaf_kind(leaf) else {
+            return false;
+        };
+        Self::kind_is_document_panel(&kind)
+    }
+
+    /// Whether panels of `kind` route documents, per their descriptor.
+    pub(crate) fn kind_is_document_panel(kind: &PanelKind) -> bool {
+        window::PanelRegistry::registered(kind.clone())
+            .ok()
+            .flatten()
+            .is_some_and(|descriptor| descriptor.capabilities().documents)
+    }
+
+    /// The document-routing view of `panel_id`, if it has one.
+    pub(crate) fn document_panel_for(
+        &self,
+        panel_id: impl Into<PanelId>,
+    ) -> Option<&dyn DocumentPanel> {
+        self.panel_views
+            .get(&panel_id.into())
+            .and_then(|view| view.as_document_panel())
+    }
+
+    /// The mutable document-routing view of `panel_id`, if it has one.
+    pub(crate) fn document_panel_mut_for(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+    ) -> Option<&mut dyn DocumentPanel> {
+        self.panel_views
+            .get_mut(&panel_id.into())
+            .and_then(|view| view.as_document_panel_mut())
+    }
+
+    /// The document panel currently requesting the unsaved-changes dialog.
+    pub(crate) fn document_panel_with_unsaved_dialog_mut(
+        &mut self,
+        cx: &App,
+    ) -> Option<&mut dyn DocumentPanel> {
+        self.panel_views.values_mut().find_map(|view| {
+            view.as_document_panel_mut()
+                .filter(|panel| panel.has_unsaved_dialog(cx))
+        })
+    }
+
+    /// The document panel currently requesting the drop-replace dialog.
+    pub(crate) fn document_panel_with_drop_replace_dialog_mut(
+        &mut self,
+        cx: &App,
+    ) -> Option<&mut dyn DocumentPanel> {
+        self.panel_views.values_mut().find_map(|view| {
+            view.as_document_panel_mut()
+                .filter(|panel| panel.has_drop_replace_dialog(cx))
+        })
+    }
+
+    /// Seeds the active document panel with the window's initial document.
+    pub(crate) fn load_initial_document(
+        &mut self,
+        text: String,
+        path: Option<PathBuf>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(panel) = self.active_document_panel_mut() {
+            panel.load_initial_document(text, path, cx);
+        }
     }
 
     /// All explorer panel instances in this window, for shell-side
@@ -129,9 +212,7 @@ impl Shell {
         let Some(_viewport) = self.last_viewport else {
             return;
         };
-        let active_tab_path = self
-            .active_editor_tab(cx)
-            .and_then(|tab| tab.file.path.clone());
+        let active_tab_path = self.active_document_tab_path(cx);
         for state in self.explorer_states() {
             state.update(cx, |state, _cx| state.active_file = active_tab_path.clone());
         }
@@ -207,14 +288,6 @@ impl Shell {
         self.panels.layout.toggle_maximize(panel_id.into().0);
         self.sync_panel_states(cx);
         cx.notify();
-    }
-
-    /// The editor content entity of `panel_id`, if the area holds one.
-    pub(crate) fn editor_for(&self, panel_id: impl Into<PanelId>) -> Option<&Entity<Editor>> {
-        self.panel_views
-            .get(&panel_id.into())
-            .and_then(|v| v.as_any().downcast_ref::<editor::EditorPanelView>())
-            .map(|p| &p.editor)
     }
 
     /// Returns total number of leaves in the outer window layout tree.

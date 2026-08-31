@@ -27,7 +27,7 @@ pub struct PreviewState {
 
 impl PaneView for PreviewState {
     fn kind(&self) -> PaneKind {
-        PaneKind::new("preview")
+        PaneKind::from_static(crate::builder::PANE_KIND)
     }
 
     fn capabilities(&self) -> core_contracts::PaneCapabilities {

@@ -42,7 +42,7 @@ impl WysiwygPaneState {
 
 impl PaneView for WysiwygPaneState {
     fn kind(&self) -> core_contracts::PaneKind {
-        core_contracts::PaneKind::new("wysiwyg")
+        core_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
     }
 
     fn capabilities(&self) -> PaneCapabilities {

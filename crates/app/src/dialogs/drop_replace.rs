@@ -16,10 +16,10 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(editor) = self.editor_with_dialog(cx, |file| file.show_drop_replace_dialog) else {
+        let Some(panel) = self.document_panel_with_drop_replace_dialog_mut(cx) else {
             return;
         };
-        editor.update(cx, |editor, cx| editor.cancel_drop_replace_dialog(cx));
+        panel.cancel_drop_replace_dialog(cx);
     }
 
     pub(crate) fn on_discard_and_replace_drop(
@@ -28,12 +28,10 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(editor) = self.editor_with_dialog(cx, |file| file.show_drop_replace_dialog) else {
+        let Some(panel) = self.document_panel_with_drop_replace_dialog_mut(cx) else {
             return;
         };
-        editor.update(cx, |editor, cx| {
-            editor.discard_pending_drop_replace(window, cx)
-        });
+        panel.discard_pending_drop_replace(window, cx);
     }
 
     pub(crate) fn on_save_and_replace_drop(
@@ -42,12 +40,10 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(editor) = self.editor_with_dialog(cx, |file| file.show_drop_replace_dialog) else {
+        let Some(panel) = self.document_panel_with_drop_replace_dialog_mut(cx) else {
             return;
         };
-        editor.update(cx, |editor, cx| {
-            editor.save_and_replace_pending_drop(window, cx)
-        });
+        panel.save_and_replace_pending_drop(window, cx);
     }
 
     pub(crate) fn render_drop_replace_overlay(

@@ -6,7 +6,7 @@ use std::path::Path;
 
 use super::RetainedPanel;
 use super::Shell;
-use super::host_bridge::{ShellEditorHost, ShellPanelHost};
+use super::host_bridge::{ShellDocumentHost, ShellPanelHost};
 use crate::window::open_cloned_window;
 use core_contracts::TabKind;
 use splitter::NodeId;
@@ -62,33 +62,19 @@ impl Shell {
             .and_then(|view| view.clone_state(cx))
     }
 
-    /// Inserts a panel view and wires the editor host when the view belongs
-    /// to the editor plugin.
+    /// Inserts a panel view and wires the document host when the view
+    /// implements the document-routing role.
     fn insert_panel_view(
         &mut self,
         panel_id: PanelId,
-        view: Box<dyn PanelView>,
+        mut view: Box<dyn PanelView>,
         cx: &mut Context<Self>,
     ) {
-        self.wire_editor_host(view.as_ref(), cx);
+        if let Some(panel) = view.as_document_panel_mut() {
+            let host = std::sync::Arc::new(ShellDocumentHost::new(cx.entity().downgrade()));
+            panel.attach_document_host(host, cx);
+        }
         self.panel_views.insert(panel_id, view);
-    }
-
-    /// Wires the editor's document host after a registry-created editor view
-    /// enters the shell. This is the single remaining editor-specific hook,
-    /// isolated behind the generic panel insertion path.
-    fn wire_editor_host(&self, view: &dyn PanelView, cx: &mut Context<Self>) {
-        let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() else {
-            return;
-        };
-        let shell = cx.entity().downgrade();
-        let editor = panel.editor.clone();
-        editor.update(cx, |editor, cx| {
-            editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
-            if editor.session.has_tabs() {
-                editor.sync_panes_with_active_tab(cx);
-            }
-        });
     }
 
     /// Restores a suspended state blob into a live view through its descriptor.
@@ -207,42 +193,37 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let previous = self.panels.layout.tree.find_leaf_kind(panel_id);
+        let was_document = previous.as_ref().is_some_and(Self::kind_is_document_panel);
         self.panels.layout.set_kind(panel_id, kind.clone());
         self.sync_panel_kind(panel_id, kind.clone(), cx);
-        if kind == window::PanelKind::new("editor")
-            && previous != Some(window::PanelKind::new("editor"))
-        {
+        if !was_document && self.leaf_is_document_panel(panel_id) {
             self.panels.layout.activate_leaf(panel_id);
         }
         self.sync_panel_states(cx);
     }
 
-    /// The editor area that a file open should target.
+    /// The document panel that a file open should target.
     #[inline]
-    pub(crate) fn active_editor_panel(&self) -> Option<NodeId> {
-        self.panels
-            .layout
-            .active_leaf_of_kind(window::PanelKind::new("editor"))
+    pub(crate) fn active_document_panel(&self) -> Option<NodeId> {
+        self.active_document_panel_id().map(|panel_id| panel_id.0)
     }
 
-    /// Opens `path` in the active editor's tab list, if an active editor exists.
-    pub(crate) fn open_file_in_active_editor(
+    /// Opens `path` in the active document panel's tab list, if one exists.
+    pub(crate) fn open_file_in_active_document_panel(
         &mut self,
         path: &Path,
         kind: TabKind,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(panel_id) = self.active_editor_panel() else {
+        let Some(panel_id) = self.active_document_panel() else {
             return false;
         };
         self.panels.layout.activate_leaf(panel_id);
-        let Some(editor) = self.editor_for(panel_id) else {
+        let Some(panel) = self.document_panel_mut_for(panel_id) else {
             return false;
         };
-        editor.update(cx, |editor, cx| {
-            editor.open_file_in_panel(path, kind, window, cx)
-        });
+        panel.open_file(path, kind, window, cx);
         cx.notify();
         true
     }
@@ -297,7 +278,7 @@ impl Shell {
         } else {
             TabKind::Transient
         };
-        self.open_file_in_active_editor(&path, kind, window, cx);
+        self.open_file_in_active_document_panel(&path, kind, window, cx);
     }
 
     pub(crate) fn on_open_in_split(
@@ -308,9 +289,9 @@ impl Shell {
     ) {
         let path = std::path::PathBuf::from(&action.path);
         let open_in_active = |shell: &mut Self, window: &mut Window, cx: &mut Context<Self>| {
-            shell.open_file_in_active_editor(&path, TabKind::Persistent, window, cx);
+            shell.open_file_in_active_document_panel(&path, TabKind::Persistent, window, cx);
         };
-        let Some(active) = self.active_editor_panel() else {
+        let Some(active) = self.active_document_panel() else {
             open_in_active(self, window, cx);
             return;
         };
@@ -320,14 +301,12 @@ impl Shell {
             open_in_active(self, window, cx);
             return;
         };
-        let Some(editor) = self.editor_for(new_panel).cloned() else {
+        self.panels.layout.activate_leaf(new_panel.0);
+        let Some(panel) = self.document_panel_mut_for(new_panel) else {
             open_in_active(self, window, cx);
             return;
         };
-        self.panels.layout.activate_leaf(new_panel.0);
-        editor.update(cx, |editor, cx| {
-            editor.open_file_in_panel(&path, TabKind::Persistent, window, cx)
-        });
+        panel.open_file(&path, TabKind::Persistent, window, cx);
     }
 
     pub(crate) fn swap_panel_contents(

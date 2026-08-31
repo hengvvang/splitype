@@ -86,7 +86,7 @@ impl Shell {
         cx.notify();
     }
 
-    pub(crate) fn prompt_close_editor_for(
+    pub(crate) fn prompt_close_panel_for(
         &mut self,
         panel_id: impl Into<PanelId>,
         cx: &mut Context<Self>,
@@ -113,18 +113,8 @@ impl Shell {
     ) {
         let panel_id = panel_id.into();
         let document_name = self
-            .editor_for(panel_id)
-            .and_then(|e| {
-                let editor = e.read(cx);
-                editor.session.tab(index).map(|t| {
-                    t.file
-                        .path
-                        .as_ref()
-                        .and_then(|p| p.file_name())
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "Untitled".to_string())
-                })
-            })
+            .document_panel_for(panel_id)
+            .and_then(|panel| panel.tab_display_name(index, cx))
             .unwrap_or_else(|| "Untitled".to_string());
 
         self.unsaved_dialog = Some(UnsavedDialogState {
@@ -143,14 +133,11 @@ impl Shell {
         let panel_id = panel_id.into();
         let (has_dirty, _) = self.dirty_info_in_panel(panel_id, cx);
         if has_dirty {
-            self.prompt_close_editor_for(panel_id, cx);
+            self.prompt_close_panel_for(panel_id, cx);
         } else if self.layout_leaf_count() > 1 {
             self.close_panel(panel_id, cx);
-        } else if let Some(editor) = self.editor_for(panel_id) {
-            editor.update(cx, |editor, cx| {
-                editor.session.clear_tabs();
-                cx.notify();
-            });
+        } else if let Some(panel) = self.document_panel_mut_for(panel_id) {
+            panel.clear_tabs(cx);
         }
     }
 

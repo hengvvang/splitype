@@ -4,16 +4,16 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::actions::{NoRecentFiles, SelectLanguage, SelectTheme};
-use crate::menus::dispatch_menu_action_for_editor;
+use crate::menus::dispatch_menu_action_for_panel;
 use crate::shell::Shell;
 use config::language::I18nManager;
-use editor::Editor;
 use theme::{Theme, ThemeManager};
 use ui::menu_bar::{
     menu_item_visual_height, menu_items_visual_height_with_gaps, menu_panel_left,
     menu_panel_width_for_labels, owned_menu_item_labels, submenu_panel_top,
 };
 use ui::menu_item::{menu_item, menu_item_row};
+use window::PanelId;
 
 impl Shell {
     pub(crate) fn render_in_window_menu_item(
@@ -23,7 +23,7 @@ impl Shell {
         prefix: &'static str,
         theme: &Theme,
         shell: WeakEntity<Shell>,
-        editor: WeakEntity<Editor>,
+        panel_id: PanelId,
         cx: &Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -124,10 +124,10 @@ impl Shell {
                         .cursor_pointer()
                         .on_click(move |_event, window, cx| {
                             let _ = click_shell.update(cx, |shell, cx| shell.close_menu_bar(cx));
-                            dispatch_menu_action_for_editor(
+                            dispatch_menu_action_for_panel(
                                 action.as_ref(),
                                 &shell,
-                                &editor,
+                                panel_id,
                                 window,
                                 cx,
                             );
@@ -185,7 +185,7 @@ impl Shell {
         menu_labels: &[SharedString],
         top_offset: f32,
         viewport_size: Size<Pixels>,
-        editor: WeakEntity<Editor>,
+        panel_id: PanelId,
     ) -> Option<AnyElement> {
         let viewport_width = f32::from(viewport_size.width.max(px(1.0)));
         let viewport_height = f32::from(viewport_size.height.max(px(1.0)));
@@ -241,7 +241,7 @@ impl Shell {
                                 "app-submenu",
                                 theme,
                                 shell.clone(),
-                                editor.clone(),
+                                panel_id,
                                 cx,
                             )
                         });
@@ -315,7 +315,7 @@ impl Shell {
                     "app-menu",
                     theme,
                     shell.clone(),
-                    editor.clone(),
+                    panel_id,
                     cx,
                 )
             });

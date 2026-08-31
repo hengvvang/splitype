@@ -100,3 +100,29 @@ thread and use `RefCell` or plain fields for transient UI state. Optional
 behaviors are declared through `PaneCapabilities` and hosts gate search,
 replacement, editing, outline, and navigation on the declaration, so a
 read-only pane can never fake an edit or dirty document.
+
+## ADR-012: Panels route documents through a capability and trait, not kinds
+
+**Status:** Accepted
+
+The window shell treats the editor as an ordinary third-party panel. Panel
+plugins declare `PanelCapabilities` (`documents`, `sidebar`); a panel that
+declares `documents` also implements the `DocumentPanel` trait, which carries
+every document lifecycle operation (open, tab save/close/discard, dirty
+dialogs, drop replacement, focus, save/export). The shell routes all of these
+through `dyn DocumentPanel` via opt-in downcast hooks on `PanelView` and never
+downcasts to a concrete editor type or compares kind strings. Menu actions
+dispatch to a panel by `PanelId` and the default window layout is derived from
+registry capabilities, so any plugin can take over the editor or sidebar role.
+
+## ADR-013: Contracts own the domain vocabulary; the shell depends on contracts
+
+**Status:** Accepted
+
+`core_contracts` no longer depends on the `window` shell crate. Panel and pane
+contracts, kind and id types, and the document vocabulary all live in
+`core_contracts`; `window` hosts the registry implementation and re-exports the
+contract types for compatibility. Built-in kinds are namespaced
+(`splitype.pane.*`, `splitype.panel.*`), constructed via `from_static` without
+allocating, and icon asset paths are decoupled from kind strings: topbar
+renderers take a plugin-owned `icon_prefix`.

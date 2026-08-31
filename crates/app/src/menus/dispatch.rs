@@ -15,14 +15,15 @@ use crate::dialogs::InfoDialogKind;
 use crate::shell::Shell;
 use crate::window::open_editor_window;
 use config::language::{I18nManager, apply_configured_language};
+use core_contracts::{DocumentPanel, ExportFormat};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use editor::view::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
-use editor::{Editor, ExportFormat};
 use settings::open_settings_window;
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use theme::apply_configured_theme;
+use window::PanelId;
 
 pub(crate) fn show_window_prompt(
     window: Option<AnyWindowHandle>,
@@ -63,16 +64,15 @@ pub(crate) fn with_shell_window<R>(
     None
 }
 
-pub(crate) fn with_primary_editor<R>(
+pub(crate) fn with_primary_document_panel<R>(
     cx: &mut App,
-    update: impl FnOnce(&mut Editor, &mut Window, &mut Context<Editor>) -> R,
+    update: impl FnOnce(&mut dyn DocumentPanel, &mut Window, &mut App) -> R,
 ) -> Option<R> {
     let window = cx.active_window()?.downcast::<Shell>()?;
     let result = window.update(cx, |shell, window, cx| {
-        let Some(editor) = shell.active_editor().cloned() else {
-            return None;
-        };
-        Some(editor.update(cx, |editor, cx| update(editor, window, cx)))
+        let panel_id = shell.primary_document_panel_id()?;
+        let panel = shell.document_panel_mut_for(panel_id)?;
+        Some(update(panel, window, cx))
     });
     result.ok().flatten()
 }
@@ -185,16 +185,18 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     } else if action.as_any().is::<AddThemeConfig>() {
         prompts::prompt_and_import_theme_config(cx);
     } else if action.as_any().is::<SaveDocument>() {
-        let _ = with_primary_editor(cx, |editor, window, cx| editor.save_document(window, cx));
+        let _ =
+            with_primary_document_panel(cx, |panel, window, cx| panel.save_document(window, cx));
     } else if action.as_any().is::<SaveDocumentAs>() {
-        let _ = with_primary_editor(cx, |editor, window, cx| editor.save_document_as(window, cx));
+        let _ =
+            with_primary_document_panel(cx, |panel, window, cx| panel.save_document_as(window, cx));
     } else if action.as_any().is::<ExportHtml>() {
-        let _ = with_primary_editor(cx, |editor, window, cx| {
-            editor.export_document_via_prompt(ExportFormat::Html, window, cx)
+        let _ = with_primary_document_panel(cx, |panel, window, cx| {
+            panel.export_document(ExportFormat::Html, window, cx)
         });
     } else if action.as_any().is::<ExportPdf>() {
-        let _ = with_primary_editor(cx, |editor, window, cx| {
-            editor.export_document_via_prompt(ExportFormat::Pdf, window, cx)
+        let _ = with_primary_document_panel(cx, |panel, window, cx| {
+            panel.export_document(ExportFormat::Pdf, window, cx)
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
         match apply_configured_theme(cx, &action.theme_id) {
@@ -269,12 +271,12 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     }
 }
 
-/// Executes a menu action directly with full access to the current shell,
-/// editor entity, and window context.
-pub(crate) fn dispatch_menu_action_for_editor(
+/// Executes a menu action with access to the originating shell window and
+/// its document panel, identified by the panel id the menu was rendered for.
+pub(crate) fn dispatch_menu_action_for_panel(
     action: &dyn Action,
     target_shell: &WeakEntity<Shell>,
-    target_editor: &WeakEntity<Editor>,
+    panel_id: PanelId,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -300,16 +302,28 @@ pub(crate) fn dispatch_menu_action_for_editor(
     } else if action.as_any().is::<AddThemeConfig>() {
         prompts::prompt_and_import_theme_config_with_error_window(cx, current_window);
     } else if action.as_any().is::<SaveDocument>() {
-        let _ = target_editor.update(cx, |editor, cx| editor.request_save_document(cx));
+        let _ = target_shell.update(cx, |shell, cx| {
+            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                panel.request_save_document(cx);
+            }
+        });
     } else if action.as_any().is::<SaveDocumentAs>() {
-        let _ = target_editor.update(cx, |editor, cx| editor.request_save_document_as(cx));
+        let _ = target_shell.update(cx, |shell, cx| {
+            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                panel.request_save_document_as(cx);
+            }
+        });
     } else if action.as_any().is::<ExportHtml>() {
-        let _ = target_editor.update(cx, |editor, cx| {
-            editor.export_document_via_prompt(ExportFormat::Html, window, cx);
+        let _ = target_shell.update(cx, |shell, cx| {
+            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                panel.export_document(ExportFormat::Html, window, cx);
+            }
         });
     } else if action.as_any().is::<ExportPdf>() {
-        let _ = target_editor.update(cx, |editor, cx| {
-            editor.export_document_via_prompt(ExportFormat::Pdf, window, cx);
+        let _ = target_shell.update(cx, |shell, cx| {
+            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                panel.export_document(ExportFormat::Pdf, window, cx);
+            }
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
         match apply_configured_theme(cx, &action.theme_id) {

@@ -18,7 +18,7 @@ pub mod builder;
 pub mod dispatch;
 pub mod prompts;
 
-pub(crate) use dispatch::{dispatch_menu_action_for_editor, request_quit_application};
+pub(crate) use dispatch::{dispatch_menu_action_for_panel, request_quit_application};
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]

@@ -18,25 +18,22 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         if let Some(dialog) = self.unsaved_dialog.take() {
-            let target_editor = dialog
+            let target_id = dialog
                 .scope
                 .panel_id()
-                .and_then(|id| self.editor_for(id))
-                .or_else(|| self.active_editor());
-            if let Some(editor) = target_editor {
-                editor.update(cx, |editor, cx| {
-                    if let Some(_restore) = dialog.restore_focus {
-                        let active_pane = editor.active_pane_id();
-                        if let Some(state) = editor.pane_state_mut(active_pane) {
-                            let _ = state.pane.focus_handle(cx);
-                        }
+                .filter(|id| self.document_panel_for(*id).is_some())
+                .or_else(|| self.active_document_panel_id());
+            if let Some(panel_id) = target_id {
+                if let Some(panel) = self.document_panel_mut_for(panel_id) {
+                    if dialog.restore_focus.is_some() {
+                        panel.focus_active_pane(cx);
                     }
                     cx.notify();
-                });
+                }
             }
         }
-        if let Some(editor) = self.editor_with_dialog(cx, |file| file.show_unsaved_changes_dialog) {
-            editor.update(cx, |editor, cx| editor.cancel_close_dialog(cx));
+        if let Some(panel) = self.document_panel_with_unsaved_dialog_mut(cx) {
+            panel.cancel_close_dialog(cx);
         }
         cx.notify();
     }
@@ -65,11 +62,9 @@ impl Shell {
                     }
                 }
                 UnsavedDialogScope::Tab { panel_id, index } => {
-                    if let Some(editor) = self.editor_for(panel_id) {
-                        editor.update(cx, |ed, cx| {
-                            ed.save_tab_at(index, window, cx);
-                            ed.close_tab(index, cx);
-                        });
+                    if let Some(panel) = self.document_panel_mut_for(panel_id) {
+                        panel.save_tab_at(index, window, cx);
+                        panel.close_tab(index, cx);
                     }
                 }
             }
@@ -77,8 +72,8 @@ impl Shell {
             return;
         }
 
-        if let Some(editor) = self.editor_with_dialog(cx, |file| file.show_unsaved_changes_dialog) {
-            editor.update(cx, |editor, cx| editor.save_and_close(window, cx));
+        if let Some(panel) = self.document_panel_with_unsaved_dialog_mut(cx) {
+            panel.save_and_close_dialog(window, cx);
         }
     }
 
@@ -113,13 +108,8 @@ impl Shell {
                     }
                 }
                 UnsavedDialogScope::Tab { panel_id, index } => {
-                    if let Some(editor) = self.editor_for(panel_id) {
-                        editor.update(cx, |ed, cx| {
-                            if let Some(tab) = ed.session.tab_mut(index) {
-                                tab.file.dirty = false;
-                            }
-                            ed.close_tab(index, cx);
-                        });
+                    if let Some(panel) = self.document_panel_mut_for(panel_id) {
+                        panel.discard_tab_at(index, cx);
                     }
                 }
             }
@@ -127,8 +117,8 @@ impl Shell {
             return;
         }
 
-        if let Some(editor) = self.editor_with_dialog(cx, |file| file.show_unsaved_changes_dialog) {
-            editor.update(cx, |editor, cx| editor.discard_and_close(cx));
+        if let Some(panel) = self.document_panel_with_unsaved_dialog_mut(cx) {
+            panel.discard_and_close_dialog(cx);
             if self.has_unsaved_changes(cx) {
                 self.prompt_close_window(cx);
             } else {

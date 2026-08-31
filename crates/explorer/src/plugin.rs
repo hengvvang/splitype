@@ -1,9 +1,16 @@
 use crate::state::state::ExplorerState;
 use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
+use core_contracts::PanelCapabilities;
 use gpui::*;
 use std::any::Any;
 use std::sync::Arc;
 use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
+
+/// Stable kind identifier of the explorer panel plugin.
+pub const PANEL_KIND: &str = "splitype.panel.explorer";
+
+/// Asset directory holding the explorer panel's topbar chrome icons.
+pub const TOPBAR_ICON_PREFIX: &str = "icons/explorer";
 
 /// View wrapper implementing [`PanelView`] for the Explorer sidebar.
 pub struct ExplorerPanelView {
@@ -24,7 +31,11 @@ impl ExplorerPanelView {
 
 impl PanelView for ExplorerPanelView {
     fn kind(&self) -> PanelKind {
-        PanelKind::new("explorer")
+        PanelKind::from_static(PANEL_KIND)
+    }
+
+    fn capabilities(&self) -> PanelCapabilities {
+        PanelCapabilities::SIDEBAR
     }
 
     fn display_name(&self) -> SharedString {
@@ -45,7 +56,7 @@ impl PanelView for ExplorerPanelView {
         let c = &theme.colors;
         let topbar = render_explorer_topbar(
             ctx.panel_id,
-            PanelKind::new("explorer"),
+            TOPBAR_ICON_PREFIX,
             theme,
             ctx.leaf_count,
             ctx.is_maximized,
@@ -98,7 +109,11 @@ impl ExplorerPanelDescriptor {
 
 impl PanelDescriptor for ExplorerPanelDescriptor {
     fn kind(&self) -> PanelKind {
-        PanelKind::new("explorer")
+        PanelKind::from_static(PANEL_KIND)
+    }
+
+    fn capabilities(&self) -> PanelCapabilities {
+        PanelCapabilities::SIDEBAR
     }
 
     fn display_name(&self) -> SharedString {

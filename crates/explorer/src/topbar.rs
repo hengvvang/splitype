@@ -10,12 +10,12 @@ use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 use ui::topbar::topbar_container;
 use window::actions::{ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized};
-use window::{PanelId, PanelKind, panel_topbar_icon};
+use window::{PanelId, panel_topbar_icon};
 
 /// Top bar of an Explorer area: type selector and split/close controls.
 pub fn render_explorer_topbar(
     panel_id: PanelId,
-    kind: PanelKind,
+    icon_prefix: &'static str,
     theme: &Theme,
     leaf_count: usize,
     is_maximized: bool,
@@ -39,7 +39,7 @@ pub fn render_explorer_topbar(
         .id(("panel-topbar-split-h", panel_id.0))
         .child(
             svg()
-                .path(panel_topbar_icon(&kind, "split-h"))
+                .path(panel_topbar_icon(icon_prefix, "split-h"))
                 .size(px(btn_icon_size))
                 .text_color(c.dialog_muted),
         )
@@ -57,7 +57,7 @@ pub fn render_explorer_topbar(
         .id(("panel-topbar-split-v", panel_id.0))
         .child(
             svg()
-                .path(panel_topbar_icon(&kind, "split-v"))
+                .path(panel_topbar_icon(icon_prefix, "split-v"))
                 .size(px(btn_icon_size))
                 .text_color(c.dialog_muted),
         )
@@ -84,9 +84,9 @@ pub fn render_explorer_topbar(
             .child(
                 svg()
                     .path(if is_maximized {
-                        panel_topbar_icon(&kind, "restore")
+                        panel_topbar_icon(icon_prefix, "restore")
                     } else {
-                        panel_topbar_icon(&kind, "maximize")
+                        panel_topbar_icon(icon_prefix, "maximize")
                     })
                     .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
@@ -99,7 +99,7 @@ pub fn render_explorer_topbar(
             .id(("panel-topbar-close", panel_id.0))
             .child(
                 svg()
-                    .path(panel_topbar_icon(&kind, "close"))
+                    .path(panel_topbar_icon(icon_prefix, "close"))
                     .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
             )

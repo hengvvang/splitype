@@ -789,7 +789,7 @@ impl SourceCodeState {
 
 impl core_contracts::PaneView for SourceCodeState {
     fn kind(&self) -> core_contracts::PaneKind {
-        core_contracts::PaneKind::new("source_code")
+        core_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
     }
 
     fn capabilities(&self) -> core_contracts::PaneCapabilities {

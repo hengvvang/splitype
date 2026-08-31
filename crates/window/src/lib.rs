@@ -14,5 +14,6 @@ pub use builder::WindowBuilder;
 pub use icons::{border_menu_style, panel_topbar_icon};
 pub use layout::{PanelId, WindowLayout};
 pub use panel::{
-    PanelDescriptor, PanelHost, PanelKind, PanelRegistry, PanelRenderContext, PanelView,
+    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelKind, PanelRegistry,
+    PanelRenderContext, PanelView,
 };

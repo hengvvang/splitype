@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 /// Strongly-typed, extensible identifier for a window-level panel.
 ///
 /// Owned and hashable so it can come from plugin manifests and persisted
-/// layouts, not only from compile-time literals. Built-in kinds use the
-/// `splitype.panel.*` namespace going forward; legacy single-word names are
-/// transitional.
+/// layouts, not only from compile-time literals. Built-in kinds live in the
+/// `splitype.panel.*` namespace; third-party plugins must use their own
+/// reverse-domain namespace (e.g. `com.vendor.product.panel`).
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PanelKind(Arc<str>);
 
@@ -19,6 +19,12 @@ impl PanelKind {
     #[inline]
     pub fn new(id: impl Into<Arc<str>>) -> Self {
         Self(id.into())
+    }
+
+    /// Builds a kind from a `'static` string without allocating.
+    #[inline]
+    pub fn from_static(id: &'static str) -> Self {
+        Self(Arc::from(id))
     }
 
     #[inline]

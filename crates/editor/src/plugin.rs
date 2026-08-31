@@ -1,10 +1,17 @@
 use crate::EditorSession;
 use crate::editor::Editor;
+use core_contracts::{DocumentHost, DocumentPanel, PanelCapabilities, PanelKind, TabKind};
 use gpui::*;
 use std::any::Any;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
+use window::{PanelDescriptor, PanelHost, PanelId, PanelRenderContext, PanelView};
+
+/// Stable kind identifier of the editor panel plugin.
+pub const PANEL_KIND: &str = "splitype.panel.editor";
+
+/// Asset directory holding the editor panel's topbar chrome icons.
+pub const TOPBAR_ICON_PREFIX: &str = "icons/editor";
 
 /// View wrapper implementing [`PanelView`] for an Editor container panel.
 pub struct EditorPanelView {
@@ -19,7 +26,19 @@ impl EditorPanelView {
 
 impl PanelView for EditorPanelView {
     fn kind(&self) -> PanelKind {
-        PanelKind::new("editor")
+        PanelKind::from_static(PANEL_KIND)
+    }
+
+    fn capabilities(&self) -> PanelCapabilities {
+        PanelCapabilities::DOCUMENTS
+    }
+
+    fn as_document_panel(&self) -> Option<&dyn DocumentPanel> {
+        Some(self)
+    }
+
+    fn as_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
+        Some(self)
     }
 
     fn display_name(&self) -> SharedString {
@@ -166,6 +185,177 @@ impl PanelView for EditorPanelView {
     }
 }
 
+impl DocumentPanel for EditorPanelView {
+    fn attach_document_host(&mut self, host: Arc<dyn DocumentHost>, cx: &mut App) {
+        let editor = self.editor.clone();
+        editor.update(cx, |editor, cx| {
+            editor.host = Some(host);
+            if editor.session.has_tabs() {
+                editor.sync_panes_with_active_tab(cx);
+            }
+        });
+    }
+
+    fn load_initial_document(&mut self, text: String, path: Option<PathBuf>, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            let has_content = !text.is_empty() || path.is_some();
+            if has_content {
+                let tab = Editor::new_tab_from_markdown(text, path);
+                editor.session.push_tab(tab);
+            }
+            cx.notify();
+        });
+    }
+
+    fn open_file(&mut self, path: &Path, kind: TabKind, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.open_file_in_panel(path, kind, window, cx);
+        });
+    }
+
+    fn active_tab_path(&self, cx: &App) -> Option<PathBuf> {
+        let editor = self.editor.read(cx);
+        editor.active_tab().and_then(|tab| tab.file.path.clone())
+    }
+
+    fn tab_display_name(&self, index: usize, cx: &App) -> Option<String> {
+        let editor = self.editor.read(cx);
+        editor.session.tab(index).map(|tab| {
+            tab.file
+                .path
+                .as_ref()
+                .and_then(|path| path.file_name())
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Untitled".to_string())
+        })
+    }
+
+    fn save_tab_at(&mut self, index: usize, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_tab_at(index, window, cx);
+        });
+    }
+
+    fn close_tab(&mut self, index: usize, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.close_tab(index, cx);
+        });
+    }
+
+    fn discard_tab_at(&mut self, index: usize, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            if let Some(tab) = editor.session.tab_mut(index) {
+                tab.file.dirty = false;
+            }
+            editor.close_tab(index, cx);
+        });
+    }
+
+    fn clear_tabs(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.session.clear_tabs();
+            cx.notify();
+        });
+    }
+
+    fn has_unsaved_dialog(&self, cx: &App) -> bool {
+        let editor = self.editor.read(cx);
+        editor
+            .session
+            .tabs()
+            .any(|tab| tab.file.show_unsaved_changes_dialog)
+    }
+
+    fn cancel_close_dialog(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.cancel_close_dialog(cx);
+        });
+    }
+
+    fn save_and_close_dialog(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_and_close(window, cx);
+        });
+    }
+
+    fn discard_and_close_dialog(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.discard_and_close(cx);
+        });
+    }
+
+    fn has_drop_replace_dialog(&self, cx: &App) -> bool {
+        let editor = self.editor.read(cx);
+        editor
+            .session
+            .tabs()
+            .any(|tab| tab.file.show_drop_replace_dialog)
+    }
+
+    fn cancel_drop_replace_dialog(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.cancel_drop_replace_dialog(cx);
+        });
+    }
+
+    fn save_and_replace_pending_drop(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_and_replace_pending_drop(window, cx);
+        });
+    }
+
+    fn discard_pending_drop_replace(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.discard_pending_drop_replace(window, cx);
+        });
+    }
+
+    fn focus_active_pane(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            let active_pane = editor.active_pane_id();
+            if let Some(state) = editor.pane_state_mut(active_pane) {
+                let _ = state.pane.focus_handle(cx);
+            }
+            cx.notify();
+        });
+    }
+
+    fn request_save_document(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.request_save_document(cx);
+        });
+    }
+
+    fn request_save_document_as(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.request_save_document_as(cx);
+        });
+    }
+
+    fn save_document(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_document(window, cx);
+        });
+    }
+
+    fn save_document_as(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.save_document_as(window, cx);
+        });
+    }
+
+    fn export_document(
+        &mut self,
+        format: core_contracts::ExportFormat,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.editor.update(cx, |editor, cx| {
+            editor.export_document_via_prompt(format, window, cx);
+        });
+    }
+}
+
 /// Panel descriptor for the Editor plugin.
 #[derive(Clone, Debug, Default)]
 pub struct EditorPanelDescriptor {}
@@ -178,7 +368,11 @@ impl EditorPanelDescriptor {
 
 impl PanelDescriptor for EditorPanelDescriptor {
     fn kind(&self) -> PanelKind {
-        PanelKind::new("editor")
+        PanelKind::from_static(PANEL_KIND)
+    }
+
+    fn capabilities(&self) -> PanelCapabilities {
+        PanelCapabilities::DOCUMENTS
     }
 
     fn display_name(&self) -> SharedString {

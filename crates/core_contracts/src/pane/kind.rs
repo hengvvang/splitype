@@ -21,6 +21,12 @@ impl PaneKind {
         &self.0
     }
 
+    /// Builds a kind from a `'static` string without allocating.
+    #[inline]
+    pub fn from_static(id: &'static str) -> Self {
+        Self(Arc::from(id))
+    }
+
     /// Reserved placeholder for sessions materialized before pane
     /// registration; never produced by a registered descriptor.
     pub fn unset() -> Self {

@@ -1,7 +1,6 @@
 //! Panel view trait contract and rendering context.
 
-use crate::layout::PanelId;
-use crate::panel::PanelKind;
+use crate::panel::{DocumentPanel, PanelCapabilities, PanelId, PanelKind};
 use config::language::I18nStrings;
 use gpui::{AnyElement, App, Bounds, FocusHandle, Pixels, Point, SharedString, Window};
 use std::any::Any;
@@ -21,6 +20,11 @@ pub struct PanelRenderContext<'a> {
 }
 
 /// Universal trait contract that any top-level window panel must implement.
+///
+/// Optional roles (such as document routing) are opt-in: a panel declares
+/// them through [`PanelView::capabilities`] and exposes the corresponding
+/// trait via the `as_*` downcast hooks below. The shell never downcasts to
+/// concrete plugin types.
 pub trait PanelView: 'static {
     /// The unique identifier of this panel's kind.
     fn kind(&self) -> PanelKind;
@@ -30,6 +34,22 @@ pub trait PanelView: 'static {
 
     /// The icon asset path for this panel (if any).
     fn icon(&self) -> Option<&'static str> {
+        None
+    }
+
+    /// The roles this panel instance can serve. Hosts use this to route
+    /// window-level responsibilities without knowing the concrete type.
+    fn capabilities(&self) -> PanelCapabilities {
+        PanelCapabilities::default()
+    }
+
+    /// Downcast hook for the document-routing role.
+    fn as_document_panel(&self) -> Option<&dyn DocumentPanel> {
+        None
+    }
+
+    /// Mutable downcast hook for the document-routing role.
+    fn as_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
         None
     }
 

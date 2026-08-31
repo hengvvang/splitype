@@ -5,6 +5,12 @@ use std::any::Any;
 use std::sync::Arc;
 use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 
+/// Stable kind identifier of the settings panel plugin.
+pub const PANEL_KIND: &str = "splitype.panel.settings";
+
+/// Asset directory holding the settings panel's topbar chrome icons.
+pub const TOPBAR_ICON_PREFIX: &str = "icons/settings";
+
 /// View wrapper implementing [`PanelView`] for the Settings panel.
 pub struct SettingsPanelView {
     pub panel_id: PanelId,
@@ -22,7 +28,7 @@ impl SettingsPanelView {
 
 impl PanelView for SettingsPanelView {
     fn kind(&self) -> PanelKind {
-        PanelKind::new("settings")
+        PanelKind::from_static(PANEL_KIND)
     }
 
     fn display_name(&self) -> SharedString {
@@ -44,7 +50,7 @@ impl PanelView for SettingsPanelView {
         let state = self.state.clone();
         let topbar = render_settings_topbar(
             ctx.panel_id,
-            PanelKind::new("settings"),
+            TOPBAR_ICON_PREFIX,
             theme,
             ctx.leaf_count,
             ctx.is_maximized,
@@ -93,7 +99,7 @@ impl SettingsPanelDescriptor {
 
 impl PanelDescriptor for SettingsPanelDescriptor {
     fn kind(&self) -> PanelKind {
-        PanelKind::new("settings")
+        PanelKind::from_static(PANEL_KIND)
     }
 
     fn display_name(&self) -> SharedString {

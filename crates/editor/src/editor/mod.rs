@@ -20,7 +20,7 @@ use std::sync::Arc;
 pub use gpui::*;
 
 pub use core_contracts::OutlineHudState;
-pub use core_contracts::{AutoscrollStrategy, EditorHost, PaneId};
+pub use core_contracts::{AutoscrollStrategy, DocumentHost, PaneId};
 pub use splitter::root::SplitterRoot;
 pub use window::{PanelId, PanelKind};
 
@@ -36,7 +36,7 @@ pub struct Editor {
     pub panel_id: PanelId,
     pub entity_id: EntityId,
     pub self_weak: WeakEntity<Self>,
-    pub host: Option<Arc<dyn EditorHost>>,
+    pub host: Option<Arc<dyn DocumentHost>>,
     pub pane_host: Arc<dyn core_contracts::PaneHost>,
     pub search_view: Arc<dyn core_contracts::SearchStateView>,
     pub search_ime: Arc<dyn core_contracts::SearchIme>,
@@ -263,7 +263,7 @@ impl Editor {
         }
     }
 
-    pub fn open_file_in_active_editor(
+    pub fn open_file_in_active_document_panel(
         &mut self,
         path: &std::path::Path,
         kind: TabKind,
@@ -273,7 +273,7 @@ impl Editor {
         let Some(host) = self.host.clone() else {
             return false;
         };
-        host.open_file_in_active_editor(path, kind, window, cx)
+        host.open_file_in_active_document_panel(path, kind, window, cx)
     }
 
     pub fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {
@@ -403,7 +403,7 @@ impl Editor {
     pub fn defer_host_action(
         &self,
         cx: &mut Context<Self>,
-        action: impl FnOnce(&dyn EditorHost, &mut App) + 'static,
+        action: impl FnOnce(&dyn DocumentHost, &mut App) + 'static,
     ) {
         if let Some(host) = self.host.clone() {
             cx.defer(move |cx| {

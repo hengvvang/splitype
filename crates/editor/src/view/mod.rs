@@ -11,7 +11,6 @@ use gpui::*;
 use crate::editor::Editor;
 use config::language::I18nManager;
 use theme::ThemeManager;
-use window::PanelKind;
 
 pub const SPLITYPE_REPOSITORY_URL: &str = "https://github.com/hengvvang/splitype";
 pub const SPLITYPE_BUG_REPORT_URL: &str =
@@ -101,7 +100,7 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_jump_to_top))
             .on_action(cx.listener(Self::on_jump_to_bottom))
             .child(self.render_editor_topbar(
-                PanelKind::new("editor"),
+                crate::plugin::TOPBAR_ICON_PREFIX,
                 &theme,
                 leaf_count,
                 is_maximized,

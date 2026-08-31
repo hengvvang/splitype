@@ -86,7 +86,7 @@ impl Editor {
         }
         if let Some(host) = self.host.clone() {
             host.record_recent_file(&path, cx);
-            host.sync_explorer_after_document_path_change(cx);
+            host.on_document_path_changed(cx);
         }
         cx.notify();
     }
@@ -615,7 +615,7 @@ impl Editor {
         self.sync_panes_with_active_tab(cx);
         if let Some(host) = self.host.clone() {
             host.record_recent_file(path, cx);
-            host.sync_explorer_after_document_path_change(cx);
+            host.on_document_path_changed(cx);
         }
         cx.notify();
         Ok(())
