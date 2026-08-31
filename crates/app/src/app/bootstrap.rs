@@ -208,7 +208,12 @@ pub fn run(args: Args) {
     });
 }
 
-/// Registers all built-in pane descriptors into the global PaneRegistry.
+/// Registers all built-in pane and panel descriptors into their global registries.
 pub(crate) fn register_pane_descriptors() {
     editor_builder::EditorBuilder::register_defaults();
+
+    let mut registry = workspace::PanelRegistry::global().lock().unwrap();
+    registry.register(std::sync::Arc::new(editor_core::EditorPanelDescriptor::new()));
+    registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()));
+    registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()));
 }

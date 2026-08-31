@@ -53,20 +53,18 @@ pub(crate) const ABOUT_EMOJIS: &[&str] = &[
 ];
 
 impl Shell {
-    /// The editor that holds any tab satisfying `show` (dialog routing).
     pub(crate) fn editor_with_dialog(
         &self,
         cx: &App,
         show: fn(&FileState) -> bool,
-
     ) -> Option<Entity<Editor>> {
-        self.panel_contents
+        self.panel_views
             .values()
-            .find_map(|content| {
-                let entity = content.as_editor()?;
-                let editor = entity.read(cx);
+            .find_map(|view| {
+                let panel = view.as_any().downcast_ref::<editor_core::EditorPanelView>()?;
+                let editor = panel.editor.read(cx);
                 if editor.session.tabs().any(|tab| show(&tab.file)) {
-                    Some(entity.clone())
+                    Some(panel.editor.clone())
                 } else {
                     None
                 }
@@ -151,9 +149,9 @@ impl Shell {
         if let Some(dialog) = self.unsaved_dialog.take() {
             match dialog.scope {
                 crate::app::shell::UnsavedDialogScope::Window => {
-                    for content in self.panel_contents.values() {
-                        if let Some(editor) = content.as_editor() {
-                            editor.update(cx, |ed, cx| {
+                    for view in self.panel_views.values() {
+                        if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                            panel.editor.update(cx, |ed, cx| {
                                 ed.save_all_dirty_tabs(window, cx);
                             });
                         }
@@ -208,9 +206,9 @@ impl Shell {
                             tab.file.dirty = false;
                         }
                     }
-                    for content in self.panel_contents.values() {
-                        if let Some(editor) = content.as_editor() {
-                            editor.update(cx, |ed, cx| {
+                    for view in self.panel_views.values() {
+                        if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                            panel.editor.update(cx, |ed, cx| {
                                 for tab in ed.session.tabs_mut() {
                                     tab.file.dirty = false;
                                 }

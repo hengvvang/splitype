@@ -39,6 +39,32 @@ impl WindowPanelKind {
     pub fn all() -> &'static [WindowPanelKind] {
         &[Self::Editor, Self::Explorer, Self::Settings]
     }
+
+    pub fn to_kind_id(&self) -> crate::plugin::PanelKindId {
+        match self {
+            Self::Editor => crate::plugin::PanelKindId::EDITOR,
+            Self::Explorer => crate::plugin::PanelKindId::EXPLORER,
+            Self::Settings => crate::plugin::PanelKindId::SETTINGS,
+        }
+    }
+}
+
+impl From<WindowPanelKind> for crate::plugin::PanelKindId {
+    fn from(kind: WindowPanelKind) -> Self {
+        kind.to_kind_id()
+    }
+}
+
+impl TryFrom<crate::plugin::PanelKindId> for WindowPanelKind {
+    type Error = ();
+    fn try_from(kind: crate::plugin::PanelKindId) -> Result<Self, Self::Error> {
+        match kind {
+            crate::plugin::PanelKindId::EDITOR => Ok(WindowPanelKind::Editor),
+            crate::plugin::PanelKindId::EXPLORER => Ok(WindowPanelKind::Explorer),
+            crate::plugin::PanelKindId::SETTINGS => Ok(WindowPanelKind::Settings),
+            _ => Err(()),
+        }
+    }
 }
 
 /// The two outer states an Editor panel can be in.

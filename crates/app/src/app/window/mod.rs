@@ -10,10 +10,10 @@ use anyhow::Context as _;
 use gpui::*;
 
 use crate::app::menus::install_menus;
-use crate::app::shell::{PanelContent, Shell, ShellEditorHost};
+use crate::app::shell::{Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
-use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
+use workspace::{PanelId, PanelView, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
 use editor_core::{Editor, EditorSession};
 
 use explorer::ExplorerState;
@@ -71,12 +71,16 @@ pub(crate) fn open_editor_window(
                         editor_core::Editor::new(markdown, file_path, cx)
                     }
                 });
+                let explorer_view: Box<dyn PanelView> =
+                    Box::new(explorer::ExplorerPanelView::new(PanelId(ROOT_PANEL_ID)));
+                let editor_view: Box<dyn PanelView> =
+                    Box::new(editor_core::EditorPanelView::new(editor.clone()));
+
                 let shell = cx.new(move |_cx| Shell {
-                    // The default layout is Explorer (left) + Editor (right);
-                    // only Editor panel_contents carry content entities.
-                    panel_contents: [
-                        (PanelId(ROOT_PANEL_ID), PanelContent::Explorer),
-                        (PanelId(DEFAULT_EDITOR_PANEL_ID), PanelContent::Editor(editor)),
+                    // The default layout is Explorer (left) + Editor (right).
+                    panel_views: [
+                        (PanelId(ROOT_PANEL_ID), explorer_view),
+                        (PanelId(DEFAULT_EDITOR_PANEL_ID), editor_view),
                     ]
                     .into(),
                     retained_editor_sessions: HashMap::new(),
@@ -91,17 +95,9 @@ pub(crate) fn open_editor_window(
                 });
                 // Wire the editor entity to its Shell.
                 let shell_weak = shell.downgrade();
-                let editors: Vec<Entity<Editor>> = shell
-                    .read(cx)
-                    .panel_contents
-                    .values()
-                    .filter_map(|content| content.as_editor().cloned())
-                    .collect();
-                for editor in editors {
-                    editor.update(cx, |e, _cx| {
-                        e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
-                    });
-                }
+                editor.update(cx, |e, _cx| {
+                    e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
+                });
                 shell
             },
         )
@@ -134,31 +130,23 @@ pub(crate) fn open_cloned_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
                 // Materialize one Editor entity per cloned session, and ensure all leaves exist.
-                let mut panel_contents = HashMap::new();
+                let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
                 for (panel_id, session) in sessions {
                     let editor = cx.new(|cx| editor_core::Editor::with_session(panel_id, session, cx));
-                    panel_contents.insert(panel_id, PanelContent::Editor(editor));
+                    panel_views.insert(panel_id, Box::new(editor_core::EditorPanelView::new(editor)));
                 }
 
                 let mut leaf_ids = Vec::new();
                 tree.leaf_ids(&mut leaf_ids);
+                let registry = workspace::PanelRegistry::global().lock().unwrap();
                 for leaf_id in leaf_ids {
                     let panel_id = PanelId(leaf_id);
                     if let Some(kind) = tree.find_leaf_kind(leaf_id) {
-                        panel_contents.entry(panel_id).or_insert_with(|| match kind {
-                            WindowPanelKind::Explorer => PanelContent::Explorer,
-                            WindowPanelKind::Settings => PanelContent::Settings,
-                            WindowPanelKind::Editor => {
-                                let editor = cx.new(|cx| {
-                                    editor_core::Editor::with_session(
-                                        panel_id,
-                                        editor_core::EditorSession::welcome(),
-                                        cx,
-                                    )
-                                });
-                                PanelContent::Editor(editor)
+                        if !panel_views.contains_key(&panel_id) {
+                            if let Some(view) = registry.create_panel(kind.to_kind_id(), panel_id, cx) {
+                                panel_views.insert(panel_id, view);
                             }
-                        });
+                        }
                     }
                 }
 
@@ -177,7 +165,7 @@ pub(crate) fn open_cloned_window(
                     panels.layout.activation_history.clear();
                 }
                 let shell = cx.new(move |_cx| Shell {
-                    panel_contents,
+                    panel_views,
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
@@ -192,9 +180,10 @@ pub(crate) fn open_cloned_window(
                 let shell_weak = shell.downgrade();
                 let editors: Vec<Entity<Editor>> = shell
                     .read(cx)
-                    .panel_contents
+                    .panel_views
                     .values()
-                    .filter_map(|content| content.as_editor().cloned())
+                    .filter_map(|view| view.as_any().downcast_ref::<editor_core::EditorPanelView>())
+                    .map(|p| p.editor.clone())
                     .collect();
                 for editor in editors {
                     editor.update(cx, |e, _cx| {

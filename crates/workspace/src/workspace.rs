@@ -19,6 +19,7 @@ pub mod actions;
 pub mod builder;
 pub mod icons;
 pub mod panels;
+pub mod plugin;
 
 pub use actions::{
     ClosePanel, Copy, Cut, DismissTransientUi, OpenInEditor, OpenInSplit, Paste, SplitPanel,
@@ -30,3 +31,4 @@ pub use panels::{
     EditorPanelMode, PanelId, WindowPanelKind, WindowLayout, default_layout,
     DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID,
 };
+pub use plugin::*;

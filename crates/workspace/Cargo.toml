@@ -13,6 +13,7 @@ path = "src/workspace.rs"
 workspace = true
 
 [dependencies]
+config = { path = "../config" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 gpui = { workspace = true }

@@ -9,9 +9,12 @@ pub mod input;
 pub mod layout;
 pub mod navigation;
 pub mod outline;
+pub mod plugin;
 pub mod search;
 pub mod session;
 pub mod view;
+
+pub use plugin::*;
 
 pub use actions::defs as action_defs;
 pub use actions::defs::*;

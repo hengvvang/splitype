@@ -26,32 +26,7 @@ use theme::ThemeManager;
 use splitter::NodeId;
 use splitter::tree::SplitAxis;
 
-/// The polymorphic content of one area in the outer layout tree.
-#[derive(Clone)]
-pub enum PanelContent {
-    /// An editor with its own tab list and pane layout.
-    Editor(Entity<Editor>),
-    /// A file explorer sidebar panel.
-    Explorer,
-    /// An in-window settings panel.
-    Settings,
-}
-
-impl PanelContent {
-    #[inline]
-    pub fn is_editor(&self) -> bool {
-        matches!(self, Self::Editor(_))
-    }
-
-    #[inline]
-    pub fn as_editor(&self) -> Option<&Entity<Editor>> {
-        match self {
-            Self::Editor(editor) => Some(editor),
-            _ => None,
-        }
-    }
-
-}
+use workspace::PanelView;
 
 /// Scope of an unsaved-changes confirmation dialog.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -85,12 +60,10 @@ pub(crate) struct UnsavedDialogState {
     pub(crate) restore_focus: Option<EntityId>,
 }
 
-/// The OS window's root entity: content panel_contents + window lifecycle.
+/// The OS window's root entity: content panel_views + window lifecycle.
 pub struct Shell {
-    /// Content entity per outer area id. An area holds a content entity
-    /// only while its kind is `Editor`; switching kinds moves the entity
-    /// away (its session is retained while it still holds tabs).
-    pub(crate) panel_contents: HashMap<PanelId, PanelContent>,
+    /// Polymorphic panel views implementing [`PanelView`].
+    pub(crate) panel_views: HashMap<PanelId, Box<dyn PanelView>>,
     /// Sessions of Editor panel_contents that left the Editor kind with tabs
     /// (background editing): switching back recreates the entity with the
     /// retained session.
@@ -126,9 +99,13 @@ impl Shell {
 
     /// The window's primary (first) editor area content, if any.
     pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
-        self.panel_contents
+        self.panel_views
             .values()
-            .find_map(|content| content.as_editor())
+            .find_map(|view| {
+                view.as_any()
+                    .downcast_ref::<editor_core::EditorPanelView>()
+                    .map(|p| &p.editor)
+            })
     }
 
     /// The currently active/focused editor, or falls back to primary_editor.
@@ -164,10 +141,12 @@ impl Shell {
         let active = self.panels.layout.active_leaf;
         let leaf_count = self.panels.layout.tree.count_leaves();
         let editors: Vec<(PanelId, Entity<Editor>)> = self
-            .panel_contents
+            .panel_views
             .iter()
-            .filter_map(|(panel_id, content)| {
-                content.as_editor().map(|entity| (*panel_id, entity.clone()))
+            .filter_map(|(panel_id, view)| {
+                view.as_any()
+                    .downcast_ref::<editor_core::EditorPanelView>()
+                    .map(|p| (*panel_id, p.editor.clone()))
             })
             .collect();
         for (panel_id, entity) in editors {
@@ -390,10 +369,7 @@ impl Shell {
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
-    /// the panel_contents map. The new entity is wired to this Shell and its
-    /// reference registries are rebuilt for the (possibly cloned) document
-    //    /// Creates a fresh Editor entity serving `panel_id` and registers it in
-    /// the panel_contents map. The new entity is wired to this Shell and its
+    /// the panel_views map. The new entity is wired to this Shell and its
     /// reference registries are rebuilt for the (possibly cloned) document
     /// tabs.
     pub(crate) fn add_editor_panel(
@@ -412,8 +388,8 @@ impl Shell {
                 editor.sync_panes_with_active_tab(cx);
             }
         });
-        self.panel_contents
-            .insert(panel_id, PanelContent::Editor(editor.clone()));
+        self.panel_views
+            .insert(panel_id, Box::new(editor_core::EditorPanelView::new(editor.clone())));
         editor
     }
 
@@ -427,9 +403,9 @@ impl Shell {
 
         match change {
             ExplorerChange::Moved { from, to } | ExplorerChange::Renamed { from, to } => {
-                for content in self.panel_contents.values() {
-                    if let Some(editor) = content.as_editor() {
-                        editor.update(cx, |ed, _cx| {
+                for view in self.panel_views.values() {
+                    if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                        panel.editor.update(cx, |ed, _cx| {
                             ed.update_tab_path(from, to);
                         });
                     }
@@ -517,11 +493,9 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> Option<EditorSession> {
         let panel_id = panel_id.into();
-        let content = self.panel_contents.remove(&panel_id)?;
-        let entity = match content {
-            PanelContent::Editor(entity) => entity,
-            _ => return None,
-        };
+        let view = self.panel_views.remove(&panel_id)?;
+        let panel = view.as_any().downcast_ref::<editor_core::EditorPanelView>()?;
+        let entity = panel.editor.clone();
         Some(entity.update(cx, |editor, cx| {
             editor.clear_search_highlights_from_document(cx);
             editor.search.visible = false;
@@ -530,7 +504,7 @@ impl Shell {
         }))
     }
 
-    /// Swaps the content entities of two panel_contents so they follow the swapped
+    /// Swaps the content entities of two panel_views so they follow the swapped
     /// area kinds; retained sessions swap along with them.
     pub(crate) fn swap_panel_contents(
         &mut self,
@@ -540,19 +514,19 @@ impl Shell {
     ) {
         let a = a.into();
         let b = b.into();
-        let content_a = self.panel_contents.remove(&a);
-        let content_b = self.panel_contents.remove(&b);
-        if let Some(content) = content_a {
-            if let Some(entity) = content.as_editor() {
-                entity.update(cx, |editor, _cx| editor.panel_id = b);
+        let view_a = self.panel_views.remove(&a);
+        let view_b = self.panel_views.remove(&b);
+        if let Some(view) = view_a {
+            if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                panel.editor.update(cx, |editor, _cx| editor.panel_id = b);
             }
-            self.panel_contents.insert(b, content);
+            self.panel_views.insert(b, view);
         }
-        if let Some(content) = content_b {
-            if let Some(entity) = content.as_editor() {
-                entity.update(cx, |editor, _cx| editor.panel_id = a);
+        if let Some(view) = view_b {
+            if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                panel.editor.update(cx, |editor, _cx| editor.panel_id = a);
             }
-            self.panel_contents.insert(a, content);
+            self.panel_views.insert(a, view);
         }
         let retained_a = self.retained_editor_sessions.remove(&a);
         let retained_b = self.retained_editor_sessions.remove(&b);
@@ -577,9 +551,9 @@ impl Shell {
         let source_id = source_id.into();
         let target_id = target_id.into();
         let new_leaf_id = new_leaf_id.into();
-        let source_content = self.panel_contents.remove(&source_id);
+        let source_view = self.panel_views.remove(&source_id);
         let source_retained = self.retained_editor_sessions.remove(&source_id);
-        let target_content = self.panel_contents.remove(&target_id);
+        let target_view = self.panel_views.remove(&target_id);
         let target_retained = self.retained_editor_sessions.remove(&target_id);
 
         let source_first = matches!(
@@ -590,42 +564,42 @@ impl Shell {
 
         if source_first {
             // target_id gets source content
-            if let Some(content) = source_content {
-                if let Some(entity) = content.as_editor() {
-                    entity.update(cx, |editor, _cx| editor.panel_id = target_id);
+            if let Some(view) = source_view {
+                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                    panel.editor.update(cx, |editor, _cx| editor.panel_id = target_id);
                 }
-                self.panel_contents.insert(target_id, content);
+                self.panel_views.insert(target_id, view);
             }
             if let Some(session) = source_retained {
                 self.retained_editor_sessions.insert(target_id, session);
             }
             // new_leaf_id gets target content
-            if let Some(content) = target_content {
-                if let Some(entity) = content.as_editor() {
-                    entity.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
+            if let Some(view) = target_view {
+                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                    panel.editor.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
                 }
-                self.panel_contents.insert(new_leaf_id, content);
+                self.panel_views.insert(new_leaf_id, view);
             }
             if let Some(session) = target_retained {
                 self.retained_editor_sessions.insert(new_leaf_id, session);
             }
         } else {
             // target_id keeps target content
-            if let Some(content) = target_content {
-                if let Some(entity) = content.as_editor() {
-                    entity.update(cx, |editor, _cx| editor.panel_id = target_id);
+            if let Some(view) = target_view {
+                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                    panel.editor.update(cx, |editor, _cx| editor.panel_id = target_id);
                 }
-                self.panel_contents.insert(target_id, content);
+                self.panel_views.insert(target_id, view);
             }
             if let Some(session) = target_retained {
                 self.retained_editor_sessions.insert(target_id, session);
             }
             // new_leaf_id gets source content
-            if let Some(content) = source_content {
-                if let Some(entity) = content.as_editor() {
-                    entity.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
+            if let Some(view) = source_view {
+                if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                    panel.editor.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
                 }
-                self.panel_contents.insert(new_leaf_id, content);
+                self.panel_views.insert(new_leaf_id, view);
             }
             if let Some(session) = source_retained {
                 self.retained_editor_sessions.insert(new_leaf_id, session);
@@ -634,7 +608,7 @@ impl Shell {
         self.sync_panel_states(cx);
     }
 
-    /// Aligns the panel_contents map with an area-kind change: entering Editor
+    /// Aligns the panel_views map with an area-kind change: entering Editor
     /// recreates the entity (restoring a retained session when one exists);
     /// leaving Editor removes the entity, retaining its session while it
     /// still holds tabs (background editing).
@@ -646,7 +620,7 @@ impl Shell {
     ) {
         let panel_id = panel_id.into();
         if is_editor {
-            if self.panel_contents.get(&panel_id).is_some_and(|c| c.is_editor()) {
+            if self.editor_for(panel_id).is_some() {
                 return;
             }
             let session = self
@@ -661,14 +635,9 @@ impl Shell {
                 }
             }
             if let Some(kind) = self.panels.layout.tree.find_leaf_kind(panel_id.0) {
-                match kind {
-                    WindowPanelKind::Explorer => {
-                        self.panel_contents.insert(panel_id, PanelContent::Explorer);
-                    }
-                    WindowPanelKind::Settings => {
-                        self.panel_contents.insert(panel_id, PanelContent::Settings);
-                    }
-                    WindowPanelKind::Editor => {}
+                let registry = workspace::PanelRegistry::global().lock().unwrap();
+                if let Some(view) = registry.create_panel(kind.to_kind_id(), panel_id, cx) {
+                    self.panel_views.insert(panel_id, view);
                 }
             }
         }
@@ -685,9 +654,9 @@ impl Shell {
                 }
             }
         }
-        for content in self.panel_contents.values() {
-            if let Some(entity) = content.as_editor() {
-                if let Some(dirty) = entity.read(cx).first_dirty_tab() {
+        for view in self.panel_views.values() {
+            if let Some(panel) = view.as_any().downcast_ref::<editor_core::EditorPanelView>() {
+                if let Some(dirty) = panel.editor.read(cx).first_dirty_tab() {
                     return Some(dirty);
                 }
             }
@@ -735,7 +704,10 @@ impl Shell {
 
     /// The editor content entity of `panel_id`, if the area holds one.
     pub(crate) fn editor_for(&self, panel_id: impl Into<PanelId>) -> Option<&Entity<Editor>> {
-        self.panel_contents.get(&panel_id.into()).and_then(|c| c.as_editor())
+        self.panel_views
+            .get(&panel_id.into())
+            .and_then(|v| v.as_any().downcast_ref::<editor_core::EditorPanelView>())
+            .map(|p| &p.editor)
     }
 
     /// Returns total number of leaves in the outer window layout tree.

@@ -13,7 +13,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use workspace::{WindowPanelKind, panel_topbar_icon};
+use workspace::panel_topbar_icon;
 use ui::corner_drag_preview::render_corner_drag_preview;
 use config::language::I18nStrings;
 use theme::{Theme, ThemeManager};
@@ -84,9 +84,10 @@ impl Shell {
                     // Forward to every editor entity — only the one with an
                     // active drag reports a change.
                     let editors: Vec<Entity<editor_core::Editor>> = shell
-                        .panel_contents
+                        .panel_views
                         .values()
-                        .filter_map(|content| content.as_editor().cloned())
+                        .filter_map(|view| view.as_any().downcast_ref::<editor_core::EditorPanelView>())
+                        .map(|p| p.editor.clone())
                         .collect();
                     for editor in editors {
                         if editor.update(cx, |editor, _cx| editor.update_inner_drag(pos, window)) {
@@ -185,9 +186,10 @@ impl Shell {
         }
         cx.notify();
         let editors: Vec<Entity<editor_core::Editor>> = self
-            .panel_contents
+            .panel_views
             .values()
-            .filter_map(|content| content.as_editor().cloned())
+            .filter_map(|view| view.as_any().downcast_ref::<editor_core::EditorPanelView>())
+            .map(|p| p.editor.clone())
             .collect();
         for editor in editors {
             editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
@@ -425,85 +427,42 @@ impl Shell {
         let gap = d.panel_tile_gap;
         let radius = d.panel_tile_radius;
 
-        // Panel card: an Editor leaf renders its own card (top bar, panes,
-        // status bar) via its content entity; Explorer / Settings leaves
-        // are assembled by the Shell. Either way the panel gets the same
-        // wrapper below — uniform gap padding, corner drag handles, and
-        // the type dropdown.
-        let panel_card: AnyElement = if kind == workspace::WindowPanelKind::Editor {
-            let entity = match self.editor_for(leaf_id) {
-                Some(entity) => entity.clone(),
-                None => {
-                    let session = editor_core::EditorSession::welcome();
-                    self.add_editor_panel(leaf_id, session, cx);
-                    self.editor_for(leaf_id).cloned().expect("editor entity present after add")
-                }
-            };
-            entity.into_any_element()
-        } else {
-            let panel_id = workspace::PanelId(leaf_id);
-            let topbar = match kind {
-                WindowPanelKind::Editor => {
-                    unreachable!("editor leaf without an entity is rendered by its entity")
-                }
-                WindowPanelKind::Explorer => {
-                    explorer::render_explorer_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
-                }
-                WindowPanelKind::Settings => {
-                    settings::render_settings_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
-                }
-            };
+        let panel_id = workspace::PanelId(leaf_id);
+        let render_ctx = workspace::PanelRenderContext {
+            panel_id,
+            leaf_count,
+            is_maximized,
+            theme,
+            strings,
+        };
 
-            let panel_body: AnyElement = match kind {
-                WindowPanelKind::Editor => {
-                    unreachable!("editor leaf without an entity is rendered by its entity")
-                }
-                WindowPanelKind::Explorer => explorer::render_explorer_body(panel_id, theme, strings, cx),
-                WindowPanelKind::Settings => settings::render_settings_body(panel_id, theme, strings, cx),
-            };
+        if !self.panel_views.contains_key(&panel_id) {
+            self.sync_panel_kind(panel_id, kind == workspace::WindowPanelKind::Editor, cx);
+        }
 
-            let bottombar = match kind {
-                WindowPanelKind::Editor => {
-                    unreachable!("editor leaf without an entity is rendered by its entity")
-                }
-                WindowPanelKind::Explorer => {
-                    Some(explorer::render_explorer_bottombar(panel_id, theme, cx))
-                }
-                WindowPanelKind::Settings => {
-                    Some(settings::render_settings_bottombar(panel_id, theme, cx))
-                }
-            };
-
-            let body_container = div()
-                .w_full()
-                .flex_1()
-                .min_h(px(0.0))
-                .relative()
-                .overflow_hidden()
-                .child(panel_body);
-
-            // Panel card with overflow hidden (no corner handles inside, to avoid clipping).
-            let mut card = div()
-                .id(("panel-card", leaf_id))
-                .w_full()
-                .h_full()
-                .flex()
-                .flex_col()
-                .relative()
-                .overflow_hidden()
-                .rounded(px(radius))
-                .bg(c.dialog_surface)
-                .border(px(d.dialog_border_width))
-                .border_color(c.dialog_border)
-                .shadow_lg()
-                .child(topbar)
-                .child(body_container);
-
-            if let Some(bb) = bottombar {
-                card = card.child(bb);
+        let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {
+            let rendered = view.render(&render_ctx, _window, cx);
+            if view.kind() == workspace::PanelKindId::EDITOR {
+                rendered
+            } else {
+                let card = div()
+                    .id(("panel-card", leaf_id))
+                    .w_full()
+                    .h_full()
+                    .flex()
+                    .flex_col()
+                    .relative()
+                    .overflow_hidden()
+                    .rounded(px(radius))
+                    .bg(c.dialog_surface)
+                    .border(px(d.dialog_border_width))
+                    .border_color(c.dialog_border)
+                    .shadow_lg()
+                    .child(rendered);
+                card.into_any_element()
             }
-
-            card.into_any_element()
+        } else {
+            div().into_any_element()
         };
 
         // Mouse interaction with any part of the tile marks it as the focused
@@ -584,7 +543,8 @@ impl Shell {
         let t = &theme.typography;
         let shell = cx.entity().downgrade();
 
-        let available_kinds = WindowPanelKind::all();
+        let registry = workspace::PanelRegistry::global().lock().unwrap();
+        let available_descriptors = registry.all_descriptors();
 
         menu_panel(c, d)
             .id(("panel-dropdown-overlay", leaf_id))
@@ -593,10 +553,13 @@ impl Shell {
             .top(px(28.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
-            .children(available_kinds.iter().enumerate().map(|(idx, kind)| {
-                let kind = *kind;
+            .children(available_descriptors.into_iter().enumerate().map(|(idx, desc)| {
+                let kind_id = desc.kind();
+                let kind: workspace::WindowPanelKind =
+                    kind_id.try_into().unwrap_or(workspace::WindowPanelKind::Editor);
                 let is_current = kind == current_kind;
                 let option_shell = shell.clone();
+                let display_name = desc.display_name();
                 menu_item(("panel-type-opt", idx), c, d)
                     .w_full()
                     .justify_between()
@@ -608,7 +571,7 @@ impl Shell {
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_button_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)
-                    .child(kind.name())
+                    .child(display_name)
                     .child(if is_current {
                         svg()
                             .path(panel_topbar_icon(current_kind, "check"))
