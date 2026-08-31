@@ -22,8 +22,5 @@ futures = "0.3"
 gpui = { workspace = true }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
-tracing = "0.1"
 ui = { path = "../ui" }
-unicode-segmentation = "1.13"
-uuid = { workspace = true }
 workspace = { path = "../workspace" }

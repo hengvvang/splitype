@@ -20,7 +20,3 @@ editor_wysiwyg = { path = "../editor_wysiwyg" }
 editor_source_code = { path = "../editor_source_code" }
 editor_preview = { path = "../editor_preview" }
 workspace = { path = "../workspace" }
-config = { path = "../config" }
-theme = { path = "../theme" }
-tracing = "0.1"
-anyhow = { workspace = true }

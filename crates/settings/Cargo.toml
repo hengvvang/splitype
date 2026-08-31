@@ -19,6 +19,4 @@ ui = { path = "../ui" }
 workspace = { path = "../workspace" }
 splitter = { path = "../splitter" }
 gpui = { workspace = true }
-serde = { workspace = true }
-schemars = "1"
 tracing = "0.1"

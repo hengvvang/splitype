@@ -19,15 +19,10 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 theme = { path = "../theme" }
-taffy = "0.7"
-smallvec = { version = "1", features = ["serde"] }
-serde = { workspace = true }
 url = "2"
 unicode-segmentation = "1.13"
 regex = "1.10"
 uuid = { workspace = true }
 cssparser = "0.37"
-thiserror = { workspace = true }
-pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 tree-sitter = { workspace = true }
 tree-sitter-html = { workspace = true, optional = true }

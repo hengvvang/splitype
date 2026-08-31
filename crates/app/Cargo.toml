@@ -11,8 +11,7 @@ default-run = "app"
 workspace = true
 
 [features]
-default = ["editor_wysiwyg/html-native", "code-highlight-core"]
-code-highlight-core = ["editor_wysiwyg/code-highlight-core"]
+default = []
 
 [[bin]]
 name = "app"
@@ -29,13 +28,8 @@ workspace = { path = "../workspace" }
 editor_model = { path = "../editor_model" }
 editor_core = { path = "../editor_core" }
 editor_builder = { path = "../editor_builder" }
-editor_source_code = { path = "../editor_source_code" }
-editor_search = { path = "../editor_search" }
-editor_outline = { path = "../editor_outline" }
 editor_wysiwyg = { path = "../editor_wysiwyg" }
-editor_preview = { path = "../editor_preview" }
 settings = { path = "../settings" }
-markdown_ast_parser = { path = "../markdown_ast_parser" }
 syntax_highlighter = { path = "../syntax_highlighter" }
 splitype_cli = { path = "../splitype_cli" }
 explorer = { path = "../explorer" }
@@ -46,11 +40,9 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
-thiserror = { workspace = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 url = "2"
-unicode-segmentation = "1.13"
 regex = "1.10"
 notify = "8"
 futures = "0.3"

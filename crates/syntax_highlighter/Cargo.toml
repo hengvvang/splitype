@@ -42,7 +42,6 @@ anyhow = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-html = { workspace = true, optional = true }
 tree-sitter-highlight = "0.26.9"
-lazy_static = "1.5"
 
 # Code-block syntax highlighting languages
 tree-sitter-bash = { version = "0.25", optional = true }

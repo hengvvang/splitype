@@ -13,9 +13,7 @@ workspace = true
 gpui = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-schemars = "1"
 directories = "6"
-thiserror = { workspace = true }
 anyhow = { workspace = true }
 toml = "1"
 tracing = "0.1"

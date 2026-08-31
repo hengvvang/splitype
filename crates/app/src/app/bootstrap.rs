@@ -126,8 +126,6 @@ pub fn run(args: Args) {
         init_app_menu(cx);
 
         // Prewarm CPU-intensive resources (Tree-sitter grammars, font fallbacks) in a
-        // background thread on startup so the first file open is instant and stutter-free.
-        #[cfg(feature = "code-highlight-core")]
         std::thread::Builder::new()
             .name("splitype-prewarm".to_string())
             .spawn(|| {
