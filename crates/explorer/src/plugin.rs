@@ -1,9 +1,14 @@
 use crate::state::state::ExplorerState;
-use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
-use core_contracts::PanelCapabilities;
+use crate::{
+    render_explorer_body, render_explorer_bottombar, render_explorer_file_context_menu,
+    render_explorer_topbar,
+};
+use core_contracts::{PanelCapabilities, SidebarPanel};
 use gpui::*;
 use std::any::Any;
+use std::path::PathBuf;
 use std::sync::Arc;
+use theme::ThemeManager;
 use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView};
 
 /// Stable kind identifier of the explorer panel plugin.
@@ -36,6 +41,24 @@ impl PanelView for ExplorerPanelView {
 
     fn capabilities(&self) -> PanelCapabilities {
         PanelCapabilities::SIDEBAR
+    }
+
+    fn as_sidebar_panel(&self) -> Option<&dyn SidebarPanel> {
+        Some(self)
+    }
+
+    fn as_sidebar_panel_mut(&mut self) -> Option<&mut dyn SidebarPanel> {
+        Some(self)
+    }
+
+    fn render_overlay(&mut self, window: &mut Window, cx: &mut App) -> Option<AnyElement> {
+        let theme = cx.global::<ThemeManager>().current_arc();
+        render_explorer_file_context_menu(&self.state, &theme, window.viewport_size(), cx)
+    }
+
+    fn dismiss_overlays(&mut self, cx: &mut App) -> bool {
+        self.state
+            .update(cx, |state, _cx| state.file_menu.take().is_some())
     }
 
     fn display_name(&self) -> SharedString {
@@ -94,6 +117,29 @@ impl PanelView for ExplorerPanelView {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+}
+
+impl SidebarPanel for ExplorerPanelView {
+    fn set_active_document_path(&mut self, path: Option<PathBuf>, cx: &mut App) {
+        self.state.update(cx, |state, _cx| state.active_file = path);
+    }
+
+    fn on_document_path_changed(&mut self, cx: &mut App) {
+        self.state.update(cx, |state, cx| {
+            state.sync_explorer_after_document_path_change(cx)
+        });
+    }
+
+    fn toggle_drawer(&mut self, window: &mut Window, cx: &mut App) {
+        self.state.update(cx, |state, cx| {
+            state.toggle_explorer_drawer(window, cx);
+        });
+    }
+
+    fn close_active_folder(&mut self, cx: &mut App) {
+        self.state
+            .update(cx, |state, cx| state.close_explorer_folder(cx));
     }
 }
 

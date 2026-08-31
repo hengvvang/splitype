@@ -194,37 +194,53 @@ impl Shell {
         }
     }
 
-    /// All explorer panel instances in this window, for shell-side
-    /// notifications such as active-file sync and drawer toggles.
-    pub(crate) fn explorer_states(&self) -> Vec<Entity<explorer::ExplorerState>> {
-        self.panel_views
-            .values()
-            .filter_map(|view| {
-                view.as_any()
-                    .downcast_ref::<explorer::ExplorerPanelView>()
-                    .map(|panel| panel.state.clone())
-            })
-            .collect()
-    }
-
-    /// Recomputes every editor area's pushed state.
+    /// Recomputes every sidebar panel's pushed document context.
     pub(crate) fn sync_panel_states(&mut self, cx: &mut Context<Self>) {
         let Some(_viewport) = self.last_viewport else {
             return;
         };
         let active_tab_path = self.active_document_tab_path(cx);
-        for state in self.explorer_states() {
-            state.update(cx, |state, _cx| state.active_file = active_tab_path.clone());
+        for view in self.panel_views.values_mut() {
+            if let Some(panel) = view.as_sidebar_panel_mut() {
+                panel.set_active_document_path(active_tab_path.clone(), cx);
+            }
         }
     }
 
-    /// Closes the explorer row context menu, if open.
-    pub(crate) fn close_explorer_file_menu(&mut self, cx: &mut Context<Self>) {
-        let was_open = self
-            .explorer_states()
-            .into_iter()
-            .any(|state| state.update(cx, |state, _cx| state.file_menu.take().is_some()));
-        if was_open {
+    /// Notifies every sidebar panel that a document's backing path changed.
+    pub(crate) fn notify_sidebar_document_path_changed(&mut self, cx: &mut Context<Self>) {
+        for view in self.panel_views.values_mut() {
+            if let Some(panel) = view.as_sidebar_panel_mut() {
+                panel.on_document_path_changed(cx);
+            }
+        }
+    }
+
+    /// Toggles the drawer of every sidebar panel in this window.
+    pub(crate) fn toggle_sidebar_drawers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        for view in self.panel_views.values_mut() {
+            if let Some(panel) = view.as_sidebar_panel_mut() {
+                panel.toggle_drawer(window, cx);
+            }
+        }
+    }
+
+    /// Closes the open folder scope of every sidebar panel in this window.
+    pub(crate) fn close_sidebar_folders(&mut self, cx: &mut Context<Self>) {
+        for view in self.panel_views.values_mut() {
+            if let Some(panel) = view.as_sidebar_panel_mut() {
+                panel.close_active_folder(cx);
+            }
+        }
+    }
+
+    /// Dismisses transient overlays (context menus, popovers) of every panel.
+    pub(crate) fn dismiss_panel_overlays(&mut self, cx: &mut Context<Self>) {
+        let mut dismissed = false;
+        for view in self.panel_views.values_mut() {
+            dismissed |= view.dismiss_overlays(cx);
+        }
+        if dismissed {
             cx.notify();
         }
     }

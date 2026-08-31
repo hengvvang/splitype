@@ -1,6 +1,6 @@
 //! Panel view trait contract and rendering context.
 
-use crate::panel::{DocumentPanel, PanelCapabilities, PanelId, PanelKind};
+use crate::panel::{DocumentPanel, PanelCapabilities, PanelId, PanelKind, SidebarPanel};
 use config::language::I18nStrings;
 use gpui::{AnyElement, App, Bounds, FocusHandle, Pixels, Point, SharedString, Window};
 use std::any::Any;
@@ -51,6 +51,29 @@ pub trait PanelView: 'static {
     /// Mutable downcast hook for the document-routing role.
     fn as_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
         None
+    }
+
+    /// Downcast hook for the sidebar role.
+    fn as_sidebar_panel(&self) -> Option<&dyn SidebarPanel> {
+        None
+    }
+
+    /// Mutable downcast hook for the sidebar role.
+    fn as_sidebar_panel_mut(&mut self) -> Option<&mut dyn SidebarPanel> {
+        None
+    }
+
+    /// Renders a window-level overlay for this panel (menus, popovers), if
+    /// any. The shell draws these above the tiled layout so they are not
+    /// clipped by the panel tile.
+    fn render_overlay(&mut self, _window: &mut Window, _cx: &mut App) -> Option<AnyElement> {
+        None
+    }
+
+    /// Dismisses this panel's transient overlays. Returns `true` when
+    /// something was actually dismissed, so the shell can repaint.
+    fn dismiss_overlays(&mut self, _cx: &mut App) -> bool {
+        false
     }
 
     /// Whether this panel currently has unsaved modifications.

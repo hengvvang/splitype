@@ -244,17 +244,11 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = with_shell_window(cx, |shell, window, cx| {
-            for state in shell.explorer_states() {
-                state.update(cx, |state, cx| {
-                    state.toggle_explorer_drawer(&mut *window, cx)
-                });
-            }
+            shell.toggle_sidebar_drawers(window, cx);
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let _ = with_shell_window(cx, |shell, _window, cx| {
-            for state in shell.explorer_states() {
-                state.update(cx, |state, cx| state.close_explorer_folder(cx));
-            }
+            shell.close_sidebar_folders(cx);
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -381,17 +375,11 @@ pub(crate) fn dispatch_menu_action_for_panel(
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            for state in shell.explorer_states() {
-                state.update(cx, |state, cx| {
-                    state.toggle_explorer_drawer(&mut *window, cx)
-                });
-            }
+            shell.toggle_sidebar_drawers(window, cx);
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            for state in shell.explorer_states() {
-                state.update(cx, |state, cx| state.close_explorer_folder(cx));
-            }
+            shell.close_sidebar_folders(cx);
         });
     } else if action.as_any().is::<OpenSplitypeRepository>() {
         open_splitype_repository(cx);

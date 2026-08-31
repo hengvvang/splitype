@@ -164,9 +164,9 @@ impl Shell {
         }
     }
 
-    /// Closes the menu bar and the explorer context menu when the window
-    /// body (outside the titlebar and any open menu panel) receives a
-    /// mouse-down.
+    /// Closes the menu bar and every panel's transient overlays when the
+    /// window body (outside the titlebar and any open menu panel) receives
+    /// a mouse-down.
     pub(crate) fn on_body_mouse_down(
         &mut self,
         _: &MouseDownEvent,
@@ -174,7 +174,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         self.close_menu_bar(cx);
-        self.close_explorer_file_menu(cx);
+        self.dismiss_panel_overlays(cx);
     }
 
     pub(crate) fn close_menu_bar(&mut self, cx: &mut Context<Self>) {

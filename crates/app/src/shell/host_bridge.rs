@@ -153,15 +153,9 @@ impl DocumentHost for ShellDocumentHost {
     }
 
     fn on_document_path_changed(&self, cx: &mut App) {
-        let Some(shell) = self.shell.upgrade() else {
-            return;
-        };
-        let states = shell.read(cx).explorer_states();
-        for state in states {
-            state.update(cx, |state, cx| {
-                state.sync_explorer_after_document_path_change(cx)
-            });
-        }
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.notify_sidebar_document_path_changed(cx);
+        });
     }
 
     fn record_recent_file(&self, path: &Path, cx: &mut App) {

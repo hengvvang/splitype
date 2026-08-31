@@ -228,42 +228,19 @@ impl Shell {
         true
     }
 
-    /// Sync open document tabs across all panels when a file/directory is moved or renamed.
-    pub(crate) fn sync_open_tabs_after_fs_change(
-        &mut self,
-        change: &explorer::state::undo::ExplorerChange,
-        cx: &mut App,
-    ) {
-        use explorer::state::undo::ExplorerChange;
-
-        match change {
-            ExplorerChange::Moved { from, to } | ExplorerChange::Renamed { from, to } => {
-                for view in self.panel_views.values_mut() {
-                    view.on_fs_path_renamed(from, to, cx);
-                }
-            }
-            ExplorerChange::Batch(changes) => {
-                for c in changes {
-                    self.sync_open_tabs_after_fs_change(c, cx);
-                }
-            }
-            _ => {}
-        }
-    }
-
+    /// Re-points every panel's open documents when a worktree path was
+    /// renamed or moved (generic panel notification).
     pub(crate) fn on_update_open_tab_paths(
         &mut self,
-        action: &explorer::ops::selection::UpdateOpenTabPaths,
+        action: &window::actions::UpdateOpenTabPaths,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.sync_open_tabs_after_fs_change(
-            &explorer::state::undo::ExplorerChange::Renamed {
-                from: std::path::PathBuf::from(&action.from),
-                to: std::path::PathBuf::from(&action.to),
-            },
-            cx,
-        );
+        let from = std::path::PathBuf::from(&action.from);
+        let to = std::path::PathBuf::from(&action.to);
+        for view in self.panel_views.values_mut() {
+            view.on_fs_path_renamed(&from, &to, cx);
+        }
     }
 
     pub(crate) fn on_open_in_editor(

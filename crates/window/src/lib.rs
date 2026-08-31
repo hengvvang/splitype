@@ -8,12 +8,12 @@ pub mod panel;
 
 pub use actions::{
     ClosePanel, Copy, Cut, DismissTransientUi, OpenPath, OpenPathInSplit, Paste, SplitPanel,
-    ToggleKindDropdown, TogglePanelMaximized,
+    ToggleKindDropdown, TogglePanelMaximized, UpdateOpenTabPaths,
 };
 pub use builder::WindowBuilder;
 pub use icons::{border_menu_style, panel_topbar_icon};
 pub use layout::{PanelId, WindowLayout};
 pub use panel::{
     DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelKind, PanelRegistry,
-    PanelRenderContext, PanelView,
+    PanelRenderContext, PanelView, SidebarPanel,
 };

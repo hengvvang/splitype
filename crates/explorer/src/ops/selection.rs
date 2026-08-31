@@ -7,22 +7,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use schemars::JsonSchema;
-use serde::Deserialize;
-
 use crate::state::state::*;
-
-/// Update the paths of open editor tabs after a filesystem move/rename
-/// (dispatched by the explorer; handled by the shell).
-#[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
-#[action(namespace = explorer)]
-#[serde(deny_unknown_fields)]
-pub struct UpdateOpenTabPaths {
-    /// Old absolute path.
-    pub from: String,
-    /// New absolute path.
-    pub to: String,
-}
 
 // Explorer navigation actions.
 actions!(

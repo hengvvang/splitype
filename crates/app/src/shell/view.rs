@@ -25,9 +25,9 @@ impl Render for Shell {
             .bg(theme.colors.editor_background)
             .font(theme::TypographyStore::ui_font(cx))
             .on_action(cx.listener(Self::on_close_window))
-            .on_action(cx.listener(Self::on_toggle_explorer_action))
+            .on_action(cx.listener(Self::on_toggle_sidebar_action))
             .on_action(cx.listener(Self::on_toggle_maximize_area_action))
-            .on_action(cx.listener(Self::on_close_explorer_folder_action))
+            .on_action(cx.listener(Self::on_close_sidebar_folder_action))
             .on_action(cx.listener(Self::on_quit_application))
             .on_action(cx.listener(Self::on_install_cli_tool))
             .on_action(cx.listener(Self::on_uninstall_cli_tool))
@@ -58,14 +58,9 @@ impl Render for Shell {
             base = base.child(menu_panel);
         }
 
-        for state in self.explorer_states() {
-            if let Some(menu) = explorer::render_explorer_file_context_menu(
-                &state,
-                &theme,
-                window.viewport_size(),
-                cx,
-            ) {
-                base = base.child(menu);
+        for view in self.panel_views.values_mut() {
+            if let Some(overlay) = view.render_overlay(window, cx) {
+                base = base.child(overlay);
             }
         }
 

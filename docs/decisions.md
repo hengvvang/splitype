@@ -126,3 +126,18 @@ contract types for compatibility. Built-in kinds are namespaced
 (`splitype.pane.*`, `splitype.panel.*`), constructed via `from_static` without
 allocating, and icon asset paths are decoupled from kind strings: topbar
 renderers take a plugin-owned `icon_prefix`.
+
+## ADR-014: Sidebar panels are a role, and overlays are panel-owned
+
+**Status:** Accepted
+
+The explorer is treated as a third-party sidebar plugin. Panels declaring
+`sidebar` implement the `SidebarPanel` trait (`set_active_document_path`,
+`on_document_path_changed`, `toggle_drawer`, `close_active_folder`); the shell
+pushes document context and sidebar commands through the trait and no longer
+imports explorer types. Window-level overlays (context menus, popovers) are
+rendered by the owning panel through `PanelView::render_overlay` and dismissed
+through `PanelView::dismiss_overlays`, so plugin UI is never rendered by the
+shell. Plugin-emitted shell notifications (path renames) use shell-owned
+`window::actions` vocabulary, keeping the dependency direction
+plugin -> shell -> contracts.

@@ -259,6 +259,15 @@ transitional hardcoding listed below is removed.
   restores/clones it through the generic suspend/clone protocol; the shell
   routes active-file sync, drawer toggles, and menu rendering to every
   explorer instance instead of a shared app global.
+- The sidebar role is a contract, not an explorer privilege:
+  `SidebarPanel` (`set_active_document_path`, `on_document_path_changed`,
+  `toggle_drawer`, `close_active_folder`) plus generic overlay hooks on
+  `PanelView` (`render_overlay`, `dismiss_overlays`). The explorer renders
+  its own row context menu as a panel overlay; the shell pushes document
+  context and sidebar commands through the trait and no longer imports any
+  explorer type outside the composition root. The explorer's
+  `UpdateOpenTabPaths` action moved to `window::actions` so panels emit
+  shell vocabulary instead of the shell consuming plugin vocabulary.
 - Document routing is a panel role, not an editor privilege:
   `PanelCapabilities { documents, sidebar }` is declared by descriptors and
   views, and panels that declare `documents` implement the `DocumentPanel`
@@ -283,26 +292,24 @@ transitional hardcoding listed below is removed.
 
 ### Remaining critical migration work
 
-1. The shell still downcasts to `explorer::ExplorerPanelView` for active-file
-   sync, drawer toggles, and explorer menu routing (`Shell::explorer_states`).
-   These should become generic panel notifications or a sidebar role trait.
-2. `core_contracts` still depends on `theme` and GPUI presentation helpers
+1. `core_contracts` still depends on `theme` and GPUI presentation helpers
    (outline HUD, search UI); split the stable vocabulary/API from UI adapters
    so the contracts crate stays presentation-free.
-3. There is no plugin manifest, discovery runtime, API negotiation, permission
+2. There is no plugin manifest, discovery runtime, API negotiation, permission
    model, resource namespace (`plugin://`), unregister/shutdown protocol, or
    missing-plugin placeholder. Third-party icons cannot resolve through the
    embedded asset catalog yet.
-4. Window topology and per-panel state are not persisted despite the
+3. Window topology and per-panel state are not persisted despite the
    `restore_window_state` setting.
-5. Preview selection/navigation and common autoscroll have incomplete wiring.
-6. Editor still owns Markdown-specific command templates and incomplete export
+4. Preview selection/navigation and common autoscroll have incomplete wiring.
+5. Editor still owns Markdown-specific command templates and incomplete export
    rendering; these belong to registered contributions. Panel topbar chrome is
    also duplicated per plugin; consider a shared chrome renderer driven by
-   descriptor metadata.
-7. `markdown_parser` contains GPUI entity identity and consumer-specific parse
+   descriptor metadata. Commands, menus, and keybindings are still composition-
+   root wired rather than typed plugin contributions.
+6. `markdown_parser` contains GPUI entity identity and consumer-specific parse
    modes; replace them with domain IDs and recursive parse policy.
-8. `PaneView` default no-op methods should eventually fold into the capability
+7. `PaneView` default no-op methods should eventually fold into the capability
    model, but callers already check capabilities first.
 
 ## Migration plan and acceptance criteria

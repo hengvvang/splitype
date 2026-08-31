@@ -9,6 +9,6 @@ pub mod registry;
 
 pub use core_contracts::{
     DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
-    PanelRenderContext, PanelView,
+    PanelRenderContext, PanelView, SidebarPanel,
 };
 pub use registry::*;

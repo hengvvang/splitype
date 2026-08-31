@@ -246,28 +246,22 @@ impl Shell {
         }
     }
 
-    pub(crate) fn on_toggle_explorer_action(
+    pub(crate) fn on_toggle_sidebar_action(
         &mut self,
         _: &ToggleExplorer,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        for state in self.explorer_states() {
-            state.update(cx, |state, cx| {
-                state.toggle_explorer_drawer(&mut *window, cx)
-            });
-        }
+        self.toggle_sidebar_drawers(window, cx);
     }
 
-    pub(crate) fn on_close_explorer_folder_action(
+    pub(crate) fn on_close_sidebar_folder_action(
         &mut self,
         _: &CloseExplorerFolder,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        for state in self.explorer_states() {
-            state.update(cx, |state, cx| state.close_explorer_folder(cx));
-        }
+        self.close_sidebar_folders(cx);
     }
 
     pub(crate) fn on_toggle_kind_dropdown(

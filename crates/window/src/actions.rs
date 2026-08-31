@@ -65,3 +65,15 @@ pub struct OpenPathInSplit {
     /// Absolute path of the file to open.
     pub path: String,
 }
+
+/// A worktree path was renamed or moved. Panels with open documents on the
+/// old path should re-point them to the new path.
+#[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
+#[action(namespace = splitype)]
+#[serde(deny_unknown_fields)]
+pub struct UpdateOpenTabPaths {
+    /// Old absolute path.
+    pub from: String,
+    /// New absolute path.
+    pub to: String,
+}

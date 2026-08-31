@@ -81,7 +81,7 @@ impl ExplorerState {
             crate::state::undo::ExplorerChange::Moved { from, to }
             | crate::state::undo::ExplorerChange::Renamed { from, to } => {
                 window.dispatch_action(
-                    Box::new(crate::ops::selection::UpdateOpenTabPaths {
+                    Box::new(window::actions::UpdateOpenTabPaths {
                         from: from.to_string_lossy().into_owned(),
                         to: to.to_string_lossy().into_owned(),
                     }),

@@ -21,7 +21,7 @@ pub use pane::{
 };
 pub use panel::{
     DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
-    PanelRenderContext, PanelView,
+    PanelRenderContext, PanelView, SidebarPanel,
 };
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputElement, SearchInputSnapshot,
