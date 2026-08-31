@@ -15,9 +15,7 @@ pub use document::{
     DocumentHost, DocumentId, DocumentSnapshot, NavigationExecutionPlan, NavigationTarget, TabKind,
 };
 pub use export::{ExportError, ExportFormat};
-pub use outline::{
-    OutlineHeading, OutlineHost, OutlineHudState, OutlineNode, render_floating_outline_hud,
-};
+pub use outline::{OutlineHost, OutlineHudState, OutlineNode};
 pub use pane::{
     AutoscrollStrategy, PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind,
     PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
@@ -31,8 +29,7 @@ pub use plugin::{
     PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
 };
 pub use search::{
-    RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputElement, SearchInputSnapshot,
-    SearchMatch, SearchPanelState, SearchQuery, SearchScope, SearchStateView, SearchTextInput,
+    RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputSnapshot, SearchMatch,
+    SearchPanelState, SearchQuery, SearchScope, SearchStateView, SearchTextInput,
     ceil_char_boundary, compute_preserve_case_replacement, floor_char_boundary,
-    render_search_panel_overlay,
 };

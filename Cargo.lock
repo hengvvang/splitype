@@ -4338,6 +4338,7 @@ dependencies = [
  "markdown_parser",
  "syntax_highlighter",
  "theme",
+ "ui",
  "uuid",
 ]
 
@@ -4349,6 +4350,7 @@ dependencies = [
  "gpui",
  "syntax_highlighter",
  "theme",
+ "ui",
 ]
 
 [[package]]
@@ -7136,6 +7138,7 @@ name = "ui"
 version = "0.0.1"
 dependencies = [
  "config",
+ "core_contracts",
  "gpui",
  "splitter",
  "theme",

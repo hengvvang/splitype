@@ -15,5 +15,6 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 core_contracts = { path = "../core_contracts" }
+ui = { path = "../ui" }
 syntax_highlighter = { path = "../syntax_highlighter" }
 theme = { path = "../theme" }

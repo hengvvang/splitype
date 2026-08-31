@@ -1,16 +1,11 @@
-//! core_contracts — the floating outline HUD (consumer crate).
+//! Outline contract: heading data ([`OutlineNode`]), the HUD cache state
+//! ([`OutlineHudState`]), and the navigation seam ([`OutlineHost`]).
 //!
-//! Owns the outline panel state ([`OutlineHudState`]) and the HUD
-//! presentation ([`render_floating_outline_hud`]); heading *data* comes
-//! from the modes through `core_contracts::Pane::outline_items` (pure `OutlineNode`
-//! values), so this crate depends only on `editor` plus presentation
-//! deps. Navigation and hover re-enter the coordinating crate through
-//! [`OutlineHost`]; the editor-side sync glue stays in the coordinating
-//! crate.
+//! Presentation lives in the `ui` crate (`ui::render_floating_outline_hud`),
+//! which consumes these data types without pulling in any plugin crate.
 
-mod render;
+pub mod host;
 mod state;
 
-pub use render::{OutlineHost, render_floating_outline_hud};
+pub use host::OutlineHost;
 pub use state::{OutlineHudState, OutlineNode};
-pub type OutlineHeading = OutlineNode;

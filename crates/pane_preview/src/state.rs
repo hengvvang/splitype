@@ -124,7 +124,7 @@ impl PaneView for PreviewState {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
-        let outline_hud = core_contracts::render_floating_outline_hud(
+        let outline_hud = ui::render_floating_outline_hud(
             ctx.pane_id.0,
             &self.outline_headings(cx),
             None,

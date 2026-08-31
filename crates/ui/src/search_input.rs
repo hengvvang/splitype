@@ -1,5 +1,4 @@
-use super::host::{SearchHost, SearchIme, SearchStateView};
-use super::state::SearchActiveField;
+use core_contracts::{SearchActiveField, SearchHost, SearchIme, SearchStateView};
 use gpui::*;
 use std::sync::Arc;
 use theme::ThemeManager;

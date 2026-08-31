@@ -4,8 +4,7 @@ use std::cell::RefCell;
 use std::ops::Range;
 use std::sync::Arc;
 
-use core_contracts::OutlineHeading;
-use core_contracts::{SearchMatch, SearchQuery};
+use core_contracts::{OutlineNode, SearchMatch, SearchQuery};
 use gpui::{
     App, Bounds, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels,
     StatefulInteractiveElement, Styled, Window,
@@ -837,7 +836,7 @@ impl core_contracts::PaneView for SourceCodeState {
         Some(self.text.clone())
     }
 
-    fn outline_headings(&self, _cx: &App) -> Vec<OutlineHeading> {
+    fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
         crate::outline::extract_source_headings(&self.text)
     }
 
@@ -1000,7 +999,7 @@ impl core_contracts::PaneView for SourceCodeState {
                 pane_id: ctx.pane_id,
                 host: ctx.host.clone(),
             });
-        let outline_hud = core_contracts::render_floating_outline_hud(
+        let outline_hud = ui::render_floating_outline_hud(
             ctx.pane_id.0,
             &self.outline_headings(cx),
             None,

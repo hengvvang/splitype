@@ -1,6 +1,6 @@
 //! Search panel render shell — coordination only.
 //!
-//! The presentation lives in `core_contracts::render_search_panel_overlay`;
+//! The presentation lives in `ui::render_search_panel_overlay`;
 //! this shell wires the panel state, the snapshot/IME proxies and the
 //! search host into it.
 
@@ -24,7 +24,7 @@ impl Editor {
         }
         let host: Arc<dyn SearchHost> =
             crate::editor::host_bridge::EditorSearchHost::new(cx.weak_entity());
-        core_contracts::render_search_panel_overlay(
+        ui::render_search_panel_overlay(
             &self.search,
             &self.search_view,
             &self.search_ime,

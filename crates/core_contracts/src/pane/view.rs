@@ -1,5 +1,6 @@
 use crate::document::DocumentSnapshot;
-use crate::outline::OutlineHeading;
+use crate::outline::OutlineNode;
+
 use crate::pane::{PaneHost, PaneId, PaneKind, PaneRenderContext};
 use crate::search::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, FocusHandle, Window};
@@ -51,7 +52,7 @@ pub trait PaneView: Any + 'static {
         None
     }
 
-    fn outline_headings(&self, _cx: &App) -> Vec<OutlineHeading> {
+    fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
         Vec::new()
     }
 
