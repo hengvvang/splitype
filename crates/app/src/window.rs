@@ -12,7 +12,6 @@ use crate::menus::install_menus;
 use crate::shell::{Shell, ShellEditorHost};
 use config::recent::record_recent_file;
 use editor::Editor;
-use explorer::ExplorerState;
 use splitter::NodeId;
 use splitter::tree::SplitTree;
 use ui::custom_titlebar::splitype_window_options;
@@ -47,7 +46,6 @@ pub fn open_editor_window(
         .open_window(
             splitype_window_options(title, bounds),
             move |_window, cx| {
-                cx.set_global(explorer::ExplorerState::default());
                 let explorer_id = PanelId(1);
                 let editor_id = PanelId(2);
                 let editor = cx.new(|cx| {
@@ -56,7 +54,7 @@ pub fn open_editor_window(
                     ed
                 });
                 let explorer_view: Box<dyn PanelView> =
-                    Box::new(explorer::ExplorerPanelView::new(explorer_id));
+                    Box::new(explorer::ExplorerPanelView::new(explorer_id, cx));
                 let editor_view: Box<dyn PanelView> =
                     Box::new(editor::EditorPanelView::new(editor.clone()));
 
@@ -98,7 +96,6 @@ pub fn open_cloned_window(
     tree: SplitTree<PanelKind>,
     next_node_id: NodeId,
     retained: HashMap<PanelId, crate::shell::RetainedPanel>,
-    explorer: Option<ExplorerState>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {
     let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);
@@ -106,7 +103,6 @@ pub fn open_cloned_window(
         .open_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
-                cx.set_global(explorer.unwrap_or_default());
                 let mut leaf_ids = Vec::new();
                 tree.leaf_ids(&mut leaf_ids);
                 let leaf_kinds: Vec<(NodeId, window::PanelKind)> = leaf_ids

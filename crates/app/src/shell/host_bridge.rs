@@ -153,9 +153,15 @@ impl EditorHost for ShellEditorHost {
     }
 
     fn sync_explorer_after_document_path_change(&self, cx: &mut App) {
-        explorer::ExplorerState::update(cx, |state, cx| {
-            state.sync_explorer_after_document_path_change(cx);
-        });
+        let Some(shell) = self.shell.upgrade() else {
+            return;
+        };
+        let states = shell.read(cx).explorer_states();
+        for state in states {
+            state.update(cx, |state, cx| {
+                state.sync_explorer_after_document_path_change(cx)
+            });
+        }
     }
 
     fn record_recent_file(&self, path: &Path, cx: &mut App) {

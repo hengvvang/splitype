@@ -118,6 +118,7 @@ impl ExplorerState {
             explorer.hover_scroll_generation
         };
         let window_handle = window.window_handle();
+        let weak = self.self_weak.clone();
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             loop {
                 // `AnyWindowHandle::update` uses try_borrow_mut: a scroll
@@ -125,7 +126,7 @@ impl ExplorerState {
                 // move restarts the loop).
                 let keep_scrolling = window_handle
                     .update(cx, |_view, _window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
+                        weak.update(cx, |state, cx| {
                             // The drag ended (mouse released outside the panel,
                             // cancelled, dropped elsewhere): stop scrolling and
                             // clear the leftover drag state so no stale
@@ -143,6 +144,7 @@ impl ExplorerState {
                             cx.refresh_windows();
                             true
                         })
+                        .unwrap_or(false)
                     })
                     .unwrap_or(false);
                 if !keep_scrolling {
@@ -321,12 +323,13 @@ impl ExplorerState {
         if is_dir && !is_expanded {
             let bounds = event.bounds;
             let window_handle = window.window_handle();
+            let weak = self.self_weak.clone();
             let task = cx.spawn(async move |cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(500))
                     .await;
                 let _ = cx.update_window(window_handle, |_, window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
+                    let _ = weak.update(cx, |state, cx| {
                         state.hover_expand_task = None;
                         if cx.has_active_drag()
                             && state
@@ -550,6 +553,7 @@ impl ExplorerState {
         }
         let window_handle = window.window_handle();
         let paths = paths.to_vec();
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let mut remaining = paths;
             for conflict in &conflicts {
@@ -583,7 +587,7 @@ impl ExplorerState {
                 return;
             }
             let _ = cx.update_window(window_handle, |_, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.perform_entry_ops(remaining, target_dir, false, window, cx);
                 });
             });
@@ -627,13 +631,14 @@ impl ExplorerState {
         }
         let disambiguate = !is_cut;
         let window_handle = window.window_handle();
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let changes = cx
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&paths, &target_dir, is_cut, disambiguate) })
                 .await;
             cx.update(|cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.clear_explorer_drag(cx);
                     if changes.len() > 1 {
                         let batch = ExplorerChange::Batch(changes.clone());
@@ -665,20 +670,23 @@ impl ExplorerState {
                     state.sync_explorer_models(cx);
                     cx.refresh_windows();
                 });
-                // Window-scoped dispatch must run after the global lease
-                // above ends (nested global leases panic).
-                let _ = cx.update_window(window_handle, |_, window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
-                        if changes.len() > 1 {
-                            state.sync_open_tabs_after_fs_change(
-                                &ExplorerChange::Batch(changes.clone()),
-                                window,
-                                cx,
-                            );
-                        } else if let Some(change) = changes.first() {
-                            state.sync_open_tabs_after_fs_change(change, window, cx);
-                        }
-                    });
+                // Window-scoped dispatch must run after the state lease
+                // above ends (nested entity leases panic).
+                let _ = cx.update_window(window_handle, {
+                    let weak = weak.clone();
+                    move |_, window, cx| {
+                        let _ = weak.update(cx, |state, cx| {
+                            if changes.len() > 1 {
+                                state.sync_open_tabs_after_fs_change(
+                                    &ExplorerChange::Batch(changes.clone()),
+                                    window,
+                                    cx,
+                                );
+                            } else if let Some(change) = changes.first() {
+                                state.sync_open_tabs_after_fs_change(change, window, cx);
+                            }
+                        });
+                    }
                 });
             });
         });

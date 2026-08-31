@@ -58,10 +58,15 @@ impl Render for Shell {
             base = base.child(menu_panel);
         }
 
-        if let Some(menu) =
-            explorer::render_explorer_file_context_menu(&theme, window.viewport_size(), cx)
-        {
-            base = base.child(menu);
+        for state in self.explorer_states() {
+            if let Some(menu) = explorer::render_explorer_file_context_menu(
+                &state,
+                &theme,
+                window.viewport_size(),
+                cx,
+            ) {
+                base = base.child(menu);
+            }
         }
 
         if let Some(dialog) = self.render_window_dialogs(&theme, cx) {

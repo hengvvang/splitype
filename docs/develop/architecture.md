@@ -255,6 +255,10 @@ transitional hardcoding listed below is removed.
 - The Settings panel owns its `SettingsUiState` as a per-panel entity created
   by its descriptor; splitting the settings panel now yields independent
   instances, and the app bootstrap no longer installs a settings global.
+- The Explorer panel owns an `Entity<ExplorerState>` per instance and
+  restores/clones it through the generic suspend/clone protocol; the shell
+  routes active-file sync, drawer toggles, and menu rendering to every
+  explorer instance instead of a shared app global.
 
 ### Remaining critical migration work
 
@@ -264,11 +268,7 @@ transitional hardcoding listed below is removed.
    policies of the composition root, not lifecycle hardcoding; they should
    migrate to a `DocumentPanel` capability plus typed document services so an
    alternative editor plugin can take over the role.
-2. Explorer transient state is still an application global installed per
-   window; worktree, selection, expansion, drag, edit, and IME state must move
-   behind per-panel `Entity<ExplorerState>` instances so split explorer panels
-   are independent and windows stop replacing each other's state.
-3. `PaneView` remains broad and requires `Send + Sync`; default no-op methods
+2. `PaneView` remains broad and requires `Send + Sync`; default no-op methods
    still express some optional behaviors, though mutating commands now return
    `Option<String>` so unsupported operations cannot fake a dirty document.
 5. `PaneKind` and `PanelKind` still contain `&'static str`; migrate to owned,

@@ -83,6 +83,7 @@ impl ExplorerState {
         };
         let drag_label = entry.label.clone();
         let drag_entry_id = entry.id;
+        let weak = self.self_weak.clone();
 
         let icon = match entry.kind {
             ExplorerEntryKind::Directory => Some((FOLDER_ICON, c.text_default)),
@@ -125,11 +126,14 @@ impl ExplorerState {
                         .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
-                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
-                        state.toggle_explorer_node(arrow_node_id, cx);
-                    });
-                    cx.stop_propagation();
+                .on_mouse_down(MouseButton::Left, {
+                    let weak = weak.clone();
+                    move |_event, _window, cx| {
+                        let _ = weak.update(cx, |state, cx| {
+                            state.toggle_explorer_node(arrow_node_id, cx);
+                        });
+                        cx.stop_propagation();
+                    }
                 });
         }
 
@@ -179,11 +183,12 @@ impl ExplorerState {
             )
             .on_mouse_down(MouseButton::Right, {
                 let right_click_selection = mark_selection;
+                let weak = weak.clone();
                 move |event, _window, cx| {
                     let path = right_click_path.clone();
                     let is_dir = right_click_is_dir;
                     let selection = right_click_selection;
-                    ExplorerState::update(cx, |state, cx| {
+                    let _ = weak.update(cx, |state, cx| {
                         // Right-click selects the row (indicator feedback,
                         // mirroring Zed's deploy_context_menu); marked
                         // entries are cleared when the target is not one of
@@ -198,80 +203,95 @@ impl ExplorerState {
                     cx.stop_propagation();
                 }
             })
-            .on_click(move |event, window, cx| {
-                let id = node_id;
-                let kind = click_kind;
-                let path = click_path.clone();
-                let selection = mark_selection;
-                let click_count = event.click_count();
-                let shift = event.modifiers().shift;
-                let alt = event.modifiers().alt;
-                let secondary = event.modifiers().secondary();
-                ExplorerState::update(cx, |state, cx| {
-                    if shift {
-                        state.select_explorer_range(id, cx);
-                        return;
-                    }
-                    if secondary {
-                        if click_count > 1 {
-                            // Ctrl/Cmd+double-click: open in a split area.
-                            state.split_explorer_file(path, window, cx);
-                        } else {
-                            state.toggle_explorer_mark(selection, cx);
+            .on_click({
+                let weak = weak.clone();
+                move |event, window, cx| {
+                    let id = node_id;
+                    let kind = click_kind;
+                    let path = click_path.clone();
+                    let selection = mark_selection;
+                    let click_count = event.click_count();
+                    let shift = event.modifiers().shift;
+                    let alt = event.modifiers().alt;
+                    let secondary = event.modifiers().secondary();
+                    let _ = weak.update(cx, |state, cx| {
+                        if shift {
+                            state.select_explorer_range(id, cx);
+                            return;
                         }
-                        return;
-                    }
-                    state.marked.clear();
-                    match kind {
-                        ExplorerEntryKind::Directory => {
-                            // Select the directory so a click always gives
-                            // feedback, even when it is empty and there is
-                            // nothing to expand.
-                            state.selected = Some(crate::state::state::SelectedEntry {
-                                worktree_id: click_worktree_id,
-                                entry_id: id,
-                            });
-                            if alt {
-                                state.toggle_explorer_subtree(id, cx);
+                        if secondary {
+                            if click_count > 1 {
+                                // Ctrl/Cmd+double-click: open in a split area.
+                                state.split_explorer_file(path, window, cx);
                             } else {
-                                state.toggle_explorer_node(id, cx);
+                                state.toggle_explorer_mark(selection, cx);
+                            }
+                            return;
+                        }
+                        state.marked.clear();
+                        match kind {
+                            ExplorerEntryKind::Directory => {
+                                // Select the directory so a click always gives
+                                // feedback, even when it is empty and there is
+                                // nothing to expand.
+                                state.selected = Some(crate::state::state::SelectedEntry {
+                                    worktree_id: click_worktree_id,
+                                    entry_id: id,
+                                });
+                                if alt {
+                                    state.toggle_explorer_subtree(id, cx);
+                                } else {
+                                    state.toggle_explorer_node(id, cx);
+                                }
+                            }
+                            ExplorerEntryKind::MarkdownFile | ExplorerEntryKind::File => {
+                                state.open_explorer_file_click(path, click_count > 1, window, cx);
                             }
                         }
-                        ExplorerEntryKind::MarkdownFile | ExplorerEntryKind::File => {
-                            state.open_explorer_file_click(path, click_count > 1, window, cx);
-                        }
-                    }
-                });
-                // Rows must not let clicks bubble to the panel background
-                // (background click clears the selection).
-                cx.stop_propagation();
+                    });
+                    // Rows must not let clicks bubble to the panel background
+                    // (background click clears the selection).
+                    cx.stop_propagation();
+                }
             })
             // Drag & drop: external files are copied; internal entries are
             // moved by default and copied with the copy modifier. Drag moves
             // bubble up to the panel background for cursor/scroll handling;
             // drops stop propagation so the background does not handle the
             // same drop twice.
-            .on_drag_move::<ExternalPaths>(move |event, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.explorer_drag_hover_entry_external(event, drag_entry_id, window, cx);
-                });
+            .on_drag_move::<ExternalPaths>({
+                let weak = weak.clone();
+                move |event, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_drag_hover_entry_external(event, drag_entry_id, window, cx);
+                    });
+                }
             })
-            .on_drop::<ExternalPaths>(move |paths, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.on_explorer_drop_external(paths.paths(), drag_entry_id, window, cx);
-                });
-                cx.stop_propagation();
+            .on_drop::<ExternalPaths>({
+                let weak = weak.clone();
+                move |paths, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.on_explorer_drop_external(paths.paths(), drag_entry_id, window, cx);
+                    });
+                    cx.stop_propagation();
+                }
             })
-            .on_drag_move::<DraggedExplorerSelection>(move |event, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
-                });
+            .on_drag_move::<DraggedExplorerSelection>({
+                let weak = weak.clone();
+                move |event, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
+                    });
+                }
             })
-            .on_drop::<DraggedExplorerSelection>(move |payload, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
-                });
-                cx.stop_propagation();
+            .on_drop::<DraggedExplorerSelection>({
+                let weak = weak.clone();
+                move |payload, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
+                    });
+                    cx.stop_propagation();
+                }
             })
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();

@@ -83,6 +83,8 @@ impl ExplorerState {
         type ContextMenuItemHandler =
             Box<dyn Fn(&mut ExplorerState, &mut Window, &mut App) + 'static>;
 
+        let weak = self.self_weak.clone();
+
         // Build a menu row: label only (no icons, no keybindings — matching
         // Zed's context menu), optionally disabled, with a danger variant
         // for destructive actions.
@@ -101,12 +103,15 @@ impl ExplorerState {
                             .text_color(color)
                             .child(label),
                     )
-                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                        let handler = &handler;
-                        ExplorerState::update(cx, |state, cx| {
-                            handler(state, window, cx);
-                        });
-                        cx.stop_propagation();
+                    .on_mouse_down(MouseButton::Left, {
+                        let weak = weak.clone();
+                        move |_event, window, cx| {
+                            let handler = &handler;
+                            let _ = weak.update(cx, |state, cx| {
+                                handler(state, window, cx);
+                            });
+                            cx.stop_propagation();
+                        }
                     })
                     .into_any_element()
             } else {
@@ -424,10 +429,13 @@ impl ExplorerState {
             overlay()
                 .id("explorer-file-context-menu-overlay")
                 .occlude()
-                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
-                        state.on_dismiss_explorer_file_menu(event, window, cx);
-                    });
+                .on_mouse_down(MouseButton::Left, {
+                    let weak = weak.clone();
+                    move |event, window, cx| {
+                        let _ = weak.update(cx, |state, cx| {
+                            state.on_dismiss_explorer_file_menu(event, window, cx);
+                        });
+                    }
                 })
                 .child(
                     div()

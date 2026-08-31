@@ -111,6 +111,19 @@ impl Shell {
             .or_else(|| self.primary_editor())
     }
 
+    /// All explorer panel instances in this window, for shell-side
+    /// notifications such as active-file sync and drawer toggles.
+    pub(crate) fn explorer_states(&self) -> Vec<Entity<explorer::ExplorerState>> {
+        self.panel_views
+            .values()
+            .filter_map(|view| {
+                view.as_any()
+                    .downcast_ref::<explorer::ExplorerPanelView>()
+                    .map(|panel| panel.state.clone())
+            })
+            .collect()
+    }
+
     /// Recomputes every editor area's pushed state.
     pub(crate) fn sync_panel_states(&mut self, cx: &mut Context<Self>) {
         let Some(_viewport) = self.last_viewport else {
@@ -119,13 +132,17 @@ impl Shell {
         let active_tab_path = self
             .active_editor_tab(cx)
             .and_then(|tab| tab.file.path.clone());
-        explorer::ExplorerState::set_active_file(cx, active_tab_path);
+        for state in self.explorer_states() {
+            state.update(cx, |state, _cx| state.active_file = active_tab_path.clone());
+        }
     }
 
     /// Closes the explorer row context menu, if open.
     pub(crate) fn close_explorer_file_menu(&mut self, cx: &mut Context<Self>) {
-        let was_open =
-            explorer::ExplorerState::update(cx, |state, _cx| state.file_menu.take().is_some());
+        let was_open = self
+            .explorer_states()
+            .into_iter()
+            .any(|state| state.update(cx, |state, _cx| state.file_menu.take().is_some()));
         if was_open {
             cx.notify();
         }

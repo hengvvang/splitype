@@ -8,9 +8,14 @@ use window::PanelId;
 use crate::state::state::ExplorerState;
 
 /// Free-function entry point: renders the explorer bottom bar from the
-/// app-wide explorer state (the shell owns no explorer state).
-pub fn render_explorer_bottombar(panel_id: PanelId, theme: &Theme, cx: &mut App) -> AnyElement {
-    ExplorerState::update(cx, |state, cx| {
+/// given panel state entity (the shell owns no explorer state).
+pub fn render_explorer_bottombar(
+    panel_id: PanelId,
+    state: &Entity<ExplorerState>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    state.update(cx, |state, cx| {
         state.render_explorer_bottombar(panel_id, theme, cx)
     })
 }
@@ -30,6 +35,7 @@ impl ExplorerState {
         let d = &theme.dimensions;
         let worktree_count = self.worktrees.len();
         let btn_icon_size = toolbar_icon_size(d.bottombar_height);
+        let weak = self.self_weak.clone();
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
             .id(("explorer-bottombar", panel_id.0))
@@ -47,11 +53,14 @@ impl ExplorerState {
                                     .size(px(btn_icon_size))
                                     .text_color(c.text_default),
                             )
-                            .on_click(move |_event, window, cx| {
-                                ExplorerState::update(cx, |state, cx| {
-                                    state.prompt_open_explorer_folder(window, cx);
-                                });
-                                cx.stop_propagation();
+                            .on_click({
+                                let weak = weak.clone();
+                                move |_event, window, cx| {
+                                    let _ = weak.update(cx, |state, cx| {
+                                        state.prompt_open_explorer_folder(window, cx);
+                                    });
+                                    cx.stop_propagation();
+                                }
                             }),
                     )
                     .child(

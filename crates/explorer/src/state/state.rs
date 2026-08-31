@@ -13,8 +13,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
 use gpui::{
-    AnyWindowHandle, BorrowAppContext, Bounds, Entity, FocusHandle, Global, Pixels, Task,
-    UniformListScrollHandle,
+    AnyWindowHandle, AppContext, Bounds, Entity, FocusHandle, Pixels, Task,
+    UniformListScrollHandle, WeakEntity,
 };
 
 use super::undo::ExplorerUndoHistory;
@@ -334,31 +334,19 @@ pub struct ExplorerState {
     /// Path of the file open in the active editor tab (pushed by the shell
     /// every frame; used to keep the tree selection in sync).
     pub active_file: Option<PathBuf>,
+    /// Weak handle to this state's own entity, captured at construction so
+    /// event handlers and background tasks can re-enter the panel state.
+    pub self_weak: WeakEntity<Self>,
 }
 
-impl Global for ExplorerState {}
-
 impl ExplorerState {
-    /// The app-wide explorer state; panics when not installed by the app
-    /// bootstrap.
-    pub fn global(cx: &gpui::App) -> &Self {
-        cx.global::<Self>()
-    }
-
-    /// Mutate the app-wide explorer state and notify all windows.
-    ///
-    /// The closure receives the state and the app context (for nested
-    /// global access).
-    pub fn update<R>(cx: &mut gpui::App, f: impl FnOnce(&mut Self, &mut gpui::App) -> R) -> R {
-        let result = cx.update_global::<Self, R>(f);
-        cx.refresh_windows();
-        result
-    }
-
-    /// Quietly record the file open in the active editor tab. Called by the
-    /// shell every frame; deliberately does not refresh windows.
-    pub fn set_active_file(cx: &mut gpui::App, path: Option<PathBuf>) {
-        cx.update_global::<Self, _>(|state, _cx| state.active_file = path);
+    /// Construct a per-panel explorer state entity. Each panel instance
+    /// owns its own state, so split/multi-window panels never interfere.
+    pub fn entity(cx: &mut gpui::App) -> Entity<Self> {
+        cx.new(|cx| Self {
+            self_weak: cx.weak_entity(),
+            ..Default::default()
+        })
     }
 }
 
@@ -392,6 +380,7 @@ impl Default for ExplorerState {
             recent_files_cache: Vec::new(),
             file_menu: None,
             active_file: None,
+            self_weak: WeakEntity::new_invalid(),
         };
         state.refresh_recent_cache();
         state
@@ -445,6 +434,7 @@ impl ExplorerState {
             recent_files_cache: self.recent_files_cache.clone(),
             active_file: None,
             file_menu: None,
+            self_weak: WeakEntity::new_invalid(),
         }
     }
 }

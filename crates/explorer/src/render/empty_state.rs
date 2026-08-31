@@ -25,6 +25,7 @@ impl ExplorerState {
         let d = &theme.dimensions;
         let t = &theme.typography;
         let drop_target_bg = c.dialog_secondary_button_hover;
+        let weak = self.self_weak.clone();
 
         let display_title = if title.is_empty() {
             "Explorer is empty now"
@@ -44,17 +45,20 @@ impl ExplorerState {
             // Dropping folders onto the empty state opens them as worktrees
             // (mirrors Zed's empty-state drop-to-open).
             .drag_over::<ExternalPaths>(move |this, _, _, _| this.bg(drop_target_bg))
-            .on_drop::<ExternalPaths>(move |paths, window, cx| {
-                let paths: Vec<_> = paths.paths().to_vec();
-                ExplorerState::update(cx, |state, cx| {
-                    for path in paths {
-                        if path.is_dir() {
-                            state.open_explorer_folder_path(path.clone(), window, cx);
-                        } else {
-                            state.open_explorer_file(path.clone(), true, window, cx);
+            .on_drop::<ExternalPaths>({
+                let weak = weak.clone();
+                move |paths, window, cx| {
+                    let paths: Vec<_> = paths.paths().to_vec();
+                    let _ = weak.update(cx, |state, cx| {
+                        for path in paths {
+                            if path.is_dir() {
+                                state.open_explorer_folder_path(path.clone(), window, cx);
+                            } else {
+                                state.open_explorer_file(path.clone(), true, window, cx);
+                            }
                         }
-                    }
-                });
+                    });
+                }
             })
             .child(
                 svg()
@@ -109,10 +113,13 @@ impl ExplorerState {
                             .text_color(c.dialog_secondary_button_text)
                             .child("Open Folder"),
                     )
-                    .on_click(move |_event, window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.prompt_open_explorer_folder(window, cx);
-                        });
+                    .on_click({
+                        let weak = weak.clone();
+                        move |_event, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.prompt_open_explorer_folder(window, cx);
+                            });
+                        }
                     }),
             )
             .child(
@@ -175,10 +182,13 @@ impl ExplorerState {
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(folder_name),
                                 )
-                                .on_click(move |_event, window, cx| {
-                                    ExplorerState::update(cx, |state, cx| {
-                                        state.open_explorer_folder_path(path.clone(), window, cx);
-                                    });
+                                .on_click({
+                                    let weak = weak.clone();
+                                    move |_event, window, cx| {
+                                        let _ = weak.update(cx, |state, cx| {
+                                            state.open_explorer_folder_path(path.clone(), window, cx);
+                                        });
+                                    }
                                 })
                         }))
                         .children(recent_files.iter().map(|path| {
@@ -215,15 +225,18 @@ impl ExplorerState {
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(file_name),
                                 )
-                                .on_click(move |_event, window, cx| {
-                                    ExplorerState::update(cx, |state, cx| {
-                                        state.open_explorer_file(
-                                            path.clone(),
-                                            true,
-                                            window,
-                                            cx,
-                                        );
-                                    });
+                                .on_click({
+                                    let weak = weak.clone();
+                                    move |_event, window, cx| {
+                                        let _ = weak.update(cx, |state, cx| {
+                                            state.open_explorer_file(
+                                                path.clone(),
+                                                true,
+                                                window,
+                                                cx,
+                                            );
+                                        });
+                                    }
                                 })
                         }))
                 },

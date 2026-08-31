@@ -27,6 +27,11 @@ impl ExplorerState {
         let is_dir = edit.is_dir;
         let validation = edit.validation.clone();
         let focus_handle = edit.filename.focus_handle.clone().unwrap();
+        let weak = self.self_weak.clone();
+        let state_entity = self
+            .self_weak
+            .upgrade()
+            .expect("explorer state entity alive while rendering the edit row");
 
         let icon = if is_dir {
             (FOLDER_ICON, c.text_default)
@@ -82,38 +87,54 @@ impl ExplorerState {
                     .min_w(px(0.0))
                     .flex()
                     .items_center()
-                    .on_key_down(move |event, window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.on_explorer_filename_key_down(event, window, cx);
-                        });
+                    .on_key_down({
+                        let weak = weak.clone();
+                        move |event, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_key_down(event, window, cx);
+                            });
+                        }
                     })
                     // The global keymap binds escape to DismissTransientUi;
                     // GPUI dispatches matched actions BEFORE raw key
                     // listeners, so Esc must be handled as an action here
                     // (the focused node runs first) — on_key_down would
                     // never see it.
-                    .on_action(move |action: &window::DismissTransientUi, window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.on_explorer_escape(action, window, cx);
-                        });
+                    .on_action({
+                        let weak = weak.clone();
+                        move |action: &window::DismissTransientUi, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_escape(action, window, cx);
+                            });
+                        }
                     })
-                    .on_action(move |action: &window::Copy, _window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.on_explorer_filename_copy(action, _window, cx);
-                        });
+                    .on_action({
+                        let weak = weak.clone();
+                        move |action: &window::Copy, _window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_copy(action, _window, cx);
+                            });
+                        }
                     })
-                    .on_action(move |action: &window::Cut, _window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.on_explorer_filename_cut(action, _window, cx);
-                        });
+                    .on_action({
+                        let weak = weak.clone();
+                        move |action: &window::Cut, _window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_cut(action, _window, cx);
+                            });
+                        }
                     })
-                    .on_action(move |action: &window::Paste, window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.on_explorer_filename_paste(action, window, cx);
-                        });
+                    .on_action({
+                        let weak = weak.clone();
+                        move |action: &window::Paste, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_paste(action, window, cx);
+                            });
+                        }
                     })
                     .child(ExplorerFilenameInputElement {
                         ime_host: edit.ime_host.clone().expect("ime host set on edit start"),
+                        state: state_entity,
                     }),
             )
             .children(validation_label.map(|(message, color)| {

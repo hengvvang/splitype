@@ -66,6 +66,7 @@ impl ExplorerState {
         } else {
             c.text_default
         };
+        let weak = self.self_weak.clone();
 
         let mut arrow_el = div()
             .w(px(14.0))
@@ -88,11 +89,14 @@ impl ExplorerState {
                         .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
-                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
-                        state.toggle_explorer_node(arrow_node_id, cx);
-                    });
-                    cx.stop_propagation();
+                .on_mouse_down(MouseButton::Left, {
+                    let weak = weak.clone();
+                    move |_event, _window, cx| {
+                        let _ = weak.update(cx, |state, cx| {
+                            state.toggle_explorer_node(arrow_node_id, cx);
+                        });
+                        cx.stop_propagation();
+                    }
                 });
         }
 
@@ -118,17 +122,20 @@ impl ExplorerState {
                                 .size(px(14.0))
                                 .text_color(c.text_default),
                         )
-                        .on_click(move |_event, window, cx| {
-                            ExplorerState::update(cx, |state, cx| {
-                                if let Some(idx) = state
-                                    .worktrees
-                                    .iter()
-                                    .position(|wt| wt.read(cx).id() == worktree_id)
-                                {
-                                    state.replace_explorer_worktree(idx, window, cx);
-                                }
-                            });
-                            cx.stop_propagation();
+                        .on_click({
+                            let weak = weak.clone();
+                            move |_event, window, cx| {
+                                let _ = weak.update(cx, |state, cx| {
+                                    if let Some(idx) = state
+                                        .worktrees
+                                        .iter()
+                                        .position(|wt| wt.read(cx).id() == worktree_id)
+                                    {
+                                        state.replace_explorer_worktree(idx, window, cx);
+                                    }
+                                });
+                                cx.stop_propagation();
+                            }
                         }),
                 )
                 .child(
@@ -148,11 +155,14 @@ impl ExplorerState {
                                     c.dialog_muted
                                 }),
                         )
-                        .on_click(move |_event, _window, cx| {
-                            ExplorerState::update(cx, |state, cx| {
-                                state.toggle_explorer_hidden(cx);
-                            });
-                            cx.stop_propagation();
+                        .on_click({
+                            let weak = weak.clone();
+                            move |_event, _window, cx| {
+                                let _ = weak.update(cx, |state, cx| {
+                                    state.toggle_explorer_hidden(cx);
+                                });
+                                cx.stop_propagation();
+                            }
                         }),
                 )
                 .child(
@@ -164,11 +174,14 @@ impl ExplorerState {
                                 .size(px(14.0))
                                 .text_color(c.text_default),
                         )
-                        .on_click(move |_event, _window, cx| {
-                            ExplorerState::update(cx, |state, cx| {
-                                state.rescan_and_sync_explorer(cx);
-                            });
-                            cx.stop_propagation();
+                        .on_click({
+                            let weak = weak.clone();
+                            move |_event, _window, cx| {
+                                let _ = weak.update(cx, |state, cx| {
+                                    state.rescan_and_sync_explorer(cx);
+                                });
+                                cx.stop_propagation();
+                            }
                         }),
                 )
                 .child(
@@ -180,11 +193,14 @@ impl ExplorerState {
                                 .size(px(14.0))
                                 .text_color(c.text_default),
                         )
-                        .on_click(move |_event, _window, cx| {
-                            ExplorerState::update(cx, |state, cx| {
-                                state.collapse_all_explorer_nodes(cx);
-                            });
-                            cx.stop_propagation();
+                        .on_click({
+                            let weak = weak.clone();
+                            move |_event, _window, cx| {
+                                let _ = weak.update(cx, |state, cx| {
+                                    state.collapse_all_explorer_nodes(cx);
+                                });
+                                cx.stop_propagation();
+                            }
                         }),
                 )
                 .into_any_element()
@@ -241,10 +257,11 @@ impl ExplorerState {
             .child(buttons)
             .on_mouse_down(MouseButton::Right, {
                 let right_click_selection = mark_selection;
+                let weak = weak.clone();
                 move |event, _window, cx| {
                     let path = right_click_path.clone();
                     let selection = right_click_selection;
-                    ExplorerState::update(cx, |state, cx| {
+                    let _ = weak.update(cx, |state, cx| {
                         // Right-click selects the row (indicator feedback,
                         // mirroring Zed's deploy_context_menu); marked
                         // entries are cleared when the target is not one of
@@ -259,67 +276,82 @@ impl ExplorerState {
                     cx.stop_propagation();
                 }
             })
-            .on_click(move |event, window, cx| {
-                let id = node_id;
-                let selection = mark_selection;
-                let shift = event.modifiers().shift;
-                let alt = event.modifiers().alt;
-                let secondary = event.modifiers().secondary();
-                let click_count = event.click_count();
-                ExplorerState::update(cx, |state, cx| {
-                    if shift {
-                        state.select_explorer_range(id, cx);
-                        return;
-                    }
-                    if secondary {
-                        state.toggle_explorer_mark(selection, cx);
-                        return;
-                    }
-                    state.marked.clear();
-                    if root_is_file {
-                        // A file-rooted worktree opens its file on click.
-                        state.open_explorer_file_click(
-                            click_path.clone(),
-                            click_count > 1,
-                            window,
-                            cx,
-                        );
-                    } else if alt {
-                        state.toggle_explorer_subtree(id, cx);
-                    } else {
-                        state.toggle_explorer_node(id, cx);
-                    }
-                });
-                // Rows must not let clicks bubble to the panel background
-                // (background click clears the selection).
-                cx.stop_propagation();
+            .on_click({
+                let weak = weak.clone();
+                move |event, window, cx| {
+                    let id = node_id;
+                    let selection = mark_selection;
+                    let shift = event.modifiers().shift;
+                    let alt = event.modifiers().alt;
+                    let secondary = event.modifiers().secondary();
+                    let click_count = event.click_count();
+                    let _ = weak.update(cx, |state, cx| {
+                        if shift {
+                            state.select_explorer_range(id, cx);
+                            return;
+                        }
+                        if secondary {
+                            state.toggle_explorer_mark(selection, cx);
+                            return;
+                        }
+                        state.marked.clear();
+                        if root_is_file {
+                            // A file-rooted worktree opens its file on click.
+                            state.open_explorer_file_click(
+                                click_path.clone(),
+                                click_count > 1,
+                                window,
+                                cx,
+                            );
+                        } else if alt {
+                            state.toggle_explorer_subtree(id, cx);
+                        } else {
+                            state.toggle_explorer_node(id, cx);
+                        }
+                    });
+                    // Rows must not let clicks bubble to the panel background
+                    // (background click clears the selection).
+                    cx.stop_propagation();
+                }
             })
             // Drag & drop: the root row is a drop target like any directory
             // row, and dragging it reorders worktrees (see
             // on_explorer_drop_internal). Drag moves bubble up to the panel
             // background for cursor/scroll handling; drops stop propagation
             // so the background does not handle the same drop twice.
-            .on_drag_move::<ExternalPaths>(move |event, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.explorer_drag_hover_entry_external(event, drag_entry_id, window, cx);
-                });
+            .on_drag_move::<ExternalPaths>({
+                let weak = weak.clone();
+                move |event, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_drag_hover_entry_external(event, drag_entry_id, window, cx);
+                    });
+                }
             })
-            .on_drop::<ExternalPaths>(move |paths, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.on_explorer_drop_external(paths.paths(), drag_entry_id, window, cx);
-                });
-                cx.stop_propagation();
+            .on_drop::<ExternalPaths>({
+                let weak = weak.clone();
+                move |paths, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.on_explorer_drop_external(paths.paths(), drag_entry_id, window, cx);
+                    });
+                    cx.stop_propagation();
+                }
             })
-            .on_drag_move::<DraggedExplorerSelection>(move |event, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
-                });
+            .on_drag_move::<DraggedExplorerSelection>({
+                let weak = weak.clone();
+                move |event, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
+                    });
+                }
             })
-            .on_drop::<DraggedExplorerSelection>(move |payload, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
-                    state.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
-                });
-                cx.stop_propagation();
+            .on_drop::<DraggedExplorerSelection>({
+                let weak = weak.clone();
+                move |payload, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
+                    });
+                    cx.stop_propagation();
+                }
             })
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();

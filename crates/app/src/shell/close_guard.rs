@@ -264,9 +264,11 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        explorer::ExplorerState::update(cx, |state, cx| {
-            state.toggle_explorer_drawer(window, cx);
-        });
+        for state in self.explorer_states() {
+            state.update(cx, |state, cx| {
+                state.toggle_explorer_drawer(&mut *window, cx)
+            });
+        }
     }
 
     pub(crate) fn on_close_explorer_folder_action(
@@ -275,9 +277,9 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        explorer::ExplorerState::update(cx, |state, cx| {
-            state.close_explorer_folder(cx);
-        });
+        for state in self.explorer_states() {
+            state.update(cx, |state, cx| state.close_explorer_folder(cx));
+        }
     }
 
     pub(crate) fn on_toggle_kind_dropdown(

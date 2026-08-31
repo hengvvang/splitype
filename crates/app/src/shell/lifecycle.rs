@@ -451,15 +451,10 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let mut retained = HashMap::new();
-        let mut cloned_explorer = None;
         for (old_id, new_id) in &cloned.id_map {
             let Some(kind) = cloned.tree.find_leaf_kind(*new_id) else {
                 continue;
             };
-            if kind == window::PanelKind::new("explorer") {
-                cloned_explorer = Some(explorer::ExplorerState::global(cx).clone_for_new_window());
-                continue;
-            }
             let Some(state) = self
                 .panel_views
                 .get(&PanelId(*old_id))
@@ -469,12 +464,6 @@ impl Shell {
             };
             retained.insert(PanelId(*new_id), RetainedPanel { kind, state });
         }
-        open_cloned_window(
-            cloned.tree,
-            cloned.next_node_id,
-            retained,
-            cloned_explorer,
-            cx,
-        );
+        open_cloned_window(cloned.tree, cloned.next_node_id, retained, cx);
     }
 }

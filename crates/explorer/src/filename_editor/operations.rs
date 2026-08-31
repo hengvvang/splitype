@@ -242,17 +242,26 @@ impl ExplorerState {
         edit.filename.focus_handle = Some(cx.focus_handle());
         let focus_handle = edit.filename.focus_handle.clone().unwrap();
         // IME host: the filename input element registers this entity as its
-        // window input handler.
-        let ime_host = cx.new(|_| ExplorerFilenameImeHost);
+        // window input handler. It holds the panel state entity so IME
+        // events can re-enter the edit row.
+        let state_entity = self
+            .self_weak
+            .upgrade()
+            .expect("explorer state entity alive while starting an edit");
+        let ime_host = cx.new(move |_| ExplorerFilenameImeHost {
+            state: state_entity,
+        });
         edit.ime_host = Some(ime_host.clone());
         // Blur auto-commits when possible and discards otherwise, mirroring
         // Zed: `EditorEvent::Blurred` -> confirm; an empty, duplicate, or
         // unchanged name drops the edit. Window deactivation never commits
         // nor cancels.
+        let weak = self.self_weak.clone();
         ime_host.update(cx, |_host, cx| {
             let focus_handle = focus_handle.clone();
+            let weak = weak.clone();
             cx.on_blur(&focus_handle, window, move |_host, window, cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     if !window.is_window_active() {
                         return;
                     }
@@ -346,6 +355,7 @@ impl ExplorerState {
         let window_handle = window.window_handle();
         let new_path_for_update = new_path.clone();
         let old_path_for_record = old_path.clone();
+        let weak = self.self_weak.clone();
         cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
@@ -375,7 +385,7 @@ impl ExplorerState {
                 })
                 .await;
             cx.update(|cx| {
-                let path_for_open = ExplorerState::update(cx, |state, cx| {
+                let path_for_open = weak.update(cx, |state, cx| {
                     match result {
                         Ok(()) => {
                             state.edit = None;
@@ -423,13 +433,16 @@ impl ExplorerState {
                         }
                     }
                 });
-                // Window-scoped work must run after the global lease above
-                // ends (nested global leases panic).
-                if let Some(path_for_open) = path_for_open {
-                    let _ = cx.update_window(window_handle, move |_, window, cx| {
-                        ExplorerState::update(cx, |state, cx| {
-                            state.open_explorer_file(path_for_open, true, window, cx);
-                        });
+                // Window-scoped work must run after the state lease above
+                // ends (nested entity leases panic).
+                if let Some(path_for_open) = path_for_open.ok().flatten() {
+                    let _ = cx.update_window(window_handle, {
+                        let weak = weak.clone();
+                        move |_, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.open_explorer_file(path_for_open, true, window, cx);
+                            });
+                        }
                     });
                 }
                 cx.refresh_windows();

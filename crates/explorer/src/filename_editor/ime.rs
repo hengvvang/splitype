@@ -2,9 +2,9 @@
 //! editor.
 //!
 //! The filename input element registers this entity as its window input
-//! handler; every read goes through `ExplorerState::global` and every
-//! mutation through `ExplorerState::update` — the host entity itself is
-//! stateless.
+//! handler; every read goes through the owning panel's `ExplorerState`
+//! entity and every mutation through its `update` — the host entity itself
+//! holds only the state handle.
 
 use std::ops::Range;
 
@@ -16,9 +16,13 @@ use crate::filename_editor::buffer::{
 };
 use crate::filename_editor::element::shape_filename_line;
 
-/// Stateless IME host for the inline filename editor (one per edit).
+/// IME host for the inline filename editor (one per edit), holding the
+/// panel state entity whose edit row it bridges.
 #[derive(Clone, Debug)]
-pub struct ExplorerFilenameImeHost;
+pub struct ExplorerFilenameImeHost {
+    /// The explorer panel state being edited.
+    pub state: Entity<ExplorerState>,
+}
 
 impl EntityInputHandler for ExplorerFilenameImeHost {
     fn text_for_range(
@@ -28,7 +32,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<String> {
-        let edit = ExplorerState::global(cx).edit.as_ref()?;
+        let edit = self.state.read(cx).edit.as_ref()?;
         if !edit.filename.focus_handle.as_ref()?.is_focused(window) {
             return None;
         }
@@ -43,7 +47,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
-        let edit = ExplorerState::global(cx).edit.as_ref()?;
+        let edit = self.state.read(cx).edit.as_ref()?;
         if !edit.filename.focus_handle.as_ref()?.is_focused(window) {
             return None;
         }
@@ -58,7 +62,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<Range<usize>> {
-        let edit = ExplorerState::global(cx).edit.as_ref()?;
+        let edit = self.state.read(cx).edit.as_ref()?;
         if !edit.filename.focus_handle.as_ref()?.is_focused(window) {
             return None;
         }
@@ -69,7 +73,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
     }
 
     fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        ExplorerState::update(cx, |state, _cx| {
+        self.state.update(cx, |state, _cx| {
             if let Some(edit) = state.edit.as_mut() {
                 if edit
                     .filename
@@ -90,7 +94,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(edit) = ExplorerState::global(cx).edit.as_ref() else {
+        let Some(edit) = self.state.read(cx).edit.as_ref() else {
             return;
         };
         if !edit
@@ -107,7 +111,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
             .map(|range| utf16_range_to_utf8_in(&text, range))
             .or_else(|| edit.filename.marked_range.clone())
             .unwrap_or_else(|| edit.filename.selection_range());
-        ExplorerState::update(cx, |state, cx| {
+        self.state.update(cx, |state, cx| {
             if let Some(edit) = state.edit.as_mut() {
                 edit.filename.replace_range(range, new_text);
                 state.populate_explorer_validation(cx);
@@ -123,7 +127,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(edit) = ExplorerState::global(cx).edit.as_ref() else {
+        let Some(edit) = self.state.read(cx).edit.as_ref() else {
             return;
         };
         if !edit
@@ -147,7 +151,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
             .map(|range| utf16_range_to_utf8_in(&sanitized, range))
             .map(|relative| marked.start + relative.start..marked.start + relative.end)
             .unwrap_or_else(|| marked.clone());
-        ExplorerState::update(cx, |state, cx| {
+        self.state.update(cx, |state, cx| {
             if let Some(edit) = state.edit.as_mut() {
                 edit.filename.text.replace_range(range, &sanitized);
                 edit.filename.marked_range = Some(marked);
@@ -165,7 +169,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
-        let edit = ExplorerState::global(cx).edit.as_ref()?;
+        let edit = self.state.read(cx).edit.as_ref()?;
         if !edit.filename.focus_handle.as_ref()?.is_focused(window) {
             return None;
         }
@@ -183,7 +187,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<usize> {
-        let edit = ExplorerState::global(cx).edit.as_ref()?;
+        let edit = self.state.read(cx).edit.as_ref()?;
         if !edit.filename.focus_handle.as_ref()?.is_focused(window) {
             return None;
         }

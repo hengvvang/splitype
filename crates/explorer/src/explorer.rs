@@ -4,9 +4,11 @@
 //!
 //! - **State & model** live in [`state`]: the [`worktree`] scan entities,
 //!   the file-tree nodes / visible rows / selection, the [`undo`] manager,
-//!   and the background helpers. The state is an app-wide gpui `Global`
-//!   (like the settings panel state), so the panel never touches the
-//!   window shell; shell interactions go through `workspace` actions.
+//!   and the background helpers. Every panel instance owns its own
+//!   [`ExplorerState`] entity (one per `ExplorerPanelView`), so split and
+//!   multi-window panels never share tree state; the panel never touches
+//!   the window shell, and shell interactions go through `workspace`
+//!   actions.
 //! - **Selection** is keyed by the Zed-style double key
 //!   `(worktree index, stable entry id)`; ids survive renames and moves, so
 //!   selection and expansion state survive rescans. Multi-select marks,
@@ -26,7 +28,6 @@
 //! The panel never imports the editor family, and vice versa.
 
 pub mod bottombar;
-pub mod builder;
 pub mod filename_editor;
 pub mod ops;
 pub mod panel;
@@ -36,7 +37,6 @@ pub mod state;
 pub mod topbar;
 
 pub use bottombar::render_explorer_bottombar;
-pub use builder::*;
 pub use filename_editor::buffer::{utf8_range_to_utf16_in, utf16_range_to_utf8_in};
 pub use filename_editor::element::shape_filename_line;
 pub use plugin::*;

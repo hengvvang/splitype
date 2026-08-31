@@ -1,3 +1,4 @@
+use crate::state::state::ExplorerState;
 use crate::{render_explorer_body, render_explorer_bottombar, render_explorer_topbar};
 use gpui::*;
 use std::any::Any;
@@ -7,11 +8,17 @@ use window::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext,
 /// View wrapper implementing [`PanelView`] for the Explorer sidebar.
 pub struct ExplorerPanelView {
     pub panel_id: PanelId,
+    /// The panel's own explorer state entity (one per panel instance, so
+    /// splits and multi-window panels never share tree state).
+    pub state: Entity<ExplorerState>,
 }
 
 impl ExplorerPanelView {
-    pub fn new(panel_id: PanelId) -> Self {
-        Self { panel_id }
+    pub fn new(panel_id: PanelId, cx: &mut App) -> Self {
+        Self {
+            panel_id,
+            state: ExplorerState::entity(cx),
+        }
     }
 }
 
@@ -44,8 +51,8 @@ impl PanelView for ExplorerPanelView {
             ctx.is_maximized,
             cx,
         );
-        let body = render_explorer_body(ctx.panel_id, theme, ctx.strings, cx);
-        let bottombar = render_explorer_bottombar(ctx.panel_id, theme, cx);
+        let body = render_explorer_body(ctx.panel_id, &self.state, theme, ctx.strings, cx);
+        let bottombar = render_explorer_bottombar(ctx.panel_id, &self.state, theme, cx);
 
         div()
             .w_full()
@@ -64,6 +71,10 @@ impl PanelView for ExplorerPanelView {
             )
             .child(bottombar)
             .into_any_element()
+    }
+
+    fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.state.read(cx).clone_for_new_window()))
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -102,8 +113,27 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
         &self,
         panel_id: PanelId,
         _host: Arc<dyn PanelHost>,
-        _cx: &mut App,
+        cx: &mut App,
     ) -> Box<dyn PanelView> {
-        Box::new(ExplorerPanelView::new(panel_id))
+        Box::new(ExplorerPanelView::new(panel_id, cx))
+    }
+
+    fn restore_panel(
+        &self,
+        panel_id: PanelId,
+        _host: Arc<dyn PanelHost>,
+        state: Box<dyn Any>,
+        cx: &mut App,
+    ) -> Option<Box<dyn PanelView>> {
+        let state = state.downcast::<ExplorerState>().ok().map(|boxed| *boxed)?;
+        let entity = cx.new(|cx| {
+            let mut restored = state;
+            restored.self_weak = cx.weak_entity();
+            restored
+        });
+        Some(Box::new(ExplorerPanelView {
+            panel_id,
+            state: entity,
+        }))
     }
 }

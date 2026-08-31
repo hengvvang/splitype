@@ -138,9 +138,12 @@ pub struct Worktree {
     /// Skip dotfiles in scans (persisted explorer setting).
     hide_hidden: bool,
     /// Handle to this entity, captured at construction so background
-    /// tasks can wake and re-enter the worktree (the explorer global
-    /// owns no `Context` to derive it from).
+    /// tasks can wake and re-enter the worktree (the owning explorer state
+    /// keeps no `Context` to derive it from).
     self_weak: WeakEntity<Worktree>,
+    /// Weak handle to the owning [`ExplorerState`] entity; scan events
+    /// re-enter it to refresh the visible tree.
+    explorer: WeakEntity<ExplorerState>,
     /// Window handle for try-borrow-safe re-entry from background tasks:
     /// `AnyWindowHandle::update` skips a wake-up that lands mid-render
     /// instead of panicking ("RefCell already borrowed"). `None` in tests.
@@ -162,6 +165,7 @@ impl Worktree {
         next_entry_id: Arc<AtomicU64>,
         hide_hidden: bool,
         window_handle: Option<AnyWindowHandle>,
+        explorer: WeakEntity<ExplorerState>,
         cx: &mut App,
     ) -> Entity<Self> {
         let root_id = ExplorerEntryId(next_entry_id.fetch_add(1, Ordering::SeqCst));
@@ -178,6 +182,7 @@ impl Worktree {
                 next_entry_id,
                 hide_hidden,
                 self_weak: cx.weak_entity(),
+                explorer,
                 window_handle,
                 fs_watch_task: None,
                 scan_task: None,
@@ -270,8 +275,9 @@ impl Worktree {
                         // mid-update right now — and GPUI panics when an
                         // entity is read while it is being updated.
                         let worktree_entity = cx.entity();
+                        let explorer_weak = this.explorer.clone();
                         cx.defer(move |cx| {
-                            ExplorerState::update(cx, |explorer, cx| {
+                            let _ = explorer_weak.update(cx, |explorer, cx| {
                                 explorer.on_explorer_worktree_event(
                                     worktree_entity,
                                     &WorktreeEvent::UpdatedEntries,

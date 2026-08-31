@@ -85,6 +85,7 @@ instead of faking a dirty document.
 **Status:** Accepted
 
 Panel plugins own transient UI state in entities created by their descriptors.
-`SettingsPanelView` already owns its `SettingsUiState` entity; Explorer will
-follow the same pattern. Application globals are reserved for true shared
-services such as configuration and theme management.
+Both `SettingsPanelView` and `ExplorerPanelView` own their state entities;
+explorer splits, clones, and multi-window instances are now independent.
+Application globals are reserved for true shared services such as
+configuration and theme management.

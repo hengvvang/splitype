@@ -241,14 +241,18 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        let _ = with_shell_window(cx, |_shell, window, cx| {
-            explorer::ExplorerState::update(cx, |state, cx| {
-                state.toggle_explorer_drawer(window, cx);
-            });
+        let _ = with_shell_window(cx, |shell, window, cx| {
+            for state in shell.explorer_states() {
+                state.update(cx, |state, cx| {
+                    state.toggle_explorer_drawer(&mut *window, cx)
+                });
+            }
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        explorer::ExplorerState::update(cx, |state, cx| {
-            state.close_explorer_folder(cx);
+        let _ = with_shell_window(cx, |shell, _window, cx| {
+            for state in shell.explorer_states() {
+                state.update(cx, |state, cx| state.close_explorer_folder(cx));
+            }
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -362,12 +366,18 @@ pub(crate) fn dispatch_menu_action_for_editor(
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        explorer::ExplorerState::update(cx, |state, cx| {
-            state.toggle_explorer_drawer(window, cx);
+        let _ = target_shell.update(cx, |shell, cx| {
+            for state in shell.explorer_states() {
+                state.update(cx, |state, cx| {
+                    state.toggle_explorer_drawer(&mut *window, cx)
+                });
+            }
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        explorer::ExplorerState::update(cx, |state, cx| {
-            state.close_explorer_folder(cx);
+        let _ = target_shell.update(cx, |shell, cx| {
+            for state in shell.explorer_states() {
+                state.update(cx, |state, cx| state.close_explorer_folder(cx));
+            }
         });
     } else if action.as_any().is::<OpenSplitypeRepository>() {
         open_splitype_repository(cx);

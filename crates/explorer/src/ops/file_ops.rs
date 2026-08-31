@@ -42,17 +42,19 @@ impl ExplorerState {
             &["Delete", "Cancel"],
             cx,
         );
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx| {
             if prompt.await != Ok(0) {
                 return;
             }
             let paths: Vec<PathBuf> = cx.update(|cx| {
-                ExplorerState::update(cx, |state, _cx| {
+                weak.update(cx, |state, _cx| {
                     selections
                         .iter()
                         .filter_map(|sel| state.explorer_path_for_id(sel.entry_id))
                         .collect::<Vec<PathBuf>>()
                 })
+                .unwrap_or_default()
             });
             cx.background_executor()
                 .spawn(async move {
@@ -64,7 +66,7 @@ impl ExplorerState {
                 })
                 .await;
             cx.update(|cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.marked.clear();
                     state.rescan_explorer_worktrees(cx);
                     if let Some(next) = state.next_explorer_selection_after_deletion(&selections) {
@@ -89,6 +91,7 @@ impl ExplorerState {
             .iter()
             .filter_map(|sel| self.explorer_path_for_id(sel.entry_id))
             .collect();
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx| {
             cx.background_executor()
                 .spawn(async move {
@@ -100,7 +103,7 @@ impl ExplorerState {
                 })
                 .await;
             cx.update(|cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.marked.clear();
                     state.rescan_explorer_worktrees(cx);
                     if let Some(next) = state.next_explorer_selection_after_deletion(&selections) {
@@ -199,13 +202,14 @@ impl ExplorerState {
         }
         let is_cut = clipboard.is_cut();
         let window_handle = window.window_handle();
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&items, &target_dir, is_cut, true) })
                 .await;
             cx.update(|cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     if is_cut {
                         state.clipboard =
                             state.clipboard.take().map(ExplorerClipboard::into_copied);
@@ -237,20 +241,23 @@ impl ExplorerState {
                     state.sync_explorer_models(cx);
                     cx.refresh_windows();
                 });
-                // Window-scoped work must run after the global lease above
-                // ends (nested global leases panic).
-                let _ = cx.update_window(window_handle, move |_, _window, cx| {
-                    ExplorerState::update(cx, |state, _cx| {
-                        if let Some(path) = result
-                            .last()
-                            .and_then(explorer_change_destination)
-                            .map(Path::to_path_buf)
-                        {
-                            state.expand_to_path(&path);
-                            state.rebuild_explorer_entries();
-                            state.autoscroll_explorer_selection();
-                        }
-                    });
+                // Window-scoped work must run after the state lease above
+                // ends (nested entity leases panic).
+                let _ = cx.update_window(window_handle, {
+                    let weak = weak.clone();
+                    move |_, _window, cx| {
+                        let _ = weak.update(cx, |state, _cx| {
+                            if let Some(path) = result
+                                .last()
+                                .and_then(explorer_change_destination)
+                                .map(Path::to_path_buf)
+                            {
+                                state.expand_to_path(&path);
+                                state.rebuild_explorer_entries();
+                                state.autoscroll_explorer_selection();
+                            }
+                        });
+                    }
                 });
             });
         });
@@ -269,6 +276,7 @@ impl ExplorerState {
             return;
         };
         let change_for_execution = change.clone();
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
@@ -278,7 +286,7 @@ impl ExplorerState {
                 tracing::error!(error = %err, "failed to execute explorer undo");
             }
             cx.update(|cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.undo_history.redo_stack.push(change);
                     state.rescan_explorer_worktrees(cx);
                     state.sync_explorer_models(cx);
@@ -294,6 +302,7 @@ impl ExplorerState {
             return;
         };
         let change_for_execution = change.clone();
+        let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
@@ -303,7 +312,7 @@ impl ExplorerState {
                 tracing::error!(error = %err, "failed to execute explorer redo");
             }
             cx.update(|cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.undo_history.undo_stack.push(change);
                     state.rescan_explorer_worktrees(cx);
                     state.sync_explorer_models(cx);

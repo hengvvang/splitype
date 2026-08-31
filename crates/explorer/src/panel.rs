@@ -63,12 +63,14 @@ impl ExplorerState {
         explorer.is_open = true;
         let worktree_id = WorktreeId(explorer.worktrees.len());
         let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
+        let explorer_weak = explorer.self_weak.clone();
         let worktree = Worktree::new(
             worktree_id,
             path.clone(),
             explorer.next_entry_id.clone(),
             hide_hidden,
             Some(window.window_handle()),
+            explorer_weak,
             cx,
         );
         // The root row starts expanded (VSCode-style title row visible).
@@ -78,7 +80,7 @@ impl ExplorerState {
             .entry(worktree_id)
             .or_default()
             .insert(root_id);
-        // The worktree notifies the explorer global itself when its
+        // The worktree notifies its owning explorer state itself when its
         // snapshots change (no shell subscription needed).
         explorer.worktrees.push(worktree);
         explorer.snapshots = explorer
@@ -163,9 +165,10 @@ impl ExplorerState {
         if let Some((window_handle, path)) = self.pending_rename.take()
             && self.explorer_id_for_path(&path).is_some()
         {
+            let weak = self.self_weak.clone();
             cx.spawn(async move |cx: &mut AsyncApp| {
                 let _ = cx.update_window(window_handle, |_, window, cx| {
-                    ExplorerState::update(cx, |state, cx| {
+                    let _ = weak.update(cx, |state, cx| {
                         state.begin_inline_rename(path.to_path_buf(), window, cx);
                     });
                 });
@@ -202,6 +205,7 @@ impl ExplorerState {
             prompt: None,
         });
         let window_handle = _window.window_handle();
+        let weak = self.self_weak.clone();
         cx.spawn(async move |cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
@@ -222,7 +226,7 @@ impl ExplorerState {
             // `AnyWindowHandle::update` uses try_borrow_mut: the dialog
             // completion may land while a frame is mid-render.
             let _ = window_handle.update(cx, |_view, _window, cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     state.open_explorer_folder_path(path, _window, cx);
                     cx.refresh_windows();
                 });
@@ -278,6 +282,7 @@ impl ExplorerState {
             prompt: None,
         });
         let window_handle = window.window_handle();
+        let weak = self.self_weak.clone();
         cx.spawn(async move |cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
@@ -291,7 +296,7 @@ impl ExplorerState {
                 return;
             };
             let _ = window_handle.update(cx, |_view, _window, cx| {
-                ExplorerState::update(cx, |state, cx| {
+                let _ = weak.update(cx, |state, cx| {
                     if index < state.worktrees.len() {
                         state.remove_explorer_worktree(index, cx);
                     }
