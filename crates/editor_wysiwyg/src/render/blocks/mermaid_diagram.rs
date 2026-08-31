@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::render::embedded_preview::render_graphic_preview_box;
 use config::language::I18nStrings;
 use theme::Theme;

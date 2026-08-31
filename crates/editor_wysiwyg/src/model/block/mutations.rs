@@ -7,7 +7,7 @@ use gpui::*;
 
 use super::Block;
 use super::state::{CollapsedCaretAffinity, InlineFormat};
-use crate::document::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::BlockKind;
 

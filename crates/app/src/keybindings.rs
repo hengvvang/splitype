@@ -13,17 +13,16 @@ use crate::app::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
 use editor_core::actions::{
-    FindNext, FindPrevious, SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind,
-    ToggleReplace, ToggleSearch,
+    FindNext, FindPrevious, JumpToBottom, JumpToTop, PageDown, PageUp, Redo, SaveDocument,
+    SaveDocumentAs, ToggleMaximizePane, TogglePaneKind, ToggleReplace, ToggleSearch, Undo,
 };
 
 use editor_wysiwyg::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
-    FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, JumpToBottom, JumpToTop,
-    MoveLeft, MoveRight, Newline, OutdentBlock, PageDown, PageUp, Redo, SelectAll, SelectEnd,
-    SelectHome, SelectLeft, SelectRight, StrikethroughSelection, UnderlineSelection, Undo,
-    WordDeleteBackward, WordDeleteForward, WordMoveLeft, WordMoveRight, WordSelectLeft,
-    WordSelectRight,
+    FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, MoveLeft, MoveRight, Newline,
+    OutdentBlock, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,
+    StrikethroughSelection, UnderlineSelection, WordDeleteBackward, WordDeleteForward,
+    WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
 };
 use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
 use config::keybindings::{

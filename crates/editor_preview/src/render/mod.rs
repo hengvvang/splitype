@@ -129,11 +129,6 @@ pub(crate) fn render_preview_block(
     cx: &App,
 ) -> AnyElement {
     let d = &theme.dimensions;
-
-    let host_down = host.clone();
-    let host_move = host.clone();
-    let host_up = host.clone();
-
     let depth_padding = d.block_padding_x + d.nested_block_indent * depth as f32;
     let base = div()
         .w_full()
@@ -142,24 +137,7 @@ pub(crate) fn render_preview_block(
         .min_h(px(d.block_min_height))
         .py(px(d.block_padding_y))
         .pl(px(depth_padding))
-        .pr(px(d.block_padding_x))
-        .on_mouse_down(
-            MouseButton::Left,
-            move |event, _window, cx| {
-                host_down.preview_mouse_down(pane_id, block_index, event.position, cx);
-            },
-        )
-        .on_mouse_move(move |event, _window, cx| {
-            if event.dragging() {
-                host_move.preview_mouse_move(pane_id, block_index, event.position, cx);
-            }
-        })
-        .on_mouse_up(
-            MouseButton::Left,
-            move |_event, _window, cx| {
-                host_up.preview_mouse_up(pane_id, cx);
-            },
-        );
+        .pr(px(d.block_padding_x));
 
     // Blockquote rows and everything inside them sit one quote level deeper.
     let effective_quote_depth = if matches!(block.kind(), BlockKind::Blockquote) {
@@ -253,7 +231,7 @@ pub(crate) fn render_preview_block(
         .into_any_element();
 
     if let BlockKind::Callout(variant) = block.kind() {
-        let (accent, _) = editor_wysiwyg::presentation::callout_colors(variant, theme);
+        let (accent, _) = editor_wysiwyg::render::presentation::callout_colors(variant, theme);
         div()
             .w_full()
             .relative()

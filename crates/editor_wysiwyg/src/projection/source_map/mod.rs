@@ -10,9 +10,9 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::document::Document;
-pub use crate::source_map::collector::collect_single_block_source_mappings;
-pub use crate::source_map::mapping_buffer::{
+use crate::model::Document;
+pub use crate::projection::source_map::collector::collect_single_block_source_mappings;
+pub use crate::projection::source_map::mapping_buffer::{
     build_code_block_content_mapping, build_prefixed_content_mapping,
 };
 use crate::state::SourceTargetMapping;

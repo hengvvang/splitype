@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::markdown::block::CalloutKind;
 use crate::markdown::parse::{BlockId, BlockKind};
 

@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::render::{
     effective_list_item_image_width, numbered_list_marker, render_custom_bullet_marker,
 };

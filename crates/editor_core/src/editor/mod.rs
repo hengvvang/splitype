@@ -25,7 +25,7 @@ pub use splitter::root::SplitterRoot;
 pub use workspace::{PanelId, WindowPanelKind, DEFAULT_EDITOR_PANEL_ID};
 
 pub use crate::session::{
-    DocumentTab, EditorPaneKind, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKindId,
+    DocumentTab, EditorSession, EditorTabList, FileState, OpenFileMode, PaneKindId,
     PaneState, PendingOpenLink, ScrollState, ScrollbarDragSession, TabKind,
 };
 pub use export::ExportFormat;

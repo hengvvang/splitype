@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::{Block, ImageHandle};
+use crate::model::block::{Block, ImageHandle};
 use config::language::I18nManager;
 use theme::Theme;
 use crate::markdown::block::html::{

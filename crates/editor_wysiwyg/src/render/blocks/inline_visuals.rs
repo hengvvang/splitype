@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::latex::{inline_math_font_size, render_inline_math_svg};
-use crate::document::block::{Block, ImageHandle};
+use crate::model::block::{Block, ImageHandle};
 use crate::render::LinkFollowCursor;
 use crate::render::html_document::html_css_color_to_hsla;
 use crate::render::inline::text_element::BlockTextElement;
@@ -296,7 +296,7 @@ impl Block {
                 .cursor(CursorStyle::PointingHand)
                 .on_hover(cx.listener(move |_block, hovered: &bool, window, cx| {
                     let anchor_pos = window.mouse_position();
-                    cx.emit(crate::document::protocol::BlockEvent::RequestFootnoteTooltip {
+                    cx.emit(crate::model::protocol::BlockEvent::RequestFootnoteTooltip {
                         id: footnote_id.clone(),
                         content: None,
                         position: anchor_pos,
@@ -313,7 +313,7 @@ impl Block {
                     MouseButton::Left,
                     cx.listener(move |_block, _event: &MouseUpEvent, _window, cx| {
                         cx.stop_propagation();
-                        cx.emit(crate::document::protocol::BlockEvent::RequestJumpToFootnoteDefinition {
+                        cx.emit(crate::model::protocol::BlockEvent::RequestJumpToFootnoteDefinition {
                             id: footnote.id.clone(),
                         });
                     }),

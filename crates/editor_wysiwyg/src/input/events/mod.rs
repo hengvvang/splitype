@@ -5,4 +5,4 @@ pub mod structure_ops;
 pub mod table_events;
 pub mod text_edits;
 
-pub use crate::document::protocol::{BlockEvent, BlockEventCategory};
+pub use crate::model::protocol::{BlockEvent, BlockEventCategory};

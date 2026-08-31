@@ -7,7 +7,7 @@ use editor_outline::OutlineHeading;
 use editor_search::{SearchMatch, SearchQuery};
 use theme::Theme;
 
-use crate::{EditorDocument, PaneKindId, PaneRenderContext};
+use crate::{EditorDocument, PaneHost, PaneId, PaneKindId, PaneRenderContext};
 
 /// The plugin contract implemented by every editor pane kind.
 pub trait PaneView: Any + Send + Sync + 'static {
@@ -96,6 +96,45 @@ pub trait PaneView: Any + Send + Sync + 'static {
 
     /// Hook called when the shared document text has changed.
     fn on_document_changed(&mut self, _new_text: &str, _cx: &mut App) {}
+
+    /// Handles key down event. Returns true if consumed.
+    fn handle_key_down(
+        &mut self,
+        _pane_id: PaneId,
+        _event: &gpui::KeyDownEvent,
+        _window: &mut Window,
+        _cx: &mut App,
+        _host: &dyn PaneHost,
+    ) -> bool {
+        false
+    }
+
+    /// Handles mouse down event.
+    fn handle_mouse_down(
+        &mut self,
+        _pane_id: PaneId,
+        _event: &gpui::MouseDownEvent,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) {}
+
+    /// Handles mouse move event.
+    fn handle_mouse_move(
+        &mut self,
+        _pane_id: PaneId,
+        _event: &gpui::MouseMoveEvent,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) {}
+
+    /// Handles mouse up event.
+    fn handle_mouse_up(
+        &mut self,
+        _pane_id: PaneId,
+        _event: &gpui::MouseUpEvent,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) {}
 
     /// Type-erased access for downcasting to the concrete mode state.
     fn as_any(&self) -> &dyn Any;

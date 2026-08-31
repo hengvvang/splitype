@@ -7,7 +7,7 @@ use gpui::*;
 
 use super::Block;
 use super::state::CollapsedCaretAffinity;
-use crate::text_layout as element;
+use crate::render::text_layout as element;
 use unicode_segmentation::{GraphemeCursor, UnicodeSegmentation};
 
 impl Block {

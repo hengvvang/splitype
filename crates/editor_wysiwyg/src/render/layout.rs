@@ -29,7 +29,7 @@ pub struct RowSpacingInfo {
 
 impl RowSpacingInfo {
     /// Read spacing metadata from a block entity.
-    pub fn from_block(block: &crate::document::block::Block) -> Self {
+    pub fn from_block(block: &crate::model::block::Block) -> Self {
         Self {
             quote_group_id: block.quote_group_id,
             visible_quote_group_id: block.visible_quote_group_id,

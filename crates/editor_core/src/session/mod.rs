@@ -4,7 +4,7 @@ pub mod file;
 pub mod ops;
 pub mod tab;
 
-pub use editor_model::{EditorPaneKind, OpenFileMode, PaneKindId, TabKind};
+pub use editor_model::{OpenFileMode, PaneKindId, TabKind};
 pub use file::{FileState, PendingOpenLink};
 pub use tab::{DocumentTab, PaneState, ScrollState, ScrollbarDragSession};
 

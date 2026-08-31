@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::document::protocol::BlockEvent;
-use crate::document::block::{Block, TableHoverRegion};
+use crate::model::protocol::BlockEvent;
+use crate::model::block::{Block, TableHoverRegion};
 use crate::markdown::parse::BlockKind;
 
 impl Block {

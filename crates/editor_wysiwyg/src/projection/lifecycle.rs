@@ -6,7 +6,7 @@ use crate::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedLinkSpan,
     ProjectedLinkSelectionSnapshot,
 };
-use crate::document::block::{Block, CollapsedCaretAffinity};
+use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::markdown::inline::render_cache::InlineRenderCache;
 use crate::markdown::parse::BlockKind;
 use gpui::Pixels;

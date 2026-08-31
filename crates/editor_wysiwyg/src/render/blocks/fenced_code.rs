@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use config::language::I18nStrings;
 use theme::Theme;
 

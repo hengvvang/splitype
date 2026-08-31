@@ -1,6 +1,6 @@
 //! Interaction block event helpers.
 
-use crate::document::protocol::BlockEvent;
+use crate::model::protocol::BlockEvent;
 
 /// Checks if an event is an interaction request (links, footnotes, focus transfers).
 pub fn is_interaction_event(event: &BlockEvent) -> bool {

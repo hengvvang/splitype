@@ -7,8 +7,8 @@ use gpui::*;
 
 pub use super::code_input::CodeLanguageInputElement;
 use super::shaping::{build_code_text_runs, build_text_runs, unrounded_line_height};
-use crate::text_layout::*;
-use crate::document::block::Block;
+use crate::render::text_layout::*;
+use crate::model::block::Block;
 use theme::ThemeManager;
 
 /// Interactive GPUI element that paints and handles mouse/keyboard events

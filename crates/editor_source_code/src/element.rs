@@ -183,9 +183,6 @@ impl Element for SourceCodeViewElement {
             None => (String::new(), vec![0..0], 0, None, Vec::new(), false, None),
         };
 
-        // Record bounds for IME candidate popup window
-        self.host.set_source_last_bounds(self.pane_id, bounds, cx);
-
         let total_lines = if line_ranges.is_empty() { 1 } else { line_ranges.len() };
         let line_digits = total_lines.to_string().len();
         let gutter_width = (line_digits as f32 * (font_size * 0.6) + 24.0).max(36.0);

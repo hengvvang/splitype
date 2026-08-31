@@ -3,7 +3,7 @@
 use std::ops::Range;
 use gpui::{App, EntityId};
 use editor_search::{SearchMatch, SearchQuery};
-use crate::document::Document;
+use crate::model::Document;
 
 /// Searches across all blocks in the WYSIWYG document.
 pub fn search_in_document(doc: &Document, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {

@@ -1,8 +1,8 @@
 use gpui::*;
 
-use crate::document::protocol::BlockEvent;
-use crate::table_measure::measure_table_column_layout;
-use crate::document::block::Block;
+use crate::model::protocol::BlockEvent;
+use crate::table::measure::measure_table_column_layout;
+use crate::model::block::Block;
 use crate::render::effective_table_width;
 use theme::Theme;
 use crate::markdown::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};

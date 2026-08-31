@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::highlight::code_highlight_color;
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::render::html_document::html_css_color_to_hsla;
 use theme::ThemeColors;
 

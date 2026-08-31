@@ -5,7 +5,7 @@
 //! related deltas with selection snapshots and provides an $O(1)$ [`Transaction::invert`]
 //! operation to generate the exact reverse action.
 
-use crate::document::protocol::UndoCaptureKind;
+use crate::model::protocol::UndoCaptureKind;
 use crate::state::UndoSelectionSnapshot;
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockId};

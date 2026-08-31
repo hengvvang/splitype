@@ -5,14 +5,14 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::document::Document;
-use crate::document::block::Block;
+use crate::model::Document;
+use crate::model::block::Block;
 use crate::markdown::parse::BlockKind;
-use crate::source_map::block_kinds::{
+use crate::projection::source_map::block_kinds::{
     push_code_block_mapping, push_fenced_block_mapping, push_footnote_definition_full_mapping,
     push_inline_block_mapping, push_raw_block_mapping, wrap_source_mapping_with_quotes,
 };
-use crate::source_map::table_cells::push_table_mappings;
+use crate::projection::source_map::table_cells::push_table_mappings;
 use crate::state::SourceTargetMapping;
 
 /// Collects source-target mappings for a single block and all its children recursively.

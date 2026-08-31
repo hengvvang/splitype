@@ -55,41 +55,31 @@ pub trait PaneHost: Send + Sync + 'static {
     /// Flush a Source pane's buffer edits back into the session text.
     fn sync_source_edit(&self, pane_id: PaneId, cx: &mut App);
 
-    /// Record the Source pane's rendered bounds (IME candidate popup positioning).
-    fn set_source_last_bounds(&self, pane_id: PaneId, bounds: gpui::Bounds<gpui::Pixels>, cx: &mut App);
-
     /// Undo the most recent edit.
     fn undo(&self, window: &mut Window, cx: &mut App);
 
     /// Redo the most recently undone edit.
     fn redo(&self, window: &mut Window, cx: &mut App);
 
-    /// Preview pane: mouse-down at `block_index` / `position`.
-    fn preview_mouse_down(
-        &self,
-        pane_id: PaneId,
-        block_index: usize,
-        position: gpui::Point<gpui::Pixels>,
-        cx: &mut App,
-    );
 
-    /// Preview pane: mouse-move during a drag selection.
-    fn preview_mouse_move(
-        &self,
-        pane_id: PaneId,
-        block_index: usize,
-        position: gpui::Point<gpui::Pixels>,
-        cx: &mut App,
-    );
-
-    /// Preview pane: mouse-up ends the drag selection.
-    fn preview_mouse_up(&self, pane_id: PaneId, cx: &mut App);
 
     /// Navigate to outline heading index in the active pane.
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
 
     /// Report outline popover hover state changes.
     fn set_outline_hovered(&self, pane_id: PaneId, hovered: bool, window: &mut Window, cx: &mut App);
+
+    /// Key-down event routing for any pane mode.
+    fn handle_pane_key_down(&self, pane_id: PaneId, event: &gpui::KeyDownEvent, window: &mut Window, cx: &mut App) -> bool;
+
+    /// Mouse-down event routing for any pane mode.
+    fn handle_pane_mouse_down(&self, pane_id: PaneId, event: &gpui::MouseDownEvent, window: &mut Window, cx: &mut App);
+
+    /// Mouse-move event routing for any pane mode.
+    fn handle_pane_mouse_move(&self, pane_id: PaneId, event: &gpui::MouseMoveEvent, window: &mut Window, cx: &mut App);
+
+    /// Mouse-up event routing for any pane mode.
+    fn handle_pane_mouse_up(&self, pane_id: PaneId, event: &gpui::MouseUpEvent, window: &mut Window, cx: &mut App);
 }
 
 /// Outline host adapter forwarding to [`PaneHost`].

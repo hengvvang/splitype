@@ -3,8 +3,8 @@
 
 use gpui::*;
 
-use crate::document::protocol::BlockEvent;
-use crate::document::block::Block;
+use crate::model::protocol::BlockEvent;
+use crate::model::block::Block;
 impl Block {
     pub fn on_mouse_down(
         &mut self,
@@ -43,7 +43,7 @@ impl Block {
     ) -> Option<crate::markdown::inline::link::InlineLinkHit> {
         self.last_paint_at(position)
             .and_then(|paint| {
-                crate::text_layout::link_at_position(
+                crate::render::text_layout::link_at_position(
                     self,
                     &paint.layout,
                     paint.bounds,
@@ -101,7 +101,7 @@ impl Block {
 
         // Footnote reference click jumps to definition directly.
         if let Some((footnote, _)) = self.last_paint_at(event.position).and_then(|paint| {
-            crate::text_layout::footnote_at_position(
+            crate::render::text_layout::footnote_at_position(
                 self,
                 &paint.layout,
                 paint.bounds,
@@ -161,7 +161,7 @@ impl Block {
         let hit = self
             .last_paint_at(event.position)
             .and_then(|paint| {
-                crate::text_layout::footnote_at_position(
+                crate::render::text_layout::footnote_at_position(
                     self,
                     &paint.layout,
                     paint.bounds,

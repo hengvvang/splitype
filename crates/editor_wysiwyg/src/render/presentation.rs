@@ -27,10 +27,10 @@ pub use crate::render::html_document::{
 };
 
 // Table column measurement.
-pub use crate::table_measure::measure_table_column_layout;
+pub use crate::table::measure::measure_table_column_layout;
 
 // Footnote registry data contract (shared with the preview's own tree).
-pub use crate::document::block::footnotes::{
+pub use crate::model::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 

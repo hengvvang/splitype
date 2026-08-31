@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::markdown::parse::BlockKind;
-use crate::source_map::mapping_buffer::{
+use crate::projection::source_map::mapping_buffer::{
     build_code_block_content_mapping, build_prefixed_content_mapping,
 };
 use crate::state::SourceTargetMapping;

@@ -1,7 +1,7 @@
 //! Cross-block selection keyboard and clipboard command helpers.
 
-use crate::document::Document;
-use crate::selection::state::NormalizedCrossBlockSelection;
+use crate::model::Document;
+use crate::input::selection::state::NormalizedCrossBlockSelection;
 
 /// Normalizes two endpoints into ordered start and end positions according to document tree index.
 pub fn normalize_cross_block_endpoints(

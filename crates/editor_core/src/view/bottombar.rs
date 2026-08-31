@@ -76,7 +76,7 @@ impl Editor {
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        if let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
+        if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
             let mode = self.panel_mode();
             let editing = mode.is_editing();
             let toggle_editor = cx.entity().downgrade();
@@ -103,7 +103,7 @@ impl Editor {
                 mode_pill =
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
-                            ed.toggle_pane_dropdown(pane_id, cx);
+                            ed.toggle_pane_kind(cx);
                             cx.notify();
                         });
                     });

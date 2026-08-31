@@ -6,10 +6,10 @@ use std::time::Instant;
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::document::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::highlight::{CodeHighlightResult, highlight_code_block};
-use crate::document::block::Block;
-use crate::document::block::normalize_code_language_input;
+use crate::model::block::Block;
+use crate::model::block::normalize_code_language_input;
 use crate::markdown::inline::offsets::ImeConverter;
 use crate::markdown::parse::BlockKind;
 

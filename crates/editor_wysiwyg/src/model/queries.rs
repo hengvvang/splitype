@@ -5,7 +5,7 @@ use gpui::*;
 use super::Document;
 use super::index::{BlockEntry, BlockIndex, BlockLocation};
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 
 impl Document {
     pub fn new(roots: Vec<Entity<Block>>) -> Self {

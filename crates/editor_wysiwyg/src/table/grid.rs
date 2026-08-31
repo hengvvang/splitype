@@ -2,10 +2,10 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
 use crate::state::TableCellBinding;
-use crate::table_grid::TableGrid;
+use crate::table::TableGrid;
 
 /// Installs the table grid structure onto a Table block entity.
 pub fn install_table_grid_for_block(

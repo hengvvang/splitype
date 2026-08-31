@@ -4,7 +4,7 @@
 use gpui::*;
 
 use theme::{Theme, ThemeDimensions};
-use crate::document::BlockEntry;
+use crate::model::BlockEntry;
 use crate::markdown::block::CalloutKind;
 use crate::render::layout::{
     callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap, RowSpacingInfo,

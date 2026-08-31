@@ -4,7 +4,7 @@
 
 use gpui::*;
 
-use editor_wysiwyg::presentation::measure_table_column_layout;
+use editor_wysiwyg::render::presentation::measure_table_column_layout;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use crate::render::preview_centered_column_width;

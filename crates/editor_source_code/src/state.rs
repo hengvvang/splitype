@@ -1,4 +1,5 @@
 use std::ops::Range;
+use std::sync::{Arc, Mutex};
 
 use gpui::{Bounds, FocusHandle, Pixels};
 
@@ -21,7 +22,7 @@ pub struct SourceCodeState {
     pub synced_tab_index: Option<usize>,
     pub is_dragging: bool,
     pub drag_anchor: Option<usize>,
-    pub focus_handle: Option<FocusHandle>,
+    pub focus_handle: Arc<Mutex<Option<FocusHandle>>>,
     pub highlight_cache: Option<CodeHighlightResult>,
     pub highlight_hash: u64,
 }
@@ -413,8 +414,6 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 
 // ── Pane plugin contract ─────────────────────────────────────────────────
 
-use std::sync::Arc;
-
 use gpui::{
     AnyElement, App, ElementId, InteractiveElement, IntoElement, MouseButton, ParentElement,
     StatefulInteractiveElement, Styled, Window, div,
@@ -431,7 +430,7 @@ use crate::element::{
 };
 
 impl SourceCodeState {
-    pub fn snapshot(&self) -> SourceViewSnapshot {
+    pub fn snapshot(&self, cx: &App) -> SourceViewSnapshot {
         SourceViewSnapshot {
             text: self.text.clone(),
             line_ranges: self.line_ranges.clone(),
@@ -442,7 +441,7 @@ impl SourceCodeState {
                 .as_ref()
                 .map(|h| h.spans.clone())
                 .unwrap_or_default(),
-            focus_handle: self.focus_handle.clone(),
+            focus_handle: self.focus_handle(cx),
         }
     }
 }
@@ -452,8 +451,12 @@ impl PaneView for SourceCodeState {
         PaneKindId::SOURCE_CODE
     }
 
-    fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {
-        self.focus_handle.clone()
+    fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
+        let mut guard = self.focus_handle.lock().unwrap();
+        if guard.is_none() {
+            *guard = Some(cx.focus_handle());
+        }
+        guard.clone()
     }
 
     fn cursor_position(&self, _cx: &App) -> Option<(usize, usize)> {
@@ -473,7 +476,9 @@ impl PaneView for SourceCodeState {
             h.finish()
         };
         if self.synced_revision != Some(revision) || hash != self.synced_doc_hash {
-            self.set_text(text.to_string());
+            if self.text != text {
+                self.set_text(text.to_string());
+            }
             self.synced_doc_hash = hash;
             self.synced_revision = Some(revision);
         }
@@ -602,12 +607,8 @@ impl PaneView for SourceCodeState {
         let c = &theme.colors;
         let pane_id = ctx.pane_id;
 
-        if self.focus_handle.is_none() {
-            self.focus_handle = Some(cx.focus_handle());
-        }
-        let focus_handle = self.focus_handle.clone().unwrap();
-
-        let snapshot = self.snapshot();
+        let focus_handle = self.focus_handle(cx).unwrap();
+        let snapshot = self.snapshot(cx);
         let view: Arc<dyn crate::element::SourceStateView> =
             Arc::new(SnapshotSourceStateView(snapshot));
         let ime: Arc<dyn crate::element::SourceIme> = Arc::new(NullSourceIme);
@@ -625,7 +626,10 @@ impl PaneView for SourceCodeState {
             &outline_host,
         );
 
-        let host_for_click = ctx.host.clone();
+        let host_for_key = ctx.host.clone();
+        let host_for_mouse = ctx.host.clone();
+        let host_for_move = ctx.host.clone();
+        let host_for_up = ctx.host.clone();
         div()
             .id(ElementId::Name(format!("tiled-source-editor-{pane_id}").into()))
             .key_context("SourceCode")
@@ -635,10 +639,25 @@ impl PaneView for SourceCodeState {
             .relative()
             .bg(c.editor_background)
             .font(theme::TypographyStore::default_font(theme::TypographyScope::Code))
+            .on_key_down(move |event, window, cx| {
+                if host_for_key.handle_pane_key_down(pane_id, event, window, cx) {
+                    cx.stop_propagation();
+                }
+            })
             .on_mouse_down(
                 MouseButton::Left,
-                move |_event, window, cx| {
-                    host_for_click.focus_pane(pane_id, window, cx);
+                move |event, window, cx| {
+                    host_for_mouse.focus_pane(pane_id, window, cx);
+                    host_for_mouse.handle_pane_mouse_down(pane_id, event, window, cx);
+                },
+            )
+            .on_mouse_move(move |event, window, cx| {
+                host_for_move.handle_pane_mouse_move(pane_id, event, window, cx);
+            })
+            .on_mouse_up(
+                MouseButton::Left,
+                move |event, window, cx| {
+                    host_for_up.handle_pane_mouse_up(pane_id, event, window, cx);
                 },
             )
             .child(
@@ -657,6 +676,47 @@ impl PaneView for SourceCodeState {
             )
             .child(outline_hud)
             .into_any_element()
+    }
+
+    fn handle_key_down(
+        &mut self,
+        pane_id: editor_model::PaneId,
+        event: &gpui::KeyDownEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::App,
+        host: &dyn editor_model::PaneHost,
+    ) -> bool {
+        crate::input::handle_key_down(self, pane_id, event, window, cx, host)
+    }
+
+    fn handle_mouse_down(
+        &mut self,
+        _pane_id: editor_model::PaneId,
+        event: &gpui::MouseDownEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::App,
+    ) {
+        crate::input::handle_mouse_down(self, event, window, cx);
+    }
+
+    fn handle_mouse_move(
+        &mut self,
+        _pane_id: editor_model::PaneId,
+        event: &gpui::MouseMoveEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::App,
+    ) {
+        crate::input::handle_mouse_move(self, event, window, cx);
+    }
+
+    fn handle_mouse_up(
+        &mut self,
+        _pane_id: editor_model::PaneId,
+        _event: &gpui::MouseUpEvent,
+        _window: &mut gpui::Window,
+        _cx: &mut gpui::App,
+    ) {
+        crate::input::handle_mouse_up(self);
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

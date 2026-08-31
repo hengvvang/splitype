@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use gpui::{App, Bounds, KeyDownEvent, Pixels, Point, WeakEntity, Window};
+use gpui::{App, Bounds, KeyDownEvent, Pixels, WeakEntity, Window};
 use editor_model::{AutoscrollStrategy, PaneHost, PaneId, PaneKindId};
 
 use crate::editor::Editor;
@@ -332,12 +332,10 @@ impl PaneHost for EditorPaneHost {
         }
     }
 
-    fn set_source_last_bounds(&self, _pane_id: PaneId, _bounds: Bounds<Pixels>, _cx: &mut App) {}
-
     fn undo(&self, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
-                editor.on_undo(&crate::actions::defs::Undo, window, cx)
+                editor.on_undo(&crate::actions::defs::Undo, window, cx);
             });
         }
     }
@@ -345,30 +343,12 @@ impl PaneHost for EditorPaneHost {
     fn redo(&self, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
-                editor.on_redo(&crate::actions::defs::Redo, window, cx)
+                editor.on_redo(&crate::actions::defs::Redo, window, cx);
             });
         }
     }
 
-    fn preview_mouse_down(
-        &self,
-        _pane_id: PaneId,
-        _block_index: usize,
-        _position: Point<Pixels>,
-        _cx: &mut App,
-    ) {
-    }
 
-    fn preview_mouse_move(
-        &self,
-        _pane_id: PaneId,
-        _block_index: usize,
-        _position: Point<Pixels>,
-        _cx: &mut App,
-    ) {
-    }
-
-    fn preview_mouse_up(&self, _pane_id: PaneId, _cx: &mut App) {}
 
     fn navigate_to_outline(&self, _pane_id: PaneId, index: usize, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
@@ -389,6 +369,64 @@ impl PaneHost for EditorPaneHost {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| {
                 editor.set_outline_hovered(hovered, window, cx);
+            });
+        }
+    }
+
+    fn handle_pane_key_down(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::KeyDownEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
+        if let Some(editor) = self.editor.upgrade() {
+            editor.update(cx, |editor, cx| {
+                editor.handle_pane_key_down(pane_id, event, window, cx)
+            })
+        } else {
+            false
+        }
+    }
+
+    fn handle_pane_mouse_down(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::MouseDownEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.handle_pane_mouse_down(pane_id, event, window, cx);
+            });
+        }
+    }
+
+    fn handle_pane_mouse_move(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::MouseMoveEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.handle_pane_mouse_move(pane_id, event, window, cx);
+            });
+        }
+    }
+
+    fn handle_pane_mouse_up(
+        &self,
+        pane_id: PaneId,
+        event: &gpui::MouseUpEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.handle_pane_mouse_up(pane_id, event, window, cx);
             });
         }
     }

@@ -11,11 +11,11 @@ use std::sync::Arc;
 
 use gpui::{App, Entity, EntityId};
 
-use crate::document::block::footnotes::{
+use crate::model::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-use crate::document::block::Block;
-use crate::document::Document;
+use crate::model::block::Block;
+use crate::model::Document;
 use crate::state::TableGrids;
 use crate::markdown::block::footnote::split_footnote_definition_text;
 use crate::markdown::block::image::ImageReferenceDefinitions;

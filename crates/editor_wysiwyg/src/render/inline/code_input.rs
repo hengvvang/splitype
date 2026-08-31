@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use theme::ThemeManager;
 
 /// Single-line text element used to edit a fenced code block's info string.

@@ -46,9 +46,9 @@ pub(crate) fn render_preview_mermaid_diagram(
     if source.body.is_empty() {
         return base
             .w_full()
-            .child(editor_wysiwyg::presentation::render_graphic_preview_box(
-                editor_wysiwyg::presentation::render_empty_graphic_placeholder(
-                    editor_wysiwyg::presentation::GraphicKind::Mermaid,
+            .child(editor_wysiwyg::render::presentation::render_graphic_preview_box(
+                editor_wysiwyg::render::presentation::render_empty_graphic_placeholder(
+                    editor_wysiwyg::render::presentation::GraphicKind::Mermaid,
                     theme,
                 ),
                 theme,
@@ -96,9 +96,9 @@ pub(crate) fn render_preview_mermaid_diagram(
         }
         Err(err) => base
             .w_full()
-            .child(editor_wysiwyg::presentation::render_graphic_preview_box(
-                editor_wysiwyg::presentation::render_graphic_error_card(
-                    editor_wysiwyg::presentation::GraphicKind::Mermaid,
+            .child(editor_wysiwyg::render::presentation::render_graphic_preview_box(
+                editor_wysiwyg::render::presentation::render_graphic_error_card(
+                    editor_wysiwyg::render::presentation::GraphicKind::Mermaid,
                     &err.to_string(),
                     raw,
                     theme,

@@ -16,13 +16,7 @@ impl PaneKindId {
     /// Read-only rendered Markdown preview.
     pub const PREVIEW: Self = Self("splitype.preview");
 
-    // PascalCase compatibility aliases
-    #[allow(non_upper_case_globals)]
-    pub const SourceCode: Self = Self::SOURCE_CODE;
-    #[allow(non_upper_case_globals)]
-    pub const Wysiwyg: Self = Self::WYSIWYG;
-    #[allow(non_upper_case_globals)]
-    pub const Preview: Self = Self::PREVIEW;
+
 
     #[inline]
     pub const fn new(id: &'static str) -> Self {

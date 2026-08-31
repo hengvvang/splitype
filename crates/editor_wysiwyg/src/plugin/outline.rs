@@ -2,7 +2,7 @@
 
 use gpui::App;
 use editor_outline::OutlineNode;
-use crate::document::Document;
+use crate::model::Document;
 use crate::markdown::parse::BlockKind;
 
 /// Extracts all heading nodes from the WYSIWYG document blocks.

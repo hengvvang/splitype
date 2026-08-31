@@ -10,7 +10,7 @@ pub use quote::*;
 
 use gpui::{App, AppContext, Entity};
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockKind};
 

@@ -5,7 +5,7 @@ use gpui::*;
 use super::Document;
 use super::index::{BlockEntry, BlockIndex, BlockLocation, TreeInheritanceScope};
 
-use crate::document::block::{Block, BlockStructureContext};
+use crate::model::block::{Block, BlockStructureContext};
 use crate::markdown::parse::BlockKind;
 
 impl Document {
@@ -269,10 +269,10 @@ impl Document {
     /// Applies a single atomic [`DocDelta`] directly to the document.
     pub fn apply_delta(
         &mut self,
-        delta: &crate::history::delta::DocDelta,
+        delta: &crate::input::history::delta::DocDelta,
         cx: &mut App,
     ) -> bool {
-        use crate::history::delta::DocDelta;
+        use crate::input::history::delta::DocDelta;
         match delta {
             DocDelta::UpdateBlockText {
                 block_id,
@@ -315,7 +315,7 @@ impl Document {
     /// Applies a full [`Transaction`] of deltas in sequence.
     pub fn apply_transaction(
         &mut self,
-        tx: &crate::history::delta::Transaction,
+        tx: &crate::input::history::delta::Transaction,
         cx: &mut App,
     ) -> bool {
         let mut any_applied = false;

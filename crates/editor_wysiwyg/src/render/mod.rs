@@ -19,7 +19,7 @@ use gpui::*;
 
 pub const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
 
 use config::language::I18nManager;

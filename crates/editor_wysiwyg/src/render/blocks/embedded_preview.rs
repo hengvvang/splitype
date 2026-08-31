@@ -6,7 +6,7 @@ use crate::latex::{display_math_font_size, render_display_math_svg};
 use crate::mermaid::{
     mermaid_content_fingerprint, render_mermaid_svg_for_display,
 };
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::render::media_placeholder::effective_image_width;
 use theme::{Theme, ThemeDimensions};
 use crate::markdown::block::math::parse_display_math_source;

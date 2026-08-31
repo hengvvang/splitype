@@ -3,14 +3,14 @@
 
 use gpui::*;
 
-use crate::document::protocol::BlockEvent;
+use crate::model::protocol::BlockEvent;
 use crate::actions::{
     Delete, DeleteBackward, End, FocusNext, FocusPrevious, Home, IndentBlock, MoveLeft, MoveRight,
     Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
 };
 use workspace::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::code_language::code_language_options_matching;
-use crate::document::block::Block;
+use crate::model::block::Block;
 impl Block {
     pub fn on_code_block_hover(
         &mut self,

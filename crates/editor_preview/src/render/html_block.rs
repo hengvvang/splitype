@@ -6,7 +6,7 @@
 use gpui::*;
 
 use crate::node::PreviewBlock;
-use editor_wysiwyg::presentation::{
+use editor_wysiwyg::render::presentation::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
 use theme::Theme;

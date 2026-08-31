@@ -1,6 +1,6 @@
 //! Table event category helpers.
 
-use crate::document::protocol::BlockEvent;
+use crate::model::protocol::BlockEvent;
 
 /// Checks if an event is a table-specific event.
 pub fn is_table_event(event: &BlockEvent) -> bool {

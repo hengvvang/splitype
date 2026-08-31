@@ -111,9 +111,40 @@ impl Editor {
 
     pub(crate) fn render_editor_pane_corner_drag_preview(
         &self,
-        _theme: &Theme,
+        theme: &Theme,
     ) -> Option<AnyElement> {
-        None
+        let drag_panel = self.session.root.corner_drag_panel()?;
+        let drag = self
+            .session
+            .root
+            .tree
+            .find_leaf(drag_panel)?
+            .active_corner_drag?;
+        if drag.modifier != splitter::sessions::CornerDragModifier::None
+            && drag.modifier != splitter::sessions::CornerDragModifier::Ctrl
+            && drag.modifier != splitter::sessions::CornerDragModifier::Shift
+        {
+            return None;
+        }
+        let overlay_style = splitter::interaction::OverlayStyle {
+            accent: theme.colors.split_indicator,
+            tile_radius: theme.dimensions.panel_tile_radius,
+            border: theme.colors.dialog_border,
+            selection: theme.colors.selection,
+            active: theme.colors.focus_accent,
+            surface: theme.colors.dialog_surface,
+            text: theme.colors.dialog_title,
+        };
+        let inner_size = self
+            .panel_rect
+            .map(|r| r.size)
+            .unwrap_or_else(|| size(px(800.0), px(600.0)));
+        ui::render_corner_drag_preview(
+            &self.session.root,
+            &drag,
+            inner_size,
+            &overlay_style,
+        )
     }
 
     pub(crate) fn render_editor_pane_splitter_drag_preview(

@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::render::layout::centered_column_width;
-use crate::document::block::{Block, ImageHandle};
+use crate::model::block::{Block, ImageHandle};
 use crate::render::visible_quote_guides;
 use config::language::I18nStrings;
 use theme::{Theme, ThemeDimensions};

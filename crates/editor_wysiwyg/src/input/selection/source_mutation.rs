@@ -5,8 +5,8 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::document::Document;
-use crate::selection::state::NormalizedCrossBlockSelection;
+use crate::model::Document;
+use crate::input::selection::state::NormalizedCrossBlockSelection;
 use crate::state::SourceTargetMapping;
 
 /// Slices a string safely on UTF-8 character boundaries.

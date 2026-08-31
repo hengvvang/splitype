@@ -4,10 +4,10 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::document::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::projection::{ExpandedInlineSegmentKind, ExpandedLinkSpan};
-use crate::document::block::Block;
-use crate::document::block::CollapsedCaretAffinity;
+use crate::model::block::Block;
+use crate::model::block::CollapsedCaretAffinity;
 use crate::markdown::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use crate::markdown::parse::BlockKind;
 use std::time::Instant;

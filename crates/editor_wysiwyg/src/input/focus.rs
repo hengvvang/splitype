@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 
 /// Resets the cursor position within a block and marks cursor blink epoch.
 pub fn reset_block_cursor(block: &Entity<Block>, cursor: usize, cx: &mut App) {

@@ -7,12 +7,12 @@
 
 use gpui::*;
 
-use crate::document::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::actions::{
     Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward,
     WordDeleteForward,
 };
-use crate::document::block::{Block, CollapsedCaretAffinity};
+use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::BlockKind;
 impl Block {

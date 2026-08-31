@@ -6,7 +6,7 @@ use gpui::*;
 
 use super::Block;
 use super::state::CollapsedCaretAffinity;
-use crate::document::block::footnotes::FootnoteMap;
+use crate::model::block::footnotes::FootnoteMap;
 use crate::markdown::block::link::LinkReferenceDefinitions;
 use crate::markdown::inline::render_cache::{InlineRenderCache, InlineSpan};
 use crate::markdown::inline::text::BlockText;

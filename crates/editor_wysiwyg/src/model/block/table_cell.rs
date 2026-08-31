@@ -6,8 +6,8 @@
 
 use gpui::TextAlign;
 
-use crate::document::block::{Block, BlockEditMode};
-use crate::table_grid::TableGrid;
+use crate::model::block::{Block, BlockEditMode};
+use crate::table::TableGrid;
 use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
 
 impl Block {

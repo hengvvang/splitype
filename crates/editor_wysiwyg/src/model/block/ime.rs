@@ -9,9 +9,9 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::document::protocol::{BlockEvent, UndoCaptureKind};
-use crate::text_layout as element;
-use crate::document::block::Block;
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::render::text_layout as element;
+use crate::model::block::Block;
 use crate::markdown::inline::offsets::ImeConverter;
 
 impl EntityInputHandler for Block {

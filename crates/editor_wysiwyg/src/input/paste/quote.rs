@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 
 /// Checks whether a block is related to quote structures.
 pub fn is_block_quote_structure_related(block: &Entity<Block>, cx: &App) -> bool {

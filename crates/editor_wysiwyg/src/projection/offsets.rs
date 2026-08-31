@@ -3,7 +3,7 @@
 use std::ops::Range;
 
 use crate::projection::ExpandedInlineSegmentKind;
-use crate::document::block::{Block, CollapsedCaretAffinity};
+use crate::model::block::{Block, CollapsedCaretAffinity};
 
 impl Block {
     pub fn plain_to_display_cursor_offset(&self, plain: usize) -> usize {

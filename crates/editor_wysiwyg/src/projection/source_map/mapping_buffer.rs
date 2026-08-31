@@ -1,7 +1,7 @@
 //! Buffer and prefix offset mapping calculators for SourceMap generation.
 
-use crate::document::Document;
-use crate::document::block::Block;
+use crate::model::Document;
+use crate::model::block::Block;
 
 /// Checks if the block is an empty root paragraph.
 pub fn is_empty_root_paragraph(block: &Block) -> bool {
@@ -57,7 +57,7 @@ pub fn build_code_block_content_mapping(
     indentation: &str,
     language: Option<&str>,
 ) -> (String, Vec<usize>, Vec<usize>) {
-    let fence = crate::document::serialize::safe_code_fence_with_info(content, language);
+    let fence = crate::model::serialize::safe_code_fence_with_info(content, language);
     let mut full = String::new();
     let mut content_to_source = vec![0; content.len() + 1];
     let mut source_to_content = vec![0];

@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_wysiwyg::document::block::footnotes::FootnoteMap;
-use editor_wysiwyg::document::block::state::ImageHandle;
+use editor_wysiwyg::model::block::footnotes::FootnoteMap;
+use editor_wysiwyg::model::block::state::ImageHandle;
 use editor_wysiwyg::markdown::block::image::{ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
 use editor_wysiwyg::markdown::block::link::LinkReferenceDefinitions;
 use editor_wysiwyg::markdown::parse::{BlockData, BlockId, BlockKind};

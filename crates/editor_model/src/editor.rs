@@ -26,8 +26,6 @@ pub use pane_registry::{PaneDescriptor, PaneRegistry};
 pub use pane_type::PaneKindId;
 pub use pane_view::PaneView;
 
-/// Backward compatibility alias for PaneKindId.
-pub type EditorPaneKind = PaneKindId;
 
 /// The strongly-typed identifier of one inner tiled editor pane.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]

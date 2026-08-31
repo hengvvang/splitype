@@ -6,7 +6,7 @@ use splitter::tree::SplitAxis;
 use workspace::EditorPanelMode;
 
 use crate::editor::Editor;
-use crate::session::{EditorPaneKind, EditorSession};
+use crate::session::{EditorSession, PaneKindId};
 use editor_model::PaneId;
 
 impl Editor {
@@ -46,7 +46,7 @@ impl Editor {
         }
     }
 
-    pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: EditorPaneKind) {
+    pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: PaneKindId) {
         let pane_id = pane_id.into();
         self.session.root.set_kind(pane_id.0, kind);
         self.session.root.activate_leaf(pane_id.0);
@@ -77,5 +77,79 @@ impl Editor {
 
     pub fn toggle_pane_maximize(&mut self, pane_id: impl Into<PaneId>) {
         self.session.root.toggle_maximize(pane_id.into().0);
+    }
+
+    pub fn handle_pane_key_down(
+        &mut self,
+        pane_id: PaneId,
+        event: &gpui::KeyDownEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) -> bool {
+        let Some(tab) = self.session.active_tab_mut() else {
+            return false;
+        };
+        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
+            return false;
+        };
+        let host = self.pane_host.clone();
+        let handled = pane_state
+            .pane
+            .handle_key_down(pane_id, event, window, cx, &*host);
+        if handled {
+            cx.notify();
+        }
+        handled
+    }
+
+    pub fn handle_pane_mouse_down(
+        &mut self,
+        pane_id: PaneId,
+        event: &gpui::MouseDownEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let Some(tab) = self.session.active_tab_mut() else {
+            return;
+        };
+        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
+            return;
+        };
+        pane_state.pane.handle_mouse_down(pane_id, event, window, cx);
+        cx.notify();
+    }
+
+    pub fn handle_pane_mouse_move(
+        &mut self,
+        pane_id: PaneId,
+        event: &gpui::MouseMoveEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let Some(tab) = self.session.active_tab_mut() else {
+            return;
+        };
+        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
+            return;
+        };
+        pane_state.pane.handle_mouse_move(pane_id, event, window, cx);
+        cx.notify();
+    }
+
+    pub fn handle_pane_mouse_up(
+        &mut self,
+        pane_id: PaneId,
+        event: &gpui::MouseUpEvent,
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let Some(tab) = self.session.active_tab_mut() else {
+            return;
+        };
+        let Some(pane_state) = tab.panes.get_mut(&pane_id) else {
+            return;
+        };
+        pane_state.pane.handle_mouse_up(pane_id, event, window, cx);
+        cx.notify();
     }
 }

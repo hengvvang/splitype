@@ -4,7 +4,7 @@ use gpui::*;
 
 use super::Block;
 use super::state::{BlockLastPaint, CodeLanguageLastPaint, MAX_LAST_PAINTS};
-use crate::text_layout as element;
+use crate::render::text_layout as element;
 
 impl Block {
     pub fn push_last_paint(

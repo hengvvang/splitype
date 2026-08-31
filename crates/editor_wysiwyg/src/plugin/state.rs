@@ -8,9 +8,9 @@ use std::time::Instant;
 
 use gpui::{Entity, EntityId, Pixels, Point};
 
-use crate::document::block::{Block, footnotes::FootnoteMap};
-use crate::history::delta::Transaction;
-use crate::document::protocol::UndoCaptureKind;
+use crate::model::block::{Block, footnotes::FootnoteMap};
+use crate::input::history::delta::Transaction;
+use crate::model::protocol::UndoCaptureKind;
 use crate::markdown::block::image::ImageReferenceDefinitions;
 use crate::markdown::block::link::LinkReferenceDefinitions;
 use crate::markdown::block::table::{TableAxis, TableCellPosition};

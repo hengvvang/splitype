@@ -14,7 +14,7 @@ pub use rows::*;
 
 use gpui::Entity;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::markdown::block::table::TableCellPosition;
 
 #[derive(Clone)]

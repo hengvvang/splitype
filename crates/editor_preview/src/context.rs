@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use gpui::EntityId;
 
-use editor_wysiwyg::document::block::footnotes::{
+use editor_wysiwyg::model::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 use editor_wysiwyg::markdown::block::footnote::split_footnote_definition_text;

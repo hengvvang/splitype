@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::document::block::Block;
+use crate::model::block::Block;
 use crate::render::layout::callout_colors;
 use theme::Theme;
 use crate::markdown::block::CalloutKind;

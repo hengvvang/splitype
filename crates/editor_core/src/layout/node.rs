@@ -323,19 +323,23 @@ impl Editor {
         }
 
         let is_focused = self.focused_pane_id == Some(pane_id);
-        let scroll = self
-            .pane_state_ref(pane_id)
-            .map(|s| s.scroll.handle.clone())
-            .unwrap_or_default();
         let host = self.pane_host.clone();
-        let render_ctx = editor_model::PaneRenderContext {
-            pane_id,
-            is_focused,
-            scroll: &scroll,
-            host: &host,
+
+        let (text, revision) = if let Some(tab) = self.session.active_tab() {
+            (tab.text.clone(), tab.document_revision)
+        } else {
+            (String::new(), 0)
         };
 
         if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.sync_document_text(&text, revision, cx);
+            let scroll = state.scroll.handle.clone();
+            let render_ctx = editor_model::PaneRenderContext {
+                pane_id,
+                is_focused,
+                scroll: &scroll,
+                host: &host,
+            };
             state.pane.render(&render_ctx, window, cx)
         } else {
             div().into_any_element()

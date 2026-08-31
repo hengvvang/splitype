@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use config::settings::ImagePasteBehavior;
 use gpui::ImageFormat;
 
-use crate::document::protocol::PastedImageSource;
+use crate::model::protocol::PastedImageSource;
 
 /// Returns the file extension for a given ImageFormat.
 pub fn clipboard_image_extension(format: ImageFormat) -> &'static str {
