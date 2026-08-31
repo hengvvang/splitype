@@ -298,6 +298,12 @@ transitional hardcoding listed below is removed.
   concrete action — the only place allowed to know action types. Dynamic
   sections (recent files, themes, languages, CLI tool) remain composition-
   root providers.
+- Missing plugins degrade gracefully: a layout leaf whose kind has no
+  registered descriptor gets a shell-rendered `MissingPanelView` placeholder
+  that keeps the layout intact and names the owning plugin through the
+  plugin registry. User-installed manifests under the config `plugins/`
+  directory are discovered, validated, and recorded as metadata (code
+  transports are not implemented yet), so unknown kinds can still be named.
 - Document routing is a panel role, not an editor privilege:
   `PanelCapabilities { documents, sidebar }` is declared by descriptors and
   views, and panels that declare `documents` implement the `DocumentPanel`
@@ -325,11 +331,10 @@ transitional hardcoding listed below is removed.
 1. `core_contracts` still depends on `theme` and GPUI presentation helpers
    (outline HUD, search UI); split the stable vocabulary/API from UI adapters
    so the contracts crate stays presentation-free.
-2. External plugin loading is not implemented yet: no user-installed plugin
-   discovery directory, WASM/subprocess transports, permission model,
-   unregister/shutdown protocol, or missing-plugin placeholder panel.
-   `AssetSource::list` returns nothing, so third-party plugins cannot ship
-   resource directories yet.
+2. External plugin code loading is not implemented yet: no WASM/subprocess
+   transports, permission model, unregister/shutdown protocol, or
+   `AssetSource::list` directory listing — user manifests are metadata-only
+   today.
 3. Keybindings are still driven by the config `ShortcutCommand` vocabulary
    rather than manifest-declared shortcuts, and GPUI's typed
    `cx.on_action` API requires per-command dispatch handlers in the

@@ -233,7 +233,14 @@ fn open_window_with_retained(
                                 entry.insert(view);
                             }
                             Ok(None) => {
-                                tracing::error!(%kind, "no panel descriptor is registered");
+                                tracing::warn!(
+                                    %kind,
+                                    "no panel descriptor is registered; showing placeholder"
+                                );
+                                entry.insert(Box::new(window::MissingPanelView::new(
+                                    panel_id,
+                                    kind.clone(),
+                                )));
                             }
                             Err(error) => {
                                 tracing::error!(%kind, %error, "failed to create registered panel");

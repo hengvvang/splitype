@@ -127,8 +127,10 @@ impl Shell {
                 true
             }
             Ok(None) => {
-                tracing::error!(%kind, "no panel descriptor is registered");
-                false
+                tracing::warn!(%kind, "no panel descriptor is registered; showing placeholder");
+                let view = Box::new(window::MissingPanelView::new(panel_id, kind));
+                self.insert_panel_view(panel_id, view, cx);
+                true
             }
             Err(error) => {
                 tracing::error!(%kind, %error, "failed to create registered panel");

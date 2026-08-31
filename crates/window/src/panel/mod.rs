@@ -5,10 +5,12 @@
 //! hosts the window-side registry implementation and re-exports the contract
 //! types for convenience.
 
+pub mod missing;
 pub mod registry;
 
 pub use core_contracts::{
     DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
     PanelRenderContext, PanelView, SidebarPanel,
 };
+pub use missing::MissingPanelView;
 pub use registry::*;

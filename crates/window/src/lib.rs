@@ -15,7 +15,7 @@ pub use builder::WindowBuilder;
 pub use icons::{border_menu_style, panel_topbar_icon};
 pub use layout::{PanelId, WindowLayout};
 pub use panel::{
-    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelKind, PanelRegistry,
-    PanelRenderContext, PanelView, SidebarPanel,
+    DocumentPanel, MissingPanelView, PanelCapabilities, PanelDescriptor, PanelHost, PanelKind,
+    PanelRegistry, PanelRenderContext, PanelView, SidebarPanel,
 };
 pub use persist::{PersistedPanel, PersistedWindowState, WINDOW_STATE_VERSION};

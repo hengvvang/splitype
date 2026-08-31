@@ -186,3 +186,15 @@ label and concrete action, and dynamic menu sections (recent files, themes,
 languages, CLI tool) are composition-root providers. GPUI's typed
 `cx.on_action` API still requires one dispatch handler per action type, so
 binding table and handlers must stay in sync.
+
+## ADR-018: Missing plugins degrade to a named placeholder
+
+**Status:** Accepted
+
+A layout leaf whose kind has no registered descriptor is rendered by a
+shell-owned `MissingPanelView` placeholder instead of a blank tile: the
+layout stays intact and the placeholder names the owning plugin through the
+plugin registry. User-installed manifests under the config `plugins/`
+directory are discovered, validated, and recorded as metadata so missing
+kinds can still be named — even though code transports for user plugins do
+not exist yet.

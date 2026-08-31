@@ -276,6 +276,9 @@ pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "icons/chrome/check.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/chrome/check.svg"
         ))),
+        "icons/chrome/missing.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../../../../assets/icons/chrome/missing.svg"
+        ))),
 
         // ── Splitter: gesture overlays ──
         "icons/splitter/arrow-up.svg" => Some(Cow::Borrowed(include_bytes!(

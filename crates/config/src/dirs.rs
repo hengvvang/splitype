@@ -55,4 +55,9 @@ impl SplitypeConfigDirs {
     pub fn window_state_file(&self) -> PathBuf {
         self.root.join("window_state.json")
     }
+
+    /// User-installed plugin manifests (`*.toml`).
+    pub fn plugins_dir(&self) -> PathBuf {
+        self.root.join("plugins")
+    }
 }

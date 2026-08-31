@@ -135,6 +135,7 @@ pub fn run(args: Args) {
         theme::TypographyStore::init(cx, settings.typography.clone());
         install_http_client(cx);
         crate::plugins::init_plugins();
+        crate::plugins::discover_user_plugins();
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 

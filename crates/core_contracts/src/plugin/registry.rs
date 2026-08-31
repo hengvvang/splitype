@@ -96,6 +96,17 @@ impl PluginRegistry {
             .find(|manifest| manifest.capabilities.panels.contains(kind))
             .map(|manifest| manifest.plugin.clone())
     }
+
+    /// Global query for the plugin whose manifest declares `kind` as a panel
+    /// capability.
+    pub fn panel_kind_owner_global(
+        kind: PanelKind,
+    ) -> Result<Option<PluginId>, PluginRegistryError> {
+        Ok(Self::global()
+            .lock()
+            .map_err(|_| PluginRegistryError::Poisoned)?
+            .panel_kind_owner(&kind))
+    }
 }
 
 #[cfg(test)]

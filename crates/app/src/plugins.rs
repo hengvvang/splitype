@@ -135,6 +135,68 @@ pub(crate) fn resolve_plugin_resource(url: &str) -> Option<Cow<'static, [u8]>> {
     crate::assets::icon_bytes(&format!("{icon_root}/{resource}"))
 }
 
+/// Discovers user-installed plugin manifests under the config `plugins/`
+/// directory and records their metadata.
+///
+/// Code transports for user-installed plugins are not implemented yet, so
+/// their entry points cannot be activated; the metadata is still recorded so
+/// the shell can name a plugin when its kinds go missing.
+pub(crate) fn discover_user_plugins() {
+    let Ok(dirs) = config::dirs::SplitypeConfigDirs::from_system() else {
+        return;
+    };
+    discover_user_plugins_in(&dirs.plugins_dir());
+}
+
+/// Scans `dir` for `*.toml` plugin manifests, recording valid metadata.
+/// Invalid, duplicate, or unreadable manifests are reported and skipped.
+pub(crate) fn discover_user_plugins_in(dir: &std::path::Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return; // no plugins directory yet
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|ext| ext.to_str()) != Some("toml") {
+            continue;
+        }
+        let source = match std::fs::read_to_string(&path) {
+            Ok(source) => source,
+            Err(error) => {
+                tracing::warn!(path = %path.display(), %error, "failed to read plugin manifest");
+                continue;
+            }
+        };
+        let manifest: PluginManifest = match toml::from_str(&source) {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                tracing::warn!(path = %path.display(), %error, "plugin manifest is not valid TOML");
+                continue;
+            }
+        };
+        if let Err(error) = manifest.validate() {
+            tracing::warn!(path = %path.display(), %error, "plugin manifest failed validation");
+            continue;
+        }
+        let plugin = manifest.plugin.clone();
+        if PluginRegistry::registered(plugin.clone())
+            .ok()
+            .flatten()
+            .is_some()
+        {
+            tracing::warn!(path = %path.display(), plugin = %plugin, "plugin id is already registered");
+            continue;
+        }
+        tracing::warn!(
+            path = %path.display(),
+            plugin = %plugin,
+            "plugin metadata recorded; code transports for user-installed plugins are not implemented"
+        );
+        if let Err(error) = PluginRegistry::register_global(manifest) {
+            tracing::warn!(%error, "failed to record plugin metadata");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,5 +226,43 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn user_plugin_manifests_are_discovered_from_a_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "splitype-plugin-discovery-test-{}",
+            std::process::id()
+        ));
+        let dirs = config::dirs::SplitypeConfigDirs::from_root(&root);
+        let plugins_dir = dirs.plugins_dir();
+        std::fs::create_dir_all(&plugins_dir).expect("create plugins dir");
+        let manifest_path = plugins_dir.join("com.example.test.toml");
+        std::fs::write(
+            &manifest_path,
+            r#"
+manifest_version = 1
+plugin = "com.example.test"
+name = "Example Test"
+version = "0.1.0"
+
+[entry]
+kind = "in_process"
+registration = "example-test"
+
+[capabilities]
+panels = ["com.example.test.panel"]
+"#,
+        )
+        .expect("write manifest");
+
+        discover_user_plugins_in(&plugins_dir);
+
+        let recorded = PluginRegistry::registered(PluginId::new("com.example.test"))
+            .expect("registry readable")
+            .expect("manifest recorded");
+        assert_eq!(recorded.name, "Example Test");
+
+        std::fs::remove_dir_all(&root).ok();
     }
 }
