@@ -380,7 +380,10 @@ impl Shell {
     ) -> Entity<Editor> {
         let panel_id = panel_id.into();
         let shell = cx.entity().downgrade();
-        let editor = cx.new(|cx| editor_core::Editor::with_session(panel_id, session, cx));
+        let editor = editor_builder::EditorBuilder::new()
+            .with_panel_id(panel_id)
+            .with_session(session)
+            .build_in(cx);
 
         editor.update(cx, |editor, cx| {
             editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));

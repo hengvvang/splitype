@@ -358,8 +358,7 @@ impl TableColumnLayout {
         self.fractions.len()
     }
 
-    #[cfg(test)]
-    pub(crate) fn fractions(&self) -> &[f32] {
+    pub fn fractions(&self) -> &[f32] {
         &self.fractions
     }
 

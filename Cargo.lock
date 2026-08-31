@@ -266,6 +266,8 @@ dependencies = [
  "splitter",
  "splitype_cli",
  "splitype_installer",
+ "splitype_markdown",
+ "splitype_syntax",
  "theme",
  "thiserror 2.0.18",
  "tokio",

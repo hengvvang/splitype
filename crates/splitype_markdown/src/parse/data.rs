@@ -128,6 +128,23 @@ impl BlockData {
         self.text.serialize_markdown()
     }
 
+    pub fn line_count(&self) -> usize {
+        let plain = self.text.plain_text();
+        if plain.is_empty() {
+            1
+        } else {
+            plain.lines().count().max(1)
+        }
+    }
+
+    pub fn character_count(&self) -> usize {
+        self.text.plain_text().chars().count()
+    }
+
+    pub fn byte_count(&self) -> usize {
+        self.text.plain_len()
+    }
+
     /// Returns true for block kinds that keep their source text in
     /// `raw_source` because they are preserved as opaque Markdown. Math and
     /// Mermaid blocks store their bare body here and rebuild the `$$` / fence

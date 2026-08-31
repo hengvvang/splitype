@@ -83,8 +83,18 @@ impl EditorBuilder {
         registry.register(Arc::new(editor_preview::PreviewDescriptor::new()));
     }
 
-    /// Builds and creates the Editor entity within GPUI.
+    /// Builds and creates the Editor entity within GPUI App context.
     pub fn build(self, cx: &mut App) -> Entity<Editor> {
+        let panel_id = self.panel_id.unwrap_or(PanelId(workspace::DEFAULT_EDITOR_PANEL_ID));
+        if let Some(session) = self.session {
+            cx.new(|cx| Editor::with_session(panel_id, session, cx))
+        } else {
+            cx.new(|cx| Editor::new(self.initial_text, self.file_path, cx))
+        }
+    }
+
+    /// Builds and creates the Editor entity within GPUI Context<T>.
+    pub fn build_in<T: 'static>(self, cx: &mut gpui::Context<T>) -> Entity<Editor> {
         let panel_id = self.panel_id.unwrap_or(PanelId(workspace::DEFAULT_EDITOR_PANEL_ID));
         if let Some(session) = self.session {
             cx.new(|cx| Editor::with_session(panel_id, session, cx))

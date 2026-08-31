@@ -131,8 +131,7 @@ pub fn run(args: Args) {
         std::thread::Builder::new()
             .name("splitype-prewarm".to_string())
             .spawn(|| {
-                editor_wysiwyg::highlight::prewarm_code_highlight_registry();
-                editor_source_code::prewarm_code_highlight_registry();
+                splitype_syntax::highlight::prewarm_code_highlight_registry();
                 let _ = theme::TypographyStore::default_font(
                     theme::TypographyScope::Prose,
                 );

@@ -8,7 +8,6 @@ use crate::tree::SplitAxis;
 enum Pane {
     Editor,
     Explorer,
-    Settings,
 }
 
 fn new_root() -> SplitterRoot<Pane> {

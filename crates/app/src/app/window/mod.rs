@@ -60,17 +60,20 @@ pub(crate) fn open_editor_window(
                 // The explorer state is app-wide global; install a fresh
                 // one per window (the shell renders it from the global).
                 cx.set_global(explorer::ExplorerState::default());
-                let editor = cx.new(|cx| {
-                    if markdown.is_empty() && file_path.is_none() {
-                        editor_core::Editor::with_session(
-                            PanelId(DEFAULT_EDITOR_PANEL_ID),
-                            editor_core::EditorSession::welcome(),
-                            cx,
-                        )
-                    } else {
-                        editor_core::Editor::new(markdown, file_path, cx)
+                let editor = if markdown.is_empty() && file_path.is_none() {
+                    editor_builder::EditorBuilder::new()
+                        .with_panel_id(PanelId(DEFAULT_EDITOR_PANEL_ID))
+                        .with_session(editor_core::EditorSession::welcome())
+                        .build(cx)
+                } else {
+                    let mut builder = editor_builder::EditorBuilder::new()
+                        .with_panel_id(PanelId(DEFAULT_EDITOR_PANEL_ID))
+                        .with_text(markdown);
+                    if let Some(path) = file_path {
+                        builder = builder.with_file_path(path);
                     }
-                });
+                    builder.build(cx)
+                };
                 let explorer_view: Box<dyn PanelView> =
                     Box::new(explorer::ExplorerPanelView::new(PanelId(ROOT_PANEL_ID)));
                 let editor_view: Box<dyn PanelView> =
