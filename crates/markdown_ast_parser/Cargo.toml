@@ -1,5 +1,5 @@
 [package]
-name = "splitype_markdown"
+name = "markdown_ast_parser"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

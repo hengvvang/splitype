@@ -6,9 +6,12 @@ use splitter::SplitAxis;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
+use ui::menu_item::menu_item;
+use ui::popover::menu_panel;
 
 use config::language::I18nStrings;
 use config::settings::{SettingsStore, StatusBarSettings};
+use editor_model::{PaneId, PaneKindId, PaneRegistry};
 
 use crate::editor::Editor;
 use crate::view::words::count_words;
@@ -102,7 +105,7 @@ impl Editor {
                 mode_pill =
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
-                            ed.toggle_pane_kind(cx);
+                            ed.pane_dropdown_open = !ed.pane_dropdown_open;
                             cx.notify();
                         });
                     });
@@ -227,10 +230,11 @@ impl Editor {
             }
         }
 
-        bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
+        let mut bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
             .id(ElementId::Name(
                 format!("panel-bottombar-{panel_id}").into(),
             ))
+            .relative()
             .child(
                 div()
                     .flex()
@@ -244,7 +248,75 @@ impl Editor {
                     .items_center()
                     .gap(px(8.0))
                     .children(right_items),
-            )
+            );
+
+        if self.pane_dropdown_open
+            && let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind)
+        {
+            let menu = self.render_pane_type_dropdown_menu(pane_id, focused_kind, theme, cx);
+            bar = bar.child(menu);
+        }
+
+        bar.into_any_element()
+    }
+
+    pub(crate) fn render_pane_type_dropdown_menu(
+        &mut self,
+        pane_id: PaneId,
+        current_kind: PaneKindId,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
+        let editor = cx.entity().downgrade();
+
+        let registry = PaneRegistry::global().lock().unwrap();
+        let available_descriptors = registry.all_descriptors();
+
+        menu_panel(c, d)
+            .id(("pane-dropdown-overlay", pane_id.0))
+            .absolute()
+            .occlude()
+            .bottom(px(d.bottombar_height + 4.0))
+            .left(px(8.0))
+            .w(px(d.menu_panel_width))
+            .children(available_descriptors.into_iter().enumerate().map(|(idx, desc)| {
+                let kind_id = desc.kind();
+                let is_current = kind_id == current_kind;
+                let option_editor = editor.clone();
+                let display_name = desc.display_name();
+                menu_item(("pane-type-opt", idx), c, d)
+                    .w_full()
+                    .justify_between()
+                    .bg(if is_current {
+                        c.panel_row_selected
+                    } else {
+                        c.dialog_surface
+                    })
+                    .text_size(px(d.menu_text_size))
+                    .font_weight(t.dialog_button_weight.to_font_weight())
+                    .text_color(c.dialog_secondary_button_text)
+                    .child(display_name)
+                    .child(if is_current {
+                        svg()
+                            .path("icons/editor/topbar/check.svg")
+                            .size(px(13.0))
+                            .text_color(c.dialog_primary_button_bg)
+                            .into_any_element()
+                    } else {
+                        div().w(px(13.0)).into_any_element()
+                    })
+                    .on_click(move |_event, _window, cx| {
+                        let _ = option_editor.update(cx, |ed, cx| {
+                            ed.select_pane_kind(pane_id, kind_id, cx);
+                            ed.pane_dropdown_open = false;
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element()
+            }))
             .into_any_element()
     }
 

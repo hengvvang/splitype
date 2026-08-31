@@ -1,3 +1,3 @@
-//! Re-export shared syntax highlighting from `splitype_syntax`.
+//! Re-export shared syntax highlighting from `syntax_highlighter`.
 
-pub use splitype_syntax::highlight::*;
+pub use syntax_highlighter::highlight::*;

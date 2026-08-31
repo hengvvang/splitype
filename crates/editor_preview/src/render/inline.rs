@@ -7,11 +7,11 @@
 
 use gpui::*;
 
-use splitype_syntax::latex::{inline_math_font_size, render_inline_math_svg};
+use syntax_highlighter::latex::{inline_math_font_size, render_inline_math_svg};
 use theme::Theme;
-use splitype_markdown::inline::render_cache::InlineSpan;
-use splitype_markdown::inline::style::InlineScript;
-use splitype_markdown::inline::text::BlockText;
+use markdown_ast_parser::inline::render_cache::InlineSpan;
+use markdown_ast_parser::inline::style::InlineScript;
+use markdown_ast_parser::inline::text::BlockText;
 
 use std::ops::Range;
 
@@ -191,7 +191,7 @@ pub(crate) fn render_preview_span(
     if let Some(style) = span.html_style
         && let Some(html_color) = style.color
     {
-        color = splitype_syntax::render_helpers::html_css_color_to_hsla(
+        color = syntax_highlighter::render_helpers::html_css_color_to_hsla(
             html_color, color,
         );
     }
@@ -253,7 +253,7 @@ pub(crate) fn render_preview_span(
         && let Some(bg_color) = style.background_color
     {
         element = element.bg(
-            splitype_syntax::render_helpers::html_css_color_to_hsla(bg_color, color),
+            syntax_highlighter::render_helpers::html_css_color_to_hsla(bg_color, color),
         );
     }
 

@@ -4,7 +4,7 @@
 
 use gpui::*;
 
-use splitype_markdown::table::measure_table_column_layout;
+use markdown_ast_parser::table::measure_table_column_layout;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use crate::render::preview_centered_column_width;
@@ -90,7 +90,7 @@ pub(crate) fn render_preview_table(
 
 /// Renders one table cell with the header/body background styles.
 fn render_preview_table_cell(
-    cell: &splitype_markdown::inline::text::BlockText,
+    cell: &markdown_ast_parser::inline::text::BlockText,
     is_header: bool,
     fraction: f32,
     theme: &Theme,

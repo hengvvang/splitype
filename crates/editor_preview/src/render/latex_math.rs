@@ -3,10 +3,10 @@
 
 use gpui::*;
 
-use splitype_syntax::latex::{display_math_font_size, render_display_math_svg};
+use syntax_highlighter::latex::{display_math_font_size, render_display_math_svg};
 use crate::node::PreviewBlock;
 use theme::Theme;
-use splitype_markdown::block::math::parse_display_math_source;
+use markdown_ast_parser::block::math::parse_display_math_source;
 
 /// Renders a LaTeX math block read-only.
 pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
@@ -31,7 +31,7 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
             .unwrap_or(raw.trim())
             .trim()
             .to_string();
-        splitype_markdown::block::math::DisplayMathSource {
+        markdown_ast_parser::block::math::DisplayMathSource {
             source: raw.to_string(),
             body,
         }
@@ -40,9 +40,9 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
     if source.body.is_empty() {
         return base
             .w_full()
-            .child(splitype_syntax::graphics::render_graphic_preview_box(
-                splitype_syntax::graphics::render_empty_graphic_placeholder(
-                    splitype_syntax::graphics::GraphicKind::LatexMath,
+            .child(syntax_highlighter::graphics::render_graphic_preview_box(
+                syntax_highlighter::graphics::render_empty_graphic_placeholder(
+                    syntax_highlighter::graphics::GraphicKind::LatexMath,
                     theme,
                 ),
                 theme,
@@ -65,9 +65,9 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
             .into_any_element(),
         Err(err) => base
             .w_full()
-            .child(splitype_syntax::graphics::render_graphic_preview_box(
-                splitype_syntax::graphics::render_graphic_error_card(
-                    splitype_syntax::graphics::GraphicKind::LatexMath,
+            .child(syntax_highlighter::graphics::render_graphic_preview_box(
+                syntax_highlighter::graphics::render_graphic_error_card(
+                    syntax_highlighter::graphics::GraphicKind::LatexMath,
                     &err.to_string(),
                     raw,
                     theme,

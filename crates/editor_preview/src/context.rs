@@ -9,13 +9,13 @@ use std::sync::Arc;
 
 use gpui::EntityId;
 
-use splitype_markdown::footnotes::{
+use markdown_ast_parser::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-use splitype_markdown::block::footnote::split_footnote_definition_text;
-use splitype_markdown::block::image::ImageReferenceDefinitions;
-use splitype_markdown::block::link::LinkReferenceDefinitions;
-use splitype_markdown::parse::{BlockId, BlockKind};
+use markdown_ast_parser::block::footnote::split_footnote_definition_text;
+use markdown_ast_parser::block::image::ImageReferenceDefinitions;
+use markdown_ast_parser::block::link::LinkReferenceDefinitions;
+use markdown_ast_parser::parse::{BlockId, BlockKind};
 
 use crate::node::PreviewBlock;
 

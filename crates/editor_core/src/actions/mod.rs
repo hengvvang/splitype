@@ -13,7 +13,7 @@ use gpui::*;
 use crate::editor::export::ExportFormat;
 use crate::editor::Editor;
 use crate::session::PendingOpenLink;
-use editor_model::{AutoscrollStrategy, PaneId};
+use editor_model::{AutoscrollStrategy, PaneId, PaneKindId};
 
 impl Editor {
     /// Builds the OS window title, including the dirty marker when the document has unsaved changes.
@@ -138,6 +138,21 @@ impl Editor {
         );
     }
 
+    pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKindId, cx: &mut Context<Self>) {
+        self.change_pane_kind(pane_id, kind);
+        {
+            let state = self.pane_state(pane_id);
+            state.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit {
+                margin: px(20.0),
+            });
+            state.scroll.last_viewport_size = None;
+        }
+        self.tab_mut().file.pending_window_title_refresh = true;
+        self.tab_mut().file.close_dialog_restore_focus = None;
+        self.sync_panes_with_active_tab(cx);
+        cx.notify();
+    }
+
     pub fn toggle_pane_kind(&mut self, cx: &mut Context<Self>) {
         let active_pane = self.active_pane_id();
         let current_kind = self.active_pane_kind();
@@ -155,20 +170,7 @@ impl Editor {
             let next_idx = (current_idx + 1) % descriptors.len();
             descriptors[next_idx].kind()
         };
-        self.change_pane_kind(active_pane, next_kind);
-
-        {
-            let pane_id = self.active_pane_id();
-            let state = self.pane_state(pane_id);
-            state.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit {
-                margin: px(20.0),
-            });
-            state.scroll.last_viewport_size = None;
-        }
-        self.tab_mut().file.pending_window_title_refresh = true;
-        self.tab_mut().file.close_dialog_restore_focus = None;
-        self.sync_panes_with_active_tab(cx);
-        cx.notify();
+        self.select_pane_kind(active_pane, next_kind, cx);
     }
 
     pub fn bump_document_revision(&mut self) {

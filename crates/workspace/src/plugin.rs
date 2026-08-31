@@ -18,9 +18,9 @@ use crate::panels::PanelId;
 pub struct PanelKindId(pub &'static str);
 
 impl PanelKindId {
-    pub const EDITOR: Self = Self("splitype.editor");
-    pub const EXPLORER: Self = Self("splitype.explorer");
-    pub const SETTINGS: Self = Self("splitype.settings");
+    pub const EDITOR: Self = Self("editor");
+    pub const EXPLORER: Self = Self("explorer");
+    pub const SETTINGS: Self = Self("settings");
 
     #[inline]
     pub const fn new(id: &'static str) -> Self {

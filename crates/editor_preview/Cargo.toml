@@ -18,7 +18,7 @@ gpui = { workspace = true }
 editor_model = { path = "../editor_model" }
 editor_outline = { path = "../editor_outline" }
 editor_search = { path = "../editor_search" }
-splitype_markdown = { path = "../splitype_markdown" }
-splitype_syntax = { path = "../splitype_syntax" }
+markdown_ast_parser = { path = "../markdown_ast_parser" }
+syntax_highlighter = { path = "../syntax_highlighter" }
 theme = { path = "../theme" }
 uuid = { workspace = true }

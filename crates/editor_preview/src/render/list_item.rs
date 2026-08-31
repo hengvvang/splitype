@@ -2,7 +2,7 @@ use gpui::*;
 
 use crate::render::inline;
 use crate::node::PreviewBlock;
-use splitype_syntax::render_helpers::{numbered_list_marker, render_custom_bullet_marker};
+use syntax_highlighter::render_helpers::{numbered_list_marker, render_custom_bullet_marker};
 use theme::Theme;
 
 use std::ops::Range;

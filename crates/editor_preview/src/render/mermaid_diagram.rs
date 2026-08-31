@@ -5,9 +5,9 @@ use gpui::*;
 
 use crate::node::PreviewBlock;
 use crate::render::preview_centered_column_width;
-use splitype_syntax::mermaid::render_mermaid_svg_for_display;
+use syntax_highlighter::mermaid::render_mermaid_svg_for_display;
 use theme::Theme;
-use splitype_markdown::block::mermaid::parse_mermaid_fence_source;
+use markdown_ast_parser::block::mermaid::parse_mermaid_fence_source;
 
 /// Renders a Mermaid diagram block read-only.
 pub(crate) fn render_preview_mermaid_diagram(
@@ -36,7 +36,7 @@ pub(crate) fn render_preview_mermaid_diagram(
         } else {
             trimmed.to_string()
         };
-        splitype_markdown::block::mermaid::MermaidSource {
+        markdown_ast_parser::block::mermaid::MermaidSource {
             source: raw.to_string(),
             body,
             info: "mermaid".to_string(),
@@ -46,9 +46,9 @@ pub(crate) fn render_preview_mermaid_diagram(
     if source.body.is_empty() {
         return base
             .w_full()
-            .child(splitype_syntax::graphics::render_graphic_preview_box(
-                splitype_syntax::graphics::render_empty_graphic_placeholder(
-                    splitype_syntax::graphics::GraphicKind::Mermaid,
+            .child(syntax_highlighter::graphics::render_graphic_preview_box(
+                syntax_highlighter::graphics::render_empty_graphic_placeholder(
+                    syntax_highlighter::graphics::GraphicKind::Mermaid,
                     theme,
                 ),
                 theme,
@@ -96,9 +96,9 @@ pub(crate) fn render_preview_mermaid_diagram(
         }
         Err(err) => base
             .w_full()
-            .child(splitype_syntax::graphics::render_graphic_preview_box(
-                splitype_syntax::graphics::render_graphic_error_card(
-                    splitype_syntax::graphics::GraphicKind::Mermaid,
+            .child(syntax_highlighter::graphics::render_graphic_preview_box(
+                syntax_highlighter::graphics::render_graphic_error_card(
+                    syntax_highlighter::graphics::GraphicKind::Mermaid,
                     &err.to_string(),
                     raw,
                     theme,

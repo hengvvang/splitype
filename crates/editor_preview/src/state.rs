@@ -47,11 +47,11 @@ impl PaneView for PreviewState {
             self.synced_revision = Some(revision);
             return;
         }
-        let data = splitype_markdown::parse::parser::parse_preview_document(text);
+        let data = markdown_ast_parser::parse::parser::parse_preview_document(text);
         let mut roots = crate::blocks_to_preview_tree(data);
         if roots.is_empty() {
             roots.push(PreviewBlock::new(
-                splitype_markdown::parse::BlockData::paragraph(String::new()),
+                markdown_ast_parser::parse::BlockData::paragraph(String::new()),
             ));
         }
         let footnote_registry = Arc::new(crate::build_preview_footnote_registry(&roots));

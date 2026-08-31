@@ -35,8 +35,8 @@ editor_outline = { path = "../editor_outline" }
 editor_wysiwyg = { path = "../editor_wysiwyg" }
 editor_preview = { path = "../editor_preview" }
 settings = { path = "../settings" }
-splitype_markdown = { path = "../splitype_markdown" }
-splitype_syntax = { path = "../splitype_syntax" }
+markdown_ast_parser = { path = "../markdown_ast_parser" }
+syntax_highlighter = { path = "../syntax_highlighter" }
 splitype_cli = { path = "../splitype_cli" }
 explorer = { path = "../explorer" }
 

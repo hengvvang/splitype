@@ -14,7 +14,7 @@ use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 use gpui::{Hsla, Rgba};
 
-use splitype_markdown::block::math::DisplayMathSource;
+use markdown_ast_parser::block::math::DisplayMathSource;
 
 /// Upper bound on formulas retained in the in-memory SVG cache. Content
 /// is addresses by hash, so eviction is safe: the disk cache still holds

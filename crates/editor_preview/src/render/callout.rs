@@ -6,7 +6,7 @@ use gpui::*;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use theme::Theme;
-use splitype_markdown::block::CalloutKind;
+use markdown_ast_parser::block::CalloutKind;
 
 use std::ops::Range;
 

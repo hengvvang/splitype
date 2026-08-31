@@ -6,7 +6,7 @@ use gpui::*;
 use crate::node::PreviewBlock;
 use crate::render::{paragraph, preview_centered_column_width};
 use theme::Theme;
-use splitype_markdown::block::image::{ImageResolvedSource, parse_standalone_image};
+use markdown_ast_parser::block::image::{ImageResolvedSource, parse_standalone_image};
 
 /// Renders a paragraph/list-item block that holds a lone image read-only.
 /// Falls back to the paragraph renderer when the block is not an image.

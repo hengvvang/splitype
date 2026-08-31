@@ -1,8 +1,8 @@
 use gpui::*;
 use theme::Theme;
-use splitype_markdown::inline::html::HtmlCssColor;
-use splitype_markdown::block::html::HtmlNode;
-use splitype_markdown::block::CalloutKind;
+use markdown_ast_parser::inline::html::HtmlCssColor;
+use markdown_ast_parser::block::html::HtmlNode;
+use markdown_ast_parser::block::CalloutKind;
 
 /// Converts an HtmlCssColor to GPUI's Hsla.
 pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
@@ -80,7 +80,7 @@ pub fn html_node_visual_style(
         _ => {}
     }
 
-    let inline_style = splitype_markdown::block::html::style_for_node(node);
+    let inline_style = markdown_ast_parser::block::html::style_for_node(node);
     if let Some(color) = inline_style.color {
         computed.color = html_css_color_to_hsla(color, computed.color);
     }

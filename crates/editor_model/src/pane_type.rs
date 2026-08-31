@@ -10,11 +10,11 @@ pub struct PaneKindId(pub &'static str);
 
 impl PaneKindId {
     /// Raw Markdown source code editor.
-    pub const SOURCE_CODE: Self = Self("splitype.source_code");
+    pub const SOURCE_CODE: Self = Self("source_code");
     /// Visual block editor (WYSIWYG rendered view).
-    pub const WYSIWYG: Self = Self("splitype.wysiwyg");
+    pub const WYSIWYG: Self = Self("wysiwyg");
     /// Read-only rendered Markdown preview.
-    pub const PREVIEW: Self = Self("splitype.preview");
+    pub const PREVIEW: Self = Self("preview");
 
 
 

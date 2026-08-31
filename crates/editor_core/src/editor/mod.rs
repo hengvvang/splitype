@@ -48,6 +48,7 @@ pub struct Editor {
     pub outline: OutlineHudState,
     pub welcome_last_click: Option<Instant>,
     pub focused_pane_id: Option<PaneId>,
+    pub pane_dropdown_open: bool,
     pub search: crate::search::SearchPanelState,
 }
 
@@ -71,6 +72,7 @@ impl Editor {
             outline: OutlineHudState::default(),
             welcome_last_click: None,
             focused_pane_id: None,
+            pane_dropdown_open: false,
             search: crate::search::SearchPanelState::new(cx),
         };
         editor.session.push_tab(tab);
@@ -99,6 +101,7 @@ impl Editor {
             outline: OutlineHudState::default(),
             welcome_last_click: None,
             focused_pane_id: None,
+            pane_dropdown_open: false,
             search: crate::search::SearchPanelState::new(cx),
         }
     }

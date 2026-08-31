@@ -4,8 +4,8 @@ members = [
     "crates/splitter",
     "crates/splitype_installer",
     "crates/splitype_cli",
-    "crates/splitype_markdown",
-    "crates/splitype_syntax",
+    "crates/markdown_ast_parser",
+    "crates/syntax_highlighter",
     "crates/theme",
     "crates/config",
     "crates/ui",
@@ -35,8 +35,8 @@ rust-version = "1.91"
 
 [workspace.dependencies]
 # Member crates
-splitype_markdown = { path = "crates/splitype_markdown" }
-splitype_syntax = { path = "crates/splitype_syntax" }
+markdown_ast_parser = { path = "crates/markdown_ast_parser" }
+syntax_highlighter = { path = "crates/syntax_highlighter" }
 splitter = { path = "crates/splitter" }
 splitype_installer = { path = "crates/splitype_installer" }
 splitype_cli = { path = "crates/splitype_cli" }

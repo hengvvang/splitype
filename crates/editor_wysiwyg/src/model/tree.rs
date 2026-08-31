@@ -43,24 +43,24 @@ impl Summary for BlockSummary {
     }
 }
 
-impl Item for splitype_markdown::BlockData {
+impl Item for markdown_ast_parser::BlockData {
     type Summary = BlockSummary;
     fn summary(&self, _cx: &()) -> Self::Summary {
         let line_count = self.line_count().max(1);
         let char_count = self.character_count();
         let byte_count = self.byte_count();
         let estimated_h = match &self.kind {
-            splitype_markdown::BlockKind::Heading { level } => match level {
+            markdown_ast_parser::BlockKind::Heading { level } => match level {
                 1 => 56.0,
                 2 => 48.0,
                 3 => 40.0,
                 _ => 36.0,
             },
-            splitype_markdown::BlockKind::CodeBlock { .. } => 24.0 * line_count as f32 + 32.0,
-            splitype_markdown::BlockKind::MathBlock | splitype_markdown::BlockKind::MermaidBlock => 80.0,
-            splitype_markdown::BlockKind::Table => 28.0 * line_count as f32 + 32.0,
-            splitype_markdown::BlockKind::ThematicBreak => 24.0,
-            splitype_markdown::BlockKind::HtmlBlock => 24.0 * line_count as f32 + 16.0,
+            markdown_ast_parser::BlockKind::CodeBlock { .. } => 24.0 * line_count as f32 + 32.0,
+            markdown_ast_parser::BlockKind::MathBlock | markdown_ast_parser::BlockKind::MermaidBlock => 80.0,
+            markdown_ast_parser::BlockKind::Table => 28.0 * line_count as f32 + 32.0,
+            markdown_ast_parser::BlockKind::ThematicBreak => 24.0,
+            markdown_ast_parser::BlockKind::HtmlBlock => 24.0 * line_count as f32 + 16.0,
             _ => 24.0 * line_count as f32 + 8.0,
         };
         BlockSummary {

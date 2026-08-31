@@ -1,5 +1,5 @@
 [package]
-name = "splitype_syntax"
+name = "syntax_highlighter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -32,7 +32,7 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 theme = { path = "../theme" }
-splitype_markdown = { path = "../splitype_markdown" }
+markdown_ast_parser = { path = "../markdown_ast_parser" }
 ratex-parser = "0.1.13"
 ratex-layout = "0.1.13"
 ratex-svg = "0.1.13"

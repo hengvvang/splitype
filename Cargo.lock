@@ -257,6 +257,7 @@ dependencies = [
  "futures",
  "gpui",
  "gpui_platform",
+ "markdown_ast_parser",
  "notify",
  "regex",
  "schemars",
@@ -266,8 +267,7 @@ dependencies = [
  "splitter",
  "splitype_cli",
  "splitype_installer",
- "splitype_markdown",
- "splitype_syntax",
+ "syntax_highlighter",
  "theme",
  "thiserror 2.0.18",
  "tokio",
@@ -1800,8 +1800,8 @@ dependencies = [
  "editor_outline",
  "editor_search",
  "gpui",
- "splitype_markdown",
- "splitype_syntax",
+ "markdown_ast_parser",
+ "syntax_highlighter",
  "theme",
  "uuid",
 ]
@@ -1824,7 +1824,7 @@ dependencies = [
  "editor_outline",
  "editor_search",
  "gpui",
- "splitype_syntax",
+ "syntax_highlighter",
  "theme",
 ]
 
@@ -1846,6 +1846,7 @@ dependencies = [
  "gpui",
  "image",
  "lazy_static",
+ "markdown_ast_parser",
  "mermaid-rs-renderer",
  "pulldown-cmark",
  "ratex-layout",
@@ -1855,8 +1856,7 @@ dependencies = [
  "reqwest",
  "serde",
  "smallvec",
- "splitype_markdown",
- "splitype_syntax",
+ "syntax_highlighter",
  "taffy 0.7.7",
  "theme",
  "thiserror 2.0.18",
@@ -3733,6 +3733,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "markdown_ast_parser"
+version = "0.0.1"
+dependencies = [
+ "cssparser",
+ "gpui",
+ "pulldown-cmark",
+ "regex",
+ "serde",
+ "smallvec",
+ "taffy 0.7.7",
+ "theme",
+ "thiserror 2.0.18",
+ "tree-sitter",
+ "tree-sitter-html",
+ "unicode-segmentation",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -6144,62 +6164,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "splitype_markdown"
-version = "0.0.1"
-dependencies = [
- "cssparser",
- "gpui",
- "pulldown-cmark",
- "regex",
- "serde",
- "smallvec",
- "taffy 0.7.7",
- "theme",
- "thiserror 2.0.18",
- "tree-sitter",
- "tree-sitter-html",
- "unicode-segmentation",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "splitype_syntax"
-version = "0.0.1"
-dependencies = [
- "adot-tree-sitter-toml",
- "anyhow",
- "directories",
- "gpui",
- "lazy_static",
- "mermaid-rs-renderer",
- "ratex-layout",
- "ratex-parser",
- "ratex-svg",
- "splitype_markdown",
- "theme",
- "tree-sitter",
- "tree-sitter-bash",
- "tree-sitter-c",
- "tree-sitter-c-sharp",
- "tree-sitter-cpp",
- "tree-sitter-css",
- "tree-sitter-go",
- "tree-sitter-highlight",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-json",
- "tree-sitter-md",
- "tree-sitter-php",
- "tree-sitter-python",
- "tree-sitter-ruby",
- "tree-sitter-rust",
- "tree-sitter-typescript",
- "tree-sitter-yaml",
-]
-
-[[package]]
 name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6450,6 +6414,42 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "syntax_highlighter"
+version = "0.0.1"
+dependencies = [
+ "adot-tree-sitter-toml",
+ "anyhow",
+ "directories",
+ "gpui",
+ "lazy_static",
+ "markdown_ast_parser",
+ "mermaid-rs-renderer",
+ "ratex-layout",
+ "ratex-parser",
+ "ratex-svg",
+ "theme",
+ "tree-sitter",
+ "tree-sitter-bash",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-cpp",
+ "tree-sitter-css",
+ "tree-sitter-go",
+ "tree-sitter-highlight",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-json",
+ "tree-sitter-md",
+ "tree-sitter-php",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+ "tree-sitter-yaml",
 ]
 
 [[package]]

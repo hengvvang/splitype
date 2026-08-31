@@ -6,14 +6,14 @@
 use gpui::*;
 
 use crate::node::PreviewBlock;
-use splitype_syntax::render_helpers::{
+use syntax_highlighter::render_helpers::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
 use theme::Theme;
-use splitype_markdown::block::html::{
+use markdown_ast_parser::block::html::{
     HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };
-use splitype_markdown::block::image::resolve_image_source;
+use markdown_ast_parser::block::image::resolve_image_source;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
@@ -367,8 +367,8 @@ fn render_preview_html_image(
         .unwrap_or(1.0);
 
     let image = match resolve_image_source(src, None) {
-        splitype_markdown::block::image::ImageResolvedSource::Local(path) => img(path),
-        splitype_markdown::block::image::ImageResolvedSource::Remote(uri) => img(uri),
+        markdown_ast_parser::block::image::ImageResolvedSource::Local(path) => img(path),
+        markdown_ast_parser::block::image::ImageResolvedSource::Remote(uri) => img(uri),
     }
     .max_w(Length::Definite(relative(zoom)))
     .max_h(px(theme.dimensions.image_root_max_height * zoom))
