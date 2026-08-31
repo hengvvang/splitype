@@ -114,6 +114,7 @@ mod tests {
             },
             capabilities: crate::plugin::PluginCapabilities::default(),
             resources: crate::plugin::PluginResources::default(),
+            commands: Vec::new(),
         }
     }
 

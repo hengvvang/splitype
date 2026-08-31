@@ -172,3 +172,17 @@ factories, and registration validates every registered kind against the
 manifest's declarations. Plugin resources are addressed through
 `plugin://<id>/<path>`, resolved via the owning manifest's `icon_root` into
 pluggable asset catalogs — kind strings never encode resource locations.
+
+## ADR-017: Menus assemble from command contributions
+
+**Status:** Accepted
+
+Commands are plugin contributions: manifests declare `[[commands]]` entries
+(plugin-local id, menu skeleton location, default shortcut) recorded in a
+global `CommandRegistry`, and the menu bar assembles its static items from
+the registry through a fixed menu skeleton. The composition root's command
+binding table is the only place allowed to map a command id to its localized
+label and concrete action, and dynamic menu sections (recent files, themes,
+languages, CLI tool) are composition-root providers. GPUI's typed
+`cx.on_action` API still requires one dispatch handler per action type, so
+binding table and handlers must stay in sync.

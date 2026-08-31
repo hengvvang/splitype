@@ -1,6 +1,7 @@
 //! core_contracts — unified universal contracts, traits, and domain vocabulary
 //! for the splitype editor family and application shell.
 
+pub mod command;
 pub mod document;
 pub mod export;
 pub mod outline;
@@ -9,6 +10,7 @@ pub mod panel;
 pub mod plugin;
 pub mod search;
 
+pub use command::{CommandContribution, CommandId, CommandRegistry, CommandRegistryError};
 pub use document::{
     DocumentHost, DocumentId, DocumentSnapshot, NavigationExecutionPlan, NavigationTarget, TabKind,
 };
@@ -25,8 +27,8 @@ pub use panel::{
     PanelRenderContext, PanelView, SidebarPanel,
 };
 pub use plugin::{
-    PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId, PluginManifest,
-    PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
+    ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,
+    PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
 };
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputElement, SearchInputSnapshot,

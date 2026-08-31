@@ -10,7 +10,7 @@ pub mod registry;
 
 pub use id::PluginId;
 pub use manifest::{
-    PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginManifest, PluginManifestError,
-    PluginResources,
+    ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginManifest,
+    PluginManifestError, PluginResources,
 };
 pub use registry::{PluginRegistry, PluginRegistryError};

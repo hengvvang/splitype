@@ -289,7 +289,15 @@ transitional hardcoding listed below is removed.
   against the manifest. `plugin://<id>/<path>` resource URLs resolve
   through the owning manifest's `resources.icon_root` into the asset
   catalog, and panel icons now flow through that namespace (visible in the
-  panel-kind dropdown).
+  the panel-kind dropdown).
+- Commands are plugin contributions: manifests declare `[[commands]]`
+  (plugin-local id, menu skeleton location, default shortcut), a global
+  `CommandRegistry` records them, and the menu bar assembles its static
+  items from the registry through a menu skeleton. The composition root's
+  command binding table maps each command id to its localized label and
+  concrete action — the only place allowed to know action types. Dynamic
+  sections (recent files, themes, languages, CLI tool) remain composition-
+  root providers.
 - Document routing is a panel role, not an editor privilege:
   `PanelCapabilities { documents, sidebar }` is declared by descriptors and
   views, and panels that declare `documents` implement the `DocumentPanel`
@@ -322,14 +330,15 @@ transitional hardcoding listed below is removed.
    unregister/shutdown protocol, or missing-plugin placeholder panel.
    `AssetSource::list` returns nothing, so third-party plugins cannot ship
    resource directories yet.
-3. Per-pane view state (cursor, scroll, selections) is not persisted, and the
+3. Keybindings are still driven by the config `ShortcutCommand` vocabulary
+   rather than manifest-declared shortcuts, and GPUI's typed
+   `cx.on_action` API requires per-command dispatch handlers in the
+   composition root (command table + handlers must be kept in sync). Panel
+   topbar chrome is duplicated per plugin; consider a shared chrome
+   renderer driven by descriptor metadata.
+4. Per-pane view state (cursor, scroll, selections) is not persisted, and the
    explorer restores folder roots without their expansion state.
-4. Preview selection/navigation and common autoscroll have incomplete wiring.
-5. Editor still owns Markdown-specific command templates and incomplete export
-   rendering; these belong to registered contributions. Panel topbar chrome is
-   also duplicated per plugin; consider a shared chrome renderer driven by
-   descriptor metadata. Commands, menus, and keybindings are still composition-
-   root wired rather than typed plugin contributions.
+5. Preview selection/navigation and common autoscroll have incomplete wiring.
 6. `markdown_parser` contains GPUI entity identity and consumer-specific parse
    modes; replace them with domain IDs and recursive parse policy.
 7. `PaneView` default no-op methods should eventually fold into the capability

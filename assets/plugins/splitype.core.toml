@@ -1,0 +1,85 @@
+# Splitype core application plugin manifest: windows, files, preferences,
+# and help commands shared by every window.
+manifest_version = 1
+plugin = "splitype.core"
+name = "Splitype Core"
+version = "0.1.0"
+description = "Application window, file, preference, and help commands."
+
+[entry]
+kind = "in_process"
+registration = "core"
+
+[[commands]]
+id = "about"
+menu = "app"
+shortcut = ""
+
+[[commands]]
+id = "check-updates"
+menu = "app"
+shortcut = ""
+
+[[commands]]
+id = "open-settings"
+menu = "app"
+shortcut = ""
+
+[[commands]]
+id = "quit"
+menu = "app"
+shortcut = ""
+
+[[commands]]
+id = "new-window"
+menu = "file"
+shortcut = "ctrl+n"
+
+[[commands]]
+id = "close-window"
+menu = "file"
+shortcut = "ctrl+shift+w"
+
+[[commands]]
+id = "open-file"
+menu = "file"
+shortcut = "ctrl+o"
+
+[[commands]]
+id = "close-explorer-folder"
+menu = "file"
+shortcut = ""
+
+[[commands]]
+id = "toggle-explorer"
+shortcut = "ctrl+e"
+
+[[commands]]
+id = "repository"
+menu = "help"
+shortcut = ""
+
+[[commands]]
+id = "bug-report"
+menu = "help"
+shortcut = ""
+
+[[commands]]
+id = "feature-request"
+menu = "help"
+shortcut = ""
+
+[[commands]]
+id = "discussions"
+menu = "help"
+shortcut = ""
+
+[[commands]]
+id = "install-cli"
+menu = "help"
+shortcut = ""
+
+[[commands]]
+id = "uninstall-cli"
+menu = "help"
+shortcut = ""

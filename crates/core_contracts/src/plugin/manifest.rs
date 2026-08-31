@@ -30,6 +30,23 @@ pub struct PluginManifest {
     pub capabilities: PluginCapabilities,
     #[serde(default)]
     pub resources: PluginResources,
+    /// Commands the plugin exposes to menus and shortcuts.
+    #[serde(default)]
+    pub commands: Vec<ManifestCommand>,
+}
+
+/// One command contribution declared by a manifest.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ManifestCommand {
+    /// Plugin-local command id; the full id is `<plugin-id>.<id>`.
+    pub id: String,
+    /// Menu skeleton location (e.g. `file`, `file.export`). Absent for
+    /// keybinding-only commands.
+    #[serde(default)]
+    pub menu: Option<String>,
+    /// Default shortcut, as display/definition metadata.
+    #[serde(default)]
+    pub shortcut: Option<String>,
 }
 
 /// How a plugin provides its code.

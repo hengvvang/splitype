@@ -15,3 +15,23 @@ panels = ["splitype.panel.editor"]
 
 [resources]
 icon_root = "icons/editor"
+
+[[commands]]
+id = "save"
+menu = "file"
+shortcut = "ctrl+s"
+
+[[commands]]
+id = "save-as"
+menu = "file"
+shortcut = "ctrl+shift+s"
+
+[[commands]]
+id = "export-html"
+menu = "file.export"
+shortcut = ""
+
+[[commands]]
+id = "export-pdf"
+menu = "file.export"
+shortcut = ""

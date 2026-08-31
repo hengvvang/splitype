@@ -12,6 +12,7 @@ pub mod actions;
 pub mod assets;
 pub mod bootstrap;
 pub mod chrome;
+pub mod commands;
 pub mod dialogs;
 pub mod keybindings;
 pub mod layout;

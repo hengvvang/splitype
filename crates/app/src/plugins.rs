@@ -46,6 +46,11 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
             pane_descriptors: Vec::new(),
             panel_descriptors: vec![(Arc::new(settings::SettingsPanelDescriptor::new()), false)],
         },
+        // The core plugin contributes commands only; no descriptors.
+        "core" => PluginRegistration {
+            pane_descriptors: Vec::new(),
+            panel_descriptors: Vec::new(),
+        },
         _ => return None,
     };
     Some(registration)
@@ -53,6 +58,7 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
 
 /// Bundled manifest sources, compiled into the binary.
 const BUNDLED_MANIFESTS: &[&str] = &[
+    include_str!("../../../assets/plugins/splitype.core.toml"),
     include_str!("../../../assets/plugins/splitype.editor.toml"),
     include_str!("../../../assets/plugins/splitype.explorer.toml"),
     include_str!("../../../assets/plugins/splitype.settings.toml"),
@@ -77,6 +83,7 @@ pub(crate) fn init_plugins() {
             plugin,
             entry,
             capabilities,
+            commands,
             ..
         } = manifest.clone();
         let core_contracts::PluginEntry::InProcess { registration } = entry;
@@ -100,6 +107,19 @@ pub(crate) fn init_plugins() {
             );
             window::PanelRegistry::register_global(descriptor.clone(), *is_default)
                 .expect("bundled panel kinds must be unique");
+        }
+        for command in &commands {
+            let full_id = format!("{}.{}", plugin, command.id);
+            assert!(
+                crate::commands::binding_for(plugin.as_str(), &command.id).is_some(),
+                "command '{full_id}' declared by '{plugin}' has no composition-root binding"
+            );
+            core_contracts::CommandRegistry::register_global(core_contracts::CommandContribution {
+                id: core_contracts::CommandId::new(full_id),
+                menu: command.menu.clone().map(std::sync::Arc::from),
+                shortcut: command.shortcut.clone().map(std::sync::Arc::from),
+            })
+            .expect("bundled command ids must be unique");
         }
         PluginRegistry::register_global(manifest).expect("bundled plugin ids must be unique");
     }
@@ -127,6 +147,22 @@ mod tests {
             manifest
                 .validate()
                 .expect("manifest must satisfy its schema");
+        }
+    }
+
+    #[test]
+    fn every_manifest_command_has_a_binding() {
+        for source in BUNDLED_MANIFESTS {
+            let manifest: PluginManifest =
+                toml::from_str(source).expect("manifest must be valid TOML");
+            for command in &manifest.commands {
+                assert!(
+                    crate::commands::binding_for(manifest.plugin.as_str(), &command.id).is_some(),
+                    "command '{}.{}' has no composition-root binding",
+                    manifest.plugin,
+                    command.id
+                );
+            }
         }
     }
 }
