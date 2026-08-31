@@ -9,7 +9,5 @@ pub use descriptor::PaneDescriptor;
 pub use host::{AutoscrollStrategy, PaneHost, PaneOutlineHost, PaneRenderContext};
 pub use id::PaneId;
 pub use kind::PaneKind;
-pub use registry::PaneRegistry;
+pub use registry::{PaneRegistry, PaneRegistryError};
 pub use view::PaneView;
-
-

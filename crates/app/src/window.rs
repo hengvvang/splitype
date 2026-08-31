@@ -61,11 +61,7 @@ pub fn open_editor_window(
                     Box::new(editor::EditorPanelView::new(editor.clone()));
 
                 let shell = cx.new(move |_cx| Shell {
-                    panel_views: [
-                        (explorer_id, explorer_view),
-                        (editor_id, editor_view),
-                    ]
-                    .into(),
+                    panel_views: [(explorer_id, explorer_view), (editor_id, editor_view)].into(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels: WindowPanels::default(),
@@ -78,7 +74,9 @@ pub fn open_editor_window(
                 });
                 let shell_weak = shell.downgrade();
                 editor.update(cx, |e, _cx| {
-                    e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
+                    e.host = Some(std::sync::Arc::new(ShellEditorHost::new(
+                        shell_weak.clone(),
+                    )));
                 });
                 shell
             },
@@ -108,27 +106,13 @@ pub fn open_cloned_window(
         .open_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
-                let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
-                for (panel_id, session) in sessions {
-                    let editor = cx.new(|cx| editor::Editor::with_session(panel_id, session, cx));
-                    panel_views.insert(panel_id, Box::new(editor::EditorPanelView::new(editor)));
-                }
-
+                cx.set_global(explorer.unwrap_or_default());
                 let mut leaf_ids = Vec::new();
                 tree.leaf_ids(&mut leaf_ids);
-                let registry = window::PanelRegistry::global().lock().unwrap();
-                for leaf_id in leaf_ids {
-                    let panel_id = PanelId(leaf_id);
-                    if let Some(kind) = tree.find_leaf_kind(leaf_id) {
-                        if !panel_views.contains_key(&panel_id) {
-                            if let Some(view) = registry.create_panel(kind, panel_id, None, cx) {
-                                panel_views.insert(panel_id, view);
-                            }
-                        }
-                    }
-                }
-
-                cx.set_global(explorer.unwrap_or_else(explorer::ExplorerState::default));
+                let leaf_kinds: Vec<(NodeId, window::PanelKind)> = leaf_ids
+                    .iter()
+                    .filter_map(|leaf_id| tree.find_leaf_kind(*leaf_id).map(|kind| (*leaf_id, kind)))
+                    .collect();
                 let mut panels = WindowPanels::default();
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
@@ -139,7 +123,7 @@ pub fn open_cloned_window(
                     panels.layout.activation_history.clear();
                 }
                 let shell = cx.new(move |_cx| Shell {
-                    panel_views,
+                    panel_views: HashMap::new(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
@@ -151,18 +135,44 @@ pub fn open_cloned_window(
                     about_bg_emojis: Vec::new(),
                 });
                 let shell_weak = shell.downgrade();
-                let editors: Vec<Entity<Editor>> = shell
-                    .read(cx)
-                    .panel_views
-                    .values()
-                    .filter_map(|view| view.as_any().downcast_ref::<editor::EditorPanelView>())
-                    .map(|p| p.editor.clone())
-                    .collect();
-                for editor in editors {
-                    editor.update(cx, |e, _cx| {
-                        e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
+                let panel_host = crate::shell::ShellPanelHost::shared(shell_weak.clone());
+
+                let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
+                for (panel_id, session) in sessions {
+                    let editor = cx.new(|cx| editor::Editor::with_session(panel_id, session, cx));
+                    editor.update(cx, |editor, _cx| {
+                        editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
                     });
+                    panel_views.insert(panel_id, Box::new(editor::EditorPanelView::new(editor)));
                 }
+
+                for (leaf_id, kind) in leaf_kinds {
+                    let panel_id = PanelId(leaf_id);
+                    if let std::collections::hash_map::Entry::Vacant(entry) =
+                        panel_views.entry(panel_id)
+                    {
+                        match window::PanelRegistry::create_registered_panel(
+                            kind,
+                            panel_id,
+                            panel_host.clone(),
+                            cx,
+                        ) {
+                            Ok(Some(view)) => {
+                                entry.insert(view);
+                            }
+                            Ok(None) => {
+                                tracing::error!(%kind, "no panel descriptor is registered");
+                            }
+                            Err(error) => {
+                                tracing::error!(%kind, %error, "failed to create registered panel");
+                            }
+                        }
+                    }
+                }
+
+                shell.update(cx, |shell, _cx| {
+                    shell.panel_views = panel_views;
+                });
                 shell
             },
         )

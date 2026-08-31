@@ -22,7 +22,7 @@ pub trait PanelDescriptor: Send + Sync + 'static {
     fn create_panel(
         &self,
         panel_id: PanelId,
-        host: Option<Arc<dyn PanelHost>>,
+        host: Arc<dyn PanelHost>,
         cx: &mut App,
     ) -> Box<dyn PanelView>;
 }

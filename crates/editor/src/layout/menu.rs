@@ -100,7 +100,7 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         let available_descriptors =
-            core_contracts::PaneRegistry::global().lock().unwrap().all_descriptors();
+            core_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
 
         menu_panel(c, d)
             .id(("inner-pane-dropdown-overlay", pane_id.0))
@@ -109,7 +109,11 @@ impl Editor {
             .left(px(0.0))
             .bottom(px(0.0))
             .w(px(d.menu_panel_width))
-            .children(available_descriptors.into_iter().enumerate().map(|(idx, descriptor)| {
+            .children(
+                available_descriptors
+                    .into_iter()
+                    .enumerate()
+                    .map(|(idx, descriptor)| {
                 let kind = descriptor.kind();
                 let name = descriptor.display_name();
                 let is_current = kind == current_kind;
@@ -149,10 +153,8 @@ impl Editor {
                             cx.notify();
                         });
                     })
-            }))
+                    }),
+            )
             .into_any_element()
     }
 }
-
-
-

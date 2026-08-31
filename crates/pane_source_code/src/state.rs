@@ -3,13 +3,13 @@
 use std::ops::Range;
 use std::sync::{Arc, Mutex};
 
+use core_contracts::OutlineHeading;
+use core_contracts::{SearchMatch, SearchQuery};
 use gpui::{
     App, Bounds, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels,
     StatefulInteractiveElement, Styled, Window,
 };
 use theme::Theme;
-use core_contracts::OutlineHeading;
-use core_contracts::{SearchMatch, SearchQuery};
 
 use crate::buffer::{BufferPoint, LineMap};
 use crate::display_map::{DisplayPoint, DisplaySnapshot, FoldMap, TabMap, WrapMap};
@@ -123,7 +123,8 @@ impl SourceCodeState {
 
     /// Returns the byte offset corresponding to (line, byte-column).
     pub fn offset_at_line_col(&self, line_index: usize, col: usize) -> usize {
-        self.line_map.point_to_offset(&self.text, BufferPoint::new(line_index as u32, col as u32))
+        self.line_map
+            .point_to_offset(&self.text, BufferPoint::new(line_index as u32, col as u32))
     }
 
     /// Current cursor offset of the primary selection.
@@ -275,7 +276,8 @@ impl SourceCodeState {
         if self.selections.has_any_selection() {
             self.selections.set_single_range(new_start, new_end);
         } else {
-            self.selections.set_single_point(new_start.min(self.text.len()));
+            self.selections
+                .set_single_point(new_start.min(self.text.len()));
         }
     }
 
@@ -592,7 +594,12 @@ impl SourceCodeState {
         };
 
         for (id, offset, goal_col) in new_offsets {
-            if let Some(s) = self.selections.all_mut().iter_mut().find(|sel| sel.id == id) {
+            if let Some(s) = self
+                .selections
+                .all_mut()
+                .iter_mut()
+                .find(|sel| sel.id == id)
+            {
                 s.head = offset;
                 if !extend {
                     s.anchor = offset;
@@ -625,7 +632,12 @@ impl SourceCodeState {
         };
 
         for (id, offset, goal_col) in new_offsets {
-            if let Some(s) = self.selections.all_mut().iter_mut().find(|sel| sel.id == id) {
+            if let Some(s) = self
+                .selections
+                .all_mut()
+                .iter_mut()
+                .find(|sel| sel.id == id)
+            {
                 s.head = offset;
                 if !extend {
                     s.anchor = offset;
@@ -649,7 +661,12 @@ impl SourceCodeState {
             .collect();
 
         for (id, offset) in starts {
-            if let Some(s) = self.selections.all_mut().iter_mut().find(|sel| sel.id == id) {
+            if let Some(s) = self
+                .selections
+                .all_mut()
+                .iter_mut()
+                .find(|sel| sel.id == id)
+            {
                 s.head = offset;
                 if !extend {
                     s.anchor = offset;
@@ -673,7 +690,12 @@ impl SourceCodeState {
             .collect();
 
         for (id, offset) in ends {
-            if let Some(s) = self.selections.all_mut().iter_mut().find(|sel| sel.id == id) {
+            if let Some(s) = self
+                .selections
+                .all_mut()
+                .iter_mut()
+                .find(|sel| sel.id == id)
+            {
                 s.head = offset;
                 if !extend {
                     s.anchor = offset;
@@ -721,7 +743,8 @@ impl SourceCodeState {
             }
         }
 
-        self.selections.set_single_range(line_start + word_start, line_start + word_end);
+        self.selections
+            .set_single_range(line_start + word_start, line_start + word_end);
     }
 
     /// Selects the entire line at `line_index`.
@@ -780,7 +803,9 @@ impl core_contracts::PaneView for SourceCodeState {
         Some(self.cursor_position_1based())
     }
 
-    fn sync_document_text(&mut self, text: &str, revision: u64, _cx: &mut App) {
+    fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, _cx: &mut App) {
+        let text = document.text.as_ref();
+        let revision = document.revision;
         if self.synced_revision == Some(revision) && self.text == text {
             return;
         }
@@ -823,21 +848,11 @@ impl core_contracts::PaneView for SourceCodeState {
         self.selections.set_single_range(start, end);
     }
 
-    fn replace_match(
-        &mut self,
-        match_item: &SearchMatch,
-        replace_with: &str,
-        _cx: &mut App,
-    ) {
+    fn replace_match(&mut self, match_item: &SearchMatch, replace_with: &str, _cx: &mut App) {
         crate::search::replace_source_match(self, match_item, replace_with);
     }
 
-    fn replace_all_matches(
-        &mut self,
-        query: &SearchQuery,
-        replace_with: &str,
-        _cx: &mut App,
-    ) {
+    fn replace_all_matches(&mut self, query: &SearchQuery, replace_with: &str, _cx: &mut App) {
         let matches = self.search_matches(query, _cx);
         for m in matches.into_iter().rev() {
             crate::search::replace_source_match(self, &m, replace_with);
@@ -947,7 +962,8 @@ impl core_contracts::PaneView for SourceCodeState {
             ctx.host.clone(),
         );
 
-        let outline_host: Arc<dyn core_contracts::OutlineHost> = Arc::new(core_contracts::PaneOutlineHost {
+        let outline_host: Arc<dyn core_contracts::OutlineHost> =
+            Arc::new(core_contracts::PaneOutlineHost {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
@@ -961,7 +977,9 @@ impl core_contracts::PaneView for SourceCodeState {
         );
 
         let mut outer = gpui::div()
-            .id(gpui::ElementId::Name(format!("tiled-source-editor-{}", ctx.pane_id.0).into()))
+            .id(gpui::ElementId::Name(
+                format!("tiled-source-editor-{}", ctx.pane_id.0).into(),
+            ))
             .key_context("SourceCode")
             .w_full()
             .h_full()
@@ -989,7 +1007,9 @@ impl core_contracts::PaneView for SourceCodeState {
         outer
             .child(
                 gpui::div()
-                    .id(gpui::ElementId::Name(format!("tiled-source-scroll-{}", pane_id.0).into()))
+                    .id(gpui::ElementId::Name(
+                        format!("tiled-source-scroll-{}", pane_id.0).into(),
+                    ))
                     .w_full()
                     .h_full()
                     .overflow_y_scroll()
@@ -1017,4 +1037,3 @@ impl core_contracts::PaneView for SourceCodeState {
         self
     }
 }
-

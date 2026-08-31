@@ -72,9 +72,9 @@ impl Editor {
         let panel_id = self.panel_id;
         let inner_leaf_count = self.session().root.tree.count_leaves();
 
-        let focused_pane_id = self.focused_pane_id.or_else(|| {
-            self.session().root.tree.first_leaf_id().map(PaneId)
-        });
+        let focused_pane_id = self
+            .focused_pane_id
+            .or_else(|| self.session().root.tree.first_leaf_id().map(PaneId));
         let focused_kind =
             focused_pane_id.and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id.0));
 
@@ -83,11 +83,10 @@ impl Editor {
 
         if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
             let toggle_editor = cx.entity().downgrade();
-            let label = core_contracts::PaneRegistry::global()
-                .lock()
-                .unwrap()
-                .get(focused_kind)
-                .map(|d| d.display_name().to_string())
+            let label = core_contracts::PaneRegistry::registered(focused_kind)
+                .ok()
+                .flatten()
+                .map(|descriptor| descriptor.display_name().to_string())
                 .unwrap_or_else(|| focused_kind.as_str().to_string());
             let mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
@@ -111,10 +110,7 @@ impl Editor {
                     .child("\u{2502}")
                     .into_any_element(),
             );
-            left_items.push(render_cursor(
-                self.active_pane_cursor_position(cx),
-                theme,
-            ));
+            left_items.push(render_cursor(self.active_pane_cursor_position(cx), theme));
         }
 
         if prefs.show_word_count {
@@ -262,8 +258,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let registry = PaneRegistry::global().lock().unwrap();
-        let available_descriptors = registry.all_descriptors();
+        let available_descriptors = PaneRegistry::registered_descriptors().unwrap_or_default();
 
         menu_panel(c, d)
             .id(("pane-dropdown-overlay", pane_id.0))
@@ -272,7 +267,11 @@ impl Editor {
             .bottom(px(d.bottombar_height + 4.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
-            .children(available_descriptors.into_iter().enumerate().map(|(idx, desc)| {
+            .children(
+                available_descriptors
+                    .into_iter()
+                    .enumerate()
+                    .map(|(idx, desc)| {
                 let kind_id = desc.kind();
                 let is_current = kind_id == current_kind;
                 let option_editor = editor.clone();
@@ -306,7 +305,8 @@ impl Editor {
                         });
                     })
                     .into_any_element()
-            }))
+                    }),
+            )
             .into_any_element()
     }
 
@@ -343,5 +343,3 @@ impl Editor {
         (1, 1)
     }
 }
-
-

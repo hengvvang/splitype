@@ -10,8 +10,8 @@ use std::path::Path;
 
 use gpui::*;
 
-use crate::editor::export::ExportFormat;
 use crate::editor::Editor;
+use crate::editor::export::ExportFormat;
 use crate::session::PendingOpenLink;
 use core_contracts::{AutoscrollStrategy, PaneId, PaneKind};
 
@@ -49,7 +49,10 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let is_untitled = self.session.active_tab().is_some_and(|t| t.file.path.is_none());
+        let is_untitled = self
+            .session
+            .active_tab()
+            .is_some_and(|t| t.file.path.is_none());
         if is_untitled {
             self.save_document_as(window, cx);
             return;
@@ -104,45 +107,25 @@ impl Editor {
         cx.notify();
     }
 
-    pub fn on_export_html(
-        &mut self,
-        _: &ExportHtml,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_export_html(&mut self, _: &ExportHtml, window: &mut Window, cx: &mut Context<Self>) {
         if !self.has_tabs() {
             return;
         }
-        self.export_document_via_prompt(
-            ExportFormat::Html,
-            window,
-            cx,
-        );
+        self.export_document_via_prompt(ExportFormat::Html, window, cx);
     }
 
-    pub fn on_export_pdf(
-        &mut self,
-        _: &ExportPdf,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub fn on_export_pdf(&mut self, _: &ExportPdf, window: &mut Window, cx: &mut Context<Self>) {
         if !self.has_tabs() {
             return;
         }
-        self.export_document_via_prompt(
-            ExportFormat::Pdf,
-            window,
-            cx,
-        );
+        self.export_document_via_prompt(ExportFormat::Pdf, window, cx);
     }
 
     pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKind, cx: &mut Context<Self>) {
         self.change_pane_kind(pane_id, kind);
         {
             let state = self.pane_state(pane_id);
-            state.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit {
-                margin: px(20.0),
-            });
+            state.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit { margin: px(20.0) });
             state.scroll.last_viewport_size = None;
         }
         if let Some(tab) = self.session.active_tab_mut() {
@@ -156,10 +139,8 @@ impl Editor {
     pub fn toggle_pane_kind(&mut self, cx: &mut Context<Self>) {
         let active_pane = self.active_pane_id();
         let current_kind = self.active_pane_kind();
-        let descriptors = core_contracts::PaneRegistry::global()
-            .lock()
-            .unwrap()
-            .all_descriptors();
+        let descriptors =
+            core_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
         let next_kind = if descriptors.is_empty() {
             current_kind
         } else {
@@ -268,12 +249,7 @@ impl Editor {
         if !self.has_tabs() {
             return;
         }
-        let max_offset_y = self
-            .active_pane_scroll()
-            .handle
-            .max_offset()
-            .y
-            .max(px(0.0));
+        let max_offset_y = self.active_pane_scroll().handle.max_offset().y.max(px(0.0));
         self.set_vertical_scroll_offset(self.active_pane_id(), -max_offset_y, window, cx);
     }
 
@@ -312,5 +288,3 @@ impl Editor {
         cx.notify();
     }
 }
-
-

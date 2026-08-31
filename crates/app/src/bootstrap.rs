@@ -207,13 +207,35 @@ pub fn run(args: Args) {
 
 /// Registers all built-in pane and panel descriptors into their global registries.
 pub(crate) fn register_pane_descriptors() {
-    let mut pane_registry = core_contracts::PaneRegistry::global().lock().unwrap();
-    pane_registry.register(std::sync::Arc::new(pane_wysiwyg::WysiwygDescriptor::new()), true);
-    pane_registry.register(std::sync::Arc::new(pane_source_code::SourceCodeDescriptor::new()), false);
-    pane_registry.register(std::sync::Arc::new(pane_preview::PreviewDescriptor::new()), false);
+    core_contracts::PaneRegistry::register_global(
+        std::sync::Arc::new(pane_wysiwyg::WysiwygDescriptor::new()),
+        true,
+    )
+    .expect("built-in WYSIWYG pane kind must be unique");
+    core_contracts::PaneRegistry::register_global(
+        std::sync::Arc::new(pane_source_code::SourceCodeDescriptor::new()),
+        false,
+    )
+    .expect("built-in source pane kind must be unique");
+    core_contracts::PaneRegistry::register_global(
+        std::sync::Arc::new(pane_preview::PreviewDescriptor::new()),
+        false,
+    )
+    .expect("built-in preview pane kind must be unique");
 
-    let mut panel_registry = window::PanelRegistry::global().lock().unwrap();
-    panel_registry.register(std::sync::Arc::new(editor::EditorPanelDescriptor::new()), true);
-    panel_registry.register(std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()), false);
-    panel_registry.register(std::sync::Arc::new(settings::SettingsPanelDescriptor::new()), false);
+    window::PanelRegistry::register_global(
+        std::sync::Arc::new(editor::EditorPanelDescriptor::new()),
+        true,
+    )
+    .expect("built-in editor panel kind must be unique");
+    window::PanelRegistry::register_global(
+        std::sync::Arc::new(explorer::ExplorerPanelDescriptor::new()),
+        false,
+    )
+    .expect("built-in explorer panel kind must be unique");
+    window::PanelRegistry::register_global(
+        std::sync::Arc::new(settings::SettingsPanelDescriptor::new()),
+        false,
+    )
+    .expect("built-in settings panel kind must be unique");
 }

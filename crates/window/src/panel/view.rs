@@ -2,7 +2,7 @@
 
 use std::any::Any;
 use std::path::Path;
-use gpui::{AnyElement, App, FocusHandle, SharedString, Window};
+use gpui::{AnyElement, App, Bounds, FocusHandle, Pixels, Point, SharedString, Window};
 use theme::Theme;
 use config::language::I18nStrings;
 use crate::layout::PanelId;
@@ -13,6 +13,9 @@ pub struct PanelRenderContext<'a> {
     pub panel_id: PanelId,
     pub leaf_count: usize,
     pub is_maximized: bool,
+    pub is_active: bool,
+    /// Bounds of this panel's tile within the window, when laid out.
+    pub bounds: Option<Bounds<Pixels>>,
     pub theme: &'a Theme,
     pub strings: &'a I18nStrings,
 }
@@ -62,6 +65,20 @@ pub trait PanelView: 'static {
     /// Callback when a filesystem path is renamed or moved from one path to another.
     fn on_fs_path_renamed(&mut self, _from: &Path, _to: &Path, _cx: &mut App) {}
 
+    /// Handle a pointer move over the panel body, returning true when the
+    /// panel consumed the event and needs a repaint.
+    fn handle_inner_mouse_move(
+        &mut self,
+        _position: Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> bool {
+        false
+    }
+
+    /// Finish any in-progress panel-internal gesture.
+    fn finish_inner_gestures(&mut self, _window: &mut Window, _cx: &mut App) {}
+
     /// Renders the complete panel UI inside the window tile container.
     fn render(
         &mut self,
@@ -90,4 +107,3 @@ pub trait PanelView: 'static {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
-

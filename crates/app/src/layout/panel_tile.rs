@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::shell::Shell;
 use config::language::I18nStrings;
-use theme::Theme;
 use splitter::tree::NodeId;
+use theme::Theme;
 use ui::menu_item::menu_item;
 use ui::popover::menu_panel;
 use window::panel_topbar_icon;
@@ -19,6 +19,7 @@ impl Shell {
         strings: &I18nStrings,
         leaf_count: usize,
         is_maximized: bool,
+        leaf_bounds: &std::collections::HashMap<NodeId, Bounds<Pixels>>,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -28,10 +29,13 @@ impl Shell {
         let radius = d.panel_tile_radius;
 
         let panel_id = window::PanelId(leaf_id);
+        let is_active = self.panels.layout.active_leaf == Some(leaf_id);
         let render_ctx = window::PanelRenderContext {
             panel_id,
             leaf_count,
             is_maximized,
+            is_active,
+            bounds: leaf_bounds.get(&leaf_id).copied(),
             theme,
             strings,
         };
@@ -138,8 +142,8 @@ impl Shell {
         let t = &theme.typography;
         let shell = cx.entity().downgrade();
 
-        let registry = window::PanelRegistry::global().lock().unwrap();
-        let available_descriptors = registry.all_descriptors();
+        let available_descriptors =
+            window::PanelRegistry::registered_descriptors().unwrap_or_default();
 
         menu_panel(c, d)
             .id(("panel-dropdown-overlay", leaf_id))
@@ -148,7 +152,11 @@ impl Shell {
             .top(px(28.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
-            .children(available_descriptors.into_iter().enumerate().map(|(idx, desc)| {
+            .children(
+                available_descriptors
+                    .into_iter()
+                    .enumerate()
+                    .map(|(idx, desc)| {
                 let kind_id = desc.kind();
                 let is_current = kind_id == current_kind;
                 let option_shell = shell.clone();
@@ -181,7 +189,8 @@ impl Shell {
                         });
                     })
                     .into_any_element()
-            }))
+                    }),
+            )
             .into_any_element()
     }
 }

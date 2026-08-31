@@ -1,8 +1,8 @@
 //! Recursive rendering for split layout tree nodes, split containers, and pane viewports.
 
 use gpui::*;
-use splitter::tree::SplitTree;
 use splitter::SplitAxis;
+use splitter::tree::SplitTree;
 
 use crate::editor::Editor;
 use config::language::I18nStrings;
@@ -321,14 +321,14 @@ impl Editor {
         let is_focused = self.focused_pane_id == Some(pane_id);
         let host = self.pane_host.clone();
 
-        let (text, revision) = if let Some(tab) = self.session.active_tab() {
-            (tab.text.clone(), tab.document_revision)
-        } else {
-            (String::new(), 0)
-        };
+        let document = self
+            .session
+            .active_tab()
+            .map(crate::session::DocumentTab::snapshot)
+            .unwrap_or_else(core_contracts::DocumentSnapshot::empty);
 
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.sync_document_text(&text, revision, cx);
+            state.pane.sync_document(&document, cx);
             let scroll = state.scroll.handle.clone();
             let render_ctx = core_contracts::PaneRenderContext {
                 pane_id,
@@ -342,5 +342,3 @@ impl Editor {
         }
     }
 }
-
-

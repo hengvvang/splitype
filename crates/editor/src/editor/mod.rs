@@ -19,14 +19,14 @@ use std::sync::Arc;
 
 pub use gpui::*;
 
-pub use core_contracts::{AutoscrollStrategy, EditorHost, PaneId};
 pub use core_contracts::OutlineHudState;
+pub use core_contracts::{AutoscrollStrategy, EditorHost, PaneId};
 pub use splitter::root::SplitterRoot;
 pub use window::{PanelId, PanelKind};
 
 pub use crate::session::{
-    DocumentTab, EditorSession, EditorTabList, FileState, PaneKind,
-    PaneState, PendingOpenLink, ScrollState, ScrollbarDragSession, TabKind,
+    DocumentTab, EditorSession, EditorTabList, FileState, PaneKind, PaneState, PendingOpenLink,
+    ScrollState, ScrollbarDragSession, TabKind,
 };
 pub use export::ExportFormat;
 pub use host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};
@@ -81,11 +81,7 @@ impl Editor {
     }
 
     /// Creates an Editor initialized with an existing session (e.g. restored or cloned).
-    pub fn with_session(
-        panel_id: PanelId,
-        session: EditorSession,
-        cx: &mut Context<Self>,
-    ) -> Self {
+    pub fn with_session(panel_id: PanelId, session: EditorSession, cx: &mut Context<Self>) -> Self {
         Self {
             panel_id,
             entity_id: cx.entity().entity_id(),
@@ -107,12 +103,10 @@ impl Editor {
     }
 
     /// Builds a document tab from raw Markdown and an optional file path.
-    pub fn new_tab_from_markdown(
-        markdown: String,
-        file_path: Option<PathBuf>,
-    ) -> DocumentTab {
+    pub fn new_tab_from_markdown(markdown: String, file_path: Option<PathBuf>) -> DocumentTab {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
         DocumentTab {
+            id: core_contracts::DocumentId::new(),
             text: normalized,
             document_revision: 1,
             file: FileState {
@@ -135,17 +129,16 @@ impl Editor {
 
     /// Synchronizes all panes of the active tab with the current raw text.
     pub fn sync_panes_with_active_tab(&mut self, cx: &mut Context<Self>) {
-        if let Some(tab) = self.session.active_tab() {
-            let text = tab.text.clone();
-            let revision = tab.document_revision;
+        if let Some(document) = self.session.active_tab().map(DocumentTab::snapshot) {
             if let Some(tab_mut) = self.session.active_tab_mut() {
                 for state in tab_mut.panes.values_mut() {
-                    state.pane.sync_document_text(&text, revision, cx);
+                    state.pane.sync_document(&document, cx);
                 }
             }
         } else {
+            let document = core_contracts::DocumentSnapshot::empty();
             for state in self.session.empty_panes.values_mut() {
-                state.pane.sync_document_text("", 0, cx);
+                state.pane.sync_document(&document, cx);
             }
         }
     }
@@ -171,11 +164,10 @@ impl Editor {
                 tab.file.pending_window_edited = true;
                 tab.cached_word_count = None;
 
-                let text = tab.text.clone();
-                let revision = tab.document_revision;
+                let document = tab.snapshot();
                 for (&pane_id, state) in tab.panes.iter_mut() {
                     if pane_id != origin_pane {
-                        state.pane.sync_document_text(&text, revision, cx);
+                        state.pane.sync_document(&document, cx);
                     }
                 }
             }
@@ -342,36 +334,53 @@ impl Editor {
 
     #[inline]
     pub fn default_pane_kind(&self) -> PaneKind {
-        core_contracts::PaneRegistry::global()
-            .lock()
-            .unwrap()
-            .default_kind()
+        core_contracts::PaneRegistry::registered_default_kind()
+            .ok()
+            .flatten()
             .unwrap_or_default()
     }
 
     pub fn pane_state(&mut self, pane_id: PaneId) -> &mut PaneState {
-        let kind = self.pane_kind(pane_id).unwrap_or_else(|| self.default_pane_kind());
+        let kind = self
+            .pane_kind(pane_id)
+            .unwrap_or_else(|| self.default_pane_kind());
         if self.session.has_tabs() {
             let tab = self.session.active_tab_mut().unwrap();
-            let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            let state = tab
+                .panes
+                .entry(pane_id)
+                .or_insert_with(|| PaneState::new(kind));
             state.ensure_kind(kind);
             state
         } else {
-            let state = self.session.empty_panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            let state = self
+                .session
+                .empty_panes
+                .entry(pane_id)
+                .or_insert_with(|| PaneState::new(kind));
             state.ensure_kind(kind);
             state
         }
     }
 
     pub fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
-        let kind = self.pane_kind(pane_id).unwrap_or_else(|| self.default_pane_kind());
+        let kind = self
+            .pane_kind(pane_id)
+            .unwrap_or_else(|| self.default_pane_kind());
         if self.session.has_tabs() {
             let tab = self.session.active_tab_mut()?;
-            let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            let state = tab
+                .panes
+                .entry(pane_id)
+                .or_insert_with(|| PaneState::new(kind));
             state.ensure_kind(kind);
             Some(state)
         } else {
-            let state = self.session.empty_panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+            let state = self
+                .session
+                .empty_panes
+                .entry(pane_id)
+                .or_insert_with(|| PaneState::new(kind));
             state.ensure_kind(kind);
             Some(state)
         }
@@ -517,7 +526,9 @@ impl Editor {
 
     pub fn active_focus_handle(&self, cx: &App) -> Option<FocusHandle> {
         if let Some(tab) = self.session.active_tab() {
-            let pane_id = self.focused_pane_id.unwrap_or_else(|| self.active_pane_id());
+            let pane_id = self
+                .focused_pane_id
+                .unwrap_or_else(|| self.active_pane_id());
             if let Some(state) = tab.panes.get(&pane_id) {
                 return state.pane.focus_handle(cx);
             }
@@ -530,7 +541,3 @@ impl Editor {
         None
     }
 }
-
-
-
-

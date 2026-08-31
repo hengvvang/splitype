@@ -1,18 +1,14 @@
-use std::any::Any;
-use gpui::{AnyElement, App, FocusHandle, Window};
-use theme::Theme;
+use crate::document::DocumentSnapshot;
 use crate::outline::OutlineHeading;
 use crate::pane::{PaneHost, PaneId, PaneKind, PaneRenderContext};
 use crate::search::{SearchMatch, SearchQuery};
+use gpui::{AnyElement, App, FocusHandle, Window};
+use std::any::Any;
+use theme::Theme;
 
 pub trait PaneView: Any + Send + Sync + 'static {
     fn kind(&self) -> PaneKind;
-    fn render(
-        &mut self,
-        ctx: &PaneRenderContext,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement;
+    fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement;
 
     fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {
         None
@@ -22,7 +18,7 @@ pub trait PaneView: Any + Send + Sync + 'static {
         None
     }
 
-    fn sync_document_text(&mut self, _text: &str, _revision: u64, _cx: &mut App) {}
+    fn sync_document(&mut self, _document: &DocumentSnapshot, _cx: &mut App) {}
 
     fn serialize_text(&self, _cx: &App) -> Option<String> {
         None
@@ -40,19 +36,9 @@ pub trait PaneView: Any + Send + Sync + 'static {
 
     fn navigate_to_search_match(&mut self, _match_item: &SearchMatch, _cx: &mut App) {}
 
-    fn replace_match(
-        &mut self,
-        _match_item: &SearchMatch,
-        _replace_with: &str,
-        _cx: &mut App,
-    ) {}
+    fn replace_match(&mut self, _match_item: &SearchMatch, _replace_with: &str, _cx: &mut App) {}
 
-    fn replace_all_matches(
-        &mut self,
-        _query: &SearchQuery,
-        _replace_with: &str,
-        _cx: &mut App,
-    ) {}
+    fn replace_all_matches(&mut self, _query: &SearchQuery, _replace_with: &str, _cx: &mut App) {}
 
     fn apply_line_prefix(&mut self, _prefix: &str, _cx: &mut App) {}
 
@@ -65,7 +51,8 @@ pub trait PaneView: Any + Send + Sync + 'static {
         _wrap_prefix: &str,
         _wrap_suffix: &str,
         _cx: &mut App,
-    ) {}
+    ) {
+    }
 
     fn apply_clear_format(&mut self, _cx: &mut App) {}
 
@@ -88,7 +75,8 @@ pub trait PaneView: Any + Send + Sync + 'static {
         _event: &gpui::MouseDownEvent,
         _window: &mut Window,
         _cx: &mut App,
-    ) {}
+    ) {
+    }
 
     fn handle_mouse_move(
         &mut self,
@@ -96,7 +84,8 @@ pub trait PaneView: Any + Send + Sync + 'static {
         _event: &gpui::MouseMoveEvent,
         _window: &mut Window,
         _cx: &mut App,
-    ) {}
+    ) {
+    }
 
     fn handle_mouse_up(
         &mut self,
@@ -104,7 +93,8 @@ pub trait PaneView: Any + Send + Sync + 'static {
         _event: &gpui::MouseUpEvent,
         _window: &mut Window,
         _cx: &mut App,
-    ) {}
+    ) {
+    }
 
     fn handle_navigation(
         &mut self,

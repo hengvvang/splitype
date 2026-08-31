@@ -11,64 +11,67 @@ use crate::menus::request_quit_application;
 use window::PanelId;
 
 impl Shell {
-    pub(crate) fn dirty_tab_info_in_panel(
+    /// Dirty state of one panel, resolved through the generic panel contract
+    /// first. Retained editor sessions are only consulted because a panel can
+    /// temporarily suspend its editor view while keeping dirty tabs alive.
+    pub(crate) fn dirty_info_in_panel(
         &self,
         panel_id: impl Into<PanelId>,
         cx: &App,
-    ) -> (usize, String) {
+    ) -> (bool, String) {
         let panel_id = panel_id.into();
-        let mut count = 0;
-        let mut first_name = String::new();
-
-        if let Some(editor) = self.editor_for(panel_id) {
-            let ed = editor.read(cx);
-            for tab in ed.session.tabs() {
-                if tab.file.dirty {
-                    count += 1;
-                    if first_name.is_empty() {
-                        first_name = tab
-                            .file
-                            .path
-                            .as_ref()
-                            .and_then(|p| p.file_name())
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_else(|| "Untitled".to_string());
-                    }
-                }
-            }
-        } else if let Some(session) = self.retained_editor_sessions.get(&panel_id) {
-            for tab in session.tabs() {
-                if tab.file.dirty {
-                    count += 1;
-                    if first_name.is_empty() {
-                        first_name = tab
-                            .file
-                            .path
-                            .as_ref()
-                            .and_then(|p| p.file_name())
-                            .map(|n| n.to_string_lossy().to_string())
-                            .unwrap_or_else(|| "Untitled".to_string());
-                    }
-                }
+        if let Some(view) = self.panel_views.get(&panel_id) {
+            if view.is_dirty(cx) {
+                return (
+                    true,
+                    view.first_dirty_title(cx)
+                        .unwrap_or_else(|| "Untitled".to_string()),
+                );
             }
         }
 
-        (count, first_name)
+        let Some(session) = self.retained_editor_sessions.get(&panel_id) else {
+            return (false, String::new());
+        };
+        let mut first_name = String::new();
+        for tab in session.tabs() {
+            if tab.file.dirty {
+                if first_name.is_empty() {
+                    first_name = tab
+                        .file
+                        .path
+                        .as_ref()
+                        .and_then(|p| p.file_name())
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "Untitled".to_string());
+                }
+            }
+        }
+        (!first_name.is_empty(), first_name)
     }
 
-    pub(crate) fn first_dirty_tab(&mut self, cx: &mut Context<Self>) -> Option<(PanelId, usize)> {
+    pub(crate) fn first_dirty_panel(&mut self, cx: &mut Context<Self>) -> Option<(PanelId, String)> {
         for (panel_id, session) in &self.retained_editor_sessions {
-            for (index, tab) in session.tabs().enumerate() {
+            for tab in session.tabs() {
                 if tab.file.dirty {
-                    return Some((*panel_id, index));
+                    let name = tab
+                        .file
+                        .path
+                        .as_ref()
+                        .and_then(|p| p.file_name())
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "Untitled".to_string());
+                    return Some((*panel_id, name));
                 }
             }
         }
-        for view in self.panel_views.values() {
-            if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
-                if let Some(dirty) = panel.editor.read(cx).first_dirty_tab() {
-                    return Some(dirty);
-                }
+        for (panel_id, view) in &self.panel_views {
+            if view.is_dirty(cx) {
+                return Some((
+                    *panel_id,
+                    view.first_dirty_title(cx)
+                        .unwrap_or_else(|| "Untitled".to_string()),
+                ));
             }
         }
         None
@@ -81,23 +84,9 @@ impl Shell {
     }
 
     pub(crate) fn prompt_close_window(&mut self, cx: &mut Context<Self>) {
-        let Some((panel_id, index)) = self.first_dirty_tab(cx) else {
+        let Some((_, first_dirty_name)) = self.first_dirty_panel(cx) else {
             return;
         };
-        let first_dirty_name = self
-            .editor_for(panel_id)
-            .and_then(|e| {
-                let editor = e.read(cx);
-                editor.session.tab(index).map(|t| {
-                    t.file
-                        .path
-                        .as_ref()
-                        .and_then(|p| p.file_name())
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "Untitled".to_string())
-                })
-            })
-            .unwrap_or_else(|| "Untitled".to_string());
 
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Window,
@@ -113,8 +102,8 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let panel_id = panel_id.into();
-        let (dirty_count, first_dirty_name) = self.dirty_tab_info_in_panel(panel_id, cx);
-        if dirty_count == 0 {
+        let (has_dirty, first_dirty_name) = self.dirty_info_in_panel(panel_id, cx);
+        if !has_dirty {
             return;
         }
 
@@ -162,8 +151,8 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let panel_id = panel_id.into();
-        let (dirty_count, _) = self.dirty_tab_info_in_panel(panel_id, cx);
-        if dirty_count > 0 {
+        let (has_dirty, _) = self.dirty_info_in_panel(panel_id, cx);
+        if has_dirty {
             self.prompt_close_editor_for(panel_id, cx);
         } else if self.layout_leaf_count() > 1 {
             self.close_panel(panel_id, cx);
@@ -201,7 +190,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if self.first_dirty_tab(cx).is_none() {
+        if self.first_dirty_panel(cx).is_none() {
             return true;
         }
         self.prompt_close_window(cx);
@@ -213,7 +202,7 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.first_dirty_tab(cx).is_none() {
+        if self.first_dirty_panel(cx).is_none() {
             window.remove_window();
             return;
         }

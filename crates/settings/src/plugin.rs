@@ -101,7 +101,7 @@ impl PanelDescriptor for SettingsPanelDescriptor {
     fn create_panel(
         &self,
         panel_id: PanelId,
-        _host: Option<Arc<dyn PanelHost>>,
+        _host: Arc<dyn PanelHost>,
         _cx: &mut App,
     ) -> Box<dyn PanelView> {
         Box::new(SettingsPanelView::new(panel_id))

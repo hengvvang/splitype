@@ -5,7 +5,7 @@ use gpui::*;
 use crate::shell::Shell;
 use config::language::I18nStrings;
 use theme::Theme;
-use splitter::tree::{SplitAxis, SplitTree};
+use splitter::tree::{NodeId, SplitAxis, SplitTree};
 
 impl Shell {
     pub(crate) fn render_window_panel_node(
@@ -14,6 +14,7 @@ impl Shell {
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
+        leaf_bounds: &std::collections::HashMap<NodeId, Bounds<Pixels>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -37,6 +38,7 @@ impl Shell {
                 strings,
                 leaf_count,
                 false,
+                leaf_bounds,
                 window,
                 cx,
             ),
@@ -51,10 +53,12 @@ impl Shell {
                 let split_axis = *axis;
                 let r = *ratio;
 
-                let first_elem =
-                    self.render_window_panel_node(first, theme, strings, leaf_count, window, cx);
-                let second_elem =
-                    self.render_window_panel_node(second, theme, strings, leaf_count, window, cx);
+                let first_elem = self.render_window_panel_node(
+                    first, theme, strings, leaf_count, leaf_bounds, window, cx,
+                );
+                let second_elem = self.render_window_panel_node(
+                    second, theme, strings, leaf_count, leaf_bounds, window, cx,
+                );
 
                 match axis {
                     SplitAxis::Horizontal => {

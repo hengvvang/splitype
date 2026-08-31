@@ -3,12 +3,10 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
-use core_contracts::{
-    PaneKind, PaneOutlineHost, PaneRenderContext, PaneView,
-};
 use core_contracts::OutlineNode;
+use core_contracts::{PaneKind, PaneOutlineHost, PaneRenderContext, PaneView};
 use core_contracts::{SearchMatch, SearchQuery};
+use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use theme::Theme;
 
 use crate::node::PreviewBlock;
@@ -32,7 +30,9 @@ impl PaneView for PreviewState {
         PaneKind::new("preview")
     }
 
-    fn sync_document_text(&mut self, text: &str, revision: u64, _cx: &mut App) {
+    fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, _cx: &mut App) {
+        let text = document.text.as_ref();
+        let revision = document.revision;
         let hash = {
             use std::hash::{Hash, Hasher};
             let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -53,7 +53,7 @@ impl PaneView for PreviewState {
         let footnote_registry = Arc::new(crate::build_preview_footnote_registry(&roots));
         crate::sync_preview_block_context(
             &mut roots,
-            None,
+            document.base_dir.as_deref(),
             &Default::default(),
             &Default::default(),
             &footnote_registry,
@@ -87,8 +87,11 @@ impl PaneView for PreviewState {
         let headings = self.outline_headings(_cx);
         if let Some(node) = headings.get(index) {
             let font_size = theme.typography.text_size.max(14.0);
-            let line_height = (font_size * theme.typography.text_line_height).round().max(22.0);
-            let _target_y = crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
+            let line_height = (font_size * theme.typography.text_line_height)
+                .round()
+                .max(22.0);
+            let _target_y =
+                crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
         }
     }
 
@@ -102,15 +105,11 @@ impl PaneView for PreviewState {
         crate::search::search_in_preview(&text, query)
     }
 
-    fn render(
-        &mut self,
-        ctx: &PaneRenderContext,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
+    fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement {
         let theme = cx.global::<theme::ThemeManager>().current_arc();
         let strings = config::language::I18nStrings::en_us();
-        let preview_body = crate::render::render_preview_pane(self, ctx, &theme, &strings, window, cx);
+        let preview_body =
+            crate::render::render_preview_pane(self, ctx, &theme, &strings, window, cx);
         let outline_host: Arc<dyn core_contracts::OutlineHost> = Arc::new(PaneOutlineHost {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
@@ -139,12 +138,12 @@ impl PaneView for PreviewState {
         _cx: &mut gpui::App,
     ) -> Option<core_contracts::NavigationExecutionPlan> {
         match target {
-            core_contracts::NavigationTarget::External { resolved, .. } => {
-                Some(core_contracts::NavigationExecutionPlan::OpenExternalUrl(resolved.clone()))
-            }
-            core_contracts::NavigationTarget::FootnoteDefinition { id } => {
-                Some(core_contracts::NavigationExecutionPlan::ScrollToFootnote(id.clone()))
-            }
+            core_contracts::NavigationTarget::External { resolved, .. } => Some(
+                core_contracts::NavigationExecutionPlan::OpenExternalUrl(resolved.clone()),
+            ),
+            core_contracts::NavigationTarget::FootnoteDefinition { id } => Some(
+                core_contracts::NavigationExecutionPlan::ScrollToFootnote(id.clone()),
+            ),
             core_contracts::NavigationTarget::FootnoteReference { id } => {
                 Some(core_contracts::NavigationExecutionPlan::ScrollToFootnoteRef(id.clone()))
             }
@@ -159,4 +158,3 @@ impl PaneView for PreviewState {
         self
     }
 }
-

@@ -14,21 +14,17 @@ pub use state::*;
 
 use std::sync::{Arc, Mutex};
 
-use gpui::{
-    AnyElement, App, AppContext, Entity, FocusHandle, Window,
-};
-use core_contracts::{
-    PaneRenderContext, PaneView,
-};
 use core_contracts::OutlineNode;
+use core_contracts::{PaneRenderContext, PaneView};
 use core_contracts::{SearchMatch, SearchQuery};
+use gpui::{AnyElement, App, AppContext, Entity, FocusHandle, Window};
 use theme::Theme;
 
 /// View state specific to a WYSIWYG editor pane.
 #[derive(Default)]
 pub struct WysiwygPaneState {
     pub controller: Arc<Mutex<Option<Entity<WysiwygDocumentController>>>>,
-    pub pending_text: Option<(String, u64)>,
+    pub pending_document: Option<core_contracts::DocumentSnapshot>,
 }
 
 impl WysiwygPaneState {
@@ -37,8 +33,11 @@ impl WysiwygPaneState {
         if let Some(controller) = guard.as_ref() {
             return controller.clone();
         }
-        let (text, revision) = self.pending_text.clone().unwrap_or_else(|| (String::new(), 1));
-        let controller = cx.new(|cx| WysiwygDocumentController::new(&text, revision, cx));
+        let document = self
+            .pending_document
+            .clone()
+            .unwrap_or_else(core_contracts::DocumentSnapshot::empty);
+        let controller = cx.new(|cx| WysiwygDocumentController::new(&document, cx));
         *guard = Some(controller.clone());
         controller
     }
@@ -49,17 +48,18 @@ impl PaneView for WysiwygPaneState {
         core_contracts::PaneKind::new("wysiwyg")
     }
 
-    fn sync_document_text(&mut self, text: &str, revision: u64, cx: &mut App) {
+    fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, cx: &mut App) {
         let mut guard = self.controller.lock().unwrap();
         if let Some(controller) = guard.as_ref() {
-            controller.update(cx, |c, cx| {
-                c.sync_document_text(text, revision, cx);
+            controller.update(cx, |controller, cx| {
+                controller.sync_document(document, cx);
             });
         } else {
-            let controller = cx.new(|cx| WysiwygDocumentController::new(text, revision, cx));
+            let document = document.clone();
+            let controller = cx.new(|cx| WysiwygDocumentController::new(&document, cx));
             *guard = Some(controller);
         }
-        self.pending_text = Some((text.to_string(), revision));
+        self.pending_document = Some(document.clone());
     }
 
     fn serialize_text(&self, cx: &App) -> Option<String> {
@@ -74,7 +74,10 @@ impl PaneView for WysiwygPaneState {
 
     fn outline_headings(&self, cx: &App) -> Vec<OutlineNode> {
         let guard = self.controller.lock().unwrap();
-        guard.as_ref().map(|c| c.read(cx).outline_headings(cx)).unwrap_or_default()
+        guard
+            .as_ref()
+            .map(|c| c.read(cx).outline_headings(cx))
+            .unwrap_or_default()
     }
 
     fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut App) {
@@ -86,7 +89,10 @@ impl PaneView for WysiwygPaneState {
 
     fn search_matches(&self, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {
         let guard = self.controller.lock().unwrap();
-        guard.as_ref().map(|c| c.read(cx).search_matches(query, cx)).unwrap_or_default()
+        guard
+            .as_ref()
+            .map(|c| c.read(cx).search_matches(query, cx))
+            .unwrap_or_default()
     }
 
     fn replace_match(&mut self, match_item: &SearchMatch, replace_with: &str, cx: &mut App) {
@@ -127,7 +133,13 @@ impl PaneView for WysiwygPaneState {
     ) {
         let controller = self.ensure_controller(cx);
         controller.update(cx, |c, cx| {
-            c.apply_wrapped_or_template(empty_template, caret_offset_in_empty, wrap_prefix, wrap_suffix, cx);
+            c.apply_wrapped_or_template(
+                empty_template,
+                caret_offset_in_empty,
+                wrap_prefix,
+                wrap_suffix,
+                cx,
+            );
         });
     }
 
@@ -138,16 +150,9 @@ impl PaneView for WysiwygPaneState {
         });
     }
 
-    fn render(
-        &mut self,
-        ctx: &PaneRenderContext,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> AnyElement {
+    fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.render(ctx, window, cx)
-        })
+        controller.update(cx, |c, cx| c.render(ctx, window, cx))
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -158,5 +163,3 @@ impl PaneView for WysiwygPaneState {
         self
     }
 }
-
-

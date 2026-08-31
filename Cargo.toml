@@ -54,7 +54,7 @@ app = { path = "crates/app" }
 # Third-party shared dependencies
 gpui = { git = "https://github.com/zed-industries/zed.git" }
 gpui_platform = { git = "https://github.com/zed-industries/zed.git" }
-uuid = { version = "1.23", features = ["v4"] }
+uuid = { version = "1.23", features = ["v4", "serde"] }
 cssparser = "0.37"
 tree-sitter = "0.26.9"
 tree-sitter-html = "0.23"

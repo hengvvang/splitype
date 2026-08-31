@@ -77,6 +77,19 @@ impl PanelView for EditorPanelView {
         });
     }
 
+    fn handle_inner_mouse_move(
+        &mut self,
+        position: gpui::Point<gpui::Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
+        self.editor.update(cx, |editor, _cx| editor.update_inner_drag(position, window))
+    }
+
+    fn finish_inner_gestures(&mut self, window: &mut Window, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
+    }
+
     fn render(
         &mut self,
         ctx: &PanelRenderContext,
@@ -87,6 +100,8 @@ impl PanelView for EditorPanelView {
             editor.set_panel_id(ctx.panel_id);
             editor.set_leaf_count(ctx.leaf_count);
             editor.set_maximized(ctx.is_maximized);
+            editor.panel_rect = ctx.bounds;
+            editor.is_active_panel = ctx.is_active;
         });
         self.editor.clone().into_any_element()
     }
@@ -152,7 +167,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
     fn create_panel(
         &self,
         panel_id: PanelId,
-        _host: Option<Arc<dyn PanelHost>>,
+        _host: Arc<dyn PanelHost>,
         cx: &mut App,
     ) -> Box<dyn PanelView> {
         let session = crate::EditorSession::empty();
@@ -160,4 +175,3 @@ impl PanelDescriptor for EditorPanelDescriptor {
         Box::new(EditorPanelView::new(editor))
     }
 }
-

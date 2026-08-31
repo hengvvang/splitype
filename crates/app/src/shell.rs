@@ -12,12 +12,11 @@ pub mod view;
 use std::collections::HashMap;
 use gpui::*;
 
-pub(crate) use self::host_bridge::ShellEditorHost;
+pub(crate) use self::host_bridge::{ShellEditorHost, ShellPanelHost};
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
 use editor::{DocumentTab, Editor, EditorSession};
-use theme::ThemeManager;
 use window::{PanelId, PanelView};
 
 /// Scope of an unsaved-changes confirmation dialog.
@@ -109,52 +108,11 @@ impl Shell {
 
     /// Recomputes every editor area's pushed state.
     pub(crate) fn sync_panel_states(&mut self, cx: &mut Context<Self>) {
-        let Some(viewport) = self.last_viewport else {
+        let Some(_viewport) = self.last_viewport else {
             return;
         };
         let active_tab_path = self.active_editor_tab(cx).and_then(|tab| tab.file.path.clone());
         explorer::ExplorerState::set_active_file(cx, active_tab_path);
-        let theme = cx.global::<ThemeManager>().current_arc();
-        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
-            std::env::consts::OS,
-            Decorations::Server,
-            &theme.dimensions,
-        );
-        let body_height = (f32::from(viewport.height) - titlebar_height).max(0.0);
-        let body_size = size(viewport.width, px(body_height));
-        let outer_rects = self.panels.layout.leaf_rects(body_size);
-        let active = self.panels.layout.active_leaf;
-        let leaf_count = self.panels.layout.tree.count_leaves();
-        let editors: Vec<(PanelId, Entity<Editor>)> = self
-            .panel_views
-            .iter()
-            .filter_map(|(panel_id, view)| {
-                view.as_any()
-                    .downcast_ref::<editor::EditorPanelView>()
-                    .map(|p| (*panel_id, p.editor.clone()))
-            })
-            .collect();
-        for (panel_id, entity) in editors {
-            let rect = outer_rects
-                .iter()
-                .find(|rect| rect.id == panel_id.0)
-                .map(|rect| Bounds {
-                    origin: point(px(rect.x), px(rect.y + titlebar_height)),
-                    size: size(px(rect.width), px(rect.height)),
-                });
-            let is_maximized = self
-                .panels
-                .layout
-                .tree
-                .find_leaf(panel_id.0)
-                .is_some_and(|panel| panel.maximized);
-            entity.update(cx, |editor, _cx| {
-                editor.panel_rect = rect;
-                editor.is_active_panel = active == Some(panel_id.0);
-                editor.is_maximized = is_maximized;
-                editor.leaf_count = leaf_count;
-            });
-        }
     }
 
     /// Closes the explorer row context menu, if open.

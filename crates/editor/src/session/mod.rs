@@ -178,10 +178,9 @@ pub struct EditorSession {
 impl EditorSession {
     /// A fresh session: no tabs and a single default panel.
     pub fn empty() -> Self {
-        let default_kind = core_contracts::PaneRegistry::global()
-            .lock()
-            .unwrap()
-            .default_kind()
+        let default_kind = core_contracts::PaneRegistry::registered_default_kind()
+            .ok()
+            .flatten()
             .unwrap_or_default();
         Self {
             tab_list: EditorTabList::new(),
@@ -260,5 +259,3 @@ impl EditorSession {
         self.tabs().any(|tab| tab.file.dirty)
     }
 }
-
-

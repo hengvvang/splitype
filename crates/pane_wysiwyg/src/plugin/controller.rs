@@ -2,23 +2,20 @@
 
 use std::sync::Arc;
 
-use gpui::{
-    AnyElement, App, AppContext, Context, Div, ElementId, Entity, FocusHandle,
-    InteractiveElement, IntoElement, ParentElement, StatefulInteractiveElement, Styled,
-    Window, div, px,
-};
-use core_contracts::{
-    PaneId, PaneOutlineHost, PaneRenderContext,
-};
 use core_contracts::OutlineNode;
+use core_contracts::{PaneId, PaneOutlineHost, PaneRenderContext};
 use core_contracts::{SearchMatch, SearchQuery};
+use gpui::{
+    AnyElement, App, AppContext, Context, Div, ElementId, Entity, FocusHandle, InteractiveElement,
+    IntoElement, ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
+};
 use theme::Theme;
 
-use crate::model::block::{Block, CollapsedCaretAffinity};
-use crate::model::protocol::BlockEvent;
-use crate::model::Document;
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockKind};
+use crate::model::Document;
+use crate::model::block::{Block, CollapsedCaretAffinity};
+use crate::model::protocol::BlockEvent;
 use crate::plugin::state::{FocusState, ReferenceRegistries, TableGrids};
 
 /// Autonomous controller for a WYSIWYG editor pane.
@@ -35,7 +32,7 @@ pub struct WysiwygDocumentController {
 }
 
 impl WysiwygDocumentController {
-    pub fn new(text: &str, revision: u64, cx: &mut Context<Self>) -> Self {
+    pub fn new(document: &core_contracts::DocumentSnapshot, cx: &mut Context<Self>) -> Self {
         let mut controller = Self {
             pane_id: PaneId(0),
             host: None,
@@ -45,9 +42,15 @@ impl WysiwygDocumentController {
             active_entity: None,
             focus: FocusState::default(),
             tables: TableGrids::default(),
-            references: ReferenceRegistries::default(),
+            references: ReferenceRegistries {
+                base_dir: document
+                    .base_dir
+                    .as_deref()
+                    .map(std::path::Path::to_path_buf),
+                ..ReferenceRegistries::default()
+            },
         };
-        controller.rebuild_from_markdown(text, revision, cx);
+        controller.rebuild_from_markdown(&document.text, document.revision, cx);
         controller
     }
 
@@ -99,10 +102,7 @@ impl WysiwygDocumentController {
         if roots.is_empty() {
             let empty_block = Self::new_block(
                 cx,
-                BlockData::new(
-                    BlockKind::Paragraph,
-                    BlockText::plain(String::new()),
-                ),
+                BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
             );
             roots.push(empty_block);
         }
@@ -116,6 +116,23 @@ impl WysiwygDocumentController {
         self.document = Some(doc);
         self.synced_revision = Some(revision);
         self.text_stale = false;
+        self.sync_reference_context(cx);
+    }
+
+    fn sync_reference_context(&self, cx: &mut App) {
+        let Some(document) = &self.document else {
+            return;
+        };
+        for entry in document.blocks() {
+            crate::model::references::sync_reference_context_for_block(
+                &entry.entity,
+                self.references.base_dir.as_deref(),
+                self.references.image.clone(),
+                self.references.link.clone(),
+                self.references.footnotes.clone(),
+                cx,
+            );
+        }
     }
 
     /// Handles events emitted by child blocks.
@@ -129,7 +146,9 @@ impl WysiwygDocumentController {
             BlockEvent::Changed => {
                 self.text_stale = true;
                 if let Some(host) = &self.host {
-                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                    if let Some(text) = self.serialize_text(cx) {
+                        host.sync_source_text(self.pane_id, text, cx);
+                    }
                     host.mark_dirty(cx);
                 }
                 cx.notify();
@@ -152,7 +171,12 @@ impl WysiwygDocumentController {
                         cx,
                         BlockData::new(current_kind.newline_sibling_kind(), trailing.clone()),
                     );
-                    doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+                    doc.insert_blocks_at(
+                        location.parent,
+                        location.index + 1,
+                        vec![new_block.clone()],
+                        cx,
+                    );
                     self.active_entity = Some(new_block.clone());
                     self.focus.active_entity = Some(new_block.entity_id());
                     new_block.update(cx, |b, cx| {
@@ -161,7 +185,9 @@ impl WysiwygDocumentController {
                     });
                     self.text_stale = true;
                     if let Some(host) = &self.host {
-                        if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                        if let Some(text) = self.serialize_text(cx) {
+                            host.sync_source_text(self.pane_id, text, cx);
+                        }
                         host.mark_dirty(cx);
                     }
                     cx.notify();
@@ -176,7 +202,12 @@ impl WysiwygDocumentController {
                         cx,
                         BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
                     );
-                    doc.insert_blocks_at(location.parent, location.index, vec![new_block.clone()], cx);
+                    doc.insert_blocks_at(
+                        location.parent,
+                        location.index,
+                        vec![new_block.clone()],
+                        cx,
+                    );
                     self.active_entity = Some(new_block.clone());
                     self.focus.active_entity = Some(new_block.entity_id());
                     new_block.update(cx, |b, cx| {
@@ -185,7 +216,9 @@ impl WysiwygDocumentController {
                     });
                     self.text_stale = true;
                     if let Some(host) = &self.host {
-                        if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                        if let Some(text) = self.serialize_text(cx) {
+                            host.sync_source_text(self.pane_id, text, cx);
+                        }
                         host.mark_dirty(cx);
                     }
                     cx.notify();
@@ -217,7 +250,9 @@ impl WysiwygDocumentController {
                         self.focus.active_entity = Some(prev.entity_id());
                         self.text_stale = true;
                         if let Some(host) = &self.host {
-                            if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                            if let Some(text) = self.serialize_text(cx) {
+                                host.sync_source_text(self.pane_id, text, cx);
+                            }
                             host.mark_dirty(cx);
                         }
                         cx.notify();
@@ -248,7 +283,9 @@ impl WysiwygDocumentController {
                     }
                     self.text_stale = true;
                     if let Some(host) = &self.host {
-                        if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                        if let Some(text) = self.serialize_text(cx) {
+                            host.sync_source_text(self.pane_id, text, cx);
+                        }
                         host.mark_dirty(cx);
                     }
                     cx.notify();
@@ -261,7 +298,8 @@ impl WysiwygDocumentController {
                     if current_idx > 0 {
                         let prev = blocks[current_idx - 1].entity.clone();
                         prev.update(cx, |prev, cx| {
-                            let offset = prev.entry_offset_for_vertical_focus(true, preferred_x.map(px));
+                            let offset =
+                                prev.entry_offset_for_vertical_focus(true, preferred_x.map(px));
                             prev.move_to_with_preferred_x(offset, preferred_x.map(px), cx);
                             prev.start_cursor_blink(cx);
                             cx.notify();
@@ -279,7 +317,8 @@ impl WysiwygDocumentController {
                     if current_idx + 1 < blocks.len() {
                         let next = blocks[current_idx + 1].entity.clone();
                         next.update(cx, |next, cx| {
-                            let offset = next.entry_offset_for_vertical_focus(false, preferred_x.map(px));
+                            let offset =
+                                next.entry_offset_for_vertical_focus(false, preferred_x.map(px));
                             next.move_to_with_preferred_x(offset, preferred_x.map(px), cx);
                             next.start_cursor_blink(cx);
                             cx.notify();
@@ -297,15 +336,24 @@ impl WysiwygDocumentController {
                     if current_idx > 0 {
                         if let Some(location) = doc.find_block_location(block.entity_id()) {
                             let target_parent = blocks[current_idx - 1].entity.clone();
-                            if location.parent.as_ref().map(|p| p.entity_id()) != Some(target_parent.entity_id()) {
+                            if location.parent.as_ref().map(|p| p.entity_id())
+                                != Some(target_parent.entity_id())
+                            {
                                 doc.remove_block(block.entity_id(), cx);
                                 let child_index = target_parent.read(cx).children.len();
-                                doc.insert_blocks_at(Some(target_parent.clone()), child_index, vec![block.clone()], cx);
+                                doc.insert_blocks_at(
+                                    Some(target_parent.clone()),
+                                    child_index,
+                                    vec![block.clone()],
+                                    cx,
+                                );
                                 self.active_entity = Some(block.clone());
                                 self.focus.active_entity = Some(block.entity_id());
                                 self.text_stale = true;
                                 if let Some(host) = &self.host {
-                                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                                    if let Some(text) = self.serialize_text(cx) {
+                                        host.sync_source_text(self.pane_id, text, cx);
+                                    }
                                     host.mark_dirty(cx);
                                 }
                                 cx.notify();
@@ -318,9 +366,16 @@ impl WysiwygDocumentController {
                 if let Some(doc) = &mut self.document {
                     if let Some(location) = doc.find_block_location(block.entity_id()) {
                         if let Some(parent) = location.parent.clone() {
-                            if let Some(parent_location) = doc.find_block_location(parent.entity_id()) {
+                            if let Some(parent_location) =
+                                doc.find_block_location(parent.entity_id())
+                            {
                                 doc.remove_block(block.entity_id(), cx);
-                                doc.insert_blocks_at(parent_location.parent, parent_location.index + 1, vec![block.clone()], cx);
+                                doc.insert_blocks_at(
+                                    parent_location.parent,
+                                    parent_location.index + 1,
+                                    vec![block.clone()],
+                                    cx,
+                                );
                                 self.active_entity = Some(block.clone());
                                 self.focus.active_entity = Some(block.entity_id());
                             }
@@ -329,7 +384,9 @@ impl WysiwygDocumentController {
                         }
                         self.text_stale = true;
                         if let Some(host) = &self.host {
-                            if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                            if let Some(text) = self.serialize_text(cx) {
+                                host.sync_source_text(self.pane_id, text, cx);
+                            }
                             host.mark_dirty(cx);
                         }
                         cx.notify();
@@ -350,7 +407,9 @@ impl WysiwygDocumentController {
                 });
                 self.text_stale = true;
                 if let Some(host) = &self.host {
-                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                    if let Some(text) = self.serialize_text(cx) {
+                        host.sync_source_text(self.pane_id, text, cx);
+                    }
                     host.mark_dirty(cx);
                 }
                 cx.notify();
@@ -359,16 +418,33 @@ impl WysiwygDocumentController {
         }
     }
 
-    pub fn sync_document_text(&mut self, text: &str, revision: u64, cx: &mut Context<Self>) {
-        if self.synced_revision == Some(revision) && self.document.is_some() {
+    pub fn sync_document(
+        &mut self,
+        document: &core_contracts::DocumentSnapshot,
+        cx: &mut Context<Self>,
+    ) {
+        let next_base_dir = document
+            .base_dir
+            .as_deref()
+            .map(std::path::Path::to_path_buf);
+        let base_dir_changed = self.references.base_dir != next_base_dir;
+        self.references.base_dir = next_base_dir;
+
+        if self.synced_revision == Some(document.revision) && self.document.is_some() {
+            if base_dir_changed {
+                self.sync_reference_context(cx);
+            }
             return;
         }
         if self.text_stale {
-            self.synced_revision = Some(revision);
+            self.synced_revision = Some(document.revision);
             self.text_stale = false;
+            if base_dir_changed {
+                self.sync_reference_context(cx);
+            }
             return;
         }
-        self.rebuild_from_markdown(text, revision, cx);
+        self.rebuild_from_markdown(&document.text, document.revision, cx);
     }
 
         pub fn serialize_text(&self, cx: &App) -> Option<String> {
@@ -414,7 +490,11 @@ impl WysiwygDocumentController {
                     if let Some(block) = doc.block_entity_by_id(entity_id) {
                         self.active_entity = Some(block.clone());
                         block.update(cx, |b, cx| {
-                            b.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
+                            b.assign_collapsed_selection_offset(
+                                0,
+                                CollapsedCaretAffinity::Default,
+                                None,
+                            );
                             b.start_cursor_blink(cx);
                             cx.notify();
                         });
@@ -432,7 +512,12 @@ impl WysiwygDocumentController {
         }
     }
 
-    pub fn replace_match(&mut self, match_item: &SearchMatch, replace_with: &str, cx: &mut Context<Self>) {
+    pub fn replace_match(
+        &mut self,
+        match_item: &SearchMatch,
+        replace_with: &str,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(doc) = &self.document {
             if let Some(entity_id) = match_item.entity_id {
                 crate::plugin::search::replace_in_block_entity(
@@ -444,7 +529,9 @@ impl WysiwygDocumentController {
                 );
                 self.text_stale = true;
                 if let Some(host) = &self.host {
-                    if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                    if let Some(text) = self.serialize_text(cx) {
+                        host.sync_source_text(self.pane_id, text, cx);
+                    }
                     host.mark_dirty(cx);
                 }
                 cx.notify();
@@ -477,11 +564,23 @@ impl WysiwygDocumentController {
                 }
                 let cursor = block.cursor_offset();
                 let text = block.display_text();
-                let line_start = text[..cursor.min(text.len())].rfind('\n').map(|i| i + 1).unwrap_or(0);
-                let line_end = text[cursor.min(text.len())..].find('\n').map(|i| cursor + i).unwrap_or(text.len());
+                let line_start = text[..cursor.min(text.len())]
+                    .rfind('\n')
+                    .map(|i| i + 1)
+                    .unwrap_or(0);
+                let line_end = text[cursor.min(text.len())..]
+                    .find('\n')
+                    .map(|i| cursor + i)
+                    .unwrap_or(text.len());
                 let line = &text[line_start..line_end];
                 let stripped = line.trim_start_matches(|c| {
-                    c == '#' || c == '>' || c == '-' || c == '*' || c == '+' || c == ' ' || c == '\t'
+                    c == '#'
+                        || c == '>'
+                        || c == '-'
+                        || c == '*'
+                        || c == '+'
+                        || c == ' '
+                        || c == '\t'
                 });
                 let new_line = format!("{prefix}{stripped}");
                 let prefix_len = prefix.len();
@@ -495,7 +594,9 @@ impl WysiwygDocumentController {
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                if let Some(text) = self.serialize_text(cx) {
+                    host.sync_source_text(self.pane_id, text, cx);
+                }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -523,14 +624,28 @@ impl WysiwygDocumentController {
                 let len = snippet.len();
                 let offset = caret_offset.min(len);
                 if range.is_empty() {
-                    block.replace_text_in_display_range(cursor..cursor, snippet, Some(offset..offset), false, cx);
+                    block.replace_text_in_display_range(
+                        cursor..cursor,
+                        snippet,
+                        Some(offset..offset),
+                        false,
+                        cx,
+                    );
                 } else {
-                    block.replace_text_in_display_range(range, snippet, Some(offset..offset), false, cx);
+                    block.replace_text_in_display_range(
+                        range,
+                        snippet,
+                        Some(offset..offset),
+                        false,
+                        cx,
+                    );
                 }
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                if let Some(text) = self.serialize_text(cx) {
+                    host.sync_source_text(self.pane_id, text, cx);
+                }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -573,7 +688,9 @@ impl WysiwygDocumentController {
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                if let Some(text) = self.serialize_text(cx) {
+                    host.sync_source_text(self.pane_id, text, cx);
+                }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -591,17 +708,27 @@ impl WysiwygDocumentController {
                         let end = range.end.min(text.len());
                         let selected = &text[start..end];
                         let plain = selected
-                            .trim_matches(|c| c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$')
+                            .trim_matches(|c| {
+                                c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$'
+                            })
                             .to_string();
                         (range, plain)
                     };
                     let plain_len = plain.len();
-                    b.replace_text_in_display_range(target_range, &plain, Some(0..plain_len), false, cx);
+                    b.replace_text_in_display_range(
+                        target_range,
+                        &plain,
+                        Some(0..plain_len),
+                        false,
+                        cx,
+                    );
                 }
             });
             self.text_stale = true;
             if let Some(host) = &self.host {
-                if let Some(text) = self.serialize_text(cx) { host.sync_source_text(self.pane_id, text, cx); }
+                if let Some(text) = self.serialize_text(cx) {
+                    host.sync_source_text(self.pane_id, text, cx);
+                }
                 host.mark_dirty(cx);
             }
             cx.notify();
@@ -691,7 +818,3 @@ impl WysiwygDocumentController {
         }
     }
 }
-
-
-
-

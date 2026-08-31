@@ -7,10 +7,12 @@ use gpui::{App, Pixels, ScrollHandle, Size, Task};
 
 use crate::session::file::FileState;
 use crate::session::{PaneKind, TabKind};
-use core_contracts::AutoscrollStrategy;
+use core_contracts::{AutoscrollStrategy, DocumentId, DocumentSnapshot};
 
 /// One document tab: the authoritative raw text and all document-level metadata.
 pub struct DocumentTab {
+    /// Stable identity shared by every pane projection of this document.
+    pub id: DocumentId,
     /// Authoritative Markdown text — the single raw source of truth.
     pub text: String,
     /// Bumped whenever the document text changes.
@@ -64,6 +66,15 @@ pub struct ScrollbarDragSession {
 }
 
 impl DocumentTab {
+    pub fn snapshot(&self) -> DocumentSnapshot {
+        DocumentSnapshot::new(
+            self.id,
+            self.document_revision,
+            self.text.clone(),
+            self.file.path.clone(),
+        )
+    }
+
     #[inline]
     pub fn serialized_text(&self, _cx: &App) -> String {
         self.text.clone()
@@ -101,11 +112,7 @@ impl PaneState {
 }
 
 pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn core_contracts::PaneView> {
-    core_contracts::PaneRegistry::global()
-        .lock()
-        .unwrap()
-        .create(kind)
+    core_contracts::PaneRegistry::create_registered(kind)
+        .unwrap_or_else(|error| panic!("failed to access pane registry: {error}"))
         .unwrap_or_else(|| panic!("no pane descriptor registered for {kind}"))
 }
-
-

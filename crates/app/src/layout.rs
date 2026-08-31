@@ -12,6 +12,7 @@ use config::language::I18nStrings;
 use theme::{Theme, ThemeManager};
 use splitter::policy::CornerDragResult;
 use splitter::sessions::CornerDragModifier;
+use splitter::tree::NodeId;
 use ui::corner_drag_preview::render_corner_drag_preview;
 use window::WindowLayout;
 
@@ -48,6 +49,28 @@ impl Shell {
     ) -> AnyElement {
         let root = self.panels.layout.tree.clone();
         let leaf_count = root.count_leaves();
+        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
+            std::env::consts::OS,
+            Decorations::Server,
+            &theme.dimensions,
+        );
+        let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
+        let body_size = size(window.viewport_size().width, px(body_height));
+        let leaf_bounds: std::collections::HashMap<NodeId, Bounds<Pixels>> = self
+            .panels
+            .layout
+            .leaf_rects(body_size)
+            .into_iter()
+            .map(|rect| {
+                (
+                    rect.id,
+                    Bounds {
+                        origin: point(px(rect.x), px(rect.y + titlebar_height)),
+                        size: size(px(rect.width), px(rect.height)),
+                    },
+                )
+            })
+            .collect();
 
         let layout_tree = if let Some(maximized_leaf) = root.find_maximized_leaf() {
             self.render_window_panel_tile(
@@ -57,21 +80,24 @@ impl Shell {
                 strings,
                 leaf_count,
                 true,
+                &leaf_bounds,
                 window,
                 cx,
             )
         } else {
-            self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
+            self.render_window_panel_node(
+                &root,
+                theme,
+                strings,
+                leaf_count,
+                &leaf_bounds,
+                window,
+                cx,
+            )
         };
         let root_shell_move = cx.entity().downgrade();
         let root_shell_up = cx.entity().downgrade();
         let root_shell_up_out = cx.entity().downgrade();
-
-        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
-            std::env::consts::OS,
-            Decorations::Server,
-            &theme.dimensions,
-        );
 
         let container = div()
             .id("tiled-layout-root")
@@ -96,14 +122,8 @@ impl Shell {
                     ) {
                         changed = true;
                     }
-                    let editors: Vec<Entity<editor::Editor>> = shell
-                        .panel_views
-                        .values()
-                        .filter_map(|view| view.as_any().downcast_ref::<editor::EditorPanelView>())
-                        .map(|p| p.editor.clone())
-                        .collect();
-                    for editor in editors {
-                        if editor.update(cx, |editor, _cx| editor.update_inner_drag(pos, window)) {
+                    for view in shell.panel_views.values_mut() {
+                        if view.handle_inner_mouse_move(pos, window, cx) {
                             changed = true;
                         }
                     }
@@ -198,14 +218,8 @@ impl Shell {
             CornerDragResult::None => {}
         }
         cx.notify();
-        let editors: Vec<Entity<editor::Editor>> = self
-            .panel_views
-            .values()
-            .filter_map(|view| view.as_any().downcast_ref::<editor::EditorPanelView>())
-            .map(|p| p.editor.clone())
-            .collect();
-        for editor in editors {
-            editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
+        for view in self.panel_views.values_mut() {
+            view.finish_inner_gestures(window, cx);
         }
     }
 }
