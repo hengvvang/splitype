@@ -41,7 +41,7 @@ impl Shell {
         };
 
         if !self.panel_views.contains_key(&panel_id) {
-            self.sync_panel_kind(panel_id, kind == window::PanelKind::new("editor"), cx);
+            self.sync_panel_kind(panel_id, kind, cx);
         }
 
         let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {

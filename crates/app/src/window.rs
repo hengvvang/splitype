@@ -11,7 +11,7 @@ use crate::layout::WindowPanels;
 use crate::menus::install_menus;
 use crate::shell::{Shell, ShellEditorHost};
 use config::recent::record_recent_file;
-use editor::{Editor, EditorSession};
+use editor::Editor;
 use explorer::ExplorerState;
 use splitter::NodeId;
 use splitter::tree::SplitTree;
@@ -62,7 +62,7 @@ pub fn open_editor_window(
 
                 let shell = cx.new(move |_cx| Shell {
                     panel_views: [(explorer_id, explorer_view), (editor_id, editor_view)].into(),
-                    retained_editor_sessions: HashMap::new(),
+                    retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels: WindowPanels::default(),
                     last_viewport: None,
@@ -97,7 +97,7 @@ pub fn open_editor_window(
 pub fn open_cloned_window(
     tree: SplitTree<PanelKind>,
     next_node_id: NodeId,
-    sessions: HashMap<PanelId, EditorSession>,
+    retained: HashMap<PanelId, crate::shell::RetainedPanel>,
     explorer: Option<ExplorerState>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {
@@ -124,7 +124,7 @@ pub fn open_cloned_window(
                 }
                 let shell = cx.new(move |_cx| Shell {
                     panel_views: HashMap::new(),
-                    retained_editor_sessions: HashMap::new(),
+                    retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
                     last_viewport: None,
@@ -138,12 +138,24 @@ pub fn open_cloned_window(
                 let panel_host = crate::shell::ShellPanelHost::shared(shell_weak.clone());
 
                 let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
-                for (panel_id, session) in sessions {
-                    let editor = cx.new(|cx| editor::Editor::with_session(panel_id, session, cx));
-                    editor.update(cx, |editor, _cx| {
-                        editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
-                    });
-                    panel_views.insert(panel_id, Box::new(editor::EditorPanelView::new(editor)));
+                for (panel_id, parked) in retained {
+                    match window::PanelRegistry::restore_registered_panel(
+                        parked.kind,
+                        panel_id,
+                        panel_host.clone(),
+                        parked.state,
+                        cx,
+                    ) {
+                        Ok(Some(view)) => {
+                            panel_views.insert(panel_id, view);
+                        }
+                        Ok(None) => {
+                            tracing::error!(kind = %parked.kind, "panel descriptor could not restore its state");
+                        }
+                        Err(error) => {
+                            tracing::error!(kind = %parked.kind, %error, "failed to restore registered panel");
+                        }
+                    }
                 }
 
                 for (leaf_id, kind) in leaf_kinds {
@@ -170,8 +182,20 @@ pub fn open_cloned_window(
                     }
                 }
 
-                shell.update(cx, |shell, _cx| {
+                shell.update(cx, |shell, cx| {
                     shell.panel_views = panel_views;
+                    for view in shell.panel_views.values_mut() {
+                        // Wire editor document hosts for restored editor views.
+                        if let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() {
+                            let editor = panel.editor.clone();
+                            editor.update(cx, |editor, cx| {
+                                editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
+                                if editor.session.has_tabs() {
+                                    editor.sync_panes_with_active_tab(cx);
+                                }
+                            });
+                        }
+                    }
                 });
                 shell
             },

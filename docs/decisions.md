@@ -58,3 +58,13 @@ Explorer and Settings state will be migrated accordingly.
 `PaneKind` and `PanelKind` will move from `&'static str` to owned, namespaced IDs.
 The registry rejects collisions and records contribution ownership. Persisted
 layout never stores references into plugin code or dynamic-library memory.
+
+## ADR-008: Suspend panels through their own descriptors
+
+**Status:** Accepted
+
+Panels own their durable state. Kind switches suspend a panel via
+`PanelView::suspend_state` into `Shell::retained_panel_states` and restore it
+through `PanelDescriptor::restore_panel`; dirty-state queries and discards of
+parked state go through the descriptor as well. The shell treats parked state
+as opaque and no longer keeps an editor-specific session map.

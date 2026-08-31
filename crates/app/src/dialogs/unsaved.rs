@@ -92,9 +92,9 @@ impl Shell {
         if let Some(dialog) = self.unsaved_dialog.take() {
             match dialog.scope {
                 UnsavedDialogScope::Window => {
-                    for session in self.retained_editor_sessions.values_mut() {
-                        for tab in session.tabs_mut() {
-                            tab.file.dirty = false;
+                    for retained in self.retained_panel_states.values_mut() {
+                        if let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind) {
+                            descriptor.discard_retained(&mut retained.state, cx);
                         }
                     }
                     for view in self.panel_views.values_mut() {

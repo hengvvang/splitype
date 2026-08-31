@@ -104,6 +104,17 @@ impl PanelRegistry {
         Ok(descriptor.map(|descriptor| descriptor.create_panel(panel_id, host, cx)))
     }
 
+    pub fn restore_registered_panel(
+        kind: PanelKind,
+        panel_id: PanelId,
+        host: Arc<dyn PanelHost>,
+        state: Box<dyn std::any::Any>,
+        cx: &mut App,
+    ) -> Result<Option<Box<dyn PanelView>>, PanelRegistryError> {
+        let descriptor = Self::registered(kind)?;
+        Ok(descriptor.and_then(|descriptor| descriptor.restore_panel(panel_id, host, state, cx)))
+    }
+
     pub fn default_kind(&self) -> Option<PanelKind> {
         self.default_kind.or_else(|| self.order.first().copied())
     }

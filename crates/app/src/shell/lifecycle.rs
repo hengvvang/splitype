@@ -6,9 +6,9 @@ use std::path::Path;
 
 use super::Shell;
 use super::host_bridge::{ShellEditorHost, ShellPanelHost};
+use super::RetainedPanel;
 use crate::window::open_cloned_window;
 use core_contracts::TabKind;
-use editor::{Editor, EditorSession};
 use splitter::NodeId;
 use splitter::policy::ClonedContainer;
 use splitter::sessions::AreaDockTarget;
@@ -36,22 +36,86 @@ impl Shell {
         let panel_id = panel_id.into();
         let target_leaf_id = self.panels.layout.resolve_leaf(panel_id.0)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
-        if self.panels.layout.tree.find_leaf_kind(target_leaf_id)
-            == Some(window::PanelKind::new("editor"))
+        let Some(kind) = self.panels.layout.tree.find_leaf_kind(new_id) else {
+            return Some(PanelId(new_id));
+        };
+        let mut inserted = false;
+        if copy_content
+            && let Some(state) = self.clone_panel_state_for_kind(kind, cx)
         {
-            let session = if copy_content {
-                self.primary_editor()
-                    .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
-                    .unwrap_or_else(EditorSession::empty)
-            } else {
-                EditorSession::empty()
-            };
-            self.add_editor_panel(new_id, session, cx);
-        } else if let Some(kind) = self.panels.layout.tree.find_leaf_kind(new_id) {
-            self.ensure_registered_panel_view(new_id, kind, cx);
+            inserted = self.restore_retained_view(PanelId(new_id), kind, state, cx);
+        }
+        if !inserted {
+            self.ensure_registered_panel_view(PanelId(new_id), kind, cx);
         }
         self.sync_panel_states(cx);
         Some(PanelId(new_id))
+    }
+
+    /// Clones the first live view of `kind` that offers durable state.
+    fn clone_panel_state_for_kind(
+        &self,
+        kind: PanelKind,
+        cx: &mut Context<Self>,
+    ) -> Option<Box<dyn std::any::Any>> {
+        self.panel_views
+            .values()
+            .find(|view| view.kind() == kind)
+            .and_then(|view| view.clone_state(cx))
+    }
+
+    /// Inserts a panel view and wires the editor host when the view belongs
+    /// to the editor plugin.
+    fn insert_panel_view(
+        &mut self,
+        panel_id: PanelId,
+        view: Box<dyn PanelView>,
+        cx: &mut Context<Self>,
+    ) {
+        self.wire_editor_host(view.as_ref(), cx);
+        self.panel_views.insert(panel_id, view);
+    }
+
+    /// Wires the editor's document host after a registry-created editor view
+    /// enters the shell. This is the single remaining editor-specific hook,
+    /// isolated behind the generic panel insertion path.
+    fn wire_editor_host(&self, view: &dyn PanelView, cx: &mut Context<Self>) {
+        let Some(panel) = view.as_any().downcast_ref::<editor::EditorPanelView>() else {
+            return;
+        };
+        let shell = cx.entity().downgrade();
+        let editor = panel.editor.clone();
+        editor.update(cx, |editor, cx| {
+            editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
+            if editor.session.has_tabs() {
+                editor.sync_panes_with_active_tab(cx);
+            }
+        });
+    }
+
+    /// Restores a suspended state blob into a live view through its descriptor.
+    fn restore_retained_view(
+        &mut self,
+        panel_id: PanelId,
+        kind: PanelKind,
+        state: Box<dyn std::any::Any>,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let host = ShellPanelHost::shared(cx.entity().downgrade());
+        match window::PanelRegistry::restore_registered_panel(kind, panel_id, host, state, cx) {
+            Ok(Some(view)) => {
+                self.insert_panel_view(panel_id, view, cx);
+                true
+            }
+            Ok(None) => {
+                tracing::error!(%kind, "panel descriptor could not restore its state");
+                false
+            }
+            Err(error) => {
+                tracing::error!(%kind, %error, "failed to restore registered panel");
+                false
+            }
+        }
     }
 
     /// Materializes a panel view for `panel_id` through the registry with a
@@ -69,7 +133,7 @@ impl Shell {
         let host = ShellPanelHost::shared(cx.entity().downgrade());
         match window::PanelRegistry::create_registered_panel(kind, panel_id, host, cx) {
             Ok(Some(view)) => {
-                self.panel_views.insert(panel_id, view);
+                self.insert_panel_view(panel_id, view, cx);
                 true
             }
             Ok(None) => {
@@ -91,35 +155,34 @@ impl Shell {
     /// Materialize the fresh sibling leaf of a plain-drag split.
     pub(crate) fn seed_split_panel(&mut self, new_id: impl Into<PanelId>, cx: &mut Context<Self>) {
         let new_id = new_id.into();
-        if self.panels.layout.tree.find_leaf_kind(new_id.0)
-            == Some(window::PanelKind::new("editor"))
-        {
-            let session = self
-                .primary_editor()
-                .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
-                .unwrap_or_else(EditorSession::empty);
-            self.add_editor_panel(new_id, session, cx);
+        let Some(kind) = self.panels.layout.tree.find_leaf_kind(new_id.0) else {
+            return;
+        };
+        let mut inserted = false;
+        if let Some(state) = self.clone_panel_state_for_kind(kind, cx) {
+            inserted = self.restore_retained_view(new_id, kind, state, cx);
+        }
+        if !inserted {
+            self.ensure_registered_panel_view(new_id, kind, cx);
         }
         self.sync_panel_states(cx);
     }
 
-    /// Close an area, clean up its editor session, and drop the content entity.
+    /// Close an area and drop its view and retained state.
     pub(crate) fn close_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
         let panel_id = panel_id.into();
         if let Some(target_leaf_id) = self.panels.layout.resolve_leaf(panel_id.0) {
             self.panels.layout.close_leaf(target_leaf_id);
-            self.remove_editor_panel(target_leaf_id, cx);
             self.remove_panel_view(target_leaf_id);
-            self.retained_editor_sessions.remove(&PanelId(target_leaf_id));
+            self.retained_panel_states.remove(&PanelId(target_leaf_id));
             self.sync_panel_states(cx);
         }
     }
 
-    /// Clean up a joined panel's editor session and sync panel states.
+    /// Clean up a joined panel's view and retained state.
     pub(crate) fn handle_joined_panel(&mut self, removed_id: NodeId, cx: &mut Context<Self>) {
-        self.remove_editor_panel(removed_id, cx);
         self.remove_panel_view(removed_id);
-        self.retained_editor_sessions.remove(&PanelId(removed_id));
+        self.retained_panel_states.remove(&PanelId(removed_id));
         self.sync_panel_states(cx);
     }
 
@@ -138,7 +201,7 @@ impl Shell {
     ) {
         let previous = self.panels.layout.tree.find_leaf_kind(panel_id);
         self.panels.layout.set_kind(panel_id, kind);
-        self.sync_panel_kind(panel_id, kind == window::PanelKind::new("editor"), cx);
+        self.sync_panel_kind(panel_id, kind, cx);
         if kind == window::PanelKind::new("editor")
             && previous != Some(window::PanelKind::new("editor"))
         {
@@ -175,30 +238,6 @@ impl Shell {
         });
         cx.notify();
         true
-    }
-
-    /// Creates a fresh Editor entity serving `panel_id` and registers it in the panel_views map.
-    pub(crate) fn add_editor_panel(
-        &mut self,
-        panel_id: impl Into<PanelId>,
-        session: EditorSession,
-        cx: &mut Context<Self>,
-    ) -> Entity<Editor> {
-        let panel_id = panel_id.into();
-        let shell = cx.entity().downgrade();
-        let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
-
-        editor.update(cx, |editor, cx| {
-            editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
-            if editor.session.has_tabs() {
-                editor.sync_panes_with_active_tab(cx);
-            }
-        });
-        self.panel_views.insert(
-            panel_id,
-            Box::new(editor::EditorPanelView::new(editor.clone())),
-        );
-        editor
     }
 
     /// Sync open document tabs across all panels when a file/directory is moved or renamed.
@@ -284,23 +323,6 @@ impl Shell {
         });
     }
 
-    pub(crate) fn remove_editor_panel(
-        &mut self,
-        panel_id: impl Into<PanelId>,
-        cx: &mut Context<Self>,
-    ) -> Option<EditorSession> {
-        let panel_id = panel_id.into();
-        let view = self.panel_views.remove(&panel_id)?;
-        let panel = view.as_any().downcast_ref::<editor::EditorPanelView>()?;
-        let entity = panel.editor.clone();
-        Some(entity.update(cx, |editor, cx| {
-            editor.clear_search_highlights_from_document(cx);
-            editor.search.visible = false;
-            editor.search.matches.clear();
-            std::mem::replace(&mut editor.session, EditorSession::empty())
-        }))
-    }
-
     pub(crate) fn swap_panel_contents(
         &mut self,
         a: impl Into<PanelId>,
@@ -319,13 +341,13 @@ impl Shell {
             view.set_panel_id(a, cx);
             self.panel_views.insert(a, view);
         }
-        let retained_a = self.retained_editor_sessions.remove(&a);
-        let retained_b = self.retained_editor_sessions.remove(&b);
-        if let Some(session) = retained_a {
-            self.retained_editor_sessions.insert(b, session);
+        let retained_a = self.retained_panel_states.remove(&a);
+        let retained_b = self.retained_panel_states.remove(&b);
+        if let Some(retained) = retained_a {
+            self.retained_panel_states.insert(b, retained);
         }
-        if let Some(session) = retained_b {
-            self.retained_editor_sessions.insert(a, session);
+        if let Some(retained) = retained_b {
+            self.retained_panel_states.insert(a, retained);
         }
     }
 
@@ -341,9 +363,9 @@ impl Shell {
         let target_id = target_id.into();
         let new_leaf_id = new_leaf_id.into();
         let source_view = self.panel_views.remove(&source_id);
-        let source_retained = self.retained_editor_sessions.remove(&source_id);
+        let source_retained = self.retained_panel_states.remove(&source_id);
         let target_view = self.panel_views.remove(&target_id);
-        let target_retained = self.retained_editor_sessions.remove(&target_id);
+        let target_retained = self.retained_panel_states.remove(&target_id);
 
         let source_first = matches!(dock_target, AreaDockTarget::Left | AreaDockTarget::Top);
 
@@ -352,61 +374,66 @@ impl Shell {
                 view.set_panel_id(target_id, cx);
                 self.panel_views.insert(target_id, view);
             }
-            if let Some(session) = source_retained {
-                self.retained_editor_sessions.insert(target_id, session);
+            if let Some(retained) = source_retained {
+                self.retained_panel_states.insert(target_id, retained);
             }
             if let Some(mut view) = target_view {
                 view.set_panel_id(new_leaf_id, cx);
                 self.panel_views.insert(new_leaf_id, view);
             }
-            if let Some(session) = target_retained {
-                self.retained_editor_sessions.insert(new_leaf_id, session);
+            if let Some(retained) = target_retained {
+                self.retained_panel_states.insert(new_leaf_id, retained);
             }
         } else {
             if let Some(mut view) = target_view {
                 view.set_panel_id(target_id, cx);
                 self.panel_views.insert(target_id, view);
             }
-            if let Some(session) = target_retained {
-                self.retained_editor_sessions.insert(target_id, session);
+            if let Some(retained) = target_retained {
+                self.retained_panel_states.insert(target_id, retained);
             }
             if let Some(mut view) = source_view {
                 view.set_panel_id(new_leaf_id, cx);
                 self.panel_views.insert(new_leaf_id, view);
             }
-            if let Some(session) = source_retained {
-                self.retained_editor_sessions.insert(new_leaf_id, session);
+            if let Some(retained) = source_retained {
+                self.retained_panel_states.insert(new_leaf_id, retained);
             }
         }
         self.sync_panel_states(cx);
     }
 
+    /// Synchronizes the live panel view with the layout tree's current kind.
+    /// The current view is suspended into [`Shell::retained_panel_states`] and
+    /// a view for the new kind is created, restoring parked state when the
+    /// parked kind comes back.
     pub(crate) fn sync_panel_kind(
         &mut self,
         panel_id: impl Into<PanelId>,
-        is_editor: bool,
+        kind: PanelKind,
         cx: &mut Context<Self>,
     ) {
         let panel_id = panel_id.into();
-        if is_editor {
-            if self.editor_for(panel_id).is_some() {
-                return;
-            }
-            let session = self
-                .retained_editor_sessions
-                .remove(&panel_id)
-                .unwrap_or_else(EditorSession::empty);
-            self.add_editor_panel(panel_id, session, cx);
-        } else {
-            if let Some(session) = self.remove_editor_panel(panel_id, cx) {
-                if session.has_tabs() {
-                    self.retained_editor_sessions.insert(panel_id, session);
-                }
-            }
-            if let Some(kind) = self.panels.layout.tree.find_leaf_kind(panel_id.0) {
-                self.ensure_registered_panel_view(panel_id, kind, cx);
+        if let Some(mut view) = self.remove_panel_view(panel_id) {
+            let parked_kind = view.kind();
+            if let Some(state) = view.suspend_state(cx) {
+                self.retained_panel_states
+                    .insert(panel_id, RetainedPanel { kind: parked_kind, state });
             }
         }
+
+        if self
+            .retained_panel_states
+            .get(&panel_id)
+            .is_some_and(|retained| retained.kind == kind)
+        {
+            let retained = self.retained_panel_states.remove(&panel_id).expect("just checked");
+            if self.restore_retained_view(panel_id, kind, retained.state, cx) {
+                return;
+            }
+        }
+
+        self.ensure_registered_panel_view(panel_id, kind, cx);
     }
 
     pub(crate) fn clone_container_into_new_window(
@@ -414,27 +441,30 @@ impl Shell {
         cloned: ClonedContainer<PanelKind>,
         cx: &mut Context<Self>,
     ) {
-        let mut sessions = HashMap::new();
+        let mut retained = HashMap::new();
         let mut cloned_explorer = None;
         for (old_id, new_id) in &cloned.id_map {
-            match cloned.tree.find_leaf_kind(*new_id) {
-                Some(k) if k.as_str() == "editor" => {
-                    if let Some(editor) = self.editor_for(*old_id) {
-                        let session = editor.update(cx, |editor, cx| editor.clone_session(cx));
-                        sessions.insert(PanelId(*new_id), session);
-                    }
-                }
-                Some(k) if k.as_str() == "explorer" => {
-                    cloned_explorer =
-                        Some(explorer::ExplorerState::global(cx).clone_for_new_window());
-                }
-                _ => {}
+            let Some(kind) = cloned.tree.find_leaf_kind(*new_id) else {
+                continue;
+            };
+            if kind == window::PanelKind::new("explorer") {
+                cloned_explorer =
+                    Some(explorer::ExplorerState::global(cx).clone_for_new_window());
+                continue;
             }
+            let Some(state) = self
+                .panel_views
+                .get(&PanelId(*old_id))
+                .and_then(|view| view.clone_state(cx))
+            else {
+                continue;
+            };
+            retained.insert(PanelId(*new_id), RetainedPanel { kind, state });
         }
         open_cloned_window(
             cloned.tree,
             cloned.next_node_id,
-            sessions,
+            retained,
             cloned_explorer,
             cx,
         );

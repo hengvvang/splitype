@@ -241,15 +241,21 @@ transitional hardcoding listed below is removed.
   `PanelRenderContext`; the shell no longer downcasts to push editor layout
   state. Inner drag and filesystem rename notifications use generic
   `PanelView` hooks.
+- Panel kind switches use a generic suspend/restore protocol
+  (`PanelView::suspend_state`/`clone_state`,
+  `PanelDescriptor::restore_panel`/`retained_dirty_info`/`discard_retained`)
+  and `Shell::retained_panel_states`. Editor document sessions participate
+  as ordinary plugin state; the shell no longer owns an editor-specific
+  session retention mechanism.
 
 ### Remaining critical migration work
 
-1. `app::Shell` still has Editor string branches and concrete downcasts for
-   editor session retention (`retained_editor_sessions`), file-open routing,
-   session cloning, and tab-scoped close prompts. This is the editor document
-   lifecycle mechanism; it must move behind declared capabilities (for example
-   `clone_state`, `open_path`, `suspend/resume`, `dirty_items`) before the
-   editor can be replaced by an alternative plugin.
+1. `app::Shell` still routes file opens, tab prompts, and editor host wiring
+   through editor-specific helpers (`editor_for`, `active_editor_panel`, the
+   `"editor"` kind check, `wire_editor_host`). These are document-service
+   policies of the composition root, not lifecycle hardcoding; they should
+   migrate to a `DocumentPanel` capability plus typed document services so an
+   alternative editor plugin can take over the role.
 2. Explorer and Settings transient state is application-global instead of
    instance-owned.
 4. `PaneView` remains broad, requires `Send + Sync`, and uses default no-op methods

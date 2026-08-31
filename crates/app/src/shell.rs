@@ -16,7 +16,7 @@ pub(crate) use self::host_bridge::{ShellEditorHost, ShellPanelHost};
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
-use editor::{DocumentTab, Editor, EditorSession};
+use editor::{DocumentTab, Editor};
 use window::{PanelId, PanelView};
 
 /// Scope of an unsaved-changes confirmation dialog.
@@ -51,14 +51,21 @@ pub(crate) struct UnsavedDialogState {
     pub(crate) restore_focus: Option<EntityId>,
 }
 
+/// Durable state of a panel that suspended itself during a kind switch.
+/// Restored through the owning descriptor when its kind returns.
+pub struct RetainedPanel {
+    pub kind: window::PanelKind,
+    pub state: Box<dyn std::any::Any>,
+}
+
 /// The OS window's root entity: content panel views + window lifecycle.
 pub struct Shell {
     /// Polymorphic panel views implementing [`PanelView`].
     pub(crate) panel_views: HashMap<PanelId, Box<dyn PanelView>>,
-    /// Sessions of Editor panels that left the Editor kind with tabs
-    /// (background editing): switching back recreates the entity with the
-    /// retained session.
-    pub(crate) retained_editor_sessions: HashMap<PanelId, EditorSession>,
+    /// Suspended panel states, keyed by panel id. A panel whose kind changed
+    /// away can park its documents here so they survive the switch and are
+    /// restored when the kind returns.
+    pub(crate) retained_panel_states: HashMap<PanelId, RetainedPanel>,
     /// Open/hover state for the in-window titlebar menu bar.
     pub(crate) menu_bar: MenuBarState,
     /// Window panel state: the outer area layout tree plus the explorer /

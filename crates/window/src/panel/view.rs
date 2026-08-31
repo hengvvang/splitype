@@ -79,6 +79,19 @@ pub trait PanelView: 'static {
     /// Finish any in-progress panel-internal gesture.
     fn finish_inner_gestures(&mut self, _window: &mut Window, _cx: &mut App) {}
 
+    /// Suspends this panel into an opaque state blob that can be handed back
+    /// to [`PanelDescriptor::restore_panel`] later. Panels with durable
+    /// documents return `Some` so their content survives kind switches.
+    fn suspend_state(&mut self, _cx: &mut App) -> Option<Box<dyn Any>> {
+        None
+    }
+
+    /// Clones the panel's durable state for a split or a cloned window.
+    /// Returns `None` when the panel has no cloneable state.
+    fn clone_state(&self, _cx: &mut App) -> Option<Box<dyn Any>> {
+        None
+    }
+
     /// Renders the complete panel UI inside the window tile container.
     fn render(
         &mut self,

@@ -30,39 +30,28 @@ impl Shell {
             }
         }
 
-        let Some(session) = self.retained_editor_sessions.get(&panel_id) else {
+        let Some(retained) = self.retained_panel_states.get(&panel_id) else {
             return (false, String::new());
         };
-        let mut first_name = String::new();
-        for tab in session.tabs() {
-            if tab.file.dirty {
-                if first_name.is_empty() {
-                    first_name = tab
-                        .file
-                        .path
-                        .as_ref()
-                        .and_then(|p| p.file_name())
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "Untitled".to_string());
-                }
-            }
-        }
-        (!first_name.is_empty(), first_name)
+        let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind) else {
+            return (false, String::new());
+        };
+        let (dirty, first_name) = descriptor.retained_dirty_info(retained.state.as_ref(), cx);
+        (dirty, first_name.unwrap_or_else(|| "Untitled".to_string()))
     }
 
     pub(crate) fn first_dirty_panel(&mut self, cx: &mut Context<Self>) -> Option<(PanelId, String)> {
-        for (panel_id, session) in &self.retained_editor_sessions {
-            for tab in session.tabs() {
-                if tab.file.dirty {
-                    let name = tab
-                        .file
-                        .path
-                        .as_ref()
-                        .and_then(|p| p.file_name())
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "Untitled".to_string());
-                    return Some((*panel_id, name));
-                }
+        for (panel_id, retained) in &self.retained_panel_states {
+            let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind) else {
+                continue;
+            };
+            let (dirty, first_name) =
+                descriptor.retained_dirty_info(retained.state.as_ref(), cx);
+            if dirty {
+                return Some((
+                    *panel_id,
+                    first_name.unwrap_or_else(|| "Untitled".to_string()),
+                ));
             }
         }
         for (panel_id, view) in &self.panel_views {
