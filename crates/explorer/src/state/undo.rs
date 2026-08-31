@@ -7,7 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
-use explorer_fs::FsError;
+use crate::fs::FsError;
 
 /// One reversible file-tree operation recorded in the undo history.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,26 +69,26 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), FsError> {
     match change {
         ExplorerChange::Created { path, is_dir } => {
             if *is_dir {
-                explorer_fs::create_dir_all(path)?;
+                crate::fs::create_dir_all(path)?;
             } else {
-                explorer_fs::write_file(path, "")?;
+                crate::fs::write_file(path, "")?;
             }
             Ok(())
         }
         ExplorerChange::DirCreated(path) => {
-            explorer_fs::create_dir_all(path)?;
+            crate::fs::create_dir_all(path)?;
             Ok(())
         }
         ExplorerChange::DirRemoved(path) => {
-            let _ = explorer_fs::remove_empty_dir_only(path);
+            let _ = crate::fs::remove_empty_dir_only(path);
             Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            explorer_fs::rename(from, to)?;
+            crate::fs::rename(from, to)?;
             Ok(())
         }
         ExplorerChange::Copied { source, dest } => {
-            explorer_fs::copy(source, dest)?;
+            crate::fs::copy(source, dest)?;
             Ok(())
         }
         ExplorerChange::Batch(changes) => {
@@ -105,26 +105,26 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), Fs
     match change {
         ExplorerChange::Created { path, .. } => {
             // First try trash (recoverable), fallback to delete
-            explorer_fs::trash(path).map_err(|source| FsError::DeleteFailed {
+            crate::fs::trash(path).map_err(|source| FsError::DeleteFailed {
                 path: path.clone(),
                 source,
             })?;
             Ok(())
         }
         ExplorerChange::DirCreated(path) => {
-            let _ = explorer_fs::remove_empty_dir_only(path);
+            let _ = crate::fs::remove_empty_dir_only(path);
             Ok(())
         }
         ExplorerChange::DirRemoved(path) => {
-            explorer_fs::create_dir_all(path)?;
+            crate::fs::create_dir_all(path)?;
             Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            explorer_fs::rename(to, from)?;
+            crate::fs::rename(to, from)?;
             Ok(())
         }
         ExplorerChange::Copied { dest, .. } => {
-            explorer_fs::remove_symlink_safe(dest).map_err(|source| FsError::DeleteFailed {
+            crate::fs::remove_symlink_safe(dest).map_err(|source| FsError::DeleteFailed {
                 path: dest.clone(),
                 source,
             })?;

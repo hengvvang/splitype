@@ -2,17 +2,19 @@
 
 use std::collections::HashMap;
 
+use crate::parse::BlockId;
+
 /// Location of the first resolved inline reference for one footnote id.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FootnoteReferenceLocation {
-    pub entity_id: gpui::EntityId,
+    pub block_id: BlockId,
     pub occurrence_index: usize,
 }
 
 /// Definition block and first-reference metadata for one footnote id.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FootnoteDefinitionBinding {
-    pub definition_entity_id: gpui::EntityId,
+    pub definition_block_id: BlockId,
     pub first_reference: Option<FootnoteReferenceLocation>,
 }
 

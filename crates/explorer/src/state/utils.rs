@@ -34,7 +34,7 @@ pub fn execute_entry_ops(
             if source == &destination {
                 continue;
             }
-            if explorer_fs::rename(source, &destination).is_ok() {
+            if crate::fs::rename(source, &destination).is_ok() {
                 changes.push(ExplorerChange::Moved {
                     from: source.clone(),
                     to: destination,
@@ -42,11 +42,11 @@ pub fn execute_entry_ops(
             }
         } else {
             let destination = if disambiguate {
-                explorer_fs::disambiguated_paste_path(source, target_dir).0
+                crate::fs::disambiguated_paste_path(source, target_dir).0
             } else {
                 target_dir.join(source.file_name().unwrap_or_default())
             };
-            if explorer_fs::copy(source, &destination).is_ok() {
+            if crate::fs::copy(source, &destination).is_ok() {
                 changes.push(ExplorerChange::Copied {
                     source: source.clone(),
                     dest: destination,

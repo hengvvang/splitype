@@ -4,7 +4,7 @@ use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use crate::error::FsError;
+use super::error::FsError;
 
 /// Recursively copy a directory tree (`fs::copy` is file-only).
 pub fn copy_dir_all(source: &Path, destination: &Path) -> io::Result<()> {

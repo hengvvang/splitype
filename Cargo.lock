@@ -247,7 +247,6 @@ dependencies = [
  "editor",
  "embed-resource",
  "explorer",
- "explorer_fs",
  "futures",
  "gpui",
  "gpui_platform",
@@ -1912,7 +1911,6 @@ version = "0.0.1"
 dependencies = [
  "config",
  "core_contracts",
- "explorer_fs",
  "futures",
  "gpui",
  "notify",
@@ -1921,18 +1919,12 @@ dependencies = [
  "serde_json",
  "splitter",
  "theme",
+ "thiserror 2.0.18",
  "tracing",
+ "trash",
  "ui",
  "window",
  "windows 0.61.3",
-]
-
-[[package]]
-name = "explorer_fs"
-version = "0.0.1"
-dependencies = [
- "thiserror 2.0.18",
- "trash",
 ]
 
 [[package]]
@@ -3609,7 +3601,6 @@ name = "markdown_parser"
 version = "0.0.1"
 dependencies = [
  "cssparser",
- "gpui",
  "regex",
  "tree-sitter",
  "tree-sitter-html",

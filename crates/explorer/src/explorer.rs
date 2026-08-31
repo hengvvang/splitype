@@ -29,6 +29,7 @@
 
 pub mod bottombar;
 pub mod filename_editor;
+pub mod fs;
 pub mod ops;
 pub mod panel;
 pub mod persist;

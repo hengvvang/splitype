@@ -365,12 +365,11 @@ impl ExplorerState {
                             if new_path.exists() {
                                 Err("A folder with this name already exists".to_string())
                             } else {
-                                explorer_fs::create_dir_all(&new_path)
-                                    .map_err(|err| err.to_string())
+                                crate::fs::create_dir_all(&new_path).map_err(|err| err.to_string())
                             }
                         } else {
-                            explorer_fs::create_new_file(&new_path).map_err(|err| {
-                                if let explorer_fs::FsError::WriteFailed { source, .. } = &err
+                            crate::fs::create_new_file(&new_path).map_err(|err| {
+                                if let crate::fs::FsError::WriteFailed { source, .. } = &err
                                     && source.kind() == std::io::ErrorKind::AlreadyExists
                                 {
                                     "A file with this name already exists".to_string()
@@ -380,7 +379,7 @@ impl ExplorerState {
                             })
                         }
                     } else {
-                        explorer_fs::rename(&old_path, &new_path).map_err(|err| err.to_string())
+                        crate::fs::rename(&old_path, &new_path).map_err(|err| err.to_string())
                     }
                 })
                 .await;

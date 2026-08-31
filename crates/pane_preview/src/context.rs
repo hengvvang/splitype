@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use gpui::EntityId;
-
 use markdown_parser::block::footnote::split_footnote_definition_text;
 use markdown_parser::block::image::ImageReferenceDefinitions;
 use markdown_parser::block::link::LinkReferenceDefinitions;
@@ -28,12 +26,12 @@ pub fn build_preview_footnote_registry(roots: &[PreviewBlock]) -> FootnoteMap {
     walk_preview_blocks(roots, None, &mut definitions, &mut ordered);
 
     let mut bindings: HashMap<String, FootnoteDefinitionBinding> = definitions
-        .into_keys()
-        .map(|id| {
+        .into_iter()
+        .map(|(id, block_id)| {
             (
                 id,
                 FootnoteDefinitionBinding {
-                    definition_entity_id: EntityId::default(),
+                    definition_block_id: block_id,
                     first_reference: None,
                 },
             )
@@ -53,7 +51,7 @@ pub fn build_preview_footnote_registry(roots: &[PreviewBlock]) -> FootnoteMap {
                 && binding.first_reference.is_none()
             {
                 binding.first_reference = Some(FootnoteReferenceLocation {
-                    entity_id: EntityId::default(),
+                    block_id,
                     occurrence_index,
                 });
             }

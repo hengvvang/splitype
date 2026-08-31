@@ -15,7 +15,6 @@ workspace = true
 [dependencies]
 config = { path = "../config" }
 core_contracts = { path = "../core_contracts" }
-explorer_fs = { path = "../explorer_fs" }
 theme = { path = "../theme" }
 ui = { path = "../ui" }
 window = { path = "../window" }
@@ -23,6 +22,8 @@ splitter = { path = "../splitter" }
 gpui = { workspace = true }
 futures = "0.3"
 notify = "8"
+thiserror = { workspace = true }
+trash = "5"
 tracing = "0.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
