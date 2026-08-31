@@ -10,6 +10,7 @@ use crate::session::{PaneKind, TabKind};
 use core_contracts::{AutoscrollStrategy, DocumentId, DocumentSnapshot};
 
 /// One document tab: the authoritative raw text and all document-level metadata.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct DocumentTab {
     /// Stable identity shared by every pane projection of this document.
     pub id: DocumentId,
@@ -19,7 +20,8 @@ pub struct DocumentTab {
     pub document_revision: u64,
     pub file: FileState,
     pub kind: TabKind,
-    /// Per-pane view states, keyed by pane id.
+    /// Per-pane view states, keyed by pane id (rebuilt from the text on restore).
+    #[serde(skip)]
     pub panes: HashMap<core_contracts::PaneId, PaneState>,
     /// Cached (revision, word_count) to avoid full recounting on every frame.
     pub cached_word_count: Option<(u64, usize)>,

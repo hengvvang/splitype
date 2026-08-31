@@ -168,10 +168,17 @@ impl Shell {
         cx: &mut Context<Self>,
     ) -> bool {
         if self.first_dirty_panel(cx).is_none() {
+            self.snapshot_window_state(cx);
             return true;
         }
         self.prompt_close_window(cx);
         false
+    }
+
+    /// Snapshots the window state (when enabled) and removes the window.
+    pub(crate) fn close_window_now(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.snapshot_window_state(cx);
+        window.remove_window();
     }
 
     pub(crate) fn request_close_current_window(
@@ -180,7 +187,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         if self.first_dirty_panel(cx).is_none() {
-            window.remove_window();
+            self.close_window_now(window, cx);
             return;
         }
         self.prompt_close_window(cx);

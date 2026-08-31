@@ -194,6 +194,45 @@ impl Shell {
         }
     }
 
+    /// Captures this window's layout and per-panel plugin state and persists
+    /// it as the launch-restore snapshot, when the setting is enabled.
+    pub(crate) fn snapshot_window_state(&self, cx: &mut Context<Self>) {
+        if !config::settings::SettingsStore::get(cx)
+            .startup
+            .restore_window_state
+        {
+            return;
+        }
+        let mut panels = Vec::new();
+        for (panel_id, view) in &self.panel_views {
+            let Some(state) = view.clone_state(cx) else {
+                continue;
+            };
+            let Ok(Some(descriptor)) = window::PanelRegistry::registered(view.kind()) else {
+                continue;
+            };
+            let Some(json) = descriptor.serialize_state(state.as_ref()) else {
+                continue;
+            };
+            panels.push(window::PersistedPanel {
+                id: *panel_id,
+                kind: view.kind(),
+                state: json,
+            });
+        }
+        let state = window::PersistedWindowState {
+            version: window::WINDOW_STATE_VERSION,
+            tree: self.panels.layout.tree.clone(),
+            next_node_id: self.panels.layout.next_node_id,
+            active_leaf: self.panels.layout.active_leaf,
+            activation_history: self.panels.layout.activation_history.clone(),
+            panels,
+        };
+        if let Err(err) = crate::window_state::save_window_state(&state) {
+            tracing::warn!(error = %err, "failed to persist window state");
+        }
+    }
+
     /// Recomputes every sidebar panel's pushed document context.
     pub(crate) fn sync_panel_states(&mut self, cx: &mut Context<Self>) {
         let Some(_viewport) = self.last_viewport else {

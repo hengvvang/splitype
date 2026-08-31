@@ -1,13 +1,16 @@
 use std::fmt;
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+
 /// Strongly-typed, extensible identifier of an editor pane kind.
 ///
 /// Owned and hashable so it can come from plugin manifests and persisted
 /// layouts, not only from compile-time literals. Built-in kinds use the
 /// `splitype.pane.*` namespace going forward; legacy single-word names are
 /// transitional.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PaneKind(Arc<str>);
 
 impl PaneKind {

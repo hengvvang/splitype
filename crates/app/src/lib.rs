@@ -19,5 +19,6 @@ pub mod menus;
 pub mod platform;
 pub mod shell;
 pub mod window;
+pub mod window_state;
 
 pub use ::window::PanelKind;

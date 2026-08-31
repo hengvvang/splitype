@@ -437,4 +437,14 @@ impl PanelDescriptor for EditorPanelDescriptor {
             tab.file.dirty = false;
         }
     }
+
+    fn serialize_state(&self, state: &dyn Any) -> Option<serde_json::Value> {
+        let session = state.downcast_ref::<crate::EditorSession>()?;
+        serde_json::to_value(session).ok()
+    }
+
+    fn deserialize_state(&self, json: &serde_json::Value) -> Option<Box<dyn Any>> {
+        let session: crate::EditorSession = serde_json::from_value(json.clone()).ok()?;
+        Some(Box::new(session))
+    }
 }

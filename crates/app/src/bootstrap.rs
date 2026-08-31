@@ -52,7 +52,21 @@ fn relaunch_detached() {
     }
 }
 
-fn open_startup_window(cx: &mut App, startup_open: StartupOpenSetting) {
+fn open_startup_window(cx: &mut App, settings: config::settings::AppSettings) {
+    if settings.startup.restore_window_state {
+        match crate::window_state::load_window_state() {
+            Ok(Some(state)) => {
+                crate::window::open_restored_window(cx, state);
+                return;
+            }
+            Ok(None) => {}
+            Err(err) => {
+                tracing::warn!(error = %err, "failed to restore window state");
+            }
+        }
+    }
+
+    let startup_open = settings.startup.open;
     if startup_open == StartupOpenSetting::LastOpenedFile
         && let Some(path) = first_existing_recent_markdown_file()
     {
@@ -150,21 +164,21 @@ pub fn run(args: Args) {
         if args.input_paths.is_empty() {
             #[cfg(target_os = "macos")]
             {
-                let startup_open = settings.startup.open;
+                let startup_settings = settings.clone();
                 let open_file_requested = open_file_requested.clone();
                 cx.spawn(async move |cx| {
                     cx.background_executor()
                         .timer(std::time::Duration::from_millis(150))
                         .await;
                     if !open_file_requested.load(Ordering::SeqCst) {
-                        let _ = cx.update(move |cx| open_startup_window(cx, startup_open));
+                        let _ = cx.update(move |cx| open_startup_window(cx, startup_settings));
                     }
                 })
                 .detach();
             }
 
             #[cfg(not(target_os = "macos"))]
-            open_startup_window(cx, settings.startup.open);
+            open_startup_window(cx, settings.clone());
 
             return;
         }

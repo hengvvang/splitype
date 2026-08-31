@@ -5,6 +5,7 @@ pub mod builder;
 pub mod icons;
 pub mod layout;
 pub mod panel;
+pub mod persist;
 
 pub use actions::{
     ClosePanel, Copy, Cut, DismissTransientUi, OpenPath, OpenPathInSplit, Paste, SplitPanel,
@@ -17,3 +18,4 @@ pub use panel::{
     DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelKind, PanelRegistry,
     PanelRenderContext, PanelView, SidebarPanel,
 };
+pub use persist::{PersistedPanel, PersistedWindowState, WINDOW_STATE_VERSION};

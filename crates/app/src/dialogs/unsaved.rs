@@ -51,7 +51,7 @@ impl Shell {
                     for view in self.panel_views.values_mut() {
                         let _ = view.save_all(window, cx);
                     }
-                    window.remove_window();
+                    self.close_window_now(window, cx);
                 }
                 UnsavedDialogScope::Panel(panel_id) => {
                     if let Some(view) = self.panel_views.get_mut(&panel_id) {
@@ -97,7 +97,7 @@ impl Shell {
                     for view in self.panel_views.values_mut() {
                         view.discard_changes(cx);
                     }
-                    window.remove_window();
+                    self.close_window_now(window, cx);
                 }
                 UnsavedDialogScope::Panel(panel_id) => {
                     if let Some(view) = self.panel_views.get_mut(&panel_id) {
@@ -122,7 +122,7 @@ impl Shell {
             if self.has_unsaved_changes(cx) {
                 self.prompt_close_window(cx);
             } else {
-                window.remove_window();
+                self.close_window_now(window, cx);
             }
         }
     }

@@ -141,3 +141,18 @@ through `PanelView::dismiss_overlays`, so plugin UI is never rendered by the
 shell. Plugin-emitted shell notifications (path renames) use shell-owned
 `window::actions` vocabulary, keeping the dependency direction
 plugin -> shell -> contracts.
+
+## ADR-015: Window state persists through a versioned opt-in snapshot
+
+**Status:** Accepted
+
+Window persistence is a shell service with a versioned schema: the shell
+captures the layout topology (a serde projection of the split tree; transient
+drag/dropdown sessions are skipped) plus per-panel state into
+`window_state.json`, gated by the `restore_window_state` setting, and
+snapshots at every window-close decision point. Panels opt into state
+serialization through `PanelDescriptor::serialize_state`/`deserialize_state`;
+non-opting panels are recreated fresh on restore. The editor persists its full
+`EditorSession` (tabs, text, dirty flags, pane layout kinds) while per-pane
+runtime entities are rebuilt from the restored text. Loaders reject snapshots
+whose schema version they do not understand.

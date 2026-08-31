@@ -73,7 +73,11 @@ pub struct LeafRect {
 /// Every leaf is a [`SplitterContainer`] (a panel). Splitting a leaf
 /// replaces it with a `Split` node holding two containers — the original
 /// and the freshly created one — both hanging on this tree.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "T: serde::Serialize",
+    deserialize = "T: serde::Deserialize<'de>"
+))]
 pub enum SplitTree<T: Clone> {
     Leaf(SplitterContainer<T>),
     Split {

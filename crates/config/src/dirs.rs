@@ -50,4 +50,9 @@ impl SplitypeConfigDirs {
     pub fn app_config_file(&self) -> PathBuf {
         self.root.join("config.toml")
     }
+
+    /// Persisted last-window snapshot (layout + panel states).
+    pub fn window_state_file(&self) -> PathBuf {
+        self.root.join("window_state.json")
+    }
 }

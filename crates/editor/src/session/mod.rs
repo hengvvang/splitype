@@ -11,7 +11,11 @@ pub use tab::{DocumentTab, PaneState, ScrollState, ScrollbarDragSession};
 use splitter::root::SplitterRoot;
 
 /// The document tabs owned by one Editor area.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "T: serde::Serialize",
+    deserialize = "T: serde::Deserialize<'de>"
+))]
 pub struct EditorTabList<T> {
     tabs: Vec<T>,
     active_tab: usize,
@@ -169,9 +173,12 @@ impl<'a, T> IntoIterator for &'a mut EditorTabList<T> {
 }
 
 /// The complete per-area editor state: the document tabs plus the inner panel split container.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct EditorSession {
     pub tab_list: EditorTabList<DocumentTab>,
     pub root: SplitterRoot<PaneKind>,
+    /// Live pane entities (rebuilt from the tabs on restore).
+    #[serde(skip)]
     pub empty_panes: std::collections::HashMap<core_contracts::PaneId, PaneState>,
 }
 
@@ -257,5 +264,26 @@ impl EditorSession {
     #[inline]
     pub fn has_dirty_tabs(&self) -> bool {
         self.tabs().any(|tab| tab.file.dirty)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn editor_session_round_trips_through_json() {
+        let mut session = EditorSession::empty();
+        let tab = crate::editor::Editor::new_tab_from_markdown("# hello".to_string(), None);
+        session.tab_list.push(tab);
+
+        let json = serde_json::to_value(&session).expect("serialize");
+        let restored: EditorSession = serde_json::from_value(json).expect("deserialize");
+
+        assert_eq!(restored.tab_list.len(), 1);
+        let restored_tab = restored.tabs().next().expect("one tab");
+        assert_eq!(restored_tab.text, "# hello");
+        assert!(restored_tab.panes.is_empty());
+        assert!(restored.empty_panes.is_empty());
     }
 }

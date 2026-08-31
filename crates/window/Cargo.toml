@@ -15,4 +15,5 @@ splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 gpui = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 schemars = "1"

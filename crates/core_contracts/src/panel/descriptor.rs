@@ -57,4 +57,18 @@ pub trait PanelDescriptor: Send + Sync + 'static {
 
     /// Discards unsaved changes held inside suspended state of this panel kind.
     fn discard_retained(&self, _state: &mut Box<dyn Any>, _cx: &mut App) {}
+
+    /// Serializes a state blob (from [`PanelView::suspend_state`] or
+    /// [`PanelView::clone_state`]) for window-state persistence.
+    ///
+    /// Panels that do not opt in return `None` and are recreated fresh when
+    /// the window state is restored.
+    fn serialize_state(&self, _state: &dyn Any) -> Option<serde_json::Value> {
+        None
+    }
+
+    /// Rebuilds a state blob from persisted window-state JSON.
+    fn deserialize_state(&self, _json: &serde_json::Value) -> Option<Box<dyn Any>> {
+        None
+    }
 }

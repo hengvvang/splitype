@@ -15,7 +15,11 @@ use crate::tree::NodeId;
 
 /// A panel container: one leaf of the split tree, holding the panel type
 /// `T` and its own interaction state.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "T: serde::Serialize",
+    deserialize = "T: serde::Deserialize<'de>"
+))]
 pub struct SplitterContainer<T> {
     /// This panel's node id (unique within its root's id space).
     pub id: NodeId,
@@ -23,8 +27,10 @@ pub struct SplitterContainer<T> {
     pub kind: T,
     /// This panel's own corner-drag session, while one of its four
     /// corners is being dragged.
+    #[serde(skip)]
     pub active_corner_drag: Option<CornerDragSession>,
     /// Whether this panel's dropdown menu is open.
+    #[serde(skip)]
     pub open_dropdown: bool,
     /// Whether this leaf is maximized (fills the whole root).
     pub maximized: bool,

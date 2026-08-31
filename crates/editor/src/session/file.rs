@@ -17,21 +17,36 @@ pub struct PendingOpenLink {
 }
 
 /// File lifecycle: path, dirty tracking, save/close and drop-replace flows.
-#[derive(Default)]
+///
+/// Only the durable facts (path + dirty) are persisted; every pending-flow
+/// flag is transient UI bookkeeping.
+#[derive(Default, serde::Serialize, serde::Deserialize)]
 pub struct FileState {
     pub path: Option<PathBuf>,
     pub dirty: bool,
+    #[serde(skip)]
     pub pending_save: bool,
+    #[serde(skip)]
     pub pending_save_as: bool,
+    #[serde(skip)]
     pub pending_open_link: Option<PendingOpenLink>,
+    #[serde(skip)]
     pub pending_window_edited: bool,
+    #[serde(skip)]
     pub pending_window_title_refresh: bool,
+    #[serde(skip)]
     pub show_unsaved_changes_dialog: bool,
+    #[serde(skip)]
     pub pending_close_after_save: bool,
+    #[serde(skip)]
     pub close_dialog_restore_focus: Option<EntityId>,
+    #[serde(skip)]
     pub pending_drop_replace_path: Option<PathBuf>,
+    #[serde(skip)]
     pub show_drop_replace_dialog: bool,
+    #[serde(skip)]
     pub pending_drop_replace_after_save: bool,
+    #[serde(skip)]
     pub drop_replace_restore_focus: Option<EntityId>,
 }
 

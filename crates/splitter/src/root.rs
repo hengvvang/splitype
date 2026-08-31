@@ -18,14 +18,24 @@ use crate::sessions::{
 use crate::tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
 
 /// One initialized split region: the panel tree plus tree-level state.
+///
+/// Only durable topology is serialized; drag sessions and focus bookkeeping
+/// are transient and skipped.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "T: serde::Serialize",
+    deserialize = "T: serde::Deserialize<'de>"
+))]
 pub struct SplitterRoot<T: Clone + PartialEq> {
     /// The tree of panel containers hanging on this root.
     pub tree: SplitTree<T>,
     /// Id pool shared by every node of this root's tree.
     pub next_node_id: usize,
     /// Splitter-bar drag session (resizing a split divider — tree-level).
+    #[serde(skip)]
     pub active_splitter_drag: Option<SplitterDragSession>,
     /// Border context menu state (right-click on a divider — tree-level).
+    #[serde(skip)]
     pub active_border_menu: Option<BorderMenuState>,
     /// The most recently activated leaf; hosts route global actions to
     /// this leaf.
@@ -35,6 +45,7 @@ pub struct SplitterRoot<T: Clone + PartialEq> {
     /// picking an arbitrary neighbor.
     pub activation_history: Vec<NodeId>,
     /// The leaf the mouse is currently operating on.
+    #[serde(skip)]
     pub focused_leaf: Option<NodeId>,
 }
 

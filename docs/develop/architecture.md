@@ -268,6 +268,14 @@ transitional hardcoding listed below is removed.
   explorer type outside the composition root. The explorer's
   `UpdateOpenTabPaths` action moved to `window::actions` so panels emit
   shell vocabulary instead of the shell consuming plugin vocabulary.
+- Window state is persisted through the `restore_window_state` setting:
+  the shell snapshots the layout topology (a serde projection of the split
+  tree with transient interaction sessions skipped) plus per-panel plugin
+  state on close, writing a versioned `window_state.json`. Panels opt into
+  state persistence via `PanelDescriptor::serialize_state`/
+  `deserialize_state`; the editor persists its full session (tabs, text,
+  dirty flags, pane layout kinds), while non-opting panels restore fresh.
+  Startup restores the snapshot when enabled and the schema version matches.
 - Document routing is a panel role, not an editor privilege:
   `PanelCapabilities { documents, sidebar }` is declared by descriptors and
   views, and panels that declare `documents` implement the `DocumentPanel`
@@ -299,8 +307,9 @@ transitional hardcoding listed below is removed.
    model, resource namespace (`plugin://`), unregister/shutdown protocol, or
    missing-plugin placeholder. Third-party icons cannot resolve through the
    embedded asset catalog yet.
-3. Window topology and per-panel state are not persisted despite the
-   `restore_window_state` setting.
+3. Explorer and Settings panels do not opt into state persistence yet (they
+   restore fresh); per-pane view state (cursor, scroll, selections) is also
+   not persisted.
 4. Preview selection/navigation and common autoscroll have incomplete wiring.
 5. Editor still owns Markdown-specific command templates and incomplete export
    rendering; these belong to registered contributions. Panel topbar chrome is
