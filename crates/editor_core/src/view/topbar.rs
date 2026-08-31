@@ -207,23 +207,23 @@ impl Editor {
                         .px(px(6.0))
                         .bg(tab_bg)
                         .text_size(px(11.0))
-                        .child(
-                            title_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                let is_double = event.click_count > 1;
-                                let _ = tab_editor.update(cx, |ed, cx| {
-                                    ed.defer_host_action(cx, move |host, cx| {
-                                        host.activate_panel(panel_id, cx);
-                                    });
-                                    if is_double {
-                                        if let Some(tab) = ed.session.tab_mut(index) {
-                                            tab.persist();
-                                        }
-                                    }
-                                    ed.activate_tab(index, cx);
-                                    cx.notify();
+                        .cursor_pointer()
+                        .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                            let is_double = event.click_count > 1;
+                            let _ = tab_editor.update(cx, |ed, cx| {
+                                ed.defer_host_action(cx, move |host, cx| {
+                                    host.activate_panel(panel_id, cx);
                                 });
-                            }),
-                        )
+                                if is_double {
+                                    if let Some(tab) = ed.session.tab_mut(index) {
+                                        tab.persist();
+                                    }
+                                }
+                                ed.activate_tab(index, cx);
+                                cx.notify();
+                            });
+                        })
+                        .child(title_div)
                         .child(
                             div()
                                 .size(px(12.0))
@@ -240,6 +240,7 @@ impl Editor {
                                         .text_color(c.dialog_muted),
                                 )
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                                    cx.stop_propagation();
                                     let _ = close_editor.update(cx, |ed, cx| {
                                         ed.request_close_tab(index, cx);
                                         cx.notify();

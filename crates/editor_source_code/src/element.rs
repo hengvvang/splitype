@@ -1,87 +1,42 @@
 //! High-performance virtualized GPUI Element for the Source Code pane.
 //! Implements Zed-style sub-pixel text shaping, viewport virtualization,
-//! Tree-sitter syntax highlighting, and exact character-level hit-testing.
+//! Tree-sitter syntax highlighting, indent guides, and multi-cursor rendering.
 
-use std::ops::Range;
 use std::sync::Arc;
 
 use gpui::*;
-
 use editor_model::{PaneHost, PaneId};
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
-use crate::highlight::{CodeHighlightSpan, build_line_text_runs};
+use crate::state::SourceCodeState;
+use crate::syntax::highlight::build_line_text_runs;
+use crate::syntax::indent_guides::compute_indent_guide_columns;
 
-/// Read-only view of a Source pane's state, as the renderer needs it.
-///
-/// The coordinating crate implements this on its entity; the element
-/// consumes the owned snapshot so no type crosses the crate boundary.
-pub trait SourceStateView: Send + Sync + 'static {
-    /// Returns the number of lines in the buffer without deep cloning.
-    fn total_lines(&self, pane_id: PaneId, cx: &App) -> Option<usize> {
-        self.snapshot(pane_id, cx).map(|s| s.line_ranges.len().max(1))
-    }
-
-    /// Snapshot of the state fields needed to lay out and paint.
-    fn snapshot(&self, pane_id: PaneId, cx: &App) -> Option<SourceViewSnapshot>;
+/// High-performance virtualized rendering element for SourceCodeState.
+pub struct EditorElement {
+    state: SourceCodeState,
+    pane_id: PaneId,
+    is_focused: bool,
+    _scroll: ScrollHandle,
+    _host: Arc<dyn PaneHost>,
 }
 
-/// Owned snapshot of the Source pane state handed to the renderer.
-#[derive(Clone, Default)]
-pub struct SourceViewSnapshot {
-    pub text: String,
-    pub line_ranges: Vec<Range<usize>>,
-    pub cursor: usize,
-    pub selection: Option<Range<usize>>,
-    pub highlight_spans: Vec<CodeHighlightSpan>,
-    pub focus_handle: Option<FocusHandle>,
-}
-
-/// Standalone `SourceStateView` wrapper around a `SourceViewSnapshot`.
-pub struct SnapshotSourceStateView(pub SourceViewSnapshot);
-
-impl SourceStateView for SnapshotSourceStateView {
-    fn total_lines(&self, _pane_id: PaneId, _cx: &App) -> Option<usize> {
-        Some(self.0.line_ranges.len().max(1))
-    }
-
-    fn snapshot(&self, _pane_id: PaneId, _cx: &App) -> Option<SourceViewSnapshot> {
-        Some(self.0.clone())
-    }
-}
-
-/// IME input plumbing. GPUI requires the platform input handler to bind to
-/// a concrete entity, so the coordinating crate implements this by
-/// re-entering its entity; the element only forwards bounds.
-pub trait SourceIme: Send + Sync + 'static {
-    /// Register the platform input handler for the pane at `bounds`.
-    fn handle_input(
-        &self,
+impl EditorElement {
+    pub fn new(
+        state: SourceCodeState,
         pane_id: PaneId,
-        bounds: Bounds<Pixels>,
-        window: &mut Window,
-        cx: &mut App,
-    );
-}
-
-/// No-op IME provider.
-pub struct NullSourceIme;
-
-impl SourceIme for NullSourceIme {
-    fn handle_input(
-        &self,
-        _pane_id: PaneId,
-        _bounds: Bounds<Pixels>,
-        _window: &mut Window,
-        _cx: &mut App,
-    ) {}
-}
-
-pub struct SourceCodeViewElement {
-    pub view: Arc<dyn SourceStateView>,
-    pub ime: Arc<dyn SourceIme>,
-    pub host: Arc<dyn PaneHost>,
-    pub pane_id: PaneId,
+        is_focused: bool,
+        scroll: ScrollHandle,
+        host: Arc<dyn PaneHost>,
+    ) -> Self {
+        Self {
+            state,
+            pane_id,
+            is_focused,
+            _scroll: scroll,
+            _host: host,
+        }
+    }
 }
 
 pub struct SourceCodePrepaintState {
@@ -89,15 +44,17 @@ pub struct SourceCodePrepaintState {
     pub(crate) gutter_width: f32,
     pub(crate) editor_padding: f32,
     pub(crate) shaped_lines: Vec<(usize, ShapedLine)>,
-    pub(crate) cursor_quad: Option<PaintQuad>,
+    pub(crate) cursor_quads: Vec<PaintQuad>,
     pub(crate) selection_quads: Vec<PaintQuad>,
     pub(crate) active_line_quad: Option<PaintQuad>,
-    pub(crate) gutter_numbers: Vec<(usize, ShapedLine, bool)>, // (row, shaped_number, is_active)
+    pub(crate) search_match_quads: Vec<PaintQuad>,
+    pub(crate) bracket_match_quads: Vec<PaintQuad>,
+    pub(crate) indent_guide_quads: Vec<PaintQuad>,
+    pub(crate) gutter_numbers: Vec<(usize, ShapedLine, bool)>,
     pub(crate) hitbox: Option<Hitbox>,
-    pub(crate) focus_handle: Option<FocusHandle>,
 }
 
-impl IntoElement for SourceCodeViewElement {
+impl IntoElement for EditorElement {
     type Element = Self;
 
     fn into_element(self) -> Self {
@@ -105,13 +62,13 @@ impl IntoElement for SourceCodeViewElement {
     }
 }
 
-impl Element for SourceCodeViewElement {
+impl Element for EditorElement {
     type RequestLayoutState = ();
     type PrepaintState = SourceCodePrepaintState;
 
     fn id(&self) -> Option<ElementId> {
         Some(ElementId::Name(
-            format!("source-code-view-{}", self.pane_id.0).into(),
+            format!("source-code-editor-{}", self.pane_id.0).into(),
         ))
     }
 
@@ -131,12 +88,8 @@ impl Element for SourceCodeViewElement {
         let line_height = (font_size * theme.typography.text_line_height).round();
         let editor_padding = theme.dimensions.editor_padding;
 
-        let total_lines = self
-            .view
-            .total_lines(self.pane_id, cx)
-            .unwrap_or(1);
-
-        let content_height = (total_lines as f32) * line_height + editor_padding * 2.0;
+        let visible_lines = self.state.fold_map.visible_line_count(self.state.line_count() as u32);
+        let content_height = (visible_lines as f32) * line_height + editor_padding * 2.0;
 
         let mut style = Style::default();
         style.size.width = relative(1.0).into();
@@ -159,80 +112,63 @@ impl Element for SourceCodeViewElement {
         let font_size = theme.typography.code_size.max(12.0);
         let line_height = (font_size * theme.typography.text_line_height).round();
         let editor_padding = theme.dimensions.editor_padding;
+        if let Ok(mut lb) = self.state.last_bounds.lock() {
+            *lb = Some(bounds);
+        }
         let font = TypographyStore::default_font(TypographyScope::Code);
 
-        let (text, line_ranges, cursor, selection, spans, is_focused, focus_handle) = match self
-            .view
-            .snapshot(self.pane_id, cx)
-        {
-            Some(snap) => {
-                let is_focused = snap
-                    .focus_handle
-                    .as_ref()
-                    .map_or(false, |h| h.is_focused(window));
-                (
-                    snap.text,
-                    snap.line_ranges,
-                    snap.cursor,
-                    snap.selection,
-                    snap.highlight_spans,
-                    is_focused,
-                    snap.focus_handle,
-                )
-            }
-            None => (String::new(), vec![0..0], 0, None, Vec::new(), false, None),
-        };
+        let focus_handle = self.state.focus_handle.lock().unwrap().clone();
+        let is_focused = self.is_focused || focus_handle.as_ref().map_or(false, |h| h.is_focused(window));
 
-        let total_lines = if line_ranges.is_empty() { 1 } else { line_ranges.len() };
-        let line_digits = total_lines.to_string().len();
-        let gutter_width = (line_digits as f32 * (font_size * 0.6) + 24.0).max(36.0);
+        let gutter_layout = self.state.gutter_layout(font_size);
+        let gutter_width = gutter_layout.width();
 
-        // Virtualized viewport calculation: calculate which rows are visible
         let visible_bounds = window.content_mask().bounds;
         let scroll_y = f32::from(bounds.top() - visible_bounds.top());
         let viewport_height = f32::from(visible_bounds.size.height.max(bounds.size.height));
 
-        let start_row_f = ((-scroll_y - editor_padding) / line_height).floor();
-        let start_row = (start_row_f.max(0.0) as usize).min(total_lines.saturating_sub(1));
-        let visible_count = ((viewport_height / line_height).ceil() as usize) + 6;
-        let end_row = (start_row + visible_count).min(total_lines);
+        let total_buffer_rows = self.state.line_count() as u32;
+        let total_visible_lines = self.state.fold_map.visible_line_count(total_buffer_rows);
 
-        let (cursor_line, cursor_col) = {
-            let clamped = cursor.min(text.len());
-            let mut line = 0;
-            let mut col = 0;
-            for (idx, r) in line_ranges.iter().enumerate() {
-                if clamped >= r.start && clamped <= r.end {
-                    line = idx;
-                    col = clamped - r.start;
-                    break;
-                }
-            }
-            (line, col)
-        };
+        let start_visible_row_f = ((-scroll_y - editor_padding) / line_height).floor();
+        let start_visible_row = (start_visible_row_f.max(0.0) as u32).min(total_visible_lines.saturating_sub(1));
+        let visible_count = ((viewport_height / line_height).ceil() as u32) + 8;
+        let end_visible_row = (start_visible_row + visible_count).min(total_visible_lines);
 
-        let mut shaped_lines = Vec::with_capacity(end_row - start_row);
-        let mut gutter_numbers = Vec::with_capacity(end_row - start_row);
+        let cursor_offset = self.state.cursor();
+        let (primary_cursor_line, _primary_cursor_col) = self.state.line_and_column(cursor_offset);
+        let matching_bracket_offset = self.state.matching_bracket();
+
+        let mut shaped_lines = Vec::with_capacity((end_visible_row - start_visible_row) as usize);
+        let mut gutter_numbers = Vec::with_capacity((end_visible_row - start_visible_row) as usize);
         let mut selection_quads = Vec::new();
-        let mut cursor_quad = None;
+        let mut cursor_quads = Vec::new();
         let mut active_line_quad = None;
+        let mut search_match_quads = Vec::new();
+        let mut bracket_match_quads = Vec::new();
+        let mut indent_guide_quads = Vec::new();
 
         let text_origin_x = bounds.left() + px(gutter_width + 12.0);
+        let char_width = font_size * 0.6;
 
-        for row in start_row..end_row {
-            let row_range = if row < line_ranges.len() {
-                line_ranges[row].clone()
-            } else {
-                text.len()..text.len()
-            };
-            let line_start = row_range.start.min(text.len());
-            let line_end = row_range.end.min(text.len());
-            let line_str = &text[line_start..line_end];
+        let spans = self
+            .state
+            .highlight_cache
+            .as_ref()
+            .map(|c| c.spans.as_slice())
+            .unwrap_or(&[]);
+
+        for visible_row in start_visible_row..end_visible_row {
+            let buffer_row = self.state.fold_map.visible_row_to_buffer_row(visible_row, total_buffer_rows) as usize;
+            let row_range = self.state.line_range(buffer_row);
+            let line_start = row_range.start.min(self.state.text.len());
+            let line_end = row_range.end.min(self.state.text.len());
+            let line_str = &self.state.text[line_start..line_end];
 
             let runs = build_line_text_runs(
                 line_str,
                 row_range.clone(),
-                &spans,
+                spans,
                 font.clone(),
                 &theme.colors,
             );
@@ -244,27 +180,40 @@ impl Element for SourceCodeViewElement {
                 None,
             );
 
-            let line_y = bounds.top() + px(editor_padding + (row as f32) * line_height);
+            let line_y = bounds.top() + px(editor_padding + (visible_row as f32) * line_height);
 
-            // Active line background
-            if is_focused && row == cursor_line {
+            // 1. Active line highlight (subtle background bar like Zed)
+            if is_focused && buffer_row == primary_cursor_line {
                 active_line_quad = Some(fill(
                     Bounds::new(
                         point(bounds.left() + px(gutter_width), line_y),
                         size(bounds.size.width - px(gutter_width), px(line_height)),
                     ),
-                    theme.colors.source_mode_block_bg,
+                    theme.colors.selection.opacity(0.12),
                 ));
             }
 
-            // Selection quads on this line
-            if let Some(ref sel) = selection {
-                if sel.start < sel.end && sel.start <= row_range.end && sel.end >= row_range.start {
-                    let sel_start_in_line = sel.start.saturating_sub(row_range.start).min(line_str.len());
-                    let sel_end_in_line = sel.end.saturating_sub(row_range.start).min(line_str.len());
+            // 2. Indent guides (clean vertical alignment lines)
+            let indent_cols = compute_indent_guide_columns(line_str, self.state.tab_map.tab_size);
+            for col in indent_cols {
+                let guide_x = text_origin_x + px(col as f32 * char_width);
+                indent_guide_quads.push(fill(
+                    Bounds::new(
+                        point(guide_x, line_y),
+                        size(px(1.0), px(line_height)),
+                    ),
+                    theme.colors.dialog_border.opacity(0.25),
+                ));
+            }
+
+            // 3. Selection quads across all selections
+            for sel in self.state.selections.all() {
+                if !sel.is_empty() && sel.start() <= row_range.end && sel.end() >= row_range.start {
+                    let sel_start_in_line = sel.start().saturating_sub(row_range.start).min(line_str.len());
+                    let sel_end_in_line = sel.end().saturating_sub(row_range.start).min(line_str.len());
 
                     let x_start = shaped_line.x_for_index(sel_start_in_line);
-                    let x_end = if sel_end_in_line == line_str.len() && sel.end > row_range.end {
+                    let x_end = if sel_end_in_line == line_str.len() && sel.end() > row_range.end {
                         shaped_line.x_for_index(sel_end_in_line) + px(font_size * 0.5)
                     } else {
                         shaped_line.x_for_index(sel_end_in_line)
@@ -282,23 +231,70 @@ impl Element for SourceCodeViewElement {
                 }
             }
 
-            // Cursor quad
-            if is_focused && row == cursor_line && selection.is_none() {
-                let cursor_x = shaped_line.x_for_index(cursor_col.min(line_str.len()));
-                cursor_quad = Some(fill(
-                    Bounds::new(
-                        point(text_origin_x + cursor_x, line_y),
-                        size(px(theme.dimensions.cursor_width.max(2.0)), px(line_height)),
-                    ),
-                    theme.colors.cursor,
-                ));
+            // 4. Search match highlights on this line
+            for (m_range, is_active) in &self.state.search_matches {
+                if m_range.start <= row_range.end && m_range.end >= row_range.start {
+                    let m_start_in_line = m_range.start.saturating_sub(row_range.start).min(line_str.len());
+                    let m_end_in_line = m_range.end.saturating_sub(row_range.start).min(line_str.len());
+
+                    let x_start = shaped_line.x_for_index(m_start_in_line);
+                    let x_end = shaped_line.x_for_index(m_end_in_line);
+
+                    if x_end > x_start {
+                        let color = if *is_active {
+                            theme.colors.focus_accent.opacity(0.4)
+                        } else {
+                            theme.colors.selection.opacity(0.6)
+                        };
+                        search_match_quads.push(fill(
+                            Bounds::new(
+                                point(text_origin_x + x_start, line_y),
+                                size(x_end - x_start, px(line_height)),
+                            ),
+                            color,
+                        ));
+                    }
+                }
             }
 
-            shaped_lines.push((row, shaped_line));
+            // 5. Matching bracket highlight
+            if let Some(match_off) = matching_bracket_offset {
+                if match_off >= row_range.start && match_off < row_range.end {
+                    let col_in_line = match_off - row_range.start;
+                    let x_start = shaped_line.x_for_index(col_in_line);
+                    let x_end = shaped_line.x_for_index((col_in_line + 1).min(line_str.len()));
+                    bracket_match_quads.push(fill(
+                        Bounds::new(
+                            point(text_origin_x + x_start, line_y + px(line_height - 2.0)),
+                            size((x_end - x_start).max(px(char_width)), px(2.0)),
+                        ),
+                        theme.colors.focus_accent,
+                    ));
+                }
+            }
 
-            // Shape Gutter line number
-            let num_str = (row + 1).to_string();
-            let is_active_row = row == cursor_line;
+            // 6. Cursors on this line
+            if is_focused {
+                for sel in self.state.selections.all() {
+                    let (c_line, c_col) = self.state.line_and_column(sel.head);
+                    if c_line == buffer_row {
+                        let cursor_x = shaped_line.x_for_index(c_col.min(line_str.len()));
+                        cursor_quads.push(fill(
+                            Bounds::new(
+                                point(text_origin_x + cursor_x, line_y),
+                                size(px(theme.dimensions.cursor_width.max(2.0)), px(line_height)),
+                            ),
+                            theme.colors.cursor,
+                        ));
+                    }
+                }
+            }
+
+            shaped_lines.push((visible_row as usize, shaped_line));
+
+            // 7. Gutter line numbers & formatting
+            let num_str = gutter_layout.format_line_number(buffer_row as u32);
+            let is_active_row = buffer_row == primary_cursor_line;
             let num_color = if is_active_row {
                 theme.colors.text_default
             } else {
@@ -317,7 +313,7 @@ impl Element for SourceCodeViewElement {
                 &[num_run],
                 None,
             );
-            gutter_numbers.push((row, shaped_num, is_active_row));
+            gutter_numbers.push((visible_row as usize, shaped_num, is_active_row));
         }
 
         let hitbox = Some(window.insert_hitbox(bounds, HitboxBehavior::Normal));
@@ -327,12 +323,14 @@ impl Element for SourceCodeViewElement {
             gutter_width,
             editor_padding,
             shaped_lines,
-            cursor_quad,
+            cursor_quads,
             selection_quads,
             active_line_quad,
+            search_match_quads,
+            bracket_match_quads,
+            indent_guide_quads,
             gutter_numbers,
             hitbox,
-            focus_handle,
         }
     }
 
@@ -354,40 +352,42 @@ impl Element for SourceCodeViewElement {
             }
         }
 
-        if let Some(ref focus_handle) = prepaint.focus_handle {
-            if focus_handle.is_focused(window) {
-                self.ime.handle_input(self.pane_id, bounds, window, cx);
-            }
-        }
-
-        // 1. Paint Gutter background & border
+        // 1. Paint Gutter background (seamless minimalist style matching Zed)
         let gutter_bounds = Bounds::new(
             bounds.origin,
             size(px(prepaint.gutter_width), bounds.size.height),
         );
         window.paint_quad(fill(gutter_bounds, theme.colors.editor_background));
-        window.paint_quad(fill(
-            Bounds::new(
-                point(bounds.left() + px(prepaint.gutter_width - 1.0), bounds.top()),
-                size(px(1.0), bounds.size.height),
-            ),
-            theme.colors.table_border,
-        ));
 
-        // 2. Paint active line highlight
+        // 2. Paint active line background
         if let Some(active_quad) = prepaint.active_line_quad.take() {
             window.paint_quad(active_quad);
         }
 
-        // 3. Paint selection quads
+        // 3. Paint indent guides
+        for guide in prepaint.indent_guide_quads.drain(..) {
+            window.paint_quad(guide);
+        }
+
+        // 4. Paint search match quads
+        for search_quad in prepaint.search_match_quads.drain(..) {
+            window.paint_quad(search_quad);
+        }
+
+        // 5. Paint selection quads
         for sel_quad in prepaint.selection_quads.drain(..) {
             window.paint_quad(sel_quad);
         }
 
-        // 4. Paint Gutter line numbers
-        for (row, shaped_num, _) in prepaint.gutter_numbers.drain(..) {
-            let line_y = bounds.top() + px(prepaint.editor_padding + (row as f32) * prepaint.line_height);
-            let num_x = bounds.left() + px(prepaint.gutter_width - 8.0) - shaped_num.width;
+        // 6. Paint bracket matching underlines
+        for b_quad in prepaint.bracket_match_quads.drain(..) {
+            window.paint_quad(b_quad);
+        }
+
+        // 7. Paint Gutter line numbers (right-aligned with 10px padding)
+        for (visible_row, shaped_num, _) in prepaint.gutter_numbers.drain(..) {
+            let line_y = bounds.top() + px(prepaint.editor_padding + (visible_row as f32) * prepaint.line_height);
+            let num_x = bounds.left() + px(prepaint.gutter_width - 10.0) - shaped_num.width;
             shaped_num
                 .paint(
                     point(num_x, line_y),
@@ -400,10 +400,10 @@ impl Element for SourceCodeViewElement {
                 .ok();
         }
 
-        // 5. Paint shaped text lines
+        // 8. Paint shaped syntax text lines
         let text_origin_x = bounds.left() + px(prepaint.gutter_width + 12.0);
-        for (row, shaped_line) in prepaint.shaped_lines.drain(..) {
-            let line_y = bounds.top() + px(prepaint.editor_padding + (row as f32) * prepaint.line_height);
+        for (visible_row, shaped_line) in prepaint.shaped_lines.drain(..) {
+            let line_y = bounds.top() + px(prepaint.editor_padding + (visible_row as f32) * prepaint.line_height);
             shaped_line
                 .paint(
                     point(text_origin_x, line_y),
@@ -416,9 +416,9 @@ impl Element for SourceCodeViewElement {
                 .ok();
         }
 
-        // 6. Paint cursor caret
-        if let Some(cursor_quad) = prepaint.cursor_quad.take() {
-            window.paint_quad(cursor_quad);
+        // 9. Paint all cursor carets
+        for c_quad in prepaint.cursor_quads.drain(..) {
+            window.paint_quad(c_quad);
         }
     }
 }

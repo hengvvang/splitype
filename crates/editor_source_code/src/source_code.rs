@@ -1,25 +1,31 @@
-//! editor_source_code — core mode 2: the raw Markdown source editor.
+//! editor_source_code — high-performance, modular source code editor plugin.
 //!
-//! Owns the source-code pane state (text buffer, cursor, selection, drag,
-//! search-match ranges, highlight cache), the pure text-run builder for
-//! syntax highlighting, the virtualized rendering element, and the input
-//! handling. The element reads state through the [`SourceStateView`]
-//! snapshot interface and forwards IME registration through [`SourceIme`];
-//! coordination-layer actions go through `editor_model::PaneHost`. The pane
-//! state shares nothing with the WYSIWYG world — no markdown, no tree, no
-//! highlight service (D14-B: each core self-hosts its own copies).
+//! Inspired by Zed's architecture with autonomous text buffers, layered
+//! display maps (Tab/Fold/Wrap), multi-cursor selection collection,
+//! syntax highlighting, indent guides, and virtualized viewport rendering.
 
-mod element;
-mod highlight;
-mod input;
-mod state;
+pub mod buffer;
+pub mod display_map;
+pub mod element;
+pub mod gutter;
+pub mod input;
 pub mod outline;
 pub mod search;
+pub mod selection;
+pub mod state;
+pub mod syntax;
 
-pub use element::{SourceCodeViewElement, SourceIme, SourceStateView, SourceViewSnapshot};
-pub use highlight::{build_line_text_runs, prewarm_code_highlight_registry};
-pub use input::{handle_key_down, handle_mouse_down, handle_mouse_move, handle_mouse_up};
+pub use buffer::{Anchor, Bias, BufferPoint, LineMap};
+pub use display_map::{DisplayPoint, DisplaySnapshot, FoldMap, FoldRange, TabMap, WrapMap};
+pub use element::{EditorElement, SourceCodePrepaintState};
+pub use gutter::GutterLayout;
+pub use input::{handle_key_down, handle_mouse_down, handle_mouse_move, handle_mouse_up, hit_test};
+pub use selection::{Selection, SelectionsCollection};
 pub use state::SourceCodeState;
+pub use syntax::{
+    CodeHighlightResult, CodeHighlightSpan, CodeLanguageKey, find_matching_bracket,
+    highlight_code_block, prewarm_code_highlight_registry,
+};
 
 #[cfg(test)]
 mod tests;

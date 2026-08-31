@@ -4,6 +4,11 @@ use editor_outline::OutlineNode;
 use crate::SourceCodeState;
 
 /// Extracts all heading nodes from the raw Markdown source text.
+pub fn extract_source_headings(markdown: &str) -> Vec<OutlineNode> {
+    extract_outline_headings(markdown)
+}
+
+/// Extracts all heading nodes from the raw Markdown source text.
 pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
     let mut list = Vec::new();
     let lines: Vec<&str> = markdown.lines().collect();
@@ -80,8 +85,7 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
 /// Navigates the source code buffer to the line specified in the outline node.
 pub fn navigate_to_node(state: &mut SourceCodeState, node: &OutlineNode) {
     let line_start = state.line_start_offset(node.block_index);
-    state.cursor = line_start;
-    state.selection = None;
+    state.selections.set_single_point(line_start);
 }
 
 fn parse_atx_heading_line(line: &str) -> Option<(u8, &str)> {

@@ -364,13 +364,9 @@ impl WysiwygDocumentController {
             return;
         }
         if self.text_stale {
-            if let Some(doc) = &self.document {
-                if doc.serialize_markdown(cx) == text {
-                    self.synced_revision = Some(revision);
-                    self.text_stale = false;
-                    return;
-                }
-            }
+            self.synced_revision = Some(revision);
+            self.text_stale = false;
+            return;
         }
         self.rebuild_from_markdown(text, revision, cx);
     }

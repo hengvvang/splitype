@@ -1,19 +1,11 @@
-//! Source Code pane input handling — pure state transitions.
-//!
-//! These functions operate only on [`SourceCodeState`]; coordination-layer
-//! actions (document sync, undo/redo, notify) go through
-//! [`editor_model::PaneHost`], which the coordinating crate implements. The app
-//! routes events here and forwards the pane's state.
+//! Rich keyboard input handling for SourceCode editor.
 
 use gpui::*;
-
 use editor_model::PaneHost;
-use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::state::SourceCodeState;
 
-/// Dispatches a key-down event against the Source pane state. Returns true
-/// when the key was consumed.
+/// Handles a key-down event against the SourceCodeState. Returns true if consumed.
 pub fn handle_key_down(
     state: &mut SourceCodeState,
     pane_id: editor_model::PaneId,
@@ -84,6 +76,54 @@ pub fn handle_key_down(
                 host.notify(cx);
                 return true;
             }
+            "backspace" => {
+                state.delete_word_backward();
+                host.sync_source_edit(pane_id, cx);
+                return true;
+            }
+            "delete" => {
+                state.delete_word_forward();
+                host.sync_source_edit(pane_id, cx);
+                return true;
+            }
+            "d" | "D" => {
+                state.duplicate_line();
+                host.sync_source_edit(pane_id, cx);
+                return true;
+            }
+            "k" | "K" => {
+                if shift {
+                    state.delete_line();
+                    host.sync_source_edit(pane_id, cx);
+                    return true;
+                }
+            }
+            "[" => {
+                state.outdent();
+                host.sync_source_edit(pane_id, cx);
+                return true;
+            }
+            "]" => {
+                state.indent();
+                host.sync_source_edit(pane_id, cx);
+                return true;
+            }
+            _ => {}
+        }
+    }
+
+    if alt && ctrl {
+        match key {
+            "up" | "arrowup" => {
+                state.add_cursor_above();
+                host.notify(cx);
+                return true;
+            }
+            "down" | "arrowdown" => {
+                state.add_cursor_below();
+                host.notify(cx);
+                return true;
+            }
             _ => {}
         }
     }
@@ -100,12 +140,16 @@ pub fn handle_key_down(
             true
         }
         "enter" => {
-            state.insert_text("\n");
+            state.insert_newline_with_auto_indent();
             host.sync_source_edit(pane_id, cx);
             true
         }
         "tab" => {
-            state.insert_text("    ");
+            if shift {
+                state.outdent();
+            } else {
+                state.indent();
+            }
             host.sync_source_edit(pane_id, cx);
             true
         }
@@ -115,12 +159,12 @@ pub fn handle_key_down(
             true
         }
         "left" | "arrowleft" => {
-            state.move_left(shift);
+            state.move_left(shift, ctrl);
             host.notify(cx);
             true
         }
         "right" | "arrowright" => {
-            state.move_right(shift);
+            state.move_right(shift, ctrl);
             host.notify(cx);
             true
         }
@@ -158,6 +202,16 @@ pub fn handle_key_down(
             host.notify(cx);
             true
         }
+        "escape" => {
+            if state.selections.count() > 1 {
+                let head = state.selections.primary().head;
+                state.selections.set_single_point(head);
+                host.notify(cx);
+                true
+            } else {
+                false
+            }
+        }
         _ => {
             if !ctrl && !alt && !key.is_empty() {
                 let mut chars = key.chars();
@@ -176,96 +230,4 @@ pub fn handle_key_down(
             false
         }
     }
-}
-
-/// Maps a pointer position inside the pane bounds to (line, byte-column).
-fn hit_test(
-    state: &SourceCodeState,
-    position: Point<Pixels>,
-    window: &Window,
-    cx: &App,
-) -> (usize, usize) {
-    let theme = cx.global::<ThemeManager>().current_arc();
-    let font_size = theme.typography.code_size.max(12.0);
-    let line_height = (font_size * theme.typography.text_line_height).round();
-    let padding = theme.dimensions.editor_padding;
-    let font = TypographyStore::default_font(TypographyScope::Code);
-
-    let last_bounds = state.last_bounds;
-    let total_lines = state.line_count();
-
-    let line_digits = total_lines.to_string().len();
-    let gutter_width = (line_digits as f32 * (font_size * 0.6) + 24.0).max(36.0);
-
-    let bounds_origin = last_bounds.map(|b| b.origin).unwrap_or(point(px(0.0), px(0.0)));
-    let rel_y = f32::from(position.y - bounds_origin.y) - padding;
-    let line_idx = (rel_y / line_height).floor().max(0.0) as usize;
-    let line_idx = line_idx.min(total_lines.saturating_sub(1));
-
-    let line_str = state.line_str(line_idx);
-    let rel_x = f32::from(position.x - bounds_origin.x) - gutter_width - 12.0;
-
-    let col = if rel_x <= 0.0 || line_str.is_empty() {
-        0
-    } else {
-        let shaped = window.text_system().shape_line(
-            SharedString::new(line_str),
-            px(font_size),
-            &[TextRun {
-                len: line_str.len(),
-                font,
-                color: theme.colors.text_default,
-                ..Default::default()
-            }],
-            None,
-        );
-        shaped.index_for_x(px(rel_x)).unwrap_or(line_str.len())
-    };
-
-    (line_idx, col)
-}
-
-/// Mouse-down on the Source pane: position the caret, start a drag
-/// session, or select line/word on multi-clicks.
-pub fn handle_mouse_down(
-    state: &mut SourceCodeState,
-    event: &MouseDownEvent,
-    window: &Window,
-    cx: &App,
-) {
-    let shift = event.modifiers.shift;
-    let click_count = event.click_count;
-
-    let (line_idx, col) = hit_test(state, event.position, window, cx);
-    let offset = state.offset_at_line_col(line_idx, col);
-
-    if click_count >= 3 {
-        state.select_line_at(line_idx);
-    } else if click_count == 2 {
-        state.select_word_at(offset);
-    } else if shift {
-        state.move_to(offset, true);
-    } else {
-        state.start_drag(offset);
-    }
-}
-
-/// Mouse-move while dragging on the Source pane: extend the selection.
-pub fn handle_mouse_move(
-    state: &mut SourceCodeState,
-    event: &MouseMoveEvent,
-    window: &Window,
-    cx: &App,
-) {
-    if !state.is_dragging {
-        return;
-    }
-    let (line_idx, col) = hit_test(state, event.position, window, cx);
-    let offset = state.offset_at_line_col(line_idx, col);
-    state.update_drag(offset);
-}
-
-/// Mouse-up ends the drag session.
-pub fn handle_mouse_up(state: &mut SourceCodeState) {
-    state.end_drag();
 }
