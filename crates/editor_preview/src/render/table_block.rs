@@ -4,7 +4,7 @@
 
 use gpui::*;
 
-use editor_wysiwyg::render::presentation::measure_table_column_layout;
+use splitype_markdown::table::measure_table_column_layout;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use crate::render::preview_centered_column_width;
@@ -90,7 +90,7 @@ pub(crate) fn render_preview_table(
 
 /// Renders one table cell with the header/body background styles.
 fn render_preview_table_cell(
-    cell: &editor_wysiwyg::markdown::inline::text::BlockText,
+    cell: &splitype_markdown::inline::text::BlockText,
     is_header: bool,
     fraction: f32,
     theme: &Theme,
@@ -132,3 +132,4 @@ fn render_preview_table_cell(
         ))
         .into_any_element()
 }
+

@@ -2,7 +2,7 @@ use gpui::*;
 
 use crate::render::inline;
 use crate::node::PreviewBlock;
-use editor_wysiwyg::render::presentation::{numbered_list_marker, render_custom_bullet_marker};
+use splitype_syntax::render_helpers::{numbered_list_marker, render_custom_bullet_marker};
 use theme::Theme;
 
 use std::ops::Range;
@@ -159,3 +159,4 @@ pub(crate) fn render_preview_numbered_list_item(
         ])
         .into_any_element()
 }
+

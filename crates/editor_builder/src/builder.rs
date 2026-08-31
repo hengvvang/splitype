@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use gpui::{App, AppContext, Entity, SharedString};
+use gpui::{App, AppContext, Entity};
 use editor_core::{Editor, EditorSession};
-use editor_model::{PaneDescriptor, PaneKindId, PaneRegistry, PaneView};
+use editor_model::{PaneDescriptor, PaneRegistry};
 use workspace::PanelId;
 
 /// Fluent builder for assembling and instantiating Editor entities.
@@ -77,49 +77,10 @@ impl EditorBuilder {
 
     /// Registers built-in pane descriptors statically.
     pub fn register_defaults() {
-        struct WysiwygDescriptor;
-        impl PaneDescriptor for WysiwygDescriptor {
-            fn kind(&self) -> PaneKindId {
-                PaneKindId::WYSIWYG
-            }
-            fn display_name(&self) -> SharedString {
-                "WYSIWYG".into()
-            }
-            fn create_pane(&self) -> Box<dyn PaneView> {
-                Box::new(editor_wysiwyg::WysiwygPaneState::default())
-            }
-        }
-
-        struct SourceCodeDescriptor;
-        impl PaneDescriptor for SourceCodeDescriptor {
-            fn kind(&self) -> PaneKindId {
-                PaneKindId::SOURCE_CODE
-            }
-            fn display_name(&self) -> SharedString {
-                "Source Code".into()
-            }
-            fn create_pane(&self) -> Box<dyn PaneView> {
-                Box::new(editor_source_code::SourceCodeState::default())
-            }
-        }
-
-        struct PreviewDescriptor;
-        impl PaneDescriptor for PreviewDescriptor {
-            fn kind(&self) -> PaneKindId {
-                PaneKindId::PREVIEW
-            }
-            fn display_name(&self) -> SharedString {
-                "Preview".into()
-            }
-            fn create_pane(&self) -> Box<dyn PaneView> {
-                Box::new(editor_preview::PreviewState::default())
-            }
-        }
-
         let mut registry = PaneRegistry::global().lock().unwrap();
-        registry.register(Arc::new(WysiwygDescriptor));
-        registry.register(Arc::new(SourceCodeDescriptor));
-        registry.register(Arc::new(PreviewDescriptor));
+        registry.register(Arc::new(editor_wysiwyg::WysiwygDescriptor::new()));
+        registry.register(Arc::new(editor_source_code::SourceCodeDescriptor::new()));
+        registry.register(Arc::new(editor_preview::PreviewDescriptor::new()));
     }
 
     /// Builds and creates the Editor entity within GPUI.

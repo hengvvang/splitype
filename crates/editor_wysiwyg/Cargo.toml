@@ -36,6 +36,8 @@ theme = { path = "../theme" }
 editor_model = { path = "../editor_model" }
 editor_outline = { path = "../editor_outline" }
 editor_search = { path = "../editor_search" }
+splitype_markdown = { path = "../splitype_markdown" }
+splitype_syntax = { path = "../splitype_syntax" }
 workspace = { path = "../workspace" }
 config = { path = "../config" }
 ui = { path = "../ui" }

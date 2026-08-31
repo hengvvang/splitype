@@ -6,7 +6,7 @@ use gpui::*;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use theme::Theme;
-use editor_wysiwyg::markdown::block::CalloutKind;
+use splitype_markdown::block::CalloutKind;
 
 use std::ops::Range;
 
@@ -52,3 +52,4 @@ pub(crate) fn render_preview_callout(
 
     base.w_full().child(header_text).into_any_element()
 }
+

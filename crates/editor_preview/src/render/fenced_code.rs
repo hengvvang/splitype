@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use editor_wysiwyg::highlight::{
+use splitype_syntax::highlight::{
     code_highlight_color, highlight_code_block,
 };
 use crate::node::PreviewBlock;
@@ -92,7 +92,7 @@ pub(crate) fn render_preview_fenced_code(block: &PreviewBlock, base: Div, theme:
 /// Renders each source line with per-span highlight colors.
 fn render_highlighted_lines(
     source: &str,
-    result: &editor_wysiwyg::highlight::CodeHighlightResult,
+    result: &splitype_syntax::highlight::CodeHighlightResult,
     default_color: Hsla,
     theme: &Theme,
 ) -> AnyElement {
@@ -157,3 +157,4 @@ fn render_highlighted_lines(
 
     div().flex().flex_col().children(lines).into_any_element()
 }
+

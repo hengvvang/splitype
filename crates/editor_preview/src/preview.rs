@@ -11,6 +11,7 @@
 //! the tree, routes focus and hands over the scroll shell through
 //! [`editor_model::PaneRenderContext`].
 
+pub mod builder;
 pub mod node;
 pub mod render;
 pub mod outline;
@@ -19,6 +20,8 @@ mod context;
 mod input;
 mod selection;
 mod state;
+
+pub use builder::*;
 
 pub use context::{build_preview_footnote_registry, sync_preview_block_context};
 pub use input::{handle_mouse_down, handle_mouse_move, handle_mouse_up, selected_text};

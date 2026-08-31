@@ -1797,8 +1797,9 @@ dependencies = [
  "editor_model",
  "editor_outline",
  "editor_search",
- "editor_wysiwyg",
  "gpui",
+ "splitype_markdown",
+ "splitype_syntax",
  "theme",
  "uuid",
 ]
@@ -1817,32 +1818,12 @@ dependencies = [
 name = "editor_source_code"
 version = "0.0.1"
 dependencies = [
- "adot-tree-sitter-toml",
  "editor_model",
  "editor_outline",
  "editor_search",
  "gpui",
- "lazy_static",
+ "splitype_syntax",
  "theme",
- "tree-sitter",
- "tree-sitter-bash",
- "tree-sitter-c",
- "tree-sitter-c-sharp",
- "tree-sitter-cpp",
- "tree-sitter-css",
- "tree-sitter-go",
- "tree-sitter-highlight",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-json",
- "tree-sitter-md",
- "tree-sitter-php",
- "tree-sitter-python",
- "tree-sitter-ruby",
- "tree-sitter-rust",
- "tree-sitter-typescript",
- "tree-sitter-yaml",
 ]
 
 [[package]]
@@ -1872,6 +1853,8 @@ dependencies = [
  "reqwest",
  "serde",
  "smallvec",
+ "splitype_markdown",
+ "splitype_syntax",
  "taffy 0.7.7",
  "theme",
  "thiserror 2.0.18",
@@ -6156,6 +6139,62 @@ dependencies = [
  "semver",
  "toml 1.1.2+spec-1.1.0",
  "tracing",
+]
+
+[[package]]
+name = "splitype_markdown"
+version = "0.0.1"
+dependencies = [
+ "cssparser",
+ "gpui",
+ "pulldown-cmark",
+ "regex",
+ "serde",
+ "smallvec",
+ "taffy 0.7.7",
+ "theme",
+ "thiserror 2.0.18",
+ "tree-sitter",
+ "tree-sitter-html",
+ "unicode-segmentation",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "splitype_syntax"
+version = "0.0.1"
+dependencies = [
+ "adot-tree-sitter-toml",
+ "anyhow",
+ "directories",
+ "gpui",
+ "lazy_static",
+ "mermaid-rs-renderer",
+ "ratex-layout",
+ "ratex-parser",
+ "ratex-svg",
+ "splitype_markdown",
+ "theme",
+ "tree-sitter",
+ "tree-sitter-bash",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-cpp",
+ "tree-sitter-css",
+ "tree-sitter-go",
+ "tree-sitter-highlight",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-json",
+ "tree-sitter-md",
+ "tree-sitter-php",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+ "tree-sitter-yaml",
 ]
 
 [[package]]

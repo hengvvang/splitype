@@ -5,6 +5,7 @@
 //! syntax highlighting, indent guides, and virtualized viewport rendering.
 
 pub mod buffer;
+pub mod builder;
 pub mod display_map;
 pub mod element;
 pub mod gutter;
@@ -14,6 +15,8 @@ pub mod search;
 pub mod selection;
 pub mod state;
 pub mod syntax;
+
+pub use builder::*;
 
 pub use buffer::{Anchor, Bias, BufferPoint, LineMap};
 pub use display_map::{DisplayPoint, DisplaySnapshot, FoldMap, FoldRange, TabMap, WrapMap};

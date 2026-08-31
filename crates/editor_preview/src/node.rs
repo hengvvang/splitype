@@ -7,11 +7,10 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_wysiwyg::model::block::footnotes::FootnoteMap;
-use editor_wysiwyg::model::block::state::ImageHandle;
-use editor_wysiwyg::markdown::block::image::{ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
-use editor_wysiwyg::markdown::block::link::LinkReferenceDefinitions;
-use editor_wysiwyg::markdown::parse::{BlockData, BlockId, BlockKind};
+use splitype_markdown::footnotes::FootnoteMap;
+use splitype_markdown::block::image::{ImageHandle, ImageReferenceDefinitions, ImageSyntax, resolve_image_source};
+use splitype_markdown::block::link::LinkReferenceDefinitions;
+use splitype_markdown::parse::{BlockData, BlockId, BlockKind};
 
 /// A pure-Rust lightweight snapshot block for read-only preview rendering.
 /// Holds zero `FocusHandle`, zero cursor blink tasks, and zero interactive editor state.
@@ -81,7 +80,7 @@ impl PreviewBlock {
 
     pub fn has_footnote_definition_backref(&self) -> bool {
         let plain_text = self.data.text.plain_text();
-        let (id, _) = editor_wysiwyg::markdown::block::footnote::split_footnote_definition_text(&plain_text);
+        let (id, _) = splitype_markdown::block::footnote::split_footnote_definition_text(&plain_text);
         self.footnote_registry
             .bindings
             .get(id)
@@ -104,7 +103,7 @@ impl PreviewBlock {
 
     pub fn is_standalone_image(&self) -> bool {
         let plain = self.data.text.plain_text();
-        editor_wysiwyg::markdown::block::image::parse_standalone_image(&plain).is_some()
+        splitype_markdown::block::image::parse_standalone_image(&plain).is_some()
     }
 
     pub fn index_for_mouse_position(&self, _position: Point<Pixels>) -> usize {

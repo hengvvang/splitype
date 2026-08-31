@@ -6,14 +6,14 @@
 use gpui::*;
 
 use crate::node::PreviewBlock;
-use editor_wysiwyg::render::presentation::{
+use splitype_syntax::render_helpers::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
 use theme::Theme;
-use editor_wysiwyg::markdown::block::html::{
+use splitype_markdown::block::html::{
     HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };
-use editor_wysiwyg::markdown::block::image::resolve_image_source;
+use splitype_markdown::block::image::resolve_image_source;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
@@ -367,8 +367,8 @@ fn render_preview_html_image(
         .unwrap_or(1.0);
 
     let image = match resolve_image_source(src, None) {
-        editor_wysiwyg::markdown::block::image::ImageResolvedSource::Local(path) => img(path),
-        editor_wysiwyg::markdown::block::image::ImageResolvedSource::Remote(uri) => img(uri),
+        splitype_markdown::block::image::ImageResolvedSource::Local(path) => img(path),
+        splitype_markdown::block::image::ImageResolvedSource::Remote(uri) => img(uri),
     }
     .max_w(Length::Definite(relative(zoom)))
     .max_h(px(theme.dimensions.image_root_max_height * zoom))
@@ -434,3 +434,4 @@ fn render_preview_html_details(
 
     container.into_any_element()
 }
+

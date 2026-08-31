@@ -33,7 +33,7 @@ use gpui::*;
 use editor_model::{PaneHost, PaneId, PaneRenderContext};
 use config::language::I18nStrings;
 use theme::Theme;
-use editor_wysiwyg::markdown::parse::BlockKind;
+use splitype_markdown::parse::BlockKind;
 
 use crate::node::PreviewBlock;
 use crate::state::PreviewState;
@@ -170,7 +170,7 @@ pub(crate) fn render_preview_block(
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
         BlockKind::CodeBlock { ref language } => {
-            if editor_wysiwyg::markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+            if splitype_markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
                 mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
             } else if language.as_deref().map_or(false, |l| {
                 l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
@@ -231,7 +231,7 @@ pub(crate) fn render_preview_block(
         .into_any_element();
 
     if let BlockKind::Callout(variant) = block.kind() {
-        let (accent, _) = editor_wysiwyg::render::presentation::callout_colors(variant, theme);
+        let (accent, _) = splitype_syntax::render_helpers::callout_colors(variant, theme);
         div()
             .w_full()
             .relative()
@@ -320,3 +320,4 @@ pub(crate) fn wrap_with_preview_quote_guides(
         }))
         .into_any_element()
 }
+

@@ -9,13 +9,13 @@ use std::sync::Arc;
 
 use gpui::EntityId;
 
-use editor_wysiwyg::model::block::footnotes::{
+use splitype_markdown::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-use editor_wysiwyg::markdown::block::footnote::split_footnote_definition_text;
-use editor_wysiwyg::markdown::block::image::ImageReferenceDefinitions;
-use editor_wysiwyg::markdown::block::link::LinkReferenceDefinitions;
-use editor_wysiwyg::markdown::parse::{BlockId, BlockKind};
+use splitype_markdown::block::footnote::split_footnote_definition_text;
+use splitype_markdown::block::image::ImageReferenceDefinitions;
+use splitype_markdown::block::link::LinkReferenceDefinitions;
+use splitype_markdown::parse::{BlockId, BlockKind};
 
 use crate::node::PreviewBlock;
 

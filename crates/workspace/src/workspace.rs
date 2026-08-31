@@ -16,6 +16,7 @@
 //! itself lives in `crates/app`.
 
 pub mod actions;
+pub mod builder;
 pub mod icons;
 pub mod panels;
 
@@ -23,6 +24,7 @@ pub use actions::{
     ClosePanel, Copy, Cut, DismissTransientUi, OpenInEditor, OpenInSplit, Paste, SplitPanel,
     ToggleKindDropdown, TogglePanelMaximized,
 };
+pub use builder::*;
 pub use icons::{border_menu_style, panel_topbar_icon};
 pub use panels::{
     EditorPanelMode, PanelId, WindowPanelKind, WindowLayout, default_layout,

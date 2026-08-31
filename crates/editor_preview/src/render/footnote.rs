@@ -22,7 +22,7 @@ pub(crate) fn render_preview_footnote_definition(
 
     let plain_text = block.data.text.plain_text();
     let (id, content) =
-        editor_wysiwyg::markdown::block::footnote::split_footnote_definition_text(&plain_text);
+        splitype_markdown::block::footnote::split_footnote_definition_text(&plain_text);
     let mut header = base
         .w_full()
         .flex()
@@ -112,3 +112,4 @@ pub(crate) fn render_preview_footnotes_section(
         .children(rows)
         .into_any_element()
 }
+
