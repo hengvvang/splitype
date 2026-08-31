@@ -1,3 +1,4 @@
+use crate::persist::PersistedExplorerState;
 use crate::state::state::ExplorerState;
 use crate::{
     render_explorer_body, render_explorer_bottombar, render_explorer_file_context_menu,
@@ -108,7 +109,16 @@ impl PanelView for ExplorerPanelView {
     }
 
     fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
-        Some(Box::new(self.state.read(cx).clone_for_new_window()))
+        let state = self.state.read(cx);
+        let open_folders = state
+            .worktrees
+            .iter()
+            .map(|worktree| worktree.read(cx).root().to_path_buf())
+            .collect();
+        Some(Box::new(PersistedExplorerState {
+            is_open: state.is_open,
+            open_folders,
+        }))
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -186,15 +196,27 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
-        let state = state.downcast::<ExplorerState>().ok().map(|boxed| *boxed)?;
-        let entity = cx.new(|cx| {
-            let mut restored = state;
-            restored.self_weak = cx.weak_entity();
-            restored
+        let state = state
+            .downcast::<PersistedExplorerState>()
+            .ok()
+            .map(|boxed| *boxed)?;
+        let view = ExplorerPanelView::new(panel_id, cx);
+        view.state.update(cx, |explorer, cx| {
+            explorer.is_open = state.is_open;
+            for path in state.open_folders {
+                explorer.restore_worktree(path, cx);
+            }
         });
-        Some(Box::new(ExplorerPanelView {
-            panel_id,
-            state: entity,
-        }))
+        Some(Box::new(view))
+    }
+
+    fn serialize_state(&self, state: &dyn Any) -> Option<serde_json::Value> {
+        let state = state.downcast_ref::<PersistedExplorerState>()?;
+        serde_json::to_value(state).ok()
+    }
+
+    fn deserialize_state(&self, json: &serde_json::Value) -> Option<Box<dyn Any>> {
+        let state: PersistedExplorerState = serde_json::from_value(json.clone()).ok()?;
+        Some(Box::new(state))
     }
 }

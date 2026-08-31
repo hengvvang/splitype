@@ -403,40 +403,6 @@ impl ExplorerState {
             .take(5)
             .collect();
     }
-
-    /// Deep-copy the explorer content into a fresh window's state.
-    pub fn clone_for_new_window(&self) -> Self {
-        Self {
-            is_open: self.is_open,
-            worktrees: self.worktrees.clone(),
-            snapshots: self.snapshots.clone(),
-            next_entry_id: self.next_entry_id.clone(),
-            expanded: self.expanded.clone(),
-            unfolded_dir_ids: self.unfolded_dir_ids.clone(),
-            ancestors: self.ancestors.clone(),
-            file_error: self.file_error.clone(),
-            entries: self.entries.clone(),
-            selected: self.selected,
-            marked: self.marked.clone(),
-            clipboard: self.clipboard.clone(),
-            undo_history: self.undo_history.clone(),
-            drag_target: None,
-            hover_expand_task: None,
-            hover_scroll_task: None,
-            hover_scroll_generation: 0,
-            previous_drag_position: None,
-            pending_select: self.pending_select.clone(),
-            pending_rename: None,
-            edit: None,
-            scroll_handle: UniformListScrollHandle::new(),
-            rendered_rows: 0,
-            recent_folders_cache: self.recent_folders_cache.clone(),
-            recent_files_cache: self.recent_files_cache.clone(),
-            active_file: None,
-            file_menu: None,
-            self_weak: WeakEntity::new_invalid(),
-        }
-    }
 }
 
 // ── Direct Snapshot $\rightarrow$ Visible Rows Derivation ──────────────────────

@@ -1917,6 +1917,7 @@ dependencies = [
  "notify",
  "schemars",
  "serde",
+ "serde_json",
  "splitter",
  "theme",
  "tracing",
@@ -5827,6 +5828,8 @@ version = "0.0.1"
 dependencies = [
  "config",
  "gpui",
+ "serde",
+ "serde_json",
  "splitter",
  "theme",
  "tracing",

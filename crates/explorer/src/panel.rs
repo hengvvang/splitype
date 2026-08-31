@@ -52,6 +52,22 @@ impl ExplorerState {
         window: &mut Window,
         cx: &mut App,
     ) {
+        self.add_worktree(path, Some(window.window_handle()), cx);
+    }
+
+    /// Re-adds a project root while restoring persisted state, before any
+    /// window handle is available. Scans still proceed; window re-entry
+    /// refreshes happen on the shell's regular render cycle.
+    pub(crate) fn restore_worktree(&mut self, path: PathBuf, cx: &mut App) {
+        self.add_worktree(path, None, cx);
+    }
+
+    fn add_worktree(
+        &mut self,
+        path: PathBuf,
+        window_handle: Option<AnyWindowHandle>,
+        cx: &mut App,
+    ) {
         let explorer = &mut *self;
         if explorer
             .worktrees
@@ -69,7 +85,7 @@ impl ExplorerState {
             path.clone(),
             explorer.next_entry_id.clone(),
             hide_hidden,
-            Some(window.window_handle()),
+            window_handle,
             explorer_weak,
             cx,
         );

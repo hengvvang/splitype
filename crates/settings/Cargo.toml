@@ -19,5 +19,7 @@ ui = { path = "../ui" }
 window = { path = "../window" }
 splitter = { path = "../splitter" }
 gpui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 tracing = "0.1"
 

@@ -276,6 +276,9 @@ transitional hardcoding listed below is removed.
   `deserialize_state`; the editor persists its full session (tabs, text,
   dirty flags, pane layout kinds), while non-opting panels restore fresh.
   Startup restores the snapshot when enabled and the schema version matches.
+  Explorer and Settings panels opt in too: the explorer persists its drawer
+  visibility and open folder paths (worktrees re-scan from disk on restore),
+  and settings persists its active tab.
 - Document routing is a panel role, not an editor privilege:
   `PanelCapabilities { documents, sidebar }` is declared by descriptors and
   views, and panels that declare `documents` implement the `DocumentPanel`
@@ -307,9 +310,8 @@ transitional hardcoding listed below is removed.
    model, resource namespace (`plugin://`), unregister/shutdown protocol, or
    missing-plugin placeholder. Third-party icons cannot resolve through the
    embedded asset catalog yet.
-3. Explorer and Settings panels do not opt into state persistence yet (they
-   restore fresh); per-pane view state (cursor, scroll, selections) is also
-   not persisted.
+3. Per-pane view state (cursor, scroll, selections) is not persisted, and the
+   explorer restores folder roots without their expansion state.
 4. Preview selection/navigation and common autoscroll have incomplete wiring.
 5. Editor still owns Markdown-specific command templates and incomplete export
    rendering; these belong to registered contributions. Panel topbar chrome is

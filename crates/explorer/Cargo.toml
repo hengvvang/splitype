@@ -25,6 +25,7 @@ futures = "0.3"
 notify = "8"
 tracing = "0.1"
 serde = { workspace = true }
+serde_json = { workspace = true }
 schemars = "1"
 
 [target.'cfg(windows)'.dependencies]

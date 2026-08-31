@@ -1,4 +1,4 @@
-use crate::state::SettingsUiState;
+use crate::state::{PersistedSettingsState, SettingsUiState};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
 use gpui::*;
 use std::any::Any;
@@ -29,6 +29,12 @@ impl SettingsPanelView {
 impl PanelView for SettingsPanelView {
     fn kind(&self) -> PanelKind {
         PanelKind::from_static(PANEL_KIND)
+    }
+
+    fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
+        Some(Box::new(PersistedSettingsState {
+            tab: self.state.read(cx).tab,
+        }))
     }
 
     fn display_name(&self) -> SharedString {
@@ -117,5 +123,31 @@ impl PanelDescriptor for SettingsPanelDescriptor {
         cx: &mut App,
     ) -> Box<dyn PanelView> {
         Box::new(SettingsPanelView::new(panel_id, cx))
+    }
+
+    fn restore_panel(
+        &self,
+        panel_id: PanelId,
+        _host: Arc<dyn PanelHost>,
+        state: Box<dyn Any>,
+        cx: &mut App,
+    ) -> Option<Box<dyn PanelView>> {
+        let state = state
+            .downcast::<PersistedSettingsState>()
+            .ok()
+            .map(|boxed| *boxed)?;
+        let view = SettingsPanelView::new(panel_id, cx);
+        view.state.update(cx, |ui, _cx| ui.tab = state.tab);
+        Some(Box::new(view))
+    }
+
+    fn serialize_state(&self, state: &dyn Any) -> Option<serde_json::Value> {
+        let state = state.downcast_ref::<PersistedSettingsState>()?;
+        serde_json::to_value(state).ok()
+    }
+
+    fn deserialize_state(&self, json: &serde_json::Value) -> Option<Box<dyn Any>> {
+        let state: PersistedSettingsState = serde_json::from_value(json.clone()).ok()?;
+        Some(Box::new(state))
     }
 }

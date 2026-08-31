@@ -154,5 +154,7 @@ snapshots at every window-close decision point. Panels opt into state
 serialization through `PanelDescriptor::serialize_state`/`deserialize_state`;
 non-opting panels are recreated fresh on restore. The editor persists its full
 `EditorSession` (tabs, text, dirty flags, pane layout kinds) while per-pane
-runtime entities are rebuilt from the restored text. Loaders reject snapshots
-whose schema version they do not understand.
+runtime entities are rebuilt from the restored text. The explorer persists its
+drawer visibility and open folder paths (worktrees are re-scanned from disk on
+restore), and the settings panel persists its active tab. Loaders reject
+snapshots whose schema version they do not understand.

@@ -8,8 +8,11 @@
 
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
+
 /// Expanded, categorized settings navigation tabs.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SettingsTab {
     #[default]
     Interface, // Interface, Theme & Status Bar metrics
@@ -66,6 +69,14 @@ impl Default for SettingsUiState {
     }
 }
 
+/// Durable settings panel facts persisted across launches: the active tab.
+/// Canonical configuration lives in `SettingsStore`; this only remembers
+/// which tab the user was viewing.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct PersistedSettingsState {
+    pub tab: SettingsTab,
+}
+
 impl SettingsUiState {
     /// Initialize default settings UI view state.
     pub fn new() -> Self {
@@ -110,5 +121,20 @@ impl SettingsUiState {
         let handle = cx.focus_handle();
         *slot(self) = Some(handle.clone());
         handle
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn persisted_settings_state_round_trips() {
+        let state = PersistedSettingsState {
+            tab: SettingsTab::Keymap,
+        };
+        let json = serde_json::to_value(state).expect("serialize");
+        let restored: PersistedSettingsState = serde_json::from_value(json).expect("deserialize");
+        assert_eq!(restored.tab, SettingsTab::Keymap);
     }
 }

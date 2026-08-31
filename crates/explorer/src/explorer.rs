@@ -31,6 +31,7 @@ pub mod bottombar;
 pub mod filename_editor;
 pub mod ops;
 pub mod panel;
+pub mod persist;
 pub mod plugin;
 pub mod render;
 pub mod state;
