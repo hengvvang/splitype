@@ -7,6 +7,7 @@ use gpui::*;
 use crate::node::PreviewBlock;
 use crate::render::inline;
 use crate::render::preview_centered_column_width;
+use crate::settings::PreviewSettings;
 use markdown_parser::block::table::TableColumnLayout;
 use theme::Theme;
 
@@ -15,6 +16,7 @@ use theme::Theme;
 pub(crate) fn render_preview_table(
     block: &PreviewBlock,
     base: Div,
+    settings: PreviewSettings,
     theme: &Theme,
     window: &mut Window,
 ) -> AnyElement {
@@ -46,18 +48,23 @@ pub(crate) fn render_preview_table(
         .iter()
         .enumerate()
         .map(|(index, cell)| {
-            render_preview_table_cell(cell, true, column_layout.fraction(index), theme)
+            render_preview_table_cell(
+                cell,
+                settings.show_table_headers,
+                column_layout.fraction(index),
+                theme,
+            )
         })
         .collect::<Vec<_>>();
 
-    let header_row = div().w_full().flex().gap(px(0.0)).child(
-        div()
-            .w_full()
-            .flex()
-            .children(header_cells)
+    let header_inner = div().w_full().flex().children(header_cells);
+    let header_row = if settings.show_table_headers {
+        header_inner
             .border_b(px(d.table_selection_border_width.max(1.0)))
-            .border_color(c.table_border),
-    );
+            .border_color(c.table_border)
+    } else {
+        header_inner
+    };
 
     let body_rows = table
         .rows

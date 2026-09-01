@@ -185,10 +185,8 @@ impl Shell {
     /// Captures this window's layout and per-panel plugin state and persists
     /// it as the launch-restore snapshot, when the setting is enabled.
     pub(crate) fn snapshot_window_state(&self, cx: &mut Context<Self>) {
-        if !config::settings::SettingsStore::get(cx)
-            .startup
-            .restore_window_state
-        {
+        let core = config::settings::PluginSettings::<config::settings::CoreSettings>::get(cx);
+        if !core.startup.restore_window_state {
             return;
         }
         let mut panels = Vec::new();

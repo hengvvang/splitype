@@ -12,6 +12,8 @@ pub mod outline;
 pub mod plugin;
 pub mod search;
 pub mod session;
+pub mod settings;
 pub mod view;
 
 pub use plugin::*;
+pub use settings::EditorSettings;

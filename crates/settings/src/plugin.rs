@@ -1,5 +1,13 @@
+//! The Settings panel plugin — a thin host over the schema-driven settings
+//! UI.
+//!
+//! The panel is a minimal shell: topbar chrome, the shared settings body
+//! rendered from manifest-declared settings schemas ([`host`]), and an empty
+//! bottombar. It imports no other plugin.
+
+use crate::host::render_settings_body;
 use crate::state::{PersistedSettingsState, SettingsUiState};
-use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
+use crate::{render_settings_bottombar, render_settings_topbar};
 use gpui::*;
 use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
@@ -35,7 +43,7 @@ impl PanelView for SettingsPanelView {
 
     fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
         Some(Box::new(PersistedSettingsState {
-            tab: self.state.read(cx).tab,
+            active_plugin: self.state.read(cx).active_plugin.clone(),
         }))
     }
 
@@ -64,7 +72,7 @@ impl PanelView for SettingsPanelView {
             ctx.is_maximized,
             cx,
         );
-        let body = render_settings_body(ctx.panel_id, state, theme, ctx.strings, cx);
+        let body = render_settings_body(&format!("panel-{}", ctx.panel_id.0), state, theme, cx);
         let bottombar = render_settings_bottombar(ctx.panel_id, theme, cx);
 
         div()
@@ -133,7 +141,8 @@ impl PanelDescriptor for SettingsPanelDescriptor {
             .ok()
             .map(|boxed| *boxed)?;
         let view = SettingsPanelView::new(panel_id, cx);
-        view.state.update(cx, |ui, _cx| ui.tab = state.tab);
+        let restored = SettingsUiState::from_persisted(&state);
+        view.state.update(cx, |ui, _cx| *ui = restored);
         Some(Box::new(view))
     }
 

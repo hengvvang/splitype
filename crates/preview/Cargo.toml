@@ -6,18 +6,21 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
-[lib]
-path = "src/preview.rs"
-
 [lints]
 workspace = true
 
 [dependencies]
 config = { path = "../config" }
+platform_contracts = { path = "../platform_contracts" }
 gpui = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
 ui = { path = "../ui" }
 markdown_parser = { path = "../markdown_parser" }
 syntax_highlighter = { path = "../syntax_highlighter" }
 theme = { path = "../theme" }
 uuid = { workspace = true }
+
+[dev-dependencies]
+toml = "1"

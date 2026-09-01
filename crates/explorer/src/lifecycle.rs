@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::settings::ExplorerSettings;
 use crate::state::worktree::Worktree;
 use crate::state::*;
-use config::settings::SettingsStore;
+use config::settings::PluginSettings;
 
 impl ExplorerState {
     pub fn toggle_tree(&mut self, window: &mut Window, cx: &mut App) {
@@ -78,7 +79,7 @@ impl ExplorerState {
         }
         explorer.tree_visible = true;
         let worktree_id = WorktreeId(explorer.worktrees.len());
-        let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
+        let hide_hidden = PluginSettings::<ExplorerSettings>::get(cx).hide_hidden;
         let explorer_weak = explorer.self_weak.clone();
         let worktree = Worktree::new(
             worktree_id,
@@ -268,10 +269,10 @@ impl ExplorerState {
 
     /// Toggle dotfile visibility. Persists to settings and rescans.
     pub(crate) fn toggle_explorer_hidden(&mut self, cx: &mut App) {
-        let _ = SettingsStore::update(cx, |s| {
-            s.explorer.hide_hidden = !s.explorer.hide_hidden;
+        let _ = PluginSettings::<ExplorerSettings>::update(cx, |settings| {
+            settings.hide_hidden = !settings.hide_hidden;
         });
-        let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
+        let hide_hidden = PluginSettings::<ExplorerSettings>::get(cx).hide_hidden;
         let worktrees = self.worktrees.clone();
         for worktree in worktrees {
             worktree.update(cx, |worktree, cx| {

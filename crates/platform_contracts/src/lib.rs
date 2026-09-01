@@ -4,6 +4,7 @@ pub mod actions;
 pub mod command;
 pub mod panel;
 pub mod plugin;
+pub mod settings;
 
 pub use actions::{
     ClosePanel, Copy, Cut, DismissTransientUi, OpenPath, OpenPathInSplit, Paste, SplitPanel,
@@ -15,3 +16,4 @@ pub use plugin::{
     ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,
     PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
 };
+pub use settings::{SettingDeclaration, SettingKind, SettingOption, verify_setting_declarations};

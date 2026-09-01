@@ -33,7 +33,12 @@ impl I18nManager {
     #[cfg(test)]
     pub fn init(cx: &mut App) {
         let language_id = crate::settings::read_app_settings()
-            .map(|settings| settings.interface.language_id)
+            .map(|settings| {
+                settings
+                    .plugin_settings::<crate::settings::CoreSettings>()
+                    .interface
+                    .language_id
+            })
             .unwrap_or_else(|_| BUILTIN_LANGUAGE_EN_US_ID.into());
         Self::init_with_language_id(cx, &language_id);
     }
@@ -203,9 +208,12 @@ pub fn apply_configured_language(cx: &mut gpui::App, language_id: &str) -> anyho
         return Ok(false);
     }
     if cx.has_global::<crate::settings::SettingsStore>() {
-        let _ = crate::settings::SettingsStore::update(cx, |settings| {
-            settings.interface.language_id = language_id.to_string();
-        });
+        let _ = crate::settings::PluginSettings::<crate::settings::CoreSettings>::update(
+            cx,
+            |settings| {
+                settings.interface.language_id = language_id.to_string();
+            },
+        );
     }
     Ok(changed)
 }
@@ -219,9 +227,12 @@ pub fn import_language_config_and_select(
         i18n_manager.import_language_config(path)
     })?;
     if cx.has_global::<crate::settings::SettingsStore>() {
-        let _ = crate::settings::SettingsStore::update(cx, |settings| {
-            settings.interface.language_id = imported_id.clone();
-        });
+        let _ = crate::settings::PluginSettings::<crate::settings::CoreSettings>::update(
+            cx,
+            |settings| {
+                settings.interface.language_id = imported_id.clone();
+            },
+        );
     }
     Ok(imported_id)
 }

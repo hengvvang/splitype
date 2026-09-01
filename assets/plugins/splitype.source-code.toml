@@ -12,3 +12,41 @@ registration = "source-code"
 [capabilities]
 panes = ["splitype.pane.source_code"]
 panels = []
+
+[[settings]]
+key = "line_numbers"
+kind = "bool"
+default = true
+title = "Line Numbers"
+description = "Show line numbers in the source gutter"
+
+[[settings]]
+key = "word_wrap"
+kind = "bool"
+default = true
+title = "Soft Word Wrapping"
+description = "Wrap long lines to fit the current viewport width"
+
+[[settings]]
+key = "tab_size"
+kind = "number"
+default = 4
+min = 2
+max = 8
+step = 2
+title = "Tab Indentation Width"
+description = "The number of spaces a tab character equals (2, 4, or 8 spaces)"
+
+[[settings]]
+key = "insert_spaces"
+kind = "bool"
+default = true
+title = "Insert Spaces on Tab"
+description = "Pressing Tab inserts spaces instead of a literal tab character"
+
+[[settings]]
+key = "highlight_active_line"
+kind = "bool"
+default = true
+title = "Highlight Active Line"
+description = "Subtly highlight the background of the line containing the cursor"

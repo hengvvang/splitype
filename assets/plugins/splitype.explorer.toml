@@ -15,3 +15,51 @@ panels = ["splitype.panel.explorer"]
 
 [resources]
 icon_root = "icons/explorer"
+
+[[settings]]
+key = "hide_hidden"
+kind = "bool"
+default = true
+title = "Hide Dotfiles"
+description = "Skip dot-prefixed files and folders during tree scans"
+
+[[settings]]
+key = "sort_mode"
+kind = "enum"
+default = "directories_first"
+title = "Sort Mode"
+description = "Grouping strategy for the file tree entries"
+
+[[settings.options]]
+value = "directories_first"
+label = "Directories First"
+
+[[settings.options]]
+value = "files_first"
+label = "Files First"
+
+[[settings.options]]
+value = "mixed"
+label = "Mixed (Alphabetical)"
+
+[[settings]]
+key = "sort_order"
+kind = "enum"
+default = "ascending"
+title = "Sort Order"
+description = "Ascending or descending entry ordering"
+
+[[settings.options]]
+value = "ascending"
+label = "Ascending (A to Z)"
+
+[[settings.options]]
+value = "descending"
+label = "Descending (Z to A)"
+
+[[settings]]
+key = "auto_reveal"
+kind = "bool"
+default = true
+title = "Auto Reveal Active File"
+description = "Reveal and select the active document's file in the tree"

@@ -198,12 +198,11 @@ impl Render for Block {
                 .table_cell_position()
                 .map(|position| position.is_header())
                 .unwrap_or(false);
-            // The header row is only styled distinctly (shaded background, medium
-            // weight) when the show-table-headers preference is enabled.
-            let style_as_header = is_header
-                && config::settings::SettingsStore::get(cx)
-                    .markdown
-                    .show_table_headers;
+            // The header row is always styled distinctly in the editor
+            // (shaded background, medium weight) so the header role stays
+            // visible while editing; the preview gates its own header
+            // styling on its plugin setting.
+            let style_as_header = is_header;
             let base_bg = if style_as_header {
                 c.table_header_bg
             } else {

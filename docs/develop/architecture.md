@@ -289,7 +289,7 @@ transitional hardcoding listed below is removed.
   Startup restores the snapshot when enabled and the schema version matches.
   Explorer and Settings panels opt in too: the explorer persists its tree
   visibility and open folder paths (worktrees re-scan from disk on restore),
-  and settings persists its active tab.
+  and settings persists its active plugin page.
 - Plugins are declared through versioned TOML manifests
   (`PluginManifest`: reverse-domain `PluginId`, entry point, declared pane
   and panel capabilities, resource roots) and recorded in a global
@@ -309,9 +309,12 @@ transitional hardcoding listed below is removed.
   localized label and concrete action — the only place allowed to know
   action types — and installs keybindings by resolving the registry's
   declared shortcuts through that table, applying user overrides with
-  context-scoped conflict resolution. The settings Keymap tab renders the
-  registry directly, so every contribution (built-in or third-party) shows
-  up without hardcoded shortcut lists. Dynamic sections (recent files,
+  context-scoped conflict resolution. Settings are manifest-declared
+  schemas (`[[settings]]` entries: key, control kind, bounds or options,
+  default, title, description); the settings host renders its navigation
+  and controls entirely from the plugin registry and never imports another
+  plugin, so every contribution (built-in or third-party) shows up without
+  hardcoded sections. Dynamic menu sections (recent files,
   themes, languages, CLI tool) remain composition-root providers.
 - Missing plugins degrade gracefully: a layout leaf whose kind has no
   registered descriptor gets a shell-rendered `MissingPanelView` placeholder

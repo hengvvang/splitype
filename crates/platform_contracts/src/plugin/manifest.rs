@@ -6,6 +6,7 @@ use thiserror::Error;
 
 use crate::panel::PanelKind;
 use crate::plugin::PluginId;
+use crate::settings::{SettingDeclaration, SettingKind};
 
 /// Current manifest schema version. Bump on breaking changes; loaders must
 /// reject manifests they do not understand.
@@ -32,6 +33,9 @@ pub struct PluginManifest {
     /// Commands the plugin exposes to menus and shortcuts.
     #[serde(default)]
     pub commands: Vec<ManifestCommand>,
+    /// Settings schema the plugin contributes to the settings UI.
+    #[serde(default)]
+    pub settings: Vec<SettingDeclaration>,
 }
 
 /// One command contribution declared by a manifest.
@@ -90,6 +94,18 @@ pub enum PluginManifestError {
     EmptyName,
     #[error("in-process entry registration key must not be empty")]
     EmptyRegistration,
+    #[error("setting '{0}' must declare a non-empty dotted key")]
+    InvalidSettingKey(String),
+    #[error("setting '{0}' must declare a non-empty title")]
+    EmptySettingTitle(String),
+    #[error("setting '{0}' is declared more than once")]
+    DuplicateSettingKey(String),
+    #[error("setting '{0}' has a default that does not match its declared kind")]
+    SettingDefaultMismatch(String),
+    #[error("enum setting '{0}' must declare at least one option")]
+    EnumWithoutOptions(String),
+    #[error("number setting '{0}' declares bounds or options only valid on other kinds")]
+    InvalidSettingBounds(String),
 }
 
 impl PluginManifest {
@@ -113,6 +129,50 @@ impl PluginManifest {
         let PluginEntry::InProcess { registration } = &self.entry;
         if registration.trim().is_empty() {
             return Err(PluginManifestError::EmptyRegistration);
+        }
+        self.validate_settings()?;
+        Ok(())
+    }
+
+    fn validate_settings(&self) -> Result<(), PluginManifestError> {
+        for declaration in &self.settings {
+            let id = format!("{}.{}", self.plugin, declaration.key);
+            if declaration.key.trim().is_empty() || declaration.key.starts_with('.') {
+                return Err(PluginManifestError::InvalidSettingKey(id));
+            }
+            if declaration.title.trim().is_empty() {
+                return Err(PluginManifestError::EmptySettingTitle(id));
+            }
+            if self
+                .settings
+                .iter()
+                .filter(|other| other.key == declaration.key)
+                .count()
+                > 1
+            {
+                return Err(PluginManifestError::DuplicateSettingKey(id));
+            }
+            if !declaration.accepts(&declaration.default) {
+                return Err(PluginManifestError::SettingDefaultMismatch(id));
+            }
+            match &declaration.kind {
+                SettingKind::Enum => {
+                    if declaration.options.is_empty() {
+                        return Err(PluginManifestError::EnumWithoutOptions(id));
+                    }
+                }
+                SettingKind::Number => {}
+                _ => {
+                    if declaration.min.is_some()
+                        || declaration.max.is_some()
+                        || declaration.step.is_some()
+                        || declaration.unit.is_some()
+                        || !declaration.options.is_empty()
+                    {
+                        return Err(PluginManifestError::InvalidSettingBounds(id));
+                    }
+                }
+            }
         }
         Ok(())
     }

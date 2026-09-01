@@ -52,8 +52,8 @@ fn relaunch_detached() {
     }
 }
 
-fn open_startup_window(cx: &mut App, settings: config::settings::AppSettings) {
-    if settings.startup.restore_window_state {
+fn open_startup_window(cx: &mut App, core: config::settings::CoreSettings) {
+    if core.startup.restore_window_state {
         match crate::window_state::load_window_state() {
             Ok(Some(state)) => {
                 crate::window::open_restored_window(cx, state);
@@ -66,7 +66,7 @@ fn open_startup_window(cx: &mut App, settings: config::settings::AppSettings) {
         }
     }
 
-    let startup_open = settings.startup.open;
+    let startup_open = core.startup.open;
     if startup_open == StartupOpenSetting::LastOpenedFile
         && let Some(path) = first_existing_recent_markdown_file()
     {
@@ -129,14 +129,15 @@ pub fn run(args: Args) {
             tracing::warn!(error = %err, "failed to initialize app settings, falling back to default");
             Default::default()
         });
+        let core = settings.plugin_settings::<config::settings::CoreSettings>();
         SettingsStore::init(cx, settings.clone());
-        I18nManager::init_with_language_id(cx, &settings.interface.language_id);
-        ThemeManager::init_with_theme_id(cx, &settings.interface.theme_id);
-        theme::TypographyStore::init(cx, settings.typography.clone());
+        I18nManager::init_with_language_id(cx, &core.interface.language_id);
+        ThemeManager::init_with_theme_id(cx, &core.interface.theme_id);
+        theme::TypographyStore::init(cx, core.typography.clone());
         install_http_client(cx);
         crate::plugins::init_plugins();
         crate::plugins::discover_user_plugins();
-        init_editor(cx, &settings.keybindings);
+        init_editor(cx, &core.keybindings);
         init_app_menu(cx);
 
         // Prewarm CPU-intensive resources in background thread
@@ -165,7 +166,7 @@ pub fn run(args: Args) {
         if args.input_paths.is_empty() {
             #[cfg(target_os = "macos")]
             {
-                let startup_settings = settings.clone();
+                let startup_settings = core.clone();
                 let open_file_requested = open_file_requested.clone();
                 cx.spawn(async move |cx| {
                     cx.background_executor()
@@ -179,7 +180,7 @@ pub fn run(args: Args) {
             }
 
             #[cfg(not(target_os = "macos"))]
-            open_startup_window(cx, settings.clone());
+            open_startup_window(cx, core.clone());
 
             return;
         }

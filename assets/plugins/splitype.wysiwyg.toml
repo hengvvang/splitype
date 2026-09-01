@@ -162,3 +162,26 @@ context = "BlockEditor"
 id = "exit-code-block"
 shortcuts = ["cmd-enter", "ctrl-enter"]
 context = "BlockEditor"
+
+[[settings]]
+key = "image_paste_behavior"
+kind = "enum"
+default = "none"
+title = "Clipboard Image Paste Action"
+description = "Storage destination and path strategy when pasting images from clipboard"
+
+[[settings.options]]
+value = "none"
+label = "No local copy (standard insertion)"
+
+[[settings.options]]
+value = "copy_to_document_folder"
+label = "Copy image to document folder (./)"
+
+[[settings.options]]
+value = "copy_to_assets_folder"
+label = "Copy image to assets folder (./assets/)"
+
+[[settings.options]]
+value = "copy_to_named_assets_folder"
+label = "Copy image to named assets folder (./.assets/)"

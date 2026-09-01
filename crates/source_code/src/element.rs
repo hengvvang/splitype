@@ -124,8 +124,11 @@ impl Element for EditorElement {
         let is_focused =
             self.is_focused || focus_handle.as_ref().is_some_and(|h| h.is_focused(window));
 
-        let gutter_layout = self.state.gutter_layout(font_size);
-        let gutter_width = gutter_layout.width();
+        let gutter_width = if self.state.settings.line_numbers {
+            self.state.gutter_layout(font_size).width()
+        } else {
+            8.0
+        };
 
         let visible_bounds = window.content_mask().bounds;
         let scroll_y = f32::from(bounds.top() - visible_bounds.top());
@@ -192,7 +195,10 @@ impl Element for EditorElement {
             let line_y = bounds.top() + px(editor_padding + (visible_row as f32) * line_height);
 
             // 1. Active line highlight (subtle background bar like Zed)
-            if is_focused && buffer_row == primary_cursor_line {
+            if self.state.settings.highlight_active_line
+                && is_focused
+                && buffer_row == primary_cursor_line
+            {
                 active_line_quad = Some(fill(
                     Bounds::new(
                         point(bounds.left() + px(gutter_width), line_y),
@@ -311,27 +317,30 @@ impl Element for EditorElement {
             shaped_lines.push((visible_row as usize, shaped_line));
 
             // 7. Gutter line numbers & formatting
-            let num_str = gutter_layout.format_line_number(buffer_row as u32);
-            let is_active_row = buffer_row == primary_cursor_line;
-            let num_color = if is_active_row {
-                theme.colors.text_default
-            } else {
-                theme.colors.dialog_muted
-            };
+            if self.state.settings.line_numbers {
+                let gutter_layout = self.state.gutter_layout(font_size);
+                let num_str = gutter_layout.format_line_number(buffer_row as u32);
+                let is_active_row = buffer_row == primary_cursor_line;
+                let num_color = if is_active_row {
+                    theme.colors.text_default
+                } else {
+                    theme.colors.dialog_muted
+                };
 
-            let num_run = TextRun {
-                len: num_str.len(),
-                font: font.clone(),
-                color: num_color,
-                ..Default::default()
-            };
-            let shaped_num = window.text_system().shape_line(
-                SharedString::new(num_str),
-                px(font_size),
-                &[num_run],
-                None,
-            );
-            gutter_numbers.push((visible_row as usize, shaped_num, is_active_row));
+                let num_run = TextRun {
+                    len: num_str.len(),
+                    font: font.clone(),
+                    color: num_color,
+                    ..Default::default()
+                };
+                let shaped_num = window.text_system().shape_line(
+                    SharedString::new(num_str),
+                    px(font_size),
+                    &[num_run],
+                    None,
+                );
+                gutter_numbers.push((visible_row as usize, shaped_num, is_active_row));
+            }
         }
 
         let hitbox = Some(window.insert_hitbox(bounds, HitboxBehavior::Normal));

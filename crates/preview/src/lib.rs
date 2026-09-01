@@ -16,6 +16,8 @@ pub mod outline;
 pub mod render;
 pub mod search;
 mod selection;
+pub mod settings;
 mod state;
 
 pub use builder::*;
+pub use settings::PreviewSettings;

@@ -101,9 +101,9 @@ impl ExplorerState {
         }
 
         let worktree_id = entry.worktree_id;
-        let hide_hidden = config::settings::SettingsStore::get(cx)
-            .explorer
-            .hide_hidden;
+        let hide_hidden =
+            config::settings::PluginSettings::<crate::settings::ExplorerSettings>::get(cx)
+                .hide_hidden;
 
         // Title buttons: visible only while the root row is expanded. The
         // set mirrors the panel toolbar: replace folder, toggle hidden

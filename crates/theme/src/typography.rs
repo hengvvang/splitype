@@ -215,9 +215,17 @@ impl TypographyStore {
     fn resolve_fonts(
         settings: &config::settings::TypographySettings,
     ) -> (gpui::Font, gpui::Font, gpui::Font) {
-        let ui_family = settings.ui_font_family.as_deref().unwrap_or("Lexend");
-        let prose_family = settings.prose_font_family.as_deref().unwrap_or("Lexend");
-        let code_family = settings.code_font_family.as_deref().unwrap_or({
+        let ui_family = if settings.ui_font_family.is_empty() {
+            "Lexend"
+        } else {
+            settings.ui_font_family.as_str()
+        };
+        let prose_family = if settings.prose_font_family.is_empty() {
+            "Lexend"
+        } else {
+            settings.prose_font_family.as_str()
+        };
+        let code_family = if settings.code_font_family.is_empty() {
             if cfg!(target_os = "windows") {
                 "Consolas"
             } else if cfg!(target_os = "macos") {
@@ -225,7 +233,9 @@ impl TypographyStore {
             } else {
                 "monospace"
             }
-        });
+        } else {
+            settings.code_font_family.as_str()
+        };
 
         (
             gpui::font(ui_family),

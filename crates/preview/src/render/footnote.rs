@@ -65,6 +65,7 @@ pub(crate) fn render_preview_footnote_definition(
 /// followed by every footnote definition in document order.
 pub(crate) fn render_preview_footnotes_section(
     footnotes: &[PreviewBlock],
+    settings: crate::settings::PreviewSettings,
     theme: &Theme,
     window: &mut Window,
 ) -> AnyElement {
@@ -73,7 +74,7 @@ pub(crate) fn render_preview_footnotes_section(
 
     let rows: Vec<AnyElement> = footnotes
         .iter()
-        .map(|block| super::render_preview_block(block, None, 0, 0, theme, window))
+        .map(|block| super::render_preview_block(block, None, 0, 0, settings, theme, window))
         .collect();
 
     div()

@@ -13,10 +13,12 @@ pub mod input;
 pub mod outline;
 pub mod search;
 pub mod selection;
+pub mod settings;
 pub mod state;
 pub mod syntax;
 
 pub use builder::*;
+pub use settings::SourceCodeSettings;
 
 #[cfg(test)]
 mod tests;

@@ -16,6 +16,8 @@ pub mod net;
 pub mod pane;
 pub mod projection;
 pub mod render;
+pub mod settings;
 pub mod table;
 
 pub use builder::*;
+pub use settings::{ImagePasteBehavior, WysiwygSettings};

@@ -127,6 +127,7 @@ mod tests {
             },
             resources: platform_contracts::PluginResources::default(),
             commands: Vec::new(),
+            settings: Vec::new(),
         };
         platform_contracts::PluginRegistry::register_global(manifest).expect("register manifest");
 

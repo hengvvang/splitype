@@ -75,3 +75,38 @@ shortcuts = ["f3"]
 [[commands]]
 id = "find-previous"
 shortcuts = ["shift-f3"]
+
+[[settings]]
+key = "status_bar_enabled"
+kind = "bool"
+default = true
+title = "Status Bar Visibility"
+description = "Show or hide the persistent bottom status bar across window"
+
+[[settings]]
+key = "show_word_count"
+kind = "bool"
+default = true
+title = "Word Count Badge"
+description = "Display real-time document word count in the status bar"
+
+[[settings]]
+key = "show_cursor_position"
+kind = "bool"
+default = true
+title = "Cursor Position Badge"
+description = "Display line and column coordinates in the status bar"
+
+[[settings]]
+key = "show_character_count"
+kind = "bool"
+default = true
+title = "Character Count Badge"
+description = "Display total character count in the status bar"
+
+[[settings]]
+key = "show_reading_time"
+kind = "bool"
+default = true
+title = "Estimated Reading Time"
+description = "Display estimated reading duration in the status bar"

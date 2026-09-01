@@ -12,3 +12,24 @@ registration = "preview"
 [capabilities]
 panes = ["splitype.pane.preview"]
 panels = []
+
+[[settings]]
+key = "show_table_headers"
+kind = "bool"
+default = true
+title = "Persistent Table Headers"
+description = "Style table header rows distinctly in the rendered preview"
+
+[[settings]]
+key = "render_math"
+kind = "bool"
+default = true
+title = "LaTeX Math Formula Rendering"
+description = "Enable live KaTeX math formula rendering in the preview"
+
+[[settings]]
+key = "render_diagrams"
+kind = "bool"
+default = true
+title = "Mermaid Diagram Rendering"
+description = "Enable live Mermaid diagram visualization for flowchart and chart blocks"

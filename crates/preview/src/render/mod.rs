@@ -35,7 +35,9 @@ use markdown_parser::parse::BlockKind;
 use theme::Theme;
 
 use crate::node::PreviewBlock;
+use crate::settings::PreviewSettings;
 use crate::state::PreviewState;
+use config::settings::PluginSettings;
 
 /// Renders the preview pane for `state` inside the view shell described by
 /// `view` (pane id, scroll handle, host proxy). The coordinating crate
@@ -47,10 +49,11 @@ pub fn render_preview_pane(
     theme: &Theme,
     _strings: &I18nStrings,
     window: &mut Window,
-    _cx: &App,
+    cx: &App,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
+    let settings = PluginSettings::<PreviewSettings>::get(cx);
 
     let preview_selection = state.selection;
 
@@ -62,7 +65,7 @@ pub fn render_preview_pane(
         .map(|(block_index, block)| {
             let selection_range = preview_selection
                 .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
-            render_preview_block(block, selection_range, 0, 0, theme, window)
+            render_preview_block(block, selection_range, 0, 0, settings, theme, window)
         })
         .collect();
     // Footnote definitions are collected out of the body flow and
@@ -72,7 +75,7 @@ pub fn render_preview_pane(
     collect_preview_footnote_definitions(&state.blocks, &mut footnotes);
     if !footnotes.is_empty() {
         block_elements.push(footnote::render_preview_footnotes_section(
-            &footnotes, theme, window,
+            &footnotes, settings, theme, window,
         ));
     }
 
@@ -124,6 +127,7 @@ pub(crate) fn render_preview_block(
     selection_range: Option<Range<usize>>,
     depth: usize,
     quote_depth: usize,
+    settings: PreviewSettings,
     theme: &Theme,
     window: &mut Window,
 ) -> AnyElement {
@@ -191,22 +195,35 @@ pub(crate) fn render_preview_block(
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
         BlockKind::CodeBlock { ref language } => {
-            if markdown_parser::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+            if settings.render_diagrams
+                && markdown_parser::block::mermaid::is_mermaid_info_string(language.as_deref())
+            {
                 mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
-            } else if language
-                .as_deref()
-                .is_some_and(|l| l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex"))
+            } else if settings.render_math
+                && language.as_deref().is_some_and(|l| {
+                    l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
+                })
             {
                 latex_math::render_preview_latex_math(block, base, theme)
             } else {
                 fenced_code::render_preview_fenced_code(block, base, theme)
             }
         }
-        BlockKind::Table => table_block::render_preview_table(block, base, theme, window),
+        BlockKind::Table => table_block::render_preview_table(block, base, settings, theme, window),
         BlockKind::HtmlBlock => html_block::render_preview_html_block(block, base, theme),
-        BlockKind::MathBlock => latex_math::render_preview_latex_math(block, base, theme),
+        BlockKind::MathBlock => {
+            if settings.render_math {
+                latex_math::render_preview_latex_math(block, base, theme)
+            } else {
+                paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
+            }
+        }
         BlockKind::MermaidBlock => {
-            mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
+            if settings.render_diagrams {
+                mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
+            } else {
+                paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
+            }
         }
         BlockKind::RawMarkdown => {
             paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
@@ -234,6 +251,7 @@ pub(crate) fn render_preview_block(
                 selection_range.clone(),
                 depth + 1,
                 effective_quote_depth,
+                settings,
                 theme,
                 window,
             )

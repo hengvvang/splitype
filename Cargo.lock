@@ -1162,6 +1162,7 @@ dependencies = [
  "anyhow",
  "directories",
  "gpui",
+ "platform_contracts",
  "serde",
  "serde_json",
  "sys-locale",
@@ -1645,6 +1646,7 @@ dependencies = [
  "serde_json",
  "splitter",
  "theme",
+ "toml 1.1.2+spec-1.1.0",
  "ui",
 ]
 
@@ -1823,6 +1825,7 @@ dependencies = [
  "splitter",
  "theme",
  "thiserror 2.0.18",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "trash",
  "ui",
@@ -4584,8 +4587,12 @@ dependencies = [
  "editor_contracts",
  "gpui",
  "markdown_parser",
+ "platform_contracts",
+ "serde",
+ "serde_json",
  "syntax_highlighter",
  "theme",
+ "toml 1.1.2+spec-1.1.0",
  "ui",
  "uuid",
 ]
@@ -5855,10 +5862,15 @@ dependencies = [
 name = "source_code"
 version = "0.0.1"
 dependencies = [
+ "config",
  "editor_contracts",
  "gpui",
+ "platform_contracts",
+ "serde",
+ "serde_json",
  "syntax_highlighter",
  "theme",
+ "toml 1.1.2+spec-1.1.0",
  "ui",
 ]
 
@@ -8125,8 +8137,11 @@ dependencies = [
  "markdown_parser",
  "platform_contracts",
  "reqwest",
+ "serde",
+ "serde_json",
  "syntax_highlighter",
  "theme",
+ "toml 1.1.2+spec-1.1.0",
  "tracing",
  "ui",
  "unicode-segmentation",

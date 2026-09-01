@@ -116,3 +116,83 @@ shortcuts = []
 id = "uninstall-cli"
 menu = "help"
 shortcuts = []
+
+[[settings]]
+key = "startup.open"
+kind = "enum"
+default = "new_file"
+title = "App Startup Behavior"
+description = "Initial document or workspace opened upon launching Splitype"
+
+[[settings.options]]
+value = "new_file"
+label = "Open New Document"
+
+[[settings.options]]
+value = "last_opened_file"
+label = "Open Last Active Document"
+
+[[settings.options]]
+value = "empty"
+label = "Open Empty Workspace"
+
+[[settings]]
+key = "startup.restore_window_state"
+kind = "bool"
+default = true
+title = "Restore Window Geometry & State"
+description = "Remember previous window dimensions, position, and layout splits on startup"
+
+[[settings]]
+key = "interface.theme_id"
+kind = "theme"
+default = "splitype"
+title = "Color Theme"
+description = "Select the application-wide visual theme"
+
+[[settings]]
+key = "interface.language_id"
+kind = "language"
+default = "en-US"
+title = "Display Language"
+description = "Select preferred language for editor UI and dialogs"
+
+[[settings]]
+key = "typography.ui_font_family"
+kind = "font"
+default = ""
+title = "Interface Font"
+description = "Font used for menus, file navigation panel, and application chrome"
+
+[[settings]]
+key = "typography.prose_font_family"
+kind = "font"
+default = ""
+title = "Prose Text Font"
+description = "Font used for Markdown prose, headings, and tables"
+
+[[settings]]
+key = "typography.code_font_family"
+kind = "font"
+default = ""
+title = "Code Block Font"
+description = "Monospace font used for code blocks and inline code"
+
+[[settings]]
+key = "typography.font_size"
+kind = "number"
+default = 16
+min = 8
+max = 72
+title = "Document Font Size"
+description = "Baseline font size in pixels for document prose content"
+
+[[settings]]
+key = "typography.line_height"
+kind = "number"
+default = 1.6
+min = 0.8
+max = 3.0
+step = 0.1
+title = "Line Spacing Multiplier"
+description = "Proportional line height for comfortable reading"

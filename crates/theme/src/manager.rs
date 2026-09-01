@@ -214,9 +214,12 @@ pub fn apply_configured_theme(cx: &mut gpui::App, theme_id: &str) -> anyhow::Res
         return Ok(false);
     }
     if cx.has_global::<config::settings::SettingsStore>() {
-        let _ = config::settings::SettingsStore::update(cx, |settings| {
-            settings.interface.theme_id = theme_id.to_string();
-        });
+        let _ = config::settings::PluginSettings::<config::settings::CoreSettings>::update(
+            cx,
+            |settings| {
+                settings.interface.theme_id = theme_id.to_string();
+            },
+        );
     }
     Ok(changed)
 }
@@ -230,9 +233,12 @@ pub fn import_theme_config_and_select(
         theme_manager.import_theme_config(path)
     })?;
     if cx.has_global::<config::settings::SettingsStore>() {
-        let _ = config::settings::SettingsStore::update(cx, |settings| {
-            settings.interface.theme_id = imported_id.clone();
-        });
+        let _ = config::settings::PluginSettings::<config::settings::CoreSettings>::update(
+            cx,
+            |settings| {
+                settings.interface.theme_id = imported_id.clone();
+            },
+        );
     }
     Ok(imported_id)
 }

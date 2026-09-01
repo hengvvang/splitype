@@ -10,10 +10,11 @@ use ui::menu_item::menu_item;
 use ui::popover::menu_panel;
 
 use config::language::I18nStrings;
-use config::settings::{SettingsStore, StatusBarSettings};
+use config::settings::PluginSettings;
 use editor_contracts::{PaneId, PaneKind, PaneRegistry};
 
 use crate::editor::Editor;
+use crate::settings::EditorSettings;
 use crate::view::words::count_words;
 
 /// Render a cursor-position label (e.g. `12 : 47`).
@@ -65,9 +66,12 @@ impl Editor {
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let prefs = self.bottombar_settings(cx);
+        if !prefs.status_bar_enabled {
+            return div().into_any_element();
+        }
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let prefs = self.bottombar_settings(cx);
 
         let panel_id = self.panel_id;
         let inner_leaf_count = self.session().root.tree.count_leaves();
@@ -329,8 +333,8 @@ impl Editor {
         count
     }
 
-    pub(crate) fn bottombar_settings(&self, cx: &App) -> StatusBarSettings {
-        SettingsStore::settings(cx).status_bar
+    pub(crate) fn bottombar_settings(&self, cx: &App) -> EditorSettings {
+        PluginSettings::<EditorSettings>::get(cx)
     }
 
     pub(crate) fn active_pane_cursor_position(&self, cx: &App) -> (usize, usize) {

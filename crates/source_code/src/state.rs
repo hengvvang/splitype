@@ -15,7 +15,9 @@ use crate::buffer::{BufferPoint, LineMap};
 use crate::display_map::{DisplayPoint, DisplaySnapshot, FoldMap, TabMap, WrapMap};
 use crate::gutter::GutterLayout;
 use crate::selection::{Selection, SelectionsCollection};
+use crate::settings::SourceCodeSettings;
 use crate::syntax::find_matching_bracket;
+use config::settings::PluginSettings;
 use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
 
 /// Autonomous state for the SourceCode editor pane.
@@ -24,6 +26,7 @@ pub struct SourceCodeState {
     pub text: String,
     pub line_map: LineMap,
     pub selections: SelectionsCollection,
+    pub settings: SourceCodeSettings,
     pub tab_map: TabMap,
     pub fold_map: FoldMap,
     pub wrap_map: WrapMap,
@@ -46,6 +49,7 @@ impl Default for SourceCodeState {
             text: String::new(),
             line_map: LineMap::default(),
             selections: SelectionsCollection::default(),
+            settings: SourceCodeSettings::default(),
             tab_map: TabMap::default(),
             fold_map: FoldMap::default(),
             wrap_map: WrapMap::default(),
@@ -153,6 +157,22 @@ impl SourceCodeState {
         GutterLayout::new(self.line_count(), font_size)
     }
 
+    /// Applies the plugin's settings to the display maps and rendering flags.
+    pub fn apply_settings(&mut self, settings: SourceCodeSettings) {
+        if self.settings != settings {
+            self.settings = settings;
+            self.tab_map = TabMap::new(settings.tab_size);
+            self.wrap_map = WrapMap::new(settings.word_wrap, None);
+        }
+    }
+
+    /// Re-reads the plugin settings from the store, applying changes when the
+    /// user edited them since the last sync.
+    pub fn sync_settings(&mut self, cx: &App) {
+        let settings = PluginSettings::<SourceCodeSettings>::get(cx);
+        self.apply_settings(settings);
+    }
+
     /// Produces an immutable DisplaySnapshot.
     pub fn display_snapshot(&self) -> DisplaySnapshot<'_> {
         DisplaySnapshot::new(
@@ -223,6 +243,7 @@ impl SourceCodeState {
 
     /// Indents current line(s) or selection.
     pub fn indent(&mut self) {
+        let indent_unit = self.settings.indent_unit();
         if let Some(range) = self.selections.primary_selection_range() {
             let (start_row, _) = self.line_and_column(range.start);
             let (end_row, end_col) = self.line_and_column(range.end);
@@ -234,14 +255,14 @@ impl SourceCodeState {
 
             for r in (start_row..=actual_end_row).rev() {
                 let offset = self.line_start_offset(r);
-                self.text.insert_str(offset, "    ");
+                self.text.insert_str(offset, &indent_unit);
             }
             self.rebuild_lines();
             let new_start = self.line_start_offset(start_row);
             let new_end = self.line_end_offset(actual_end_row);
             self.selections.set_single_range(new_start, new_end);
         } else {
-            self.insert_text("    ");
+            self.insert_text(&indent_unit);
         }
     }
 
@@ -814,7 +835,8 @@ impl editor_contracts::PaneView for SourceCodeState {
         Some(self.cursor_position_1based())
     }
 
-    fn sync_document(&mut self, document: &editor_contracts::DocumentSnapshot, _cx: &mut App) {
+    fn sync_document(&mut self, document: &editor_contracts::DocumentSnapshot, cx: &mut App) {
+        self.sync_settings(cx);
         let text = document.text.as_ref();
         let revision = document.revision;
         if self.synced_revision == Some(revision) && self.text == text {
@@ -977,6 +999,7 @@ impl editor_contracts::PaneView for SourceCodeState {
         _window: &mut Window,
         cx: &mut App,
     ) -> gpui::AnyElement {
+        self.sync_settings(cx);
         let theme = cx.global::<theme::ThemeManager>().current_arc();
 
         let code_hash = {

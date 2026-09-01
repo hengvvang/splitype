@@ -155,7 +155,7 @@ non-opting panels are recreated fresh on restore. The editor persists its full
 `EditorSession` (tabs, text, dirty flags, pane layout kinds) while per-pane
 runtime entities are rebuilt from the restored text. The explorer persists its
 tree visibility and open folder paths (worktrees are re-scanned from disk on
-restore), and the settings panel persists its active tab. Loaders reject
+restore), and the settings panel persists its active plugin page. Loaders reject
 snapshots whose schema version they do not understand.
 
 ## ADR-016: Plugins are declared by manifests, discovered by the composition root
@@ -273,3 +273,28 @@ fake abstraction. The dependency runs one way only:
 `editor_contracts` refines `platform_contracts` vocabulary (`DocumentPanel:
 PanelView`) while `platform_contracts` never depends back; each plugin family
 imports exactly the vocabulary it needs from the crate that owns it.
+
+## ADR-022: Settings are schema declarations, not render functions
+
+**Status:** Accepted
+
+Plugin settings are data, not code. Each plugin declares its settings schema
+in its manifest as `[[settings]]` entries — dotted key, control kind (bool,
+number, string, enum, font, theme, language), bounds or options, default,
+title, and description — and the settings host renders the entire settings UI
+from the plugin registry alone: navigation from plugin names, one control per
+declaration dispatched on its kind. No plugin exports settings UI code, and
+the host imports no other plugin; contributions arrive purely as manifest
+data. Values live in the canonical settings store as one opaque JSON blob per
+plugin keyed by plugin id, read and written through dotted paths
+(`SettingsStore::set_plugin_value`); theme and language selections apply
+live through their managers on top of the plain write.
+
+Plugins keep a typed view of their blob (`PluginSettings<T>` over a struct
+with `deny_unknown_fields`), and `verify_setting_declarations` pins struct and
+manifest together in a test so defaults and field sets cannot drift. The core
+app's own settings (`splitype.core`) use the same mechanism — there is no
+special app-core section — with config-only channels (keybinding overrides)
+exempted explicitly as unexposed fields. This is the shape a future WASM ABI
+can cross: schemas are serializable data, and the settings UI renders without
+loading plugin code.
