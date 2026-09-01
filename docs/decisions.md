@@ -174,19 +174,21 @@ manifest's declarations. Plugin resources are addressed through
 `plugin://<id>/<path>`, resolved via the owning manifest's `icon_root` into
 pluggable asset catalogs — kind strings never encode resource locations.
 
-## ADR-017: Menus assemble from command contributions
+## ADR-017: Menus and keybindings assemble from command contributions
 
 **Status:** Accepted
 
 Commands are plugin contributions: manifests declare `[[commands]]` entries
-(plugin-local id, menu skeleton location, default shortcut) recorded in a
-global `CommandRegistry`, and the menu bar assembles its static items from
-the registry through a fixed menu skeleton. The composition root's command
-binding table is the only place allowed to map a command id to its localized
-label and concrete action, and dynamic menu sections (recent files, themes,
-languages, CLI tool) are composition-root providers. GPUI's typed
-`cx.on_action` API still requires one dispatch handler per action type, so
-binding table and handlers must stay in sync.
+(plugin-local id, menu skeleton location, default shortcuts, keybinding
+context) recorded in a global `CommandRegistry`. The menu bar assembles its
+static items from the registry through a fixed menu skeleton, and the
+composition root installs keybindings by resolving every contribution's
+shortcuts through its command binding table (the only place allowed to map
+a command id to its localized label and concrete action), applying user
+overrides with context-scoped conflict resolution. Dynamic menu sections
+(recent files, themes, languages, CLI tool) are composition-root providers.
+GPUI's typed `cx.on_action` API still requires one dispatch handler per
+action type, so binding table and handlers must stay in sync.
 
 ## ADR-018: Missing plugins degrade to a named placeholder
 

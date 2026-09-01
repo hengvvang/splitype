@@ -294,13 +294,17 @@ transitional hardcoding listed below is removed.
   catalog, and panel icons now flow through that namespace (visible in the
   the panel-kind dropdown).
 - Commands are plugin contributions: manifests declare `[[commands]]`
-  (plugin-local id, menu skeleton location, default shortcut), a global
-  `CommandRegistry` records them, and the menu bar assembles its static
-  items from the registry through a menu skeleton. The composition root's
-  command binding table maps each command id to its localized label and
-  concrete action — the only place allowed to know action types. Dynamic
-  sections (recent files, themes, languages, CLI tool) remain composition-
-  root providers.
+  (plugin-local id, menu skeleton location, default shortcuts, keybinding
+  context), a global `CommandRegistry` records them, and the menu bar
+  assembles its static items from the registry through a menu skeleton. The
+  composition root's command binding table maps each command id to its
+  localized label and concrete action — the only place allowed to know
+  action types — and installs keybindings by resolving the registry's
+  declared shortcuts through that table, applying user overrides with
+  context-scoped conflict resolution. The settings Keymap tab renders the
+  registry directly, so every contribution (built-in or third-party) shows
+  up without hardcoded shortcut lists. Dynamic sections (recent files,
+  themes, languages, CLI tool) remain composition-root providers.
 - Missing plugins degrade gracefully: a layout leaf whose kind has no
   registered descriptor gets a shell-rendered `MissingPanelView` placeholder
   that keeps the layout intact and names the owning plugin through the
@@ -353,17 +357,11 @@ transitional hardcoding listed below is removed.
    transports, permission model, unregister/shutdown protocol, or
    `AssetSource::list` directory listing — user manifests are metadata-only
    today.
-2. Keybindings are still driven by the config `ShortcutCommand` vocabulary
-   rather than manifest-declared shortcuts, and GPUI's typed
-   `cx.on_action` API requires per-command dispatch handlers in the
-   composition root (command table + handlers must be kept in sync). Panel
-   topbar chrome is duplicated per plugin; consider a shared chrome
-   renderer driven by descriptor metadata.
-3. Per-pane view state (cursor, scroll, selections) is not persisted, and the
+2. Per-pane view state (cursor, scroll, selections) is not persisted, and the
    explorer restores folder roots without their expansion state.
-4. Preview pane selection rendering exists but no input is routed to it, and
+3. Preview pane selection rendering exists but no input is routed to it, and
    the editor's autoscroll execution is still a stub.
-5. `markdown_parser` still carries consumer-specific parse modes
+4. `markdown_parser` still carries consumer-specific parse modes
    (`ParseMode::Wysiwyg`/`Preview`); replace them with a recursive parse
    policy owned by the domain.
 6. Preview pane selection rendering exists but no input is routed to it, and

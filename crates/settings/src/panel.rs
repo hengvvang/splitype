@@ -117,15 +117,16 @@ pub fn render_settings_body(
 
 pub fn toggle_settings_section_handler(
     state: &Entity<SettingsUiState>,
-    key: &'static str,
+    key: impl Into<String>,
 ) -> crate::ui_helpers::SettingsClickHandler {
+    let key = key.into();
     let state = state.clone();
     Box::new(move |_event, _window, cx| {
         state.update(cx, |s, _cx| {
-            if s.expanded_sections.contains(key) {
-                s.expanded_sections.remove(key);
+            if s.expanded_sections.contains(&key) {
+                s.expanded_sections.remove(&key);
             } else {
-                s.expanded_sections.insert(key.to_string());
+                s.expanded_sections.insert(key.clone());
             }
         });
     })
@@ -1033,41 +1034,19 @@ fn render_panel_keymap_tab(
     let d = &theme.dimensions;
     let mut sections = Vec::new();
 
-    let sec1_key = "doc_actions";
-    let is_sec1_expanded = state.read(cx).expanded_sections.contains(sec1_key);
-    sections.push(render_shortcuts_section(
-        c,
-        d,
-        ("pref-sec-doc-actions", panel_id.0),
-        "Document Actions",
-        is_sec1_expanded,
-        toggle_settings_section_handler(&state, sec1_key),
-        crate::components::shortcuts_data::doc_action_shortcuts(),
-    ));
-
-    let sec2_key = "view_controls";
-    let is_sec2_expanded = state.read(cx).expanded_sections.contains(sec2_key);
-    sections.push(render_shortcuts_section(
-        c,
-        d,
-        ("pref-sec-view-controls", panel_id.0),
-        "Interface & View Controls",
-        is_sec2_expanded,
-        toggle_settings_section_handler(&state, sec2_key),
-        crate::components::shortcuts_data::interface_view_shortcuts(),
-    ));
-
-    let sec3_key = "editor_shortcuts";
-    let is_sec3_expanded = state.read(cx).expanded_sections.contains(sec3_key);
-    sections.push(render_shortcuts_section(
-        c,
-        d,
-        ("pref-sec-editor-shortcuts", panel_id.0),
-        "Text Editing & Formatting",
-        is_sec3_expanded,
-        toggle_settings_section_handler(&state, sec3_key),
-        crate::components::shortcuts_data::editor_editing_shortcuts(),
-    ));
+    for (index, (plugin, items)) in shortcut_sections().into_iter().enumerate() {
+        let sec_key = format!("shortcuts.{plugin}");
+        let is_expanded = state.read(cx).expanded_sections.contains(&sec_key);
+        sections.push(render_shortcuts_section(
+            c,
+            d,
+            ElementId::Name(format!("pref-sec-shortcuts-{}-{index}", panel_id.0).into()),
+            &plugin,
+            is_expanded,
+            toggle_settings_section_handler(&state, sec_key),
+            &items,
+        ));
+    }
 
     sections
 }

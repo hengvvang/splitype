@@ -44,9 +44,14 @@ pub struct ManifestCommand {
     /// keybinding-only commands.
     #[serde(default)]
     pub menu: Option<String>,
-    /// Default shortcut, as display/definition metadata.
+    /// Default shortcuts as gpui keystroke strings. Empty for menu-only
+    /// commands.
     #[serde(default)]
-    pub shortcut: Option<String>,
+    pub shortcuts: Vec<String>,
+    /// Optional gpui keybinding context (e.g. `BlockEditor`); the binding
+    /// only fires while a focus handle with that context is focused.
+    #[serde(default)]
+    pub context: Option<String>,
 }
 
 /// How a plugin provides its code.

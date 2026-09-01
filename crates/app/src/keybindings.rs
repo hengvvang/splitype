@@ -1,113 +1,136 @@
-//! Keybinding installation — turns the shortcut configuration into gpui
-//! key bindings for the block editor and window commands.
+//! Keybinding installation — turns the command registry's manifest-declared
+//! shortcuts into gpui key bindings.
 //!
-//! The shortcut schema (definition table, defaults, normalization) lives in
-//! `config::keybindings`; this module maps `ShortcutCommand`s
-//! to the concrete gpui action types and installs them.
+//! The command registry owns the default shortcuts and key contexts; this
+//! module resolves every contribution through the composition-root binding
+//! table, applies user overrides and conflict resolution, and installs the
+//! resulting bindings.
 
 use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::actions::{
-    CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
-};
-use editor::actions::{
-    FindNext, FindPrevious, JumpToBottom, JumpToTop, PageDown, PageUp, Redo, SaveDocument,
-    SaveDocumentAs, ToggleMaximizePane, TogglePaneKind, ToggleReplace, ToggleSearch, Undo,
-};
+use crate::commands::binding_for;
+use config::keybindings::normalize_shortcut_keys;
 
-use config::keybindings::{
-    SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
-};
-use pane_wysiwyg::pane::actions::{
-    BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
-    FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, MoveLeft, MoveRight, Newline,
-    OutdentBlock, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,
-    StrikethroughSelection, UnderlineSelection, WordDeleteBackward, WordDeleteForward,
-    WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
-};
-use window::actions::{Copy, Cut, DismissTransientUi, Paste};
-
-fn key_binding_for(
-    command: ShortcutCommand,
-    key: &str,
-    context: Option<&'static str>,
-) -> KeyBinding {
-    match command {
-        ShortcutCommand::Newline => KeyBinding::new(key, Newline, context),
-        ShortcutCommand::DeleteBackward => KeyBinding::new(key, DeleteBackward, context),
-        ShortcutCommand::Delete => KeyBinding::new(key, Delete, context),
-        ShortcutCommand::WordDeleteBackward => KeyBinding::new(key, WordDeleteBackward, context),
-        ShortcutCommand::WordDeleteForward => KeyBinding::new(key, WordDeleteForward, context),
-        ShortcutCommand::FocusPrevious => KeyBinding::new(key, FocusPrevious, context),
-        ShortcutCommand::FocusNext => KeyBinding::new(key, FocusNext, context),
-        ShortcutCommand::MoveLeft => KeyBinding::new(key, MoveLeft, context),
-        ShortcutCommand::MoveRight => KeyBinding::new(key, MoveRight, context),
-        ShortcutCommand::WordMoveLeft => KeyBinding::new(key, WordMoveLeft, context),
-        ShortcutCommand::WordMoveRight => KeyBinding::new(key, WordMoveRight, context),
-        ShortcutCommand::Home => KeyBinding::new(key, Home, context),
-        ShortcutCommand::End => KeyBinding::new(key, End, context),
-        ShortcutCommand::BlockUp => KeyBinding::new(key, BlockUp, context),
-        ShortcutCommand::BlockDown => KeyBinding::new(key, BlockDown, context),
-        ShortcutCommand::PageUp => KeyBinding::new(key, PageUp, context),
-        ShortcutCommand::PageDown => KeyBinding::new(key, PageDown, context),
-        ShortcutCommand::JumpToTop => KeyBinding::new(key, JumpToTop, context),
-        ShortcutCommand::JumpToBottom => KeyBinding::new(key, JumpToBottom, context),
-        ShortcutCommand::SelectLeft => KeyBinding::new(key, SelectLeft, context),
-        ShortcutCommand::SelectRight => KeyBinding::new(key, SelectRight, context),
-        ShortcutCommand::WordSelectLeft => KeyBinding::new(key, WordSelectLeft, context),
-        ShortcutCommand::WordSelectRight => KeyBinding::new(key, WordSelectRight, context),
-        ShortcutCommand::SelectHome => KeyBinding::new(key, SelectHome, context),
-        ShortcutCommand::SelectEnd => KeyBinding::new(key, SelectEnd, context),
-        ShortcutCommand::SelectAll => KeyBinding::new(key, SelectAll, context),
-        ShortcutCommand::Copy => KeyBinding::new(key, Copy, context),
-        ShortcutCommand::Cut => KeyBinding::new(key, Cut, context),
-        ShortcutCommand::Paste => KeyBinding::new(key, Paste, context),
-        ShortcutCommand::Undo => KeyBinding::new(key, Undo, context),
-        ShortcutCommand::Redo => KeyBinding::new(key, Redo, context),
-        ShortcutCommand::BoldSelection => KeyBinding::new(key, BoldSelection, context),
-        ShortcutCommand::ItalicSelection => KeyBinding::new(key, ItalicSelection, context),
-        ShortcutCommand::UnderlineSelection => KeyBinding::new(key, UnderlineSelection, context),
-        ShortcutCommand::CodeSelection => KeyBinding::new(key, CodeSelection, context),
-        ShortcutCommand::StrikethroughSelection => {
-            KeyBinding::new(key, StrikethroughSelection, context)
-        }
-        ShortcutCommand::IndentBlock => KeyBinding::new(key, IndentBlock, context),
-        ShortcutCommand::OutdentBlock => KeyBinding::new(key, OutdentBlock, context),
-        ShortcutCommand::ExitCodeBlock => KeyBinding::new(key, ExitCodeBlock, context),
-        ShortcutCommand::SaveDocument => KeyBinding::new(key, SaveDocument, context),
-        ShortcutCommand::SaveDocumentAs => KeyBinding::new(key, SaveDocumentAs, context),
-        ShortcutCommand::NewWindow => KeyBinding::new(key, NewWindow, context),
-        ShortcutCommand::OpenFile => KeyBinding::new(key, OpenFile, context),
-        ShortcutCommand::QuitApplication => KeyBinding::new(key, QuitApplication, context),
-        ShortcutCommand::CloseWindow => KeyBinding::new(key, CloseWindow, context),
-        ShortcutCommand::DismissTransientUi => KeyBinding::new(key, DismissTransientUi, context),
-        ShortcutCommand::TogglePaneKind => KeyBinding::new(key, TogglePaneKind, context),
-        ShortcutCommand::ToggleExplorer => KeyBinding::new(key, ToggleExplorer, context),
-        ShortcutCommand::ToggleMaximizeArea => KeyBinding::new(key, ToggleMaximizeArea, context),
-        ShortcutCommand::ToggleMaximizePane => KeyBinding::new(key, ToggleMaximizePane, context),
-        ShortcutCommand::ToggleSearch => KeyBinding::new(key, ToggleSearch, context),
-        ShortcutCommand::ToggleReplace => KeyBinding::new(key, ToggleReplace, context),
-        ShortcutCommand::FindNext => KeyBinding::new(key, FindNext, context),
-        ShortcutCommand::FindPrevious => KeyBinding::new(key, FindPrevious, context),
+/// Platform policy for shortcuts declared by manifests: OS-level keys are
+/// declared once and filtered here, where platform glue lives.
+fn platform_allows(command_id: &str, keystroke: &str) -> bool {
+    match (command_id, keystroke) {
+        // cmd-q is the system quit shortcut; Windows/Linux use Alt+F4
+        // (handled by the OS, no binding).
+        ("splitype.core.quit", _) => cfg!(target_os = "macos"),
+        // cmd-w closes the current window on macOS; other platforms use
+        // ctrl-q. Both are declared and filtered per platform.
+        ("splitype.core.close-window", "cmd-w") => cfg!(target_os = "macos"),
+        ("splitype.core.close-window", "ctrl-q") => !cfg!(target_os = "macos"),
+        _ => true,
     }
 }
 
-pub(crate) fn resolved_keybindings(config: &BTreeMap<String, Vec<String>>) -> Vec<KeyBinding> {
-    let normalized = normalize_shortcut_config(config);
-    let mut bindings = Vec::new();
-    for definition in SHORTCUT_DEFINITIONS {
-        let keys = normalized
-            .get(definition.id)
-            .cloned()
-            .unwrap_or_else(|| default_keys(*definition));
-        bindings.extend(
-            keys.iter()
-                .map(|key| key_binding_for(definition.command, key, definition.context)),
+/// Computes the effective shortcut list for one command: user overrides win,
+/// falling back to the manifest-declared defaults.
+fn effective_keys(
+    command_id: &str,
+    defaults: &[String],
+    overrides: &BTreeMap<String, Vec<String>>,
+) -> Vec<String> {
+    overrides
+        .get(command_id)
+        .and_then(|keys| normalize_shortcut_keys(keys))
+        .unwrap_or_else(|| defaults.to_vec())
+}
+
+/// Resolves every contributed command into its gpui key bindings, honoring
+/// user overrides and dropping overrides that conflict inside one context.
+pub(crate) fn resolved_keybindings(overrides: &BTreeMap<String, Vec<String>>) -> Vec<KeyBinding> {
+    let contributions = core_contracts::CommandRegistry::registered_commands().unwrap_or_default();
+
+    // One pass of context-scoped conflict resolution: when a user override
+    // collides with an effective shortcut of another command in the same
+    // context, the override falls back to the default.
+    let mut effective: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    for contribution in &contributions {
+        let defaults: Vec<String> = contribution
+            .shortcuts
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        effective.insert(
+            contribution.id.as_str(),
+            effective_keys(contribution.id.as_str(), &defaults, overrides),
         );
     }
+    for left in &contributions {
+        for right in &contributions {
+            if left.id == right.id {
+                continue;
+            }
+            if left.context != right.context {
+                continue;
+            }
+            let left_keys = effective.get(left.id.as_str()).cloned().unwrap_or_default();
+            let right_keys = effective
+                .get(right.id.as_str())
+                .cloned()
+                .unwrap_or_default();
+            if left_keys.iter().any(|key| right_keys.contains(key)) {
+                for id in [left.id.as_str(), right.id.as_str()] {
+                    if overrides.contains_key(id) {
+                        let defaults: Vec<String> = contributions
+                            .iter()
+                            .find(|c| c.id.as_str() == id)
+                            .map(|c| c.shortcuts.iter().map(|s| s.to_string()).collect())
+                            .unwrap_or_default();
+                        effective.insert(id, defaults);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut bindings = Vec::new();
+    for contribution in &contributions {
+        if contribution.shortcuts.is_empty() {
+            continue;
+        }
+        let Some(binding) = binding_for_contribution(contribution) else {
+            continue;
+        };
+        let keys = effective
+            .get(contribution.id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        for key in keys {
+            if !platform_allows(contribution.id.as_str(), &key) {
+                continue;
+            }
+            let context_predicate = contribution.context.as_deref().map(|context| {
+                KeyBindingContextPredicate::parse(context)
+                    .expect("manifest keybinding contexts must parse")
+                    .into()
+            });
+            bindings.push(
+                KeyBinding::load(
+                    &key,
+                    (binding.make_action)(),
+                    context_predicate,
+                    false,
+                    None,
+                    &DummyKeyboardMapper,
+                )
+                .expect("manifest shortcuts must parse as keystrokes"),
+            );
+        }
+    }
     bindings
+}
+
+fn binding_for_contribution(
+    contribution: &core_contracts::CommandContribution,
+) -> Option<crate::commands::CommandBinding> {
+    let (plugin, local) = contribution.id.as_str().rsplit_once('.')?;
+    binding_for(plugin, local)
 }
 
 pub(crate) fn install_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<String>>) {

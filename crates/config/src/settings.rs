@@ -8,7 +8,6 @@ use gpui::*;
 use serde::{Deserialize, Serialize};
 
 use crate::dirs::SplitypeConfigDirs;
-use crate::keybindings::normalize_shortcut_config;
 use crate::recent::read_recent_files;
 
 pub type SubsystemSyncHook = fn(&mut App, &AppSettings);
@@ -431,6 +430,8 @@ pub struct AppSettings {
     pub markdown: MarkdownSettings,
     #[serde(default)]
     pub explorer: ExplorerSettings,
+    /// User shortcut overrides keyed by full command id (e.g.
+    /// `splitype.editor.save`); values are gpui keystroke strings.
     #[serde(default)]
     pub keybindings: BTreeMap<String, Vec<String>>,
 }
@@ -548,8 +549,7 @@ pub fn read_app_settings_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<
             return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
         }
     };
-    let mut settings: AppSettings = toml::from_str(&text).unwrap_or_default();
-    settings.keybindings = normalize_shortcut_config(&settings.keybindings);
+    let settings: AppSettings = toml::from_str(&text).unwrap_or_default();
     Ok(settings)
 }
 
@@ -585,10 +585,7 @@ where
     let path = dirs.app_config_file();
     let settings = match std::fs::read_to_string(&path) {
         Ok(text) => match toml::from_str::<AppSettings>(&text) {
-            Ok(mut settings) => {
-                settings.keybindings = normalize_shortcut_config(&settings.keybindings);
-                settings
-            }
+            Ok(settings) => settings,
             Err(_) => {
                 let mut def = AppSettings::default();
                 def.interface.language_id = detected_language_id.into();

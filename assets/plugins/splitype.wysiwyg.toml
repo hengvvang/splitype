@@ -12,3 +12,153 @@ registration = "wysiwyg"
 [capabilities]
 panes = ["splitype.pane.wysiwyg"]
 panels = []
+
+[[commands]]
+id = "newline"
+shortcuts = ["enter"]
+context = "BlockEditor"
+
+[[commands]]
+id = "delete-backward"
+shortcuts = ["backspace"]
+context = "BlockEditor"
+
+[[commands]]
+id = "delete"
+shortcuts = ["delete"]
+context = "BlockEditor"
+
+[[commands]]
+id = "word-delete-backward"
+shortcuts = ["ctrl-backspace", "alt-backspace"]
+context = "BlockEditor"
+
+[[commands]]
+id = "word-delete-forward"
+shortcuts = ["ctrl-delete", "alt-delete"]
+context = "BlockEditor"
+
+[[commands]]
+id = "focus-previous"
+shortcuts = ["up"]
+context = "BlockEditor"
+
+[[commands]]
+id = "focus-next"
+shortcuts = ["down"]
+context = "BlockEditor"
+
+[[commands]]
+id = "move-left"
+shortcuts = ["left"]
+context = "BlockEditor"
+
+[[commands]]
+id = "move-right"
+shortcuts = ["right"]
+context = "BlockEditor"
+
+[[commands]]
+id = "word-move-left"
+shortcuts = ["ctrl-left", "alt-left"]
+context = "BlockEditor"
+
+[[commands]]
+id = "word-move-right"
+shortcuts = ["ctrl-right", "alt-right"]
+context = "BlockEditor"
+
+[[commands]]
+id = "home"
+shortcuts = ["home"]
+context = "BlockEditor"
+
+[[commands]]
+id = "end"
+shortcuts = ["end"]
+context = "BlockEditor"
+
+[[commands]]
+id = "block-up"
+shortcuts = ["ctrl-up", "alt-up"]
+context = "BlockEditor"
+
+[[commands]]
+id = "block-down"
+shortcuts = ["ctrl-down", "alt-down"]
+context = "BlockEditor"
+
+[[commands]]
+id = "select-left"
+shortcuts = ["shift-left"]
+context = "BlockEditor"
+
+[[commands]]
+id = "select-right"
+shortcuts = ["shift-right"]
+context = "BlockEditor"
+
+[[commands]]
+id = "word-select-left"
+shortcuts = ["ctrl-shift-left", "alt-shift-left"]
+context = "BlockEditor"
+
+[[commands]]
+id = "word-select-right"
+shortcuts = ["ctrl-shift-right", "alt-shift-right"]
+context = "BlockEditor"
+
+[[commands]]
+id = "select-home"
+shortcuts = ["shift-home"]
+context = "BlockEditor"
+
+[[commands]]
+id = "select-end"
+shortcuts = ["shift-end"]
+context = "BlockEditor"
+
+[[commands]]
+id = "select-all"
+shortcuts = ["cmd-a", "ctrl-a"]
+context = "BlockEditor"
+
+[[commands]]
+id = "bold-selection"
+shortcuts = ["cmd-b", "ctrl-b"]
+context = "BlockEditor"
+
+[[commands]]
+id = "italic-selection"
+shortcuts = ["cmd-i", "ctrl-i"]
+context = "BlockEditor"
+
+[[commands]]
+id = "underline-selection"
+shortcuts = ["cmd-u", "ctrl-u"]
+context = "BlockEditor"
+
+[[commands]]
+id = "code-selection"
+shortcuts = ["cmd-`", "ctrl-`"]
+context = "BlockEditor"
+
+[[commands]]
+id = "strikethrough-selection"
+shortcuts = ["cmd-shift-x", "ctrl-shift-x", "alt-shift-5"]
+context = "BlockEditor"
+
+[[commands]]
+id = "indent-block"
+shortcuts = ["tab"]
+context = "BlockEditor"
+
+[[commands]]
+id = "outdent-block"
+shortcuts = ["shift-tab"]
+context = "BlockEditor"
+
+[[commands]]
+id = "exit-code-block"
+shortcuts = ["cmd-enter", "ctrl-enter"]
+context = "BlockEditor"

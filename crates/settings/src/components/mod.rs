@@ -7,7 +7,6 @@ pub(crate) mod interface;
 pub(crate) mod markdown_sec;
 pub(crate) mod number_field;
 pub(crate) mod shortcuts;
-pub(crate) mod shortcuts_data;
 pub(crate) mod startup_sec;
 
 pub(crate) use editing::*;

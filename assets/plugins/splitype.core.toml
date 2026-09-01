@@ -13,73 +13,106 @@ registration = "core"
 [[commands]]
 id = "about"
 menu = "app"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "check-updates"
 menu = "app"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "open-settings"
 menu = "app"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "quit"
 menu = "app"
-shortcut = ""
+shortcuts = ["cmd-q"]
 
 [[commands]]
 id = "new-window"
 menu = "file"
-shortcut = "ctrl+n"
+shortcuts = ["cmd-n", "ctrl-n"]
 
 [[commands]]
 id = "close-window"
 menu = "file"
-shortcut = "ctrl+shift+w"
+shortcuts = ["cmd-w", "ctrl-q"]
 
 [[commands]]
 id = "open-file"
 menu = "file"
-shortcut = "ctrl+o"
+shortcuts = ["cmd-o", "ctrl-o"]
 
 [[commands]]
 id = "close-explorer-folder"
 menu = "file"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "toggle-explorer"
-shortcut = "ctrl+e"
+shortcuts = ["ctrl-w"]
+
+[[commands]]
+id = "toggle-maximize-area"
+shortcuts = ["ctrl-space", "cmd-space"]
+
+[[commands]]
+id = "dismiss-transient-ui"
+shortcuts = ["escape"]
+
+[[commands]]
+id = "copy"
+shortcuts = ["cmd-c", "ctrl-c"]
+context = "BlockEditor"
+
+[[commands]]
+id = "cut"
+shortcuts = ["cmd-x", "ctrl-x"]
+context = "BlockEditor"
+
+[[commands]]
+id = "paste"
+shortcuts = ["cmd-v", "ctrl-v"]
+context = "BlockEditor"
+
+[[commands]]
+id = "undo"
+shortcuts = ["cmd-z", "ctrl-z"]
+context = "BlockEditor"
+
+[[commands]]
+id = "redo"
+shortcuts = ["cmd-shift-z", "ctrl-y"]
+context = "BlockEditor"
 
 [[commands]]
 id = "repository"
 menu = "help"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "bug-report"
 menu = "help"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "feature-request"
 menu = "help"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "discussions"
 menu = "help"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "install-cli"
 menu = "help"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "uninstall-cli"
 menu = "help"
-shortcut = ""
+shortcuts = []

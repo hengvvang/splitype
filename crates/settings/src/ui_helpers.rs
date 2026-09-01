@@ -14,8 +14,8 @@ pub(crate) fn make_row(
     inner_border_color: Hsla,
     c: &ThemeColors,
     d: &ThemeDimensions,
-    title: &'static str,
-    desc: &'static str,
+    title: impl Into<SharedString>,
+    desc: impl Into<SharedString>,
     control: AnyElement,
 ) -> AnyElement {
     make_row_with_reset(inner_border_color, c, d, title, desc, None, control)
@@ -25,17 +25,19 @@ pub(crate) fn make_row_with_reset(
     inner_border_color: Hsla,
     c: &ThemeColors,
     d: &ThemeDimensions,
-    title: &'static str,
-    desc: &'static str,
+    title: impl Into<SharedString>,
+    desc: impl Into<SharedString>,
     on_reset: Option<SettingsClickHandler>,
     control: AnyElement,
 ) -> AnyElement {
+    let title = title.into();
+    let desc = desc.into();
     let mut title_row = div().flex().items_center().gap(px(6.0)).child(
         div()
             .text_size(px(12.5))
             .font_weight(gpui::FontWeight::MEDIUM)
             .text_color(c.text_default)
-            .child(title),
+            .child(title.clone()),
     );
 
     if let Some(reset_fn) = on_reset {
@@ -75,11 +77,12 @@ pub(crate) fn make_section(
     c: &ThemeColors,
     d: &ThemeDimensions,
     id: impl Into<ElementId>,
-    title: &'static str,
+    title: impl Into<SharedString>,
     expanded: bool,
     toggle_fn: SettingsClickHandler,
     items: Vec<AnyElement>,
 ) -> AnyElement {
+    let title = title.into();
     let base_id = id.into();
     let header_id = ElementId::from((base_id.clone(), "header"));
     let card_id = ElementId::from((base_id, "card"));

@@ -19,19 +19,59 @@ icon_root = "icons/editor"
 [[commands]]
 id = "save"
 menu = "file"
-shortcut = "ctrl+s"
+shortcuts = ["cmd-s", "ctrl-s"]
 
 [[commands]]
 id = "save-as"
 menu = "file"
-shortcut = "ctrl+shift+s"
+shortcuts = ["cmd-shift-s", "ctrl-shift-s"]
 
 [[commands]]
 id = "export-html"
 menu = "file.export"
-shortcut = ""
+shortcuts = []
 
 [[commands]]
 id = "export-pdf"
 menu = "file.export"
-shortcut = ""
+shortcuts = []
+
+[[commands]]
+id = "page-up"
+shortcuts = ["pageup"]
+
+[[commands]]
+id = "page-down"
+shortcuts = ["pagedown"]
+
+[[commands]]
+id = "jump-to-top"
+shortcuts = ["ctrl-home", "cmd-up"]
+
+[[commands]]
+id = "jump-to-bottom"
+shortcuts = ["ctrl-end", "cmd-down"]
+
+[[commands]]
+id = "toggle-pane-kind"
+shortcuts = ["ctrl-tab", "cmd-tab"]
+
+[[commands]]
+id = "toggle-maximize-pane"
+shortcuts = ["ctrl-shift-m", "cmd-shift-m"]
+
+[[commands]]
+id = "toggle-search"
+shortcuts = ["cmd-f", "ctrl-f"]
+
+[[commands]]
+id = "toggle-replace"
+shortcuts = ["cmd-h", "ctrl-h"]
+
+[[commands]]
+id = "find-next"
+shortcuts = ["f3"]
+
+[[commands]]
+id = "find-previous"
+shortcuts = ["shift-f3"]

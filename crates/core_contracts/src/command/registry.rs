@@ -15,17 +15,21 @@ pub enum CommandRegistryError {
     Poisoned,
 }
 
-/// A plugin's command contribution: where it appears and its default
-/// shortcut. The concrete action and localized label are provided by the
-/// composition root's command binding table, keyed by the same id.
+/// A plugin's command contribution: where it appears, its default
+/// shortcuts, and the key context they fire in. The concrete action and
+/// localized label are provided by the composition root's command binding
+/// table, keyed by the same id.
 #[derive(Clone, Debug)]
 pub struct CommandContribution {
     pub id: CommandId,
     /// Menu skeleton location, e.g. `file` or `file.export`. `None` for
     /// keybinding-only commands.
     pub menu: Option<Arc<str>>,
-    /// Default shortcut, as display/definition metadata.
-    pub shortcut: Option<Arc<str>>,
+    /// Default shortcuts as gpui keystroke strings.
+    pub shortcuts: Vec<Arc<str>>,
+    /// Optional keybinding context; the binding only fires while a focus
+    /// handle with that context is focused.
+    pub context: Option<Arc<str>>,
 }
 
 /// Registry of command contributions, keyed by command id.
@@ -112,7 +116,8 @@ mod tests {
         CommandContribution {
             id: CommandId::from_static(id),
             menu: None,
-            shortcut: None,
+            shortcuts: Vec::new(),
+            context: None,
         }
     }
 

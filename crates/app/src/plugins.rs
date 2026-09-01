@@ -117,7 +117,12 @@ pub(crate) fn init_plugins() {
             core_contracts::CommandRegistry::register_global(core_contracts::CommandContribution {
                 id: core_contracts::CommandId::new(full_id),
                 menu: command.menu.clone().map(std::sync::Arc::from),
-                shortcut: command.shortcut.clone().map(std::sync::Arc::from),
+                shortcuts: command
+                    .shortcuts
+                    .iter()
+                    .map(|shortcut| std::sync::Arc::from(shortcut.as_str()))
+                    .collect(),
+                context: command.context.clone().map(std::sync::Arc::from),
             })
             .expect("bundled command ids must be unique");
         }

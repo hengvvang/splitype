@@ -66,15 +66,16 @@ impl SettingsWindow {
     pub(crate) fn toggle_section_handler(
         &self,
         cx: &mut Context<Self>,
-        key: &'static str,
+        key: impl Into<String>,
     ) -> crate::ui_helpers::SettingsClickHandler {
+        let key = key.into();
         let handle = cx.entity().downgrade();
         Box::new(move |_event, _window, cx| {
             let _ = handle.update(cx, |this, cx| {
-                if this.expanded_sections.contains(key) {
-                    this.expanded_sections.remove(key);
+                if this.expanded_sections.contains(&key) {
+                    this.expanded_sections.remove(&key);
                 } else {
-                    this.expanded_sections.insert(key.to_string());
+                    this.expanded_sections.insert(key.clone());
                 }
                 cx.notify();
             });
@@ -934,41 +935,19 @@ impl SettingsWindow {
         let d = &theme.dimensions;
         let mut sections = Vec::new();
 
-        let sec1_key = "doc_actions";
-        let is_sec1_expanded = self.expanded_sections.contains(sec1_key);
-        sections.push(render_shortcuts_section(
-            c,
-            d,
-            "win-pref-sec-doc-actions",
-            "Document Actions",
-            is_sec1_expanded,
-            self.toggle_section_handler(cx, sec1_key),
-            crate::components::shortcuts_data::doc_action_shortcuts(),
-        ));
-
-        let sec2_key = "view_controls";
-        let is_sec2_expanded = self.expanded_sections.contains(sec2_key);
-        sections.push(render_shortcuts_section(
-            c,
-            d,
-            "win-pref-sec-view-controls",
-            "Interface & View Controls",
-            is_sec2_expanded,
-            self.toggle_section_handler(cx, sec2_key),
-            crate::components::shortcuts_data::interface_view_shortcuts(),
-        ));
-
-        let sec3_key = "editor_shortcuts";
-        let is_sec3_expanded = self.expanded_sections.contains(sec3_key);
-        sections.push(render_shortcuts_section(
-            c,
-            d,
-            "win-pref-sec-editor-shortcuts",
-            "Text Editing & Formatting",
-            is_sec3_expanded,
-            self.toggle_section_handler(cx, sec3_key),
-            crate::components::shortcuts_data::editor_editing_shortcuts(),
-        ));
+        for (index, (plugin, items)) in shortcut_sections().into_iter().enumerate() {
+            let sec_key = format!("shortcuts.{plugin}");
+            let is_expanded = self.expanded_sections.contains(&sec_key);
+            sections.push(render_shortcuts_section(
+                c,
+                d,
+                ElementId::Name(format!("win-pref-sec-shortcuts-{index}").into()),
+                &plugin,
+                is_expanded,
+                self.toggle_section_handler(cx, sec_key),
+                &items,
+            ));
+        }
 
         sections
     }
