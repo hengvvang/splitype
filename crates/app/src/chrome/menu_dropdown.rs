@@ -23,7 +23,7 @@ impl Shell {
         prefix: &'static str,
         theme: &Theme,
         shell: WeakEntity<Shell>,
-        panel_id: PanelId,
+        panel_id: Option<PanelId>,
         cx: &Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -185,7 +185,7 @@ impl Shell {
         menu_labels: &[SharedString],
         top_offset: f32,
         viewport_size: Size<Pixels>,
-        panel_id: PanelId,
+        panel_id: Option<PanelId>,
     ) -> Option<AnyElement> {
         let viewport_width = f32::from(viewport_size.width.max(px(1.0)));
         let viewport_height = f32::from(viewport_size.height.max(px(1.0)));

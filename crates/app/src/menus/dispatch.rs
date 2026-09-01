@@ -267,7 +267,7 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
 pub(crate) fn dispatch_menu_action_for_panel(
     action: &dyn Action,
     target_shell: &WeakEntity<Shell>,
-    panel_id: PanelId,
+    panel_id: Option<PanelId>,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -294,26 +294,34 @@ pub(crate) fn dispatch_menu_action_for_panel(
         prompts::prompt_and_import_theme_config_with_error_window(cx, current_window);
     } else if action.as_any().is::<SaveDocument>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                panel.request_save_document(cx);
+            if let Some(panel_id) = panel_id {
+                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                    panel.request_save_document(cx);
+                }
             }
         });
     } else if action.as_any().is::<SaveDocumentAs>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                panel.request_save_document_as(cx);
+            if let Some(panel_id) = panel_id {
+                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                    panel.request_save_document_as(cx);
+                }
             }
         });
     } else if action.as_any().is::<ExportHtml>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                panel.export_document(ExportFormat::Html, window, cx);
+            if let Some(panel_id) = panel_id {
+                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                    panel.export_document(ExportFormat::Html, window, cx);
+                }
             }
         });
     } else if action.as_any().is::<ExportPdf>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                panel.export_document(ExportFormat::Pdf, window, cx);
+            if let Some(panel_id) = panel_id {
+                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
+                    panel.export_document(ExportFormat::Pdf, window, cx);
+                }
             }
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {

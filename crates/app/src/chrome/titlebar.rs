@@ -44,17 +44,16 @@ impl Shell {
             Shell::on_titlebar_close,
         );
 
-        let menu_panel = self.primary_document_panel_id().and_then(|panel_id| {
-            self.render_in_window_menu_panel(
-                theme,
-                cx,
-                menus.as_deref(),
-                &menu_labels,
-                titlebar_height,
-                window.viewport_size(),
-                panel_id,
-            )
-        });
+        let target_panel_id = self.active_document_panel_id();
+        let menu_panel = self.render_in_window_menu_panel(
+            theme,
+            cx,
+            menus.as_deref(),
+            &menu_labels,
+            titlebar_height,
+            window.viewport_size(),
+            target_panel_id,
+        );
 
         (titlebar, menu_panel, titlebar_height)
     }
