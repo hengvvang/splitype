@@ -1646,7 +1646,6 @@ dependencies = [
  "splitter",
  "theme",
  "ui",
- "window",
 ]
 
 [[package]]
@@ -1827,7 +1826,6 @@ dependencies = [
  "tracing",
  "trash",
  "ui",
- "window",
  "windows 0.61.3",
 ]
 
@@ -5712,7 +5710,6 @@ dependencies = [
  "theme",
  "tracing",
  "ui",
- "window",
 ]
 
 [[package]]

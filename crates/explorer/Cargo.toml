@@ -17,7 +17,6 @@ config = { path = "../config" }
 platform_contracts = { path = "../platform_contracts" }
 theme = { path = "../theme" }
 ui = { path = "../ui" }
-window = { path = "../window" }
 splitter = { path = "../splitter" }
 gpui = { workspace = true }
 futures = "0.3"

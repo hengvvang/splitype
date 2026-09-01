@@ -6,6 +6,7 @@
 
 pub mod bottombar;
 pub mod button;
+pub mod chrome;
 pub mod corner_drag_preview;
 pub mod custom_titlebar;
 pub mod dialog;
@@ -24,6 +25,7 @@ pub mod tab;
 pub mod table_matrix_picker;
 pub mod topbar;
 
+pub use chrome::{border_menu_style, panel_topbar_icon};
 pub use corner_drag_preview::render_corner_drag_preview;
 pub use outline_hud::render_floating_outline_hud;
 pub use search_panel::render_search_panel_overlay;

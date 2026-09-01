@@ -17,7 +17,7 @@ pub mod search;
 pub use document::{
     DocumentHost, DocumentId, DocumentSnapshot, NavigationExecutionPlan, NavigationTarget, TabKind,
 };
-pub use export::{ExportError, ExportFormat};
+pub use export::ExportFormat;
 pub use outline::{OutlineHost, OutlineHudState, OutlineNode};
 pub use pane::{
     AutoscrollStrategy, PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind,

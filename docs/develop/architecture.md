@@ -50,9 +50,9 @@ plugin set.
 
 1. `app` chooses the product's default plugins and layout. Explicit registration
    in the composition root is policy, not kernel hardcoding.
-2. `window` operates only on `PanelKind`, `PanelDescriptor`, `PanelView`, and
-   declared capabilities. It must not compare against `"editor"`, `"explorer"`,
-   or `"settings"`, and must not downcast to their concrete views.
+2. `window` operates only on `PanelKind`, `PanelDescriptor`, and `PanelView`.
+   It must not compare against `"editor"`, `"explorer"`, or `"settings"`, and
+   must not downcast to their concrete views.
 3. `editor` operates only on pane contracts and document services. It must not
    import `pane_source_code`, `pane_wysiwyg`, or `pane_preview`.
 4. Pane implementations may depend on shared parser, syntax, theme, and document
@@ -150,21 +150,28 @@ an extensible format ID.
 
 ## Panel contract direction
 
-Panels reach the shell through three contract seams, each one-way and
+Panels reach the shell through contract seams, each one-way and
 role-scoped:
 
 - document-routing panels call back through [`DocumentHost`];
-- the shell pushes document context and sidebar commands into sidebar
-  panels through [`SidebarPanel`];
+- the composition root pushes document context and plugin commands into
+  panels through plugin-exported hook functions, registered by kind in
+  `app::routing` — the only place besides `app::plugins` allowed to know
+  concrete panel view types;
 - layout mutations (split, close, maximize, kind switch) from panel chrome
-  are dispatched as shell-owned `window::actions`.
+  are dispatched as the shell vocabulary in `platform_contracts::actions`.
 
 There is no generic PanelHost: the shell materializes panels through the
 registry, applies the same lifecycle to all panel kinds (activation and
 focus; split, dock, swap, move, and panel ID changes; dirty inspection,
-save, discard, and close; filesystem notifications; clone/suspend/restore
-where capabilities declare support; versioned state serialization), and
-panels pick the seam that matches their role.
+save, discard, and close; filesystem notifications; clone/suspend/restore;
+versioned state serialization), and panels pick the seam that matches their
+role. Optional roles live in the plugins that provide them: a document
+panel's plugin exports `document_role`/`document_role_mut` adapters, and the
+explorer plugin exports hook functions (`set_active_document_path`,
+`on_document_path_changed`, `toggle_tree`, `close_folder_scope`); the
+composition root registers both by kind and the shell routes through the
+tables without ever downcasting to a concrete plugin type.
 
 Container chrome (split, close, maximize, kind selector) belongs to the shell.
 Panels contribute metadata and optional actions, then render their body. A panel
@@ -260,17 +267,18 @@ transitional hardcoding listed below is removed.
   instances, and the app bootstrap no longer installs a settings global.
 - The Explorer panel owns an `Entity<ExplorerState>` per instance and
   restores/clones it through the generic suspend/clone protocol; the shell
-  routes active-file sync, drawer toggles, and menu rendering to every
+  routes active-file sync, tree toggles, and menu rendering to every
   explorer instance instead of a shared app global.
-- The sidebar role is a contract, not an explorer privilege:
-  `SidebarPanel` (`set_active_document_path`, `on_document_path_changed`,
-  `toggle_drawer`, `close_active_folder`) plus generic overlay hooks on
-  `PanelView` (`render_overlay`, `dismiss_overlays`). The explorer renders
-  its own row context menu as a panel overlay; the shell pushes document
-  context and sidebar commands through the trait and no longer imports any
-  explorer type outside the composition root. The explorer's
-  `UpdateOpenTabPaths` action moved to `window::actions` so panels emit
-  shell vocabulary instead of the shell consuming plugin vocabulary.
+- The explorer's shell integration is plain plugin hooks, not a platform
+  role: `set_active_document_path`, `on_document_path_changed`,
+  `toggle_tree`, and `close_folder_scope` are exported by the explorer
+  crate and registered by kind in `app::routing`. The explorer renders its
+  own row context menu as a panel overlay; the shell pushes document
+  context and explorer commands through the hook table and no longer
+  imports any explorer type outside the composition root. The explorer's
+  `UpdateOpenTabPaths` action lives in `platform_contracts::actions` so
+  panels emit shell vocabulary instead of the shell consuming plugin
+  vocabulary.
 - Window state is persisted through the `restore_window_state` setting:
   the shell snapshots the layout topology (a serde projection of the split
   tree with transient interaction sessions skipped) plus per-panel plugin
@@ -279,20 +287,20 @@ transitional hardcoding listed below is removed.
   `deserialize_state`; the editor persists its full session (tabs, text,
   dirty flags, pane layout kinds), while non-opting panels restore fresh.
   Startup restores the snapshot when enabled and the schema version matches.
-  Explorer and Settings panels opt in too: the explorer persists its drawer
+  Explorer and Settings panels opt in too: the explorer persists its tree
   visibility and open folder paths (worktrees re-scan from disk on restore),
   and settings persists its active tab.
 - Plugins are declared through versioned TOML manifests
   (`PluginManifest`: reverse-domain `PluginId`, entry point, declared pane
   and panel capabilities, resource roots) and recorded in a global
   `PluginRegistry`. The composition root discovers bundled manifests and
-  maps their in-process registration keys to descriptor factories — the
-  only place allowed to know concrete plugin types — then registers
-  descriptors into the pane/panel registries after validating every kind
-  against the manifest. `plugin://<id>/<path>` resource URLs resolve
+  maps their in-process registration keys to descriptor factories and role
+  adapters — the only place allowed to know concrete plugin types — then
+  registers descriptors into the pane/panel registries after validating
+  every kind against the manifest. `plugin://<id>/<path>` resource URLs resolve
   through the owning manifest's `resources.icon_root` into the asset
   catalog, and panel icons now flow through that namespace (visible in the
-  the panel-kind dropdown).
+  panel-kind dropdown).
 - Commands are plugin contributions: manifests declare `[[commands]]`
   (plugin-local id, menu skeleton location, default shortcuts, keybinding
   context), a global `CommandRegistry` records them, and the menu bar
@@ -311,15 +319,17 @@ transitional hardcoding listed below is removed.
   plugin registry. User-installed manifests under the config `plugins/`
   directory are discovered, validated, and recorded as metadata (code
   transports are not implemented yet), so unknown kinds can still be named.
-- Document routing is a panel role, not an editor privilege:
-  `PanelCapabilities { documents, sidebar }` is declared by descriptors and
-  views, and panels that declare `documents` implement the `DocumentPanel`
-  trait. The shell routes file opens, tab save/close/discard, dirty dialogs,
-  drop replacement, focus, and save/export entirely through
-  `dyn DocumentPanel` (opt-in downcast hooks on `PanelView`); it no longer
-  downcasts to `EditorPanelView` or compares `"editor"` kind strings. Menu
-  actions dispatch to panels by `PanelId`, and the default window layout is
-  derived from registry capabilities.
+- Document routing is a panel role, not an editor privilege: a panel that
+  manages documents implements the `DocumentPanel` trait, and its plugin
+  exports `document_role`/`document_role_mut` adapters (the concrete
+  downcast lives in the plugin, the only crate that knows its view type).
+  The composition root registers the adapter by kind in `app::routing`;
+  the shell routes file opens, tab save/close/discard, dirty dialogs, drop
+  replacement, focus, and save/export entirely through `dyn DocumentPanel`
+  and never downcasts to `EditorPanelView` or compares `"editor"` kind
+  strings. Menu actions dispatch to panels by `PanelId`, and the default
+  window layout is derived from the routing table's primary document kind
+  plus the explorer kind, so any plugin can take over either slot.
 - `EditorHost` is renamed `DocumentHost` (with `on_document_path_changed`
   and `record_recent_file`); the shell hands it to any document panel via
   `DocumentPanel::attach_document_host`.
@@ -329,14 +339,20 @@ transitional hardcoding listed below is removed.
   operations panes actually invoke (`sync_source_text`, outline
   navigation/hover, key/mouse event routing), and `PanelView` carries no
   dead lifecycle hooks — panels reach the shell through `DocumentHost`,
-  `SidebarPanel`, or shell-owned actions, not a generic unused host.
-- `core_contracts` no longer depends on `window` and carries no GPUI
-  presentation: panel contracts (`PanelView`, `PanelDescriptor`,
-  `PanelKind`, `PanelId`, `PanelRenderContext`) live in `core_contracts::panel`,
-  the outline HUD / search panel renderers moved to the `ui` crate, and
-  `window` hosts the panel registry without re-exporting contract types —
-  every consumer imports them from `core_contracts` directly. Built-in kinds
-  are namespaced (`splitype.pane.wysiwyg|source_code|preview`,
+  plugin hook tables, or shell-owned actions, not a generic unused host.
+- `platform_contracts` carries zero knowledge of any panel's role: panel
+  contracts (`PanelView`, `PanelDescriptor`, `PanelKind`, `PanelId`,
+  `PanelRenderContext`), the shared shell actions
+  (`platform_contracts::actions`), the plugin manifest/registry, and the
+  command registry. `editor_contracts` owns the document family vocabulary
+  (`DocumentPanel`, pane SPI, document/search/outline contracts) and does
+  not re-export platform types. The two contract crates are mutually
+  independent. `window` hosts the panel registry without re-exporting
+  contract types — every consumer imports them from the owning contract
+  crate directly. Window-chrome presentation helpers
+  (`panel_topbar_icon`, `border_menu_style`) live in `ui::chrome`.
+  Built-in kinds are namespaced
+  (`splitype.pane.wysiwyg|source_code|preview`,
   `splitype.panel.editor|explorer|settings`) and built via `from_static`;
   `panel_topbar_icon` takes a plugin-owned icon prefix instead of deriving
   paths from kind strings. Both window open paths (`open_editor_window`,
@@ -364,8 +380,6 @@ transitional hardcoding listed below is removed.
 4. `markdown_parser` still carries consumer-specific parse modes
    (`ParseMode::Wysiwyg`/`Preview`); replace them with a recursive parse
    policy owned by the domain.
-6. Preview pane selection rendering exists but no input is routed to it, and
-   the editor's autoscroll execution is still a stub.
 
 ## Migration plan and acceptance criteria
 

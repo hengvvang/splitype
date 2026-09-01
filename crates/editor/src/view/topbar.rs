@@ -5,8 +5,8 @@ use gpui::*;
 use splitter::SplitAxis;
 use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_button_size, toolbar_icon_size};
+use ui::chrome::panel_topbar_icon;
 use ui::topbar::topbar_container;
-use window::panel_topbar_icon;
 
 use crate::editor::Editor;
 

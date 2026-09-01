@@ -9,7 +9,29 @@ use gpui::*;
 use crate::editor::Editor;
 use config::language::I18nManager;
 
-use editor_contracts::{ExportError, ExportFormat};
+use editor_contracts::ExportFormat;
+
+/// Errors occurring during document export pipelines.
+#[derive(Debug)]
+pub(crate) enum ExportError {
+    Io(std::io::Error),
+    Render(String),
+}
+
+impl From<std::io::Error> for ExportError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
+}
+
+impl std::fmt::Display for ExportError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Io(error) => write!(formatter, "I/O error during export: {error}"),
+            Self::Render(detail) => write!(formatter, "Render error: {detail}"),
+        }
+    }
+}
 
 impl Editor {
     pub fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
@@ -44,7 +66,7 @@ impl Editor {
             .unwrap_or_else(|| "Untitled".to_string())
     }
 
-    pub fn render_export_bytes(
+    pub(crate) fn render_export_bytes(
         format: ExportFormat,
         markdown: &str,
         title: &str,
@@ -62,7 +84,7 @@ impl Editor {
         }
     }
 
-    pub fn write_export_bytes(
+    pub(crate) fn write_export_bytes(
         format: ExportFormat,
         markdown: &str,
         title: &str,

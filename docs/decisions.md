@@ -103,45 +103,42 @@ read-only pane can never fake an edit or dirty document.
 
 ## ADR-012: Panels route documents through a capability and trait, not kinds
 
-**Status:** Accepted
+**Status:** Superseded by ADR-020
 
-The window shell treats the editor as an ordinary third-party panel. Panel
-plugins declare `PanelCapabilities` (`documents`, `sidebar`); a panel that
-declares `documents` also implements the `DocumentPanel` trait, which carries
-every document lifecycle operation (open, tab save/close/discard, dirty
-dialogs, drop replacement, focus, save/export). The shell routes all of these
-through `dyn DocumentPanel` via opt-in downcast hooks on `PanelView` and never
-downcasts to a concrete editor type or compares kind strings. Menu actions
-dispatch to a panel by `PanelId` and the default window layout is derived from
-registry capabilities, so any plugin can take over the editor or sidebar role.
+(Historical record.) The window shell treated the editor as an ordinary
+third-party panel. Panel plugins declared `PanelCapabilities` (`documents`,
+`sidebar`); a panel declaring `documents` also implemented the `DocumentPanel`
+trait, which carried every document lifecycle operation. The shell routed all
+of these through `dyn DocumentPanel` via opt-in downcast hooks on `PanelView`.
+The capability layer was later removed: role knowledge lives in plugins and
+routes through plugin-exported adapters instead (ADR-020).
 
 ## ADR-013: Contracts own the domain vocabulary; the shell depends on contracts
 
 **Status:** Accepted
 
-`core_contracts` no longer depends on the `window` shell crate. Panel and pane
-contracts, kind and id types, and the document vocabulary all live in
-`core_contracts`; `window` hosts the registry implementation, and every
-consumer imports contract types from `core_contracts` directly — no re-export
-shims. Built-in kinds are namespaced (`splitype.pane.*`, `splitype.panel.*`),
-constructed via `from_static` without allocating, and icon asset paths are
-decoupled from kind strings: topbar renderers take a plugin-owned
-`icon_prefix`.
+The contract layer no longer depends on the `window` shell crate. Platform
+contracts (panel/plugin/command/action vocabulary) live in
+`platform_contracts`; the document family vocabulary (`DocumentPanel`, pane
+SPI, document/search/outline) lives in `editor_contracts`. The two contract
+crates are mutually independent, `window` hosts the registry implementation,
+and every consumer imports each type from its owning contract crate directly —
+no re-export shims. Built-in kinds are namespaced (`splitype.pane.*`,
+`splitype.panel.*`), constructed via `from_static` without allocating, and
+icon asset paths are decoupled from kind strings: topbar renderers take a
+plugin-owned `icon_prefix`.
 
 ## ADR-014: Sidebar panels are a role, and overlays are panel-owned
 
-**Status:** Accepted
+**Status:** Superseded by ADR-020
 
-The explorer is treated as a third-party sidebar plugin. Panels declaring
-`sidebar` implement the `SidebarPanel` trait (`set_active_document_path`,
-`on_document_path_changed`, `toggle_drawer`, `close_active_folder`); the shell
-pushes document context and sidebar commands through the trait and no longer
-imports explorer types. Window-level overlays (context menus, popovers) are
-rendered by the owning panel through `PanelView::render_overlay` and dismissed
-through `PanelView::dismiss_overlays`, so plugin UI is never rendered by the
-shell. Plugin-emitted shell notifications (path renames) use shell-owned
-`window::actions` vocabulary, keeping the dependency direction
-plugin -> shell -> contracts.
+(Historical record.) The explorer was treated as a third-party sidebar plugin
+through a `SidebarPanel` trait (`set_active_document_path`,
+`on_document_path_changed`, `toggle_drawer`, `close_active_folder`). The
+"sidebar" concept was later removed: those operations became plain
+plugin-exported hook functions wired by the composition root (ADR-020), and
+window-level overlays (context menus, popovers) remain rendered by the owning
+panel through `PanelView::render_overlay`/`dismiss_overlays`.
 
 ## ADR-015: Window state persists through a versioned opt-in snapshot
 
@@ -156,7 +153,7 @@ serialization through `PanelDescriptor::serialize_state`/`deserialize_state`;
 non-opting panels are recreated fresh on restore. The editor persists its full
 `EditorSession` (tabs, text, dirty flags, pane layout kinds) while per-pane
 runtime entities are rebuilt from the restored text. The explorer persists its
-drawer visibility and open folder paths (worktrees are re-scanned from disk on
+tree visibility and open folder paths (worktrees are re-scanned from disk on
 restore), and the settings panel persists its active tab. Loaders reject
 snapshots whose schema version they do not understand.
 
@@ -207,8 +204,8 @@ not exist yet.
 **Status:** Accepted
 
 The codebase keeps exactly one design and one path per item. Cross-crate
-re-export facades are removed (consumers import contract types from
-`core_contracts` only), plugin crate roots expose their descriptor as the
+re-export facades are removed (consumers import contract types from the
+owning contract crate only), plugin crate roots expose their descriptor as the
 sole root-level entry point while internals stay at canonical module paths,
 and `pane_wysiwyg` addresses `markdown_parser`/`syntax_highlighter` directly
 instead of through `pub use` facades. `markdown_parser` owns its model under
@@ -217,3 +214,60 @@ The editor keeps action dispatch handlers in `editor::actions` while state
 mutations live in the session and navigation modules; `explorer::state` is a
 single module rather than `state::state`. Backward-compatibility aliases are
 deleted on the spot, never kept.
+
+## ADR-020: Platform contracts have zero role knowledge; roles route through plugin adapters
+
+**Status:** Accepted
+
+`platform_contracts` knows nothing about what any panel *does*. It owns only
+the universal shell SPI — panel view/descriptor/kind/id, the render context,
+the plugin manifest/registry, the command registry, and the shared shell
+actions — because those facts hold for any windowed application regardless of
+which plugins exist. A platform that ships a `DocumentPanel` or a `SidebarPanel`
+role would implicitly hardcode the built-in product's panel taxonomy, so role
+contracts live with the plugins that provide them.
+
+The test is: "does this property still hold in a non-document application?"
+If yes, it belongs in the platform contracts; if it only makes sense for this
+product's plugins, it belongs to a plugin family. "Only one panel implements
+it" is NOT the criterion — "only this application's panels could have it" is.
+
+Roles are wired through adapter functions exported by the implementing plugin
+(only the plugin knows its concrete view type, since `dyn Any` cannot downcast
+to a trait object):
+
+- the editor plugin exports `document_role`/`document_role_mut` casting a
+  `dyn PanelView` to `dyn DocumentPanel`;
+- the explorer plugin exports `set_active_document_path`,
+  `on_document_path_changed`, `toggle_tree`, and `close_folder_scope`.
+
+The composition root (`app::routing`, populated by `app::plugins`) registers
+both by kind; the shell routes every document operation and explorer command
+through those tables and never downcasts to a concrete plugin view. The
+default window layout derives its slots from the same tables (primary document
+kind plus explorer kind). Naming follows function, not layout convention:
+explorer commands are `toggle_tree`/`close_folder_scope`, not "drawer" or
+"sidebar" — a name must say what the operation does, not where the panel
+usually sits.
+
+## ADR-021: A contract crate forms only around a multi-consumer SPI boundary
+
+**Status:** Accepted
+
+A separate `*_contracts` crate is justified when (and only when) an interface
+has multiple independent implementors *and* multiple independent consumers
+that must not depend on each other's concrete crates:
+
+- `platform_contracts` — every panel plugin implements the panel SPI and the
+  shell, settings, and explorer all consume it;
+- `editor_contracts` — the pane SPI plus the document family vocabulary
+  (`DocumentPanel`, document/search/outline contracts) is implemented by the
+  editor and consumed by every pane plugin.
+
+The explorer is a leaf plugin (single implementor, single consumer: the
+composition root) and therefore gets no `explorer_contracts` crate; its shell
+hooks are plain functions in the explorer crate, named concretely after what
+they do. Inventing a generic service layer for a single implementor would be a
+fake abstraction. The two contract crates never depend on each other: each
+plugin family imports exactly the vocabulary it needs from the crate that owns
+it.

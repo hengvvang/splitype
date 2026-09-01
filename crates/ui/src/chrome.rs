@@ -1,4 +1,4 @@
-//! Window-chrome presentation helpers shared by the shell and the panels.
+//! Window-chrome presentation helpers shared by the shell and panel plugins.
 
 use gpui::SharedString;
 use theme::Theme;

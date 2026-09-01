@@ -19,7 +19,7 @@ impl Editor {
         let editor = cx.entity().downgrade();
         let split_id = border_menu.split_id;
         let theme = cx.global::<theme::ThemeManager>().current().clone();
-        let menu_style = window::border_menu_style(&theme);
+        let menu_style = ui::chrome::border_menu_style(&theme);
 
         let split_h_ed = editor.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {

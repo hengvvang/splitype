@@ -22,7 +22,6 @@ gpui = { workspace = true }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 ui = { path = "../ui" }
-window = { path = "../window" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

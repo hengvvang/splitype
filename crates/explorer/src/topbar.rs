@@ -12,8 +12,8 @@ use platform_contracts::actions::{
 use splitter::SplitAxis;
 use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
+use ui::chrome::panel_topbar_icon;
 use ui::topbar::topbar_container;
-use window::panel_topbar_icon;
 
 /// Top bar of an Explorer area: type selector and split/close controls.
 pub fn render_explorer_topbar(
