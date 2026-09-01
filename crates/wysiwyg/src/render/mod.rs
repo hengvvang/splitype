@@ -3,8 +3,7 @@
 //! Each block kind produces a distinct visual style: H1 has a bottom border,
 //! list items render a marker column (bullet / ordinal), and raw Markdown
 //! fallback renders as plain text. This is the WYSIWYG editing presentation;
-//! the read-only preview presentation lives in
-//! `crate::editor_contracts::panes::preview::render`.
+//! the read-only preview presentation lives in the `preview` plugin.
 
 pub mod blocks;
 pub mod inline;

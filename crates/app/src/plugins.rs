@@ -30,22 +30,19 @@ struct PluginRegistration {
 fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
     let registration = match registration {
         "wysiwyg" => PluginRegistration {
-            pane_descriptors: vec![(Arc::new(pane_wysiwyg::WysiwygDescriptor::new()), true)],
+            pane_descriptors: vec![(Arc::new(wysiwyg::WysiwygDescriptor::new()), true)],
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,
         },
         "source-code" => PluginRegistration {
-            pane_descriptors: vec![(
-                Arc::new(pane_source_code::SourceCodeDescriptor::new()),
-                false,
-            )],
+            pane_descriptors: vec![(Arc::new(source_code::SourceCodeDescriptor::new()), false)],
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,
         },
         "preview" => PluginRegistration {
-            pane_descriptors: vec![(Arc::new(pane_preview::PreviewDescriptor::new()), false)],
+            pane_descriptors: vec![(Arc::new(preview::PreviewDescriptor::new()), false)],
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,

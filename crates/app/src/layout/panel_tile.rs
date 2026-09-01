@@ -106,7 +106,8 @@ impl Shell {
                 false,
                 move |modifier, pos, cx| {
                     let _ = shell_corner.update(cx, |shell, cx| {
-                        let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
+                        let body_pos =
+                            point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
                         shell
                             .panels
                             .layout

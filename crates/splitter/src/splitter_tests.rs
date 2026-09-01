@@ -112,4 +112,3 @@ fn split_is_disallowed_when_maximized() {
     assert!(split_success.is_some());
     assert_eq!(root.tree.count_leaves(), 3);
 }
-

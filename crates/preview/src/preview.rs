@@ -1,4 +1,4 @@
-//! pane_preview — the read-only rendered Markdown preview pane.
+//! preview — the read-only rendered Markdown preview pane.
 //!
 //! Standard-first: the preview tree is built from the CommonMark parse
 //! (100% CommonMark), unlike the WYSIWYG 1:1-line parser. The preview

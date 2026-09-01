@@ -142,7 +142,9 @@ pub fn render_floating_outline_hud(
 
         ticks.push(
             div()
-                .id(ElementId::Name(format!("outline-rail-tick-{pane_id}-{idx}").into()))
+                .id(ElementId::Name(
+                    format!("outline-rail-tick-{pane_id}-{idx}").into(),
+                ))
                 .h(px(8.0))
                 .w_full()
                 .flex()
@@ -158,7 +160,9 @@ pub fn render_floating_outline_hud(
     }
 
     let rail_el = div()
-        .id(ElementId::Name(format!("floating-outline-rail-{pane_id}").into()))
+        .id(ElementId::Name(
+            format!("floating-outline-rail-{pane_id}").into(),
+        ))
         .w(px(28.0))
         .py(px(6.0))
         .px(px(4.0))

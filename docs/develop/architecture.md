@@ -54,7 +54,7 @@ plugin set.
    It must not compare against `"editor"`, `"explorer"`, or `"settings"`, and
    must not downcast to their concrete views.
 3. `editor` operates only on pane contracts and document services. It must not
-   import `pane_source_code`, `pane_wysiwyg`, or `pane_preview`.
+   import `source_code`, `wysiwyg`, or `preview`.
 4. Pane implementations may depend on shared parser, syntax, theme, and document
    APIs, but never on `editor` or another pane implementation.
 5. Parser/domain crates must not contain GPUI entity IDs or modes named after a
@@ -361,9 +361,9 @@ transitional hardcoding listed below is removed.
   re-export foreign contract types, plugin crates expose their descriptor as
   the only root-level entry point, `markdown_parser` addresses its model as
   `parse::*` (the `parse::parser` nesting and GPUI `EntityId` identity are
-  gone), and `pane_wysiwyg` addresses `markdown_parser`/`syntax_highlighter`
+  gone), and `wysiwyg` addresses `markdown_parser`/`syntax_highlighter`
   directly instead of through re-export facades (its contract adapter lives
-  in `pane_wysiwyg::pane`). The editor aggregate keeps action dispatch
+  in `wysiwyg::pane`). The editor aggregate keeps action dispatch
   handlers in `editor::actions` while state mutations live in the session /
   navigation modules.
 

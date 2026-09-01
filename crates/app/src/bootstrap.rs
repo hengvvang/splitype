@@ -26,9 +26,9 @@ use config::settings::{
     SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
-use pane_wysiwyg::net::install_http_client;
 use splitype_cli::Args;
 use theme::ThemeManager;
+use wysiwyg::net::install_http_client;
 
 /// On macOS, re-launch the process detached from the terminal.
 #[cfg(target_os = "macos")]

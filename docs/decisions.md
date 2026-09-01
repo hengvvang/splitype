@@ -208,7 +208,7 @@ The codebase keeps exactly one design and one path per item. Cross-crate
 re-export facades are removed (consumers import contract types from the
 owning contract crate only), plugin crate roots expose their descriptor as the
 sole root-level entry point while internals stay at canonical module paths,
-and `pane_wysiwyg` addresses `markdown_parser`/`syntax_highlighter` directly
+and `wysiwyg` addresses `markdown_parser`/`syntax_highlighter` directly
 instead of through `pub use` facades. `markdown_parser` owns its model under
 `parse::*` (the `parse::parser` nesting is gone) and carries no GPUI identity.
 The editor keeps action dispatch handlers in `editor::actions` while state

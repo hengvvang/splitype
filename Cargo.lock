@@ -250,14 +250,13 @@ dependencies = [
  "futures",
  "gpui",
  "gpui_platform",
- "pane_preview",
- "pane_source_code",
- "pane_wysiwyg",
  "platform_contracts",
+ "preview",
  "schemars",
  "serde",
  "serde_json",
  "settings",
+ "source_code",
  "splitter",
  "splitype_cli",
  "splitype_installer",
@@ -269,6 +268,7 @@ dependencies = [
  "ui",
  "window",
  "windows 0.61.3",
+ "wysiwyg",
 ]
 
 [[package]]
@@ -4210,53 +4210,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pane_preview"
-version = "0.0.1"
-dependencies = [
- "config",
- "editor_contracts",
- "gpui",
- "markdown_parser",
- "syntax_highlighter",
- "theme",
- "ui",
- "uuid",
-]
-
-[[package]]
-name = "pane_source_code"
-version = "0.0.1"
-dependencies = [
- "editor_contracts",
- "gpui",
- "syntax_highlighter",
- "theme",
- "ui",
-]
-
-[[package]]
-name = "pane_wysiwyg"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "config",
- "editor_contracts",
- "futures",
- "gpui",
- "image",
- "markdown_parser",
- "platform_contracts",
- "reqwest",
- "syntax_highlighter",
- "theme",
- "tracing",
- "ui",
- "unicode-segmentation",
- "url",
- "uuid",
-]
-
-[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4621,6 +4574,20 @@ checksum = "479ca8adacdd7ce8f1fb39ce9ecccbfe93a3f1344b3d0d97f20bc0196208f62b"
 dependencies = [
  "proc-macro2",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "preview"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "editor_contracts",
+ "gpui",
+ "markdown_parser",
+ "syntax_highlighter",
+ "theme",
+ "ui",
+ "uuid",
 ]
 
 [[package]]
@@ -5882,6 +5849,17 @@ checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "source_code"
+version = "0.0.1"
+dependencies = [
+ "editor_contracts",
+ "gpui",
+ "syntax_highlighter",
+ "theme",
+ "ui",
 ]
 
 [[package]]
@@ -8133,6 +8111,28 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+
+[[package]]
+name = "wysiwyg"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "config",
+ "editor_contracts",
+ "futures",
+ "gpui",
+ "image",
+ "markdown_parser",
+ "platform_contracts",
+ "reqwest",
+ "syntax_highlighter",
+ "theme",
+ "tracing",
+ "ui",
+ "unicode-segmentation",
+ "url",
+ "uuid",
+]
 
 [[package]]
 name = "x11"

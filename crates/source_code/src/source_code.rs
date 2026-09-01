@@ -1,4 +1,4 @@
-//! pane_source_code — high-performance, modular source code editor plugin.
+//! source_code — high-performance, modular source code editor plugin.
 //!
 //! Inspired by Zed's architecture with autonomous text buffers, layered
 //! display maps (Tab/Fold/Wrap), multi-cursor selection collection,

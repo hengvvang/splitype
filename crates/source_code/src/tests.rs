@@ -1,4 +1,4 @@
-//! Unit tests for pane_source_code buffer, coordinates, selections, and display maps.
+//! Unit tests for source_code buffer, coordinates, selections, and display maps.
 
 use crate::buffer::{BufferPoint, LineMap};
 use crate::display_map::{FoldMap, FoldRange, TabMap};

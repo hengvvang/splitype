@@ -472,13 +472,20 @@ impl WysiwygDocumentController {
         }
     }
 
-    pub fn calculate_block_scroll_offset(&self, target_block_idx: usize, theme: &Theme, cx: &App) -> f32 {
+    pub fn calculate_block_scroll_offset(
+        &self,
+        target_block_idx: usize,
+        theme: &Theme,
+        cx: &App,
+    ) -> f32 {
         let Some(doc) = &self.document else {
             return 0.0;
         };
         let blocks = doc.blocks();
         let font_size = theme.typography.text_size.max(14.0);
-        let line_height = (font_size * theme.typography.text_line_height).round().max(22.0);
+        let line_height = (font_size * theme.typography.text_line_height)
+            .round()
+            .max(22.0);
         let mut y = 0.0;
         for (i, entry) in blocks.iter().enumerate() {
             if i >= target_block_idx {
@@ -510,7 +517,12 @@ impl WysiwygDocumentController {
         y
     }
 
-    pub fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut Context<Self>) -> Option<f32> {
+    pub fn navigate_to_outline(
+        &mut self,
+        index: usize,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> Option<f32> {
         let headings = self.outline_headings(cx);
         if let Some(node) = headings.get(index) {
             if let Some(entity_id) = node.block_id {

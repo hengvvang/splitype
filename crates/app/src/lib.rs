@@ -5,7 +5,7 @@
 //! window chrome ([`chrome`]), layout ([`layout`]), and dialogs ([`dialogs`]).
 //!
 //! The modular editor engine (`editor`), contracts (`editor_contracts`),
-//! pane plugins (`pane_wysiwyg`, `pane_source_code`, `pane_preview`),
+//! pane plugins (`wysiwyg`, `source_code`, `preview`),
 //! and panel crates (`explorer`, `settings`) are wired together here.
 
 pub mod actions;

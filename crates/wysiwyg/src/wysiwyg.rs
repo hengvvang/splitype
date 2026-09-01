@@ -1,4 +1,4 @@
-//! pane_wysiwyg — the complete WYSIWYG Markdown editing engine plugin.
+//! wysiwyg — the complete WYSIWYG Markdown editing engine plugin.
 //!
 //! Implements [`editor_contracts::PaneView`] to provide a rich visual block editor
 //! with dual-direction text projection, syntax highlighting, LaTeX math,

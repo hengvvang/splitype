@@ -171,123 +171,123 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
         // Keybinding-only block-editing commands owned by the WYSIWYG pane.
         ("splitype.wysiwyg", "newline") => CommandBinding {
             label: |_| SharedString::from("Newline"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::Newline),
+            make_action: || Box::new(wysiwyg::pane::actions::Newline),
         },
         ("splitype.wysiwyg", "delete-backward") => CommandBinding {
             label: |_| SharedString::from("Delete Backward"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::DeleteBackward),
+            make_action: || Box::new(wysiwyg::pane::actions::DeleteBackward),
         },
         ("splitype.wysiwyg", "delete") => CommandBinding {
             label: |_| SharedString::from("Delete"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::Delete),
+            make_action: || Box::new(wysiwyg::pane::actions::Delete),
         },
         ("splitype.wysiwyg", "word-delete-backward") => CommandBinding {
             label: |_| SharedString::from("Word Delete Backward"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::WordDeleteBackward),
+            make_action: || Box::new(wysiwyg::pane::actions::WordDeleteBackward),
         },
         ("splitype.wysiwyg", "word-delete-forward") => CommandBinding {
             label: |_| SharedString::from("Word Delete Forward"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::WordDeleteForward),
+            make_action: || Box::new(wysiwyg::pane::actions::WordDeleteForward),
         },
         ("splitype.wysiwyg", "focus-previous") => CommandBinding {
             label: |_| SharedString::from("Focus Previous"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::FocusPrevious),
+            make_action: || Box::new(wysiwyg::pane::actions::FocusPrevious),
         },
         ("splitype.wysiwyg", "focus-next") => CommandBinding {
             label: |_| SharedString::from("Focus Next"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::FocusNext),
+            make_action: || Box::new(wysiwyg::pane::actions::FocusNext),
         },
         ("splitype.wysiwyg", "move-left") => CommandBinding {
             label: |_| SharedString::from("Move Left"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::MoveLeft),
+            make_action: || Box::new(wysiwyg::pane::actions::MoveLeft),
         },
         ("splitype.wysiwyg", "move-right") => CommandBinding {
             label: |_| SharedString::from("Move Right"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::MoveRight),
+            make_action: || Box::new(wysiwyg::pane::actions::MoveRight),
         },
         ("splitype.wysiwyg", "word-move-left") => CommandBinding {
             label: |_| SharedString::from("Word Move Left"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::WordMoveLeft),
+            make_action: || Box::new(wysiwyg::pane::actions::WordMoveLeft),
         },
         ("splitype.wysiwyg", "word-move-right") => CommandBinding {
             label: |_| SharedString::from("Word Move Right"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::WordMoveRight),
+            make_action: || Box::new(wysiwyg::pane::actions::WordMoveRight),
         },
         ("splitype.wysiwyg", "home") => CommandBinding {
             label: |_| SharedString::from("Home"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::Home),
+            make_action: || Box::new(wysiwyg::pane::actions::Home),
         },
         ("splitype.wysiwyg", "end") => CommandBinding {
             label: |_| SharedString::from("End"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::End),
+            make_action: || Box::new(wysiwyg::pane::actions::End),
         },
         ("splitype.wysiwyg", "block-up") => CommandBinding {
             label: |_| SharedString::from("Block Up"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::BlockUp),
+            make_action: || Box::new(wysiwyg::pane::actions::BlockUp),
         },
         ("splitype.wysiwyg", "block-down") => CommandBinding {
             label: |_| SharedString::from("Block Down"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::BlockDown),
+            make_action: || Box::new(wysiwyg::pane::actions::BlockDown),
         },
         ("splitype.wysiwyg", "select-left") => CommandBinding {
             label: |_| SharedString::from("Select Left"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::SelectLeft),
+            make_action: || Box::new(wysiwyg::pane::actions::SelectLeft),
         },
         ("splitype.wysiwyg", "select-right") => CommandBinding {
             label: |_| SharedString::from("Select Right"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::SelectRight),
+            make_action: || Box::new(wysiwyg::pane::actions::SelectRight),
         },
         ("splitype.wysiwyg", "word-select-left") => CommandBinding {
             label: |_| SharedString::from("Word Select Left"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::WordSelectLeft),
+            make_action: || Box::new(wysiwyg::pane::actions::WordSelectLeft),
         },
         ("splitype.wysiwyg", "word-select-right") => CommandBinding {
             label: |_| SharedString::from("Word Select Right"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::WordSelectRight),
+            make_action: || Box::new(wysiwyg::pane::actions::WordSelectRight),
         },
         ("splitype.wysiwyg", "select-home") => CommandBinding {
             label: |_| SharedString::from("Select Home"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::SelectHome),
+            make_action: || Box::new(wysiwyg::pane::actions::SelectHome),
         },
         ("splitype.wysiwyg", "select-end") => CommandBinding {
             label: |_| SharedString::from("Select End"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::SelectEnd),
+            make_action: || Box::new(wysiwyg::pane::actions::SelectEnd),
         },
         ("splitype.wysiwyg", "select-all") => CommandBinding {
             label: |_| SharedString::from("Select All"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::SelectAll),
+            make_action: || Box::new(wysiwyg::pane::actions::SelectAll),
         },
         ("splitype.wysiwyg", "bold-selection") => CommandBinding {
             label: |_| SharedString::from("Bold Selection"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::BoldSelection),
+            make_action: || Box::new(wysiwyg::pane::actions::BoldSelection),
         },
         ("splitype.wysiwyg", "italic-selection") => CommandBinding {
             label: |_| SharedString::from("Italic Selection"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::ItalicSelection),
+            make_action: || Box::new(wysiwyg::pane::actions::ItalicSelection),
         },
         ("splitype.wysiwyg", "underline-selection") => CommandBinding {
             label: |_| SharedString::from("Underline Selection"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::UnderlineSelection),
+            make_action: || Box::new(wysiwyg::pane::actions::UnderlineSelection),
         },
         ("splitype.wysiwyg", "code-selection") => CommandBinding {
             label: |_| SharedString::from("Code Selection"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::CodeSelection),
+            make_action: || Box::new(wysiwyg::pane::actions::CodeSelection),
         },
         ("splitype.wysiwyg", "strikethrough-selection") => CommandBinding {
             label: |_| SharedString::from("Strikethrough Selection"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::StrikethroughSelection),
+            make_action: || Box::new(wysiwyg::pane::actions::StrikethroughSelection),
         },
         ("splitype.wysiwyg", "indent-block") => CommandBinding {
             label: |_| SharedString::from("Indent Block"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::IndentBlock),
+            make_action: || Box::new(wysiwyg::pane::actions::IndentBlock),
         },
         ("splitype.wysiwyg", "outdent-block") => CommandBinding {
             label: |_| SharedString::from("Outdent Block"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::OutdentBlock),
+            make_action: || Box::new(wysiwyg::pane::actions::OutdentBlock),
         },
         ("splitype.wysiwyg", "exit-code-block") => CommandBinding {
             label: |_| SharedString::from("Exit Code Block"),
-            make_action: || Box::new(pane_wysiwyg::pane::actions::ExitCodeBlock),
+            make_action: || Box::new(wysiwyg::pane::actions::ExitCodeBlock),
         },
         _ => return None,
     })

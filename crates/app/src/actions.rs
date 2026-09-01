@@ -3,7 +3,7 @@
 //!
 //! Document-level actions (save / export / view mode) live in
 //! `editor::actions`; text-editing actions live in
-//! `pane_wysiwyg::actions` or `pane_source_code::actions`.
+//! `wysiwyg::actions` or `source_code::actions`.
 
 use gpui::*;
 use schemars::JsonSchema;
