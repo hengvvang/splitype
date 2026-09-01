@@ -4219,7 +4219,6 @@ dependencies = [
  "editor_contracts",
  "gpui",
  "markdown_parser",
- "platform_contracts",
  "syntax_highlighter",
  "theme",
  "ui",
@@ -4232,7 +4231,6 @@ version = "0.0.1"
 dependencies = [
  "editor_contracts",
  "gpui",
- "platform_contracts",
  "syntax_highlighter",
  "theme",
  "ui",
@@ -4258,7 +4256,6 @@ dependencies = [
  "unicode-segmentation",
  "url",
  "uuid",
- "window",
 ]
 
 [[package]]
@@ -6976,7 +6973,6 @@ dependencies = [
  "config",
  "editor_contracts",
  "gpui",
- "platform_contracts",
  "splitter",
  "theme",
 ]

@@ -85,15 +85,15 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
         // Keybinding-only commands: labels are only used by shortcut listings.
         ("splitype.core", "copy") => CommandBinding {
             label: |_| SharedString::from("Copy"),
-            make_action: || Box::new(window::actions::Copy),
+            make_action: || Box::new(platform_contracts::actions::Copy),
         },
         ("splitype.core", "cut") => CommandBinding {
             label: |_| SharedString::from("Cut"),
-            make_action: || Box::new(window::actions::Cut),
+            make_action: || Box::new(platform_contracts::actions::Cut),
         },
         ("splitype.core", "paste") => CommandBinding {
             label: |_| SharedString::from("Paste"),
-            make_action: || Box::new(window::actions::Paste),
+            make_action: || Box::new(platform_contracts::actions::Paste),
         },
         ("splitype.core", "undo") => CommandBinding {
             label: |_| SharedString::from("Undo"),
@@ -109,7 +109,7 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
         },
         ("splitype.core", "dismiss-transient-ui") => CommandBinding {
             label: |_| SharedString::from("Dismiss Transient UI"),
-            make_action: || Box::new(window::actions::DismissTransientUi),
+            make_action: || Box::new(platform_contracts::actions::DismissTransientUi),
         },
         ("splitype.editor", "save") => CommandBinding {
             label: |s| SharedString::from(s.menu_save.as_str()),

@@ -9,7 +9,7 @@ use crate::ExplorerState;
 use crate::filename_editor::ExplorerFilenameImeHost;
 use crate::state::undo::ExplorerChange;
 use crate::state::{ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation};
-use window::actions::{Copy, Cut, DismissTransientUi, Paste};
+use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste};
 
 impl ExplorerState {
     /// Real-time validation of the inline filename (mirrors Zed's

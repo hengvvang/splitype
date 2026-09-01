@@ -15,4 +15,3 @@ theme = { path = "../theme" }
 config = { path = "../config" }
 gpui = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
-platform_contracts = { path = "../platform_contracts" }

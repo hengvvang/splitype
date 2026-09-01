@@ -15,7 +15,6 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
-platform_contracts = { path = "../platform_contracts" }
 ui = { path = "../ui" }
 syntax_highlighter = { path = "../syntax_highlighter" }
 theme = { path = "../theme" }

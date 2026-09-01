@@ -6,11 +6,13 @@
 use gpui::*;
 
 use platform_contracts::PanelId;
+use platform_contracts::actions::{
+    ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized,
+};
 use splitter::SplitAxis;
 use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 use ui::topbar::topbar_container;
-use window::actions::{ClosePanel, SplitPanel, ToggleKindDropdown, TogglePanelMaximized};
 use window::panel_topbar_icon;
 
 /// Top bar of an Explorer area: type selector and split/close controls.

@@ -16,7 +16,6 @@ workspace = true
 config = { path = "../config" }
 gpui = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
-platform_contracts = { path = "../platform_contracts" }
 ui = { path = "../ui" }
 markdown_parser = { path = "../markdown_parser" }
 syntax_highlighter = { path = "../syntax_highlighter" }

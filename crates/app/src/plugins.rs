@@ -8,7 +8,8 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use editor_contracts::{PaneDescriptor, PanelDescriptor, PluginId, PluginManifest, PluginRegistry};
+use editor_contracts::PaneDescriptor;
+use platform_contracts::{PanelDescriptor, PluginId, PluginManifest, PluginRegistry};
 
 /// Descriptor factories produced by one in-process registration.
 struct PluginRegistration {
@@ -86,13 +87,16 @@ pub(crate) fn init_plugins() {
             commands,
             ..
         } = manifest.clone();
-        let editor_contracts::PluginEntry::InProcess { registration } = entry;
+        let platform_contracts::PluginEntry::InProcess { registration } = entry;
         let factory = descriptors_for(&registration)
             .unwrap_or_else(|| panic!("no descriptor factory for registration '{registration}'"));
 
         for (descriptor, is_default) in &factory.pane_descriptors {
             assert!(
-                capabilities.panes.iter().any(|p| p == descriptor.kind().as_str()),
+                capabilities
+                    .panes
+                    .iter()
+                    .any(|p| p == descriptor.kind().as_str()),
                 "pane kind '{}' registered by '{plugin}' is not declared in its manifest",
                 descriptor.kind()
             );
@@ -114,16 +118,18 @@ pub(crate) fn init_plugins() {
                 crate::commands::binding_for(plugin.as_str(), &command.id).is_some(),
                 "command '{full_id}' declared by '{plugin}' has no composition-root binding"
             );
-            editor_contracts::CommandRegistry::register_global(editor_contracts::CommandContribution {
-                id: editor_contracts::CommandId::new(full_id),
-                menu: command.menu.clone().map(std::sync::Arc::from),
-                shortcuts: command
-                    .shortcuts
-                    .iter()
-                    .map(|shortcut| std::sync::Arc::from(shortcut.as_str()))
-                    .collect(),
-                context: command.context.clone().map(std::sync::Arc::from),
-            })
+            platform_contracts::CommandRegistry::register_global(
+                platform_contracts::CommandContribution {
+                    id: platform_contracts::CommandId::new(full_id),
+                    menu: command.menu.clone().map(std::sync::Arc::from),
+                    shortcuts: command
+                        .shortcuts
+                        .iter()
+                        .map(|shortcut| std::sync::Arc::from(shortcut.as_str()))
+                        .collect(),
+                    context: command.context.clone().map(std::sync::Arc::from),
+                },
+            )
             .expect("bundled command ids must be unique");
         }
         PluginRegistry::register_global(manifest).expect("bundled plugin ids must be unique");

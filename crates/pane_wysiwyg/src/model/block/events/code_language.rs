@@ -9,8 +9,8 @@ use crate::pane::actions::{
     Delete, DeleteBackward, End, FocusNext, FocusPrevious, Home, IndentBlock, MoveLeft, MoveRight,
     Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
 };
+use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste};
 use syntax_highlighter::language::code_language_options_matching;
-use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 impl Block {
     pub fn on_code_block_hover(
         &mut self,

@@ -1,10 +1,10 @@
 use crate::editor::Editor;
 use crate::session::EditorSession;
+use editor_contracts::{DocumentHost, DocumentPanel, TabKind};
+use gpui::*;
 use platform_contracts::{
     PanelCapabilities, PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView,
 };
-use editor_contracts::{DocumentHost, DocumentPanel, TabKind};
-use gpui::*;
 use std::any::Any;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

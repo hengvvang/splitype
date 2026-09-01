@@ -8,7 +8,7 @@ use crate::actions::{
     ToggleMaximizeArea, UninstallCliTool,
 };
 use crate::menus::request_quit_application;
-use editor_contracts::PanelId;
+use platform_contracts::PanelId;
 
 impl Shell {
     /// Dirty state of one panel, resolved through the generic panel contract
@@ -270,7 +270,7 @@ impl Shell {
 
     pub(crate) fn on_toggle_kind_dropdown(
         &mut self,
-        action: &window::actions::ToggleKindDropdown,
+        action: &platform_contracts::actions::ToggleKindDropdown,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -280,7 +280,7 @@ impl Shell {
 
     pub(crate) fn on_split_panel(
         &mut self,
-        action: &window::actions::SplitPanel,
+        action: &platform_contracts::actions::SplitPanel,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -289,7 +289,7 @@ impl Shell {
 
     pub(crate) fn on_toggle_panel_maximized(
         &mut self,
-        action: &window::actions::TogglePanelMaximized,
+        action: &platform_contracts::actions::TogglePanelMaximized,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -299,7 +299,7 @@ impl Shell {
 
     pub(crate) fn on_close_panel(
         &mut self,
-        action: &window::actions::ClosePanel,
+        action: &platform_contracts::actions::ClosePanel,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {

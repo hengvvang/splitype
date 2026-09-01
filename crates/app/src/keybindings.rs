@@ -44,7 +44,8 @@ fn effective_keys(
 /// Resolves every contributed command into its gpui key bindings, honoring
 /// user overrides and dropping overrides that conflict inside one context.
 pub(crate) fn resolved_keybindings(overrides: &BTreeMap<String, Vec<String>>) -> Vec<KeyBinding> {
-    let contributions = editor_contracts::CommandRegistry::registered_commands().unwrap_or_default();
+    let contributions =
+        platform_contracts::CommandRegistry::registered_commands().unwrap_or_default();
 
     // One pass of context-scoped conflict resolution: when a user override
     // collides with an effective shortcut of another command in the same
@@ -127,7 +128,7 @@ pub(crate) fn resolved_keybindings(overrides: &BTreeMap<String, Vec<String>>) ->
 }
 
 fn binding_for_contribution(
-    contribution: &editor_contracts::CommandContribution,
+    contribution: &platform_contracts::CommandContribution,
 ) -> Option<crate::commands::CommandBinding> {
     let (plugin, local) = contribution.id.as_str().rsplit_once('.')?;
     binding_for(plugin, local)

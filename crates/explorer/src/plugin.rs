@@ -4,9 +4,9 @@ use crate::{
     render_explorer_body, render_explorer_bottombar, render_explorer_file_context_menu,
     render_explorer_topbar,
 };
+use gpui::*;
 use platform_contracts::{PanelCapabilities, SidebarPanel};
 use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
-use gpui::*;
 use std::any::Any;
 use std::path::PathBuf;
 use theme::ThemeManager;

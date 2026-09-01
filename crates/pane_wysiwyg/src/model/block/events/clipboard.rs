@@ -7,7 +7,7 @@ use crate::input::paste::plain::should_split_plain_multiline_paste;
 use crate::model::block::Block;
 use crate::model::protocol::{BlockEvent, PastedImageSource, UndoCaptureKind};
 use markdown_parser::inline::text::BlockText;
-use window::actions::{Copy, Cut, Paste};
+use platform_contracts::actions::{Copy, Cut, Paste};
 impl Block {
     pub fn pasted_image_source_from_clipboard(item: &ClipboardItem) -> Option<PastedImageSource> {
         item.entries().iter().find_map(|entry| match entry {

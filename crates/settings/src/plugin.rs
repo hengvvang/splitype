@@ -1,7 +1,7 @@
 use crate::state::{PersistedSettingsState, SettingsUiState};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
-use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
+use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
 
 /// Stable kind identifier of the settings panel plugin.

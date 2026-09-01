@@ -474,7 +474,11 @@ impl Editor {
         }
 
         self.sync_search_highlights_to_document(cx);
-        self.request_autoscroll(active_pane, editor_contracts::AutoscrollStrategy::Center, cx);
+        self.request_autoscroll(
+            active_pane,
+            editor_contracts::AutoscrollStrategy::Center,
+            cx,
+        );
         window.refresh();
         cx.notify();
     }

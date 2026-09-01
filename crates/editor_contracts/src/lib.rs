@@ -1,4 +1,11 @@
-//! editor_contracts — unified contracts and domain vocabulary for the splitype editor ecosystem.
+//! editor_contracts — contracts and domain vocabulary of the document
+//! editing ecosystem: the editor panel role, the pane SPI, and the
+//! document/search/outline contracts shared with pane plugins.
+//!
+//! Platform-level contracts (panels, plugins, commands, shell actions) live
+//! in `platform_contracts`, which has zero knowledge of document editing.
+//! The two contract crates are mutually independent; document plugins depend
+//! on both, each type imported from its owning crate.
 
 pub mod document;
 pub mod export;
@@ -17,13 +24,6 @@ pub use pane::{
     PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
 };
 pub use panel::DocumentPanel;
-pub use platform_contracts::{
-    CommandContribution, CommandId, CommandRegistry, CommandRegistryError, ManifestCommand,
-    PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId, PluginManifest,
-    PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
-    PanelCapabilities, PanelDescriptor, PanelId, PanelKind,
-    PanelRenderContext as PlatformPanelRenderContext, PanelView, SidebarPanel,
-};
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputSnapshot, SearchMatch,
     SearchPanelState, SearchQuery, SearchScope, SearchStateView, SearchTextInput,

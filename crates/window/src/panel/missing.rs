@@ -5,8 +5,8 @@
 //! placeholder instead of a blank tile. The placeholder keeps the layout
 //! intact and names the owning plugin when its manifest is known.
 
-use platform_contracts::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
+use platform_contracts::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
 
 /// Placeholder shown for a panel kind whose plugin is not available.
@@ -22,16 +22,17 @@ impl MissingPanelView {
     /// Builds a placeholder for `kind`, resolving the display name through
     /// the plugin registry.
     pub fn new(panel_id: PanelId, kind: PanelKind) -> Self {
-        let display_name = platform_contracts::PluginRegistry::panel_kind_owner_global(kind.clone())
-            .ok()
-            .flatten()
-            .and_then(|plugin_id| {
-                platform_contracts::PluginRegistry::registered(plugin_id)
-                    .ok()
-                    .flatten()
-            })
-            .map(|manifest| SharedString::from(manifest.name.as_str()))
-            .unwrap_or_else(|| SharedString::from(kind.as_str()));
+        let display_name =
+            platform_contracts::PluginRegistry::panel_kind_owner_global(kind.clone())
+                .ok()
+                .flatten()
+                .and_then(|plugin_id| {
+                    platform_contracts::PluginRegistry::registered(plugin_id)
+                        .ok()
+                        .flatten()
+                })
+                .map(|manifest| SharedString::from(manifest.name.as_str()))
+                .unwrap_or_else(|| SharedString::from(kind.as_str()));
         Self {
             panel_id,
             kind,
@@ -110,8 +111,8 @@ impl PanelView for MissingPanelView {
 #[cfg(test)]
 mod tests {
     use crate::panel::MissingPanelView;
-    use platform_contracts::{PanelId, PanelKind, PanelView};
     use gpui::SharedString;
+    use platform_contracts::{PanelId, PanelKind, PanelView};
 
     #[test]
     fn missing_panel_resolves_owner_display_name() {

@@ -194,7 +194,9 @@ impl editor_contracts::SearchHost for EditorSearchHost {
             editor.update(cx, |editor, _cx| {
                 let input = match field {
                     editor_contracts::SearchActiveField::Query => &mut editor.search.search_input,
-                    editor_contracts::SearchActiveField::Replace => &mut editor.search.replace_input,
+                    editor_contracts::SearchActiveField::Replace => {
+                        &mut editor.search.replace_input
+                    }
                 };
                 input.last_bounds = Some(bounds);
             });

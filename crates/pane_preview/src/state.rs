@@ -122,12 +122,15 @@ impl PaneView for PreviewState {
             crate::render::render_preview_pane(self, ctx, &theme, &strings, window, cx);
         let headings = self.outline_headings(cx);
         let font_size = theme.typography.text_size.max(14.0);
-        let line_height = (font_size * theme.typography.text_line_height).round().max(22.0);
+        let line_height = (font_size * theme.typography.text_line_height)
+            .round()
+            .max(22.0);
         let scroll_y = -f32::from(ctx.scroll.offset().y);
         let active_index = headings
             .iter()
             .rposition(|node| {
-                let node_y = crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
+                let node_y =
+                    crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
                 node_y <= scroll_y + 20.0
             })
             .or(if headings.is_empty() { None } else { Some(0) });

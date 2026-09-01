@@ -1,4 +1,10 @@
-//! Window-level layout actions and generic editing actions.
+//! Shell-level action vocabulary shared with panel plugins.
+//!
+//! These actions are the public vocabulary that plugins dispatch to the
+//! window shell (layout mutations, path opens) plus the generic editing
+//! actions (copy/cut/paste/dismiss) that every text surface consumes.
+//! They live in the platform contracts because both directions —
+//! plugin -> shell and shell -> plugin — pass them across the boundary.
 
 use gpui::*;
 use schemars::JsonSchema;

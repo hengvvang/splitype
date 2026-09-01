@@ -17,7 +17,8 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, PanelId, TabKind};
+use editor_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, TabKind};
+use platform_contracts::PanelId;
 use splitter::root::SplitterRoot;
 
 use crate::editor::host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};

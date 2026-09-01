@@ -9,7 +9,7 @@ use std::path::Path;
 
 use gpui::*;
 
-use window::actions::{OpenPath, OpenPathInSplit};
+use platform_contracts::actions::{OpenPath, OpenPathInSplit};
 
 use crate::state::ExplorerState;
 
@@ -81,7 +81,7 @@ impl ExplorerState {
             crate::state::undo::ExplorerChange::Moved { from, to }
             | crate::state::undo::ExplorerChange::Renamed { from, to } => {
                 window.dispatch_action(
-                    Box::new(window::actions::UpdateOpenTabPaths {
+                    Box::new(platform_contracts::actions::UpdateOpenTabPaths {
                         from: from.to_string_lossy().into_owned(),
                         to: to.to_string_lossy().into_owned(),
                     }),

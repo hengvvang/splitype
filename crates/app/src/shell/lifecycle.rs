@@ -9,12 +9,12 @@ use super::Shell;
 use super::host_bridge::ShellDocumentHost;
 use crate::window::open_cloned_window;
 use editor_contracts::TabKind;
-use editor_contracts::{PanelId, PanelKind, PanelView};
+use platform_contracts::actions::{OpenPath, OpenPathInSplit};
+use platform_contracts::{PanelId, PanelKind, PanelView};
 use splitter::NodeId;
 use splitter::policy::ClonedContainer;
 use splitter::sessions::AreaDockTarget;
 use splitter::tree::SplitAxis;
-use window::actions::{OpenPath, OpenPathInSplit};
 
 impl Shell {
     /// Marks `panel_id` as the active editor area and re-pushes the
@@ -226,7 +226,7 @@ impl Shell {
     /// renamed or moved (generic panel notification).
     pub(crate) fn on_update_open_tab_paths(
         &mut self,
-        action: &window::actions::UpdateOpenTabPaths,
+        action: &platform_contracts::actions::UpdateOpenTabPaths,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {

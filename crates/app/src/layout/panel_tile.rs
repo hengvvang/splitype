@@ -13,7 +13,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: NodeId,
-        kind: editor_contracts::PanelKind,
+        kind: platform_contracts::PanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -133,7 +133,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: NodeId,
-        current_kind: editor_contracts::PanelKind,
+        current_kind: platform_contracts::PanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {

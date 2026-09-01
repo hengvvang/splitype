@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::shell::Shell;
 use crate::window::record_recent_file_and_refresh;
 use editor_contracts::DocumentHost;
-use editor_contracts::PanelId;
+use platform_contracts::PanelId;
 use splitter::tree::SplitAxis;
 
 /// Bridges the [`DocumentHost`] contract to the window shell. Constructed

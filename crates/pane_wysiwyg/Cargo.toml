@@ -19,7 +19,6 @@ editor_contracts = { path = "../editor_contracts" }
 platform_contracts = { path = "../platform_contracts" }
 markdown_parser = { path = "../markdown_parser" }
 syntax_highlighter = { path = "../syntax_highlighter" }
-window = { path = "../window" }
 config = { path = "../config" }
 ui = { path = "../ui" }
 url = "2"

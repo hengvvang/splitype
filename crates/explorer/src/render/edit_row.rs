@@ -102,7 +102,7 @@ impl ExplorerState {
                     // never see it.
                     .on_action({
                         let weak = weak.clone();
-                        move |action: &window::DismissTransientUi, window, cx| {
+                        move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
                             let _ = weak.update(cx, |state, cx| {
                                 state.on_explorer_escape(action, window, cx);
                             });
@@ -110,7 +110,7 @@ impl ExplorerState {
                     })
                     .on_action({
                         let weak = weak.clone();
-                        move |action: &window::Copy, _window, cx| {
+                        move |action: &platform_contracts::actions::Copy, _window, cx| {
                             let _ = weak.update(cx, |state, cx| {
                                 state.on_explorer_filename_copy(action, _window, cx);
                             });
@@ -118,7 +118,7 @@ impl ExplorerState {
                     })
                     .on_action({
                         let weak = weak.clone();
-                        move |action: &window::Cut, _window, cx| {
+                        move |action: &platform_contracts::actions::Cut, _window, cx| {
                             let _ = weak.update(cx, |state, cx| {
                                 state.on_explorer_filename_cut(action, _window, cx);
                             });
@@ -126,7 +126,7 @@ impl ExplorerState {
                     })
                     .on_action({
                         let weak = weak.clone();
-                        move |action: &window::Paste, window, cx| {
+                        move |action: &platform_contracts::actions::Paste, window, cx| {
                             let _ = weak.update(cx, |state, cx| {
                                 state.on_explorer_filename_paste(action, window, cx);
                             });

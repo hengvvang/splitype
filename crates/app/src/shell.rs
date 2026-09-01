@@ -16,8 +16,8 @@ pub(crate) use self::host_bridge::ShellDocumentHost;
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
-use editor_contracts::PanelView;
-use editor_contracts::{DocumentPanel, PanelId, PanelKind};
+use editor_contracts::DocumentPanel;
+use platform_contracts::{PanelId, PanelKind, PanelView};
 use splitter::tree::NodeId;
 use std::path::PathBuf;
 
@@ -45,7 +45,7 @@ pub(crate) struct UnsavedDialogState {
 /// Durable state of a panel that suspended itself during a kind switch.
 /// Restored through the owning descriptor when its kind returns.
 pub struct RetainedPanel {
-    pub kind: editor_contracts::PanelKind,
+    pub kind: platform_contracts::PanelKind,
     pub state: Box<dyn std::any::Any>,
 }
 
@@ -155,8 +155,7 @@ impl Shell {
         cx: &App,
     ) -> Option<&mut dyn DocumentPanel> {
         self.panel_views.values_mut().find_map(|view| {
-            as_document_panel_mut(view)
-                .filter(|panel| panel.has_unsaved_dialog(cx))
+            as_document_panel_mut(view).filter(|panel| panel.has_unsaved_dialog(cx))
         })
     }
 
@@ -166,8 +165,7 @@ impl Shell {
         cx: &App,
     ) -> Option<&mut dyn DocumentPanel> {
         self.panel_views.values_mut().find_map(|view| {
-            as_document_panel_mut(view)
-                .filter(|panel| panel.has_drop_replace_dialog(cx))
+            as_document_panel_mut(view).filter(|panel| panel.has_drop_replace_dialog(cx))
         })
     }
 

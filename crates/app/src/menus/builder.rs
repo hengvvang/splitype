@@ -129,7 +129,7 @@ fn skeleton_items(
 
 /// The menu items contributed by commands located at `menu`, in registry order.
 fn registry_items(menu: &str, strings: &config::language::I18nStrings) -> Vec<MenuItem> {
-    editor_contracts::CommandRegistry::registered_commands()
+    platform_contracts::CommandRegistry::registered_commands()
         .unwrap_or_default()
         .into_iter()
         .filter(|command| command.menu.as_deref() == Some(menu))
@@ -167,7 +167,7 @@ fn binding_for_plugin_command_id(command_id: &str) -> Option<crate::commands::Co
 }
 
 fn binding_for_plugin_command(
-    command_id: &editor_contracts::CommandId,
+    command_id: &platform_contracts::CommandId,
 ) -> Option<crate::commands::CommandBinding> {
     binding_for_plugin_command_id(command_id.as_str())
 }
@@ -282,4 +282,3 @@ mod tests {
         }
     }
 }
-

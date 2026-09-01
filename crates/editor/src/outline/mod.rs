@@ -71,13 +71,15 @@ impl Editor {
                         (node.block_index as f32 * line_height) - padding
                     } else if kind.as_str() == "splitype.pane.preview" {
                         let font_size = theme.typography.text_size.max(14.0);
-                        let line_height =
-                            (font_size * theme.typography.text_line_height).round().max(22.0);
+                        let line_height = (font_size * theme.typography.text_line_height)
+                            .round()
+                            .max(22.0);
                         (node.block_index as f32 * line_height * 2.0).max(0.0)
                     } else {
                         let font_size = theme.typography.text_size.max(14.0);
-                        let line_height =
-                            (font_size * theme.typography.text_line_height).round().max(24.0);
+                        let line_height = (font_size * theme.typography.text_line_height)
+                            .round()
+                            .max(24.0);
                         (node.block_index as f32 * line_height * 1.5) - 40.0
                     };
                     state
