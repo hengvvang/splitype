@@ -414,4 +414,169 @@ impl Block {
             );
         }
     }
+
+    pub fn on_code_language_key_down(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let keystroke = &event.keystroke;
+        let ctrl = keystroke.modifiers.control || keystroke.modifiers.platform;
+
+        if ctrl && !keystroke.modifiers.alt {
+            match keystroke.key.as_str() {
+                "a" | "A" => {
+                    self.code_toolbar.picker.selected_range = 0..self.code_toolbar.picker.query.len();
+                    self.code_toolbar.picker.selection_reversed = false;
+                    cx.notify();
+                    cx.stop_propagation();
+                    return;
+                }
+                "c" | "C" => {
+                    let range = self.code_toolbar.picker.selected_range.clone();
+                    if !range.is_empty() && range.end <= self.code_toolbar.picker.query.len() {
+                        let text = self.code_toolbar.picker.query[range].to_string();
+                        cx.write_to_clipboard(ClipboardItem::new_string(text));
+                    }
+                    cx.stop_propagation();
+                    return;
+                }
+                "v" | "V" => {
+                    if let Some(clipboard) = cx.read_from_clipboard()
+                        && let Some(text) = clipboard.text()
+                    {
+                        let sanitized = text.replace(['\r', '\n'], "");
+                        self.replace_code_language_text_in_range(
+                            self.code_toolbar.picker.selected_range.clone(),
+                            &sanitized,
+                            None,
+                            true,
+                            cx,
+                        );
+                    }
+                    cx.stop_propagation();
+                    return;
+                }
+                "x" | "X" => {
+                    let range = self.code_toolbar.picker.selected_range.clone();
+                    if !range.is_empty() && range.end <= self.code_toolbar.picker.query.len() {
+                        let text = self.code_toolbar.picker.query[range.clone()].to_string();
+                        cx.write_to_clipboard(ClipboardItem::new_string(text));
+                        self.replace_code_language_text_in_range(
+                            range,
+                            "",
+                            None,
+                            true,
+                            cx,
+                        );
+                    }
+                    cx.stop_propagation();
+                    return;
+                }
+                _ => {}
+            }
+        }
+
+        match keystroke.key.as_str() {
+            "escape" => {
+                self.code_toolbar.picker.close();
+                self.focus_handle.focus(window, cx);
+                cx.notify();
+                cx.stop_propagation();
+            }
+            "enter" => {
+                if self.code_toolbar.picker.is_open {
+                    let value = code_language_options_matching(&self.code_toolbar.picker.query)
+                        .first()
+                        .map(|option| option.value);
+                    if let Some(value) = value {
+                        self.choose_code_language(value, cx);
+                    } else {
+                        self.code_toolbar.picker.close();
+                    }
+                }
+                self.focus_handle.focus(window, cx);
+                cx.notify();
+                cx.stop_propagation();
+            }
+            "backspace" => {
+                if self.code_toolbar.picker.selected_range.is_empty() {
+                    let previous = self.previous_code_language_boundary(self.code_toolbar.picker.cursor_offset());
+                    self.select_code_language_to(previous, cx);
+                }
+                self.replace_code_language_text_in_range(
+                    self.code_toolbar.picker.selected_range.clone(),
+                    "",
+                    None,
+                    false,
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+            "delete" => {
+                if self.code_toolbar.picker.selected_range.is_empty() {
+                    let next = self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset());
+                    self.select_code_language_to(next, cx);
+                }
+                self.replace_code_language_text_in_range(
+                    self.code_toolbar.picker.selected_range.clone(),
+                    "",
+                    None,
+                    false,
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+            "left" | "arrowleft" => {
+                self.move_code_language_to(
+                    self.previous_code_language_boundary(self.code_toolbar.picker.cursor_offset()),
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+            "right" | "arrowright" => {
+                self.move_code_language_to(
+                    self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset()),
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+            "home" => {
+                self.move_code_language_to(0, cx);
+                cx.stop_propagation();
+            }
+            "end" => {
+                self.move_code_language_to(self.code_toolbar.picker.query.len(), cx);
+                cx.stop_propagation();
+            }
+            "space" => {
+                self.replace_code_language_text_in_range(
+                    self.code_toolbar.picker.selected_range.clone(),
+                    " ",
+                    None,
+                    true,
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+            key => {
+                if !ctrl && !keystroke.modifiers.alt && !key.is_empty() {
+                    let mut chars = key.chars();
+                    if let Some(first) = chars.next() {
+                        if chars.next().is_none() && !first.is_control() {
+                            self.replace_code_language_text_in_range(
+                                self.code_toolbar.picker.selected_range.clone(),
+                                key,
+                                None,
+                                true,
+                                cx,
+                            );
+                            cx.stop_propagation();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

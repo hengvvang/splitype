@@ -240,10 +240,12 @@ impl Block {
             .border_color(c.dialog_border)
             .bg(c.dialog_surface)
             .shadow_lg()
-            .child(
+            .child({
+                let is_query_active = !self.code_toolbar.picker.query.is_empty();
                 div()
                     .key_context(BLOCK_EDITOR_CONTEXT)
                     .track_focus(&self.code_language_focus_handle)
+                    .on_key_down(cx.listener(Self::on_code_language_key_down))
                     .on_action(cx.listener(Self::on_code_language_newline))
                     .on_action(cx.listener(Self::on_code_language_dismiss))
                     .on_action(cx.listener(Self::on_code_language_delete_backward))
@@ -275,11 +277,13 @@ impl Block {
                         cx.listener(Self::on_code_language_mouse_up_out),
                     )
                     .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
+                    .relative()
+                    .overflow_hidden()
                     .w_full()
                     .h(px(28.0))
                     .px(px(8.0))
                     .py(px(3.0))
-                    .rounded(px(d.code_language_input_radius))
+                    .rounded(px(d.select_trigger_radius))
                     .border_1()
                     .border_color(c.dialog_border)
                     .bg(c.dialog_secondary_button_bg)
@@ -290,8 +294,22 @@ impl Block {
                     .child(CodeLanguageInputElement::new(
                         cx.entity(),
                         SharedString::from(strings.code_language_search_placeholder.clone()),
-                    )),
-            )
+                    ))
+                    .child(
+                        div()
+                            .absolute()
+                            .bottom_0()
+                            .left_0()
+                            .right_0()
+                            .h(px(2.0))
+                            .rounded_b(px(d.select_trigger_radius))
+                            .bg(if is_query_active {
+                                c.focus_accent
+                            } else {
+                                c.dialog_border
+                            }),
+                    )
+            })
             .child(
                 div()
                     .id(ElementId::Name(

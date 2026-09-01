@@ -13,20 +13,14 @@ impl Editor {
     /// Toggles visibility of the Search and Replace overlay panel.
     pub fn toggle_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.search.visible {
-            if self.search.search_focus_handle.is_focused(window) {
-                self.search.visible = false;
-                self.clear_search_highlights_from_document(cx);
-                let active_pane = self.active_pane_id();
-                self.focused_pane_id = Some(active_pane);
-                if let Some(state) = self.pane_state_mut(active_pane) {
-                    if let Some(handle) = state.pane.focus_handle(cx) {
-                        handle.focus(window, cx);
-                    }
+            self.search.visible = false;
+            self.clear_search_highlights_from_document(cx);
+            let active_pane = self.active_pane_id();
+            self.focused_pane_id = Some(active_pane);
+            if let Some(state) = self.pane_state_mut(active_pane) {
+                if let Some(handle) = state.pane.focus_handle(cx) {
+                    handle.focus(window, cx);
                 }
-            } else {
-                self.search.active_field = SearchActiveField::Query;
-                window.focus(&self.search.search_focus_handle, cx);
-                self.search.search_input.select_all();
             }
         } else {
             self.search.visible = true;

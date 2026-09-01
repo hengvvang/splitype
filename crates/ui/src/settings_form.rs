@@ -380,6 +380,7 @@ pub fn render_searchable_font_picker(
         let search_focus = props.focus_handle.clone();
         let search_focus_click = props.focus_handle.clone();
         let on_search_change = props.on_search_change;
+        let is_query_active = !search_query.is_empty();
         let search_box = div()
             .id(ElementId::Name(format!("{id_prefix}-search").into()))
             .key_context("SettingsSearch")
@@ -425,33 +426,38 @@ pub fn render_searchable_font_picker(
                     .right_0()
                     .h(px(2.0))
                     .rounded_b(px(d.select_trigger_radius))
-                    .bg(c.focus_accent),
+                    .bg(if is_query_active {
+                        c.focus_accent
+                    } else {
+                        c.dialog_border
+                    }),
             )
             .on_key_down(Box::new(
                 move |event: &KeyDownEvent, _window: &mut Window, cx: &mut App| {
                     let mut query = search_query.clone();
+                    let ctrl = event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
                     match event.keystroke.key.as_str() {
                         "backspace" => {
                             query.pop();
+                            on_search_change(query, _window, cx);
                         }
                         "escape" => {}
                         "space" => {
                             query.push(' ');
+                            on_search_change(query, _window, cx);
                         }
-                        _ => {
-                            let text = event.keystroke.key_char.clone().unwrap_or_else(|| {
-                                if event.keystroke.key.len() == 1 {
-                                    event.keystroke.key.as_str().to_string()
-                                } else {
-                                    String::new()
+                        key => {
+                            if !ctrl && !event.keystroke.modifiers.alt && !key.is_empty() {
+                                let mut chars = key.chars();
+                                if let Some(first) = chars.next() {
+                                    if chars.next().is_none() && !first.is_control() {
+                                        query.push_str(key);
+                                        on_search_change(query, _window, cx);
+                                    }
                                 }
-                            });
-                            if !text.is_empty() {
-                                query.push_str(&text);
                             }
                         }
                     }
-                    on_search_change(query, _window, cx);
                 },
             ));
 
