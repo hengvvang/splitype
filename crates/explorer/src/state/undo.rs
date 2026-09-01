@@ -3,7 +3,7 @@
 //! The history stores the forward operation; undoing executes its inverse
 //! and pushes the same record onto the redo stack (so redo simply
 //! re-executes it). Only reversible operations are recorded — permanent
-//! deletes are not. All filesystem execution delegates to `explorer_fs`.
+//! deletes are not. All filesystem execution delegates to [`crate::fs`].
 
 use std::path::{Path, PathBuf};
 

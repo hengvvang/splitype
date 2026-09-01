@@ -11,13 +11,11 @@
 pub mod export;
 pub mod host_bridge;
 
-pub use std::time::{Duration, Instant};
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub use gpui::*;
+use gpui::*;
 
 use core_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, PanelId, TabKind};
 use splitter::root::SplitterRoot;

@@ -1,7 +1,7 @@
 //! Top bar of an Explorer area: type selector and split/close controls.
 //!
-//! All mutations dispatch `workspace` layout actions; the shell handles
-//! them against its window layout tree.
+//! All mutations dispatch the window-shell layout actions; the shell
+//! handles them against its window layout tree.
 
 use gpui::*;
 

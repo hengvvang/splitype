@@ -1,9 +1,9 @@
 //! Unit tests for pane_source_code buffer, coordinates, selections, and display maps.
 
-use crate::SourceCodeState;
 use crate::buffer::{BufferPoint, LineMap};
 use crate::display_map::{FoldMap, FoldRange, TabMap};
 use crate::selection::SelectionsCollection;
+use crate::state::SourceCodeState;
 
 #[test]
 fn rebuild_lines_computes_accurate_byte_ranges() {

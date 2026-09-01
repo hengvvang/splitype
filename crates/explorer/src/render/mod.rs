@@ -9,7 +9,7 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::state::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
+use crate::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
 use core_contracts::PanelId;
 use theme::Theme;
@@ -368,7 +368,7 @@ impl ExplorerState {
                             // worktree root (mirrors Zed: background right-click is
                             // equivalent to right-clicking the root directory).
                             if let Some((worktree_id, path, root_id)) = state.last_explorer_root() {
-                                state.selected = Some(crate::state::state::SelectedEntry {
+                                state.selected = Some(crate::state::SelectedEntry {
                                     worktree_id,
                                     entry_id: root_id,
                                 });

@@ -9,8 +9,8 @@ use gpui::*;
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::state::SourceCodeState;
-use crate::syntax::highlight::build_line_text_runs;
 use crate::syntax::indent_guides::compute_indent_guide_columns;
+use syntax_highlighter::highlight::build_line_text_runs;
 
 /// High-performance virtualized rendering element for SourceCodeState.
 pub struct EditorElement {

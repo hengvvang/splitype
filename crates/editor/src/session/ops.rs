@@ -72,6 +72,51 @@ impl Editor {
         self.session.root.toggle_maximize(pane_id.into().0);
     }
 
+    /// Toggles the active pane's maximized state and refreshes the view.
+    pub fn toggle_maximize_pane(&mut self, cx: &mut Context<Self>) {
+        let active = self.active_pane_id();
+        self.toggle_pane_maximize(active);
+        cx.notify();
+    }
+
+    /// Switches `pane_id` to `kind`, resetting its viewport and syncing the
+    /// freshly created pane with the active document.
+    pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKind, cx: &mut Context<Self>) {
+        self.change_pane_kind(pane_id, kind);
+        {
+            let state = self.pane_state(pane_id);
+            state.scroll.pending_autoscroll = Some(core_contracts::AutoscrollStrategy::Fit {
+                margin: gpui::px(20.0),
+            });
+            state.scroll.last_viewport_size = None;
+        }
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_window_title_refresh = true;
+            tab.file.close_dialog_restore_focus = None;
+        }
+        self.sync_panes_with_active_tab(cx);
+        cx.notify();
+    }
+
+    /// Cycles the active pane through every registered pane kind.
+    pub fn toggle_pane_kind(&mut self, cx: &mut Context<Self>) {
+        let active_pane = self.active_pane_id();
+        let current_kind = self.active_pane_kind();
+        let descriptors =
+            core_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
+        let next_kind = if descriptors.is_empty() {
+            current_kind
+        } else {
+            let current_idx = descriptors
+                .iter()
+                .position(|d| d.kind() == current_kind)
+                .unwrap_or(0);
+            let next_idx = (current_idx + 1) % descriptors.len();
+            descriptors[next_idx].kind()
+        };
+        self.select_pane_kind(active_pane, next_kind, cx);
+    }
+
     pub fn handle_pane_key_down(
         &mut self,
         pane_id: PaneId,

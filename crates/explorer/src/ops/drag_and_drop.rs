@@ -23,9 +23,9 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::state::state::*;
 use crate::state::undo::{ExplorerChange, explorer_change_destination};
 use crate::state::utils::{execute_entry_ops, explorer_is_copy_modifier};
+use crate::state::*;
 use theme::ThemeManager;
 
 impl ExplorerState {

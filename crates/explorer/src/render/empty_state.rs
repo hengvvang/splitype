@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::state::state::ExplorerState;
+use crate::state::ExplorerState;
 
 use config::language::I18nStrings;
 use core_contracts::PanelId;

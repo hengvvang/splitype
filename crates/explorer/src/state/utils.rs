@@ -3,7 +3,7 @@
 //!
 //! Everything here runs on a background thread: no editor or window access,
 //! only paths and filesystem facts. The pure filesystem primitives live in
-//! `explorer_fs`; this module owns the operation bookkeeping (change
+//! [`crate::fs`]; this module owns the operation bookkeeping (change
 //! records for undo).
 
 use std::path::{Path, PathBuf};

@@ -3,7 +3,7 @@
 //!
 //! The panel is a window-shell leaf like the explorer: it renders through
 //! free functions against the [`SettingsUiState`] gpui global, and its
-//! topbar dispatches `workspace` layout actions that the shell handles.
+//! topbar dispatches the window-shell layout actions.
 //! The panel never references the shell.
 
 pub mod bottombar;

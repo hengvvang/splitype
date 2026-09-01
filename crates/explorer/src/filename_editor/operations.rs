@@ -7,10 +7,8 @@ use gpui::*;
 use crate::ExplorerState;
 
 use crate::filename_editor::ExplorerFilenameImeHost;
-use crate::state::state::{
-    ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
-};
 use crate::state::undo::ExplorerChange;
+use crate::state::{ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation};
 use window::actions::{Copy, Cut, DismissTransientUi, Paste};
 
 impl ExplorerState {

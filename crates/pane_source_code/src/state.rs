@@ -15,7 +15,8 @@ use crate::buffer::{BufferPoint, LineMap};
 use crate::display_map::{DisplayPoint, DisplaySnapshot, FoldMap, TabMap, WrapMap};
 use crate::gutter::GutterLayout;
 use crate::selection::{Selection, SelectionsCollection};
-use crate::syntax::{CodeHighlightResult, find_matching_bracket, highlight_code_block};
+use crate::syntax::find_matching_bracket;
+use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
 
 /// Autonomous state for the SourceCode editor pane.
 #[derive(Clone, Debug)]

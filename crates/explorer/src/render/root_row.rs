@@ -5,7 +5,7 @@ use gpui::*;
 use crate::ExplorerState;
 
 use crate::ops::drag_and_drop::DraggedExplorerEntryView;
-use crate::state::state::{
+use crate::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, FOLDER_ICON,
     VisibleExplorerEntry, file_type_icon,
 };
@@ -29,7 +29,7 @@ impl ExplorerState {
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let mark_selection = crate::state::state::SelectedEntry {
+        let mark_selection = crate::state::SelectedEntry {
             worktree_id: entry.worktree_id,
             entry_id: entry.id,
         };

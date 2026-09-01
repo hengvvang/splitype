@@ -3,9 +3,9 @@
 use gpui::*;
 
 use super::{ABOUT_EMOJIS, InfoDialogKind};
+use crate::links::{RELEASES_URL, REPOSITORY_URL, WIKI_URL};
 use crate::shell::Shell;
 use config::language::{I18nManager, I18nStrings};
-use editor::view::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use theme::Theme;
 use ui::button::compact_primary_button;
 use ui::dialog::dialog_card;
@@ -16,10 +16,7 @@ impl Shell {
         vec![
             format!("Splitype {}", env!("CARGO_PKG_VERSION")),
             strings.help_about_message.clone(),
-            format!(
-                "{}: {}",
-                strings.help_about_github_label, SPLITYPE_REPOSITORY_URL
-            ),
+            format!("{}: {}", strings.help_about_github_label, REPOSITORY_URL),
             strings.help_about_star_message.clone(),
         ]
     }
@@ -110,22 +107,22 @@ impl Shell {
                     .child(link(
                         "about-github-link",
                         strings.help_about_github_label.clone(),
-                        SPLITYPE_REPOSITORY_URL,
+                        REPOSITORY_URL,
                     ))
                     .child(link(
                         "about-releases-link",
                         strings.about_releases_label.clone(),
-                        SPLITYPE_RELEASES_URL,
+                        RELEASES_URL,
                     ))
                     .child(link(
                         "about-website-link",
                         strings.about_website_label.clone(),
-                        SPLITYPE_REPOSITORY_URL,
+                        REPOSITORY_URL,
                     ))
                     .child(link(
                         "about-wiki-link",
                         strings.about_wiki_label.clone(),
-                        SPLITYPE_WIKI_URL,
+                        WIKI_URL,
                     )),
             )
             .into_any_element()

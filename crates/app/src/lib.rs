@@ -16,11 +16,10 @@ pub mod commands;
 pub mod dialogs;
 pub mod keybindings;
 pub mod layout;
+pub mod links;
 pub mod menus;
 pub mod platform;
 pub mod plugins;
 pub mod shell;
 pub mod window;
 pub mod window_state;
-
-pub use ::core_contracts::PanelKind;

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::state::state::*;
+use crate::state::*;
 
 // Explorer navigation actions.
 actions!(

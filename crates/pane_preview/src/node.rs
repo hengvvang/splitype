@@ -5,8 +5,6 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use gpui::*;
-
 use markdown_parser::block::image::{
     ImageHandle, ImageReferenceDefinitions, ImageSyntax, resolve_image_source,
 };
@@ -106,10 +104,6 @@ impl PreviewBlock {
     pub fn is_standalone_image(&self) -> bool {
         let plain = self.data.text.plain_text();
         markdown_parser::block::image::parse_standalone_image(&plain).is_some()
-    }
-
-    pub fn index_for_mouse_position(&self, _position: Point<Pixels>) -> usize {
-        0
     }
 }
 

@@ -5,7 +5,7 @@
 //! Non-macOS targets provide stubs that report unavailability.
 //!
 //! This module holds only the platform operations; the user-facing
-//! prompts and localization live in `crate::app::cli::install`.
+//! prompts and localization live in the `app` composition root.
 
 #[cfg(target_os = "macos")]
 use std::process::{Command, Output};

@@ -1,5 +1,8 @@
-//! Window-level chrome for Shell-rooted windows — the custom system
-//! titlebar and the in-window fallback menu bar.
+//! Window-level chrome for Shell-rooted windows: the in-window fallback
+//! menu bar's open/hover state machine ([`MenuBarState`]) plus the chrome
+//! renderers — the custom system titlebar ([`titlebar`]), the inline menu
+//! bar buttons ([`menu_bar`]), and the menu dropdown panels
+//! ([`menu_dropdown`]).
 
 pub mod menu_bar;
 pub mod menu_dropdown;

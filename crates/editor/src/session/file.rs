@@ -51,6 +51,44 @@ pub struct FileState {
 }
 
 impl Editor {
+    /// Queues a save request for the active tab, consumed on the next
+    /// render frame by the view-sync layer.
+    pub fn request_save_document(&mut self, cx: &mut Context<Self>) {
+        if let Some(tab) = self.session.active_tab_mut() {
+            if !tab.file.pending_save {
+                tab.file.pending_save = true;
+                cx.notify();
+            }
+        }
+    }
+
+    /// Queues a save-as request for the active tab, consumed on the next
+    /// render frame by the view-sync layer.
+    pub fn request_save_document_as(&mut self, cx: &mut Context<Self>) {
+        if let Some(tab) = self.session.active_tab_mut() {
+            if !tab.file.pending_save_as {
+                tab.file.pending_save_as = true;
+                cx.notify();
+            }
+        }
+    }
+
+    /// Queues an external-link open prompt for the active tab's file state.
+    pub fn request_open_link_prompt(
+        &mut self,
+        prompt_target: String,
+        open_target: String,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_open_link = Some(PendingOpenLink {
+                prompt_target,
+                open_target,
+            });
+            cx.notify();
+        }
+    }
+
     /// The active tab's current authoritative raw text.
     pub fn serialized_document_text(&self, cx: &App) -> String {
         if let Some(tab) = self.session.active_tab() {

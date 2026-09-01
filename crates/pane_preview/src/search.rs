@@ -1,6 +1,6 @@
 //! Preview pane search matching and highlight navigation.
 
-use crate::PreviewState;
+use crate::state::PreviewState;
 use core_contracts::{SearchMatch, SearchQuery};
 
 /// Searches within the Markdown text source of the Preview pane.

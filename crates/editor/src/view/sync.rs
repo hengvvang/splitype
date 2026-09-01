@@ -2,6 +2,8 @@
 
 use gpui::*;
 
+use std::path::Path;
+
 use crate::editor::Editor;
 use config::language::{I18nManager, I18nStrings};
 use core_contracts::{AutoscrollStrategy, PaneId};
@@ -188,6 +190,24 @@ impl Editor {
                     state.scroll.last_viewport_size = Some(viewport_size);
                 }
             }
+        }
+    }
+
+    /// Builds the OS window title, including the dirty marker when the
+    /// document has unsaved changes.
+    pub fn window_title(file_path: Option<&Path>, is_dirty: bool, strings: &I18nStrings) -> String {
+        let base_title = file_path
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        if is_dirty {
+            format!("{}{} - Splitype", strings.dirty_title_marker, base_title)
+        } else if base_title.is_empty() {
+            "Splitype".to_string()
+        } else {
+            format!("{} - Splitype", base_title)
         }
     }
 

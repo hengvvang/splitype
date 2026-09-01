@@ -5,7 +5,7 @@ use theme::Theme;
 use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, toolbar_icon_size};
 
-use crate::state::state::ExplorerState;
+use crate::state::ExplorerState;
 
 /// Free-function entry point: renders the explorer bottom bar from the
 /// given panel state entity (the shell owns no explorer state).

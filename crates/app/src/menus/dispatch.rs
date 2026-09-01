@@ -18,9 +18,6 @@ use config::language::{I18nManager, apply_configured_language};
 use core_contracts::PanelId;
 use core_contracts::{DocumentPanel, ExportFormat};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use editor::view::{
-    open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
-};
 use settings::open_settings_window;
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use theme::apply_configured_theme;
@@ -255,13 +252,13 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     } else if action.as_any().is::<CloseWindow>() {
         request_close_current_editor_window(cx);
     } else if action.as_any().is::<OpenSplitypeRepository>() {
-        open_splitype_repository(cx);
+        crate::links::open_repository(cx);
     } else if action.as_any().is::<OpenBugReport>() {
-        open_bug_report(cx);
+        crate::links::open_bug_report(cx);
     } else if action.as_any().is::<OpenFeatureRequest>() {
-        open_feature_request(cx);
+        crate::links::open_feature_request(cx);
     } else if action.as_any().is::<OpenDiscussions>() {
-        open_discussions(cx);
+        crate::links::open_discussions(cx);
     }
 }
 
@@ -382,13 +379,13 @@ pub(crate) fn dispatch_menu_action_for_panel(
             shell.close_sidebar_folders(cx);
         });
     } else if action.as_any().is::<OpenSplitypeRepository>() {
-        open_splitype_repository(cx);
+        crate::links::open_repository(cx);
     } else if action.as_any().is::<OpenBugReport>() {
-        open_bug_report(cx);
+        crate::links::open_bug_report(cx);
     } else if action.as_any().is::<OpenFeatureRequest>() {
-        open_feature_request(cx);
+        crate::links::open_feature_request(cx);
     } else if action.as_any().is::<OpenDiscussions>() {
-        open_discussions(cx);
+        crate::links::open_discussions(cx);
     } else {
         let deferred_action = action.boxed_clone();
         cx.defer(move |cx| {

@@ -12,31 +12,6 @@ use crate::editor::Editor;
 use config::language::I18nManager;
 use theme::ThemeManager;
 
-pub const SPLITYPE_REPOSITORY_URL: &str = "https://github.com/hengvvang/splitype";
-pub const SPLITYPE_BUG_REPORT_URL: &str =
-    "https://github.com/hengvvang/splitype/issues/new?template=bug_report.yml";
-pub const SPLITYPE_FEATURE_REQUEST_URL: &str =
-    "https://github.com/hengvvang/splitype/issues/new?template=feature_request.yml";
-pub const SPLITYPE_DISCUSSIONS_URL: &str = "https://github.com/hengvvang/splitype/discussions";
-pub const SPLITYPE_WIKI_URL: &str = "https://github.com/hengvvang/splitype/wiki";
-pub const SPLITYPE_RELEASES_URL: &str = "https://github.com/hengvvang/splitype/releases";
-
-pub fn open_splitype_repository(cx: &mut App) {
-    cx.open_url(SPLITYPE_REPOSITORY_URL);
-}
-
-pub fn open_bug_report(cx: &mut App) {
-    cx.open_url(SPLITYPE_BUG_REPORT_URL);
-}
-
-pub fn open_feature_request(cx: &mut App) {
-    cx.open_url(SPLITYPE_FEATURE_REQUEST_URL);
-}
-
-pub fn open_discussions(cx: &mut App) {
-    cx.open_url(SPLITYPE_DISCUSSIONS_URL);
-}
-
 impl Render for Editor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if self.has_tabs() {

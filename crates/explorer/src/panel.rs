@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::state::state::*;
 use crate::state::worktree::Worktree;
+use crate::state::*;
 use config::settings::SettingsStore;
 
 impl ExplorerState {

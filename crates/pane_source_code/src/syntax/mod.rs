@@ -1,12 +1,9 @@
-//! Syntax highlighting, bracket matching, and indentation guides.
+//! Local syntax helpers: bracket matching and indentation guides.
+//!
+//! Shared highlighting services come from the `syntax_highlighter` crate.
 
 pub mod bracket;
-pub mod highlight;
 pub mod indent_guides;
 
 pub use bracket::find_matching_bracket;
-pub use highlight::{
-    CodeHighlightResult, CodeHighlightSpan, CodeLanguageKey, highlight_code_block,
-    prewarm_code_highlight_registry,
-};
 pub use indent_guides::compute_indent_guide_columns;

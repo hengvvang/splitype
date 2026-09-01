@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::state::state::*;
 use crate::state::undo::{
     ExplorerChange, execute_explorer_change, execute_explorer_change_inverse,
     explorer_change_destination,
 };
 use crate::state::utils::execute_entry_ops;
+use crate::state::*;
 
 impl ExplorerState {
     /// Delete the effective selection with a confirmation prompt; after the

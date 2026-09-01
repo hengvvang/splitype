@@ -1,5 +1,5 @@
 use crate::persist::PersistedExplorerState;
-use crate::state::state::ExplorerState;
+use crate::state::ExplorerState;
 use crate::{
     render_explorer_body, render_explorer_bottombar, render_explorer_file_context_menu,
     render_explorer_topbar,

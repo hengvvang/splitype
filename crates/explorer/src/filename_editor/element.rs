@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::filename_editor::ExplorerFilenameImeHost;
-use crate::state::state::{EXPLORER_NODE_HEIGHT, ExplorerState};
+use crate::state::{EXPLORER_NODE_HEIGHT, ExplorerState};
 use theme::ThemeManager;
 
 pub fn shape_filename_line(window: &mut Window, text: &str) -> ShapedLine {

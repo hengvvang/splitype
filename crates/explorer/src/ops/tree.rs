@@ -7,8 +7,8 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use crate::state::state::*;
 use crate::state::worktree::{WorktreeEntryKind, WorktreeId, WorktreeSnapshot};
+use crate::state::*;
 
 impl ExplorerState {
     // ── Expand / collapse ────────────────────────────────────────────────

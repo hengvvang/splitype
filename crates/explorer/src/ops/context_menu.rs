@@ -8,7 +8,7 @@
 
 use gpui::*;
 
-use crate::state::state::{ExplorerFileMenuState, ExplorerState};
+use crate::state::{ExplorerFileMenuState, ExplorerState};
 
 use config::language::I18nManager;
 use theme::Theme;

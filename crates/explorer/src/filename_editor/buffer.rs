@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use crate::state::state::ExplorerFilenameEditor;
+use crate::state::ExplorerFilenameEditor;
 
 // ── UTF-8 / UTF-16 offset conversion (IME bridge) ────────────────────────
 // Local implementation — the explorer must not depend on the markdown

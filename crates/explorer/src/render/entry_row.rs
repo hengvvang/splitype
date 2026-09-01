@@ -5,7 +5,7 @@ use gpui::*;
 use crate::ExplorerState;
 
 use crate::ops::drag_and_drop::DraggedExplorerEntryView;
-use crate::state::state::{
+use crate::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
     ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry, file_type_icon,
 };
@@ -55,7 +55,7 @@ impl ExplorerState {
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let mark_selection = crate::state::state::SelectedEntry {
+        let mark_selection = crate::state::SelectedEntry {
             worktree_id: entry.worktree_id,
             entry_id: entry.id,
         };
@@ -234,7 +234,7 @@ impl ExplorerState {
                                 // Select the directory so a click always gives
                                 // feedback, even when it is empty and there is
                                 // nothing to expand.
-                                state.selected = Some(crate::state::state::SelectedEntry {
+                                state.selected = Some(crate::state::SelectedEntry {
                                     worktree_id: click_worktree_id,
                                     entry_id: id,
                                 });

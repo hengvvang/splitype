@@ -1,6 +1,6 @@
 //! Source code pane outline extraction and heading navigation.
 
-use crate::SourceCodeState;
+use crate::state::SourceCodeState;
 use core_contracts::OutlineNode;
 
 /// Extracts all heading nodes from the raw Markdown source text.

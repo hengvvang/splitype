@@ -54,14 +54,14 @@ impl PaneView for PreviewState {
             return;
         }
         let data = markdown_parser::parse::parser::parse_preview_document(text);
-        let mut roots = crate::blocks_to_preview_tree(data);
+        let mut roots = crate::node::blocks_to_preview_tree(data);
         if roots.is_empty() {
             roots.push(PreviewBlock::new(
                 markdown_parser::parse::BlockData::paragraph(String::new()),
             ));
         }
-        let footnote_registry = Arc::new(crate::build_preview_footnote_registry(&roots));
-        crate::sync_preview_block_context(
+        let footnote_registry = Arc::new(crate::context::build_preview_footnote_registry(&roots));
+        crate::context::sync_preview_block_context(
             &mut roots,
             document.base_dir.as_deref(),
             &Default::default(),

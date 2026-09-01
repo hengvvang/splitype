@@ -2,8 +2,8 @@
 //! double click (permanent tab + focus editor), and Ctrl/Cmd+double-click
 //! (open in a freshly split area).
 //!
-//! The explorer updates its own selection/reveal state and dispatches
-//! `workspace` open actions; the shell performs the editor orchestration.
+//! The explorer updates its own selection/reveal state and dispatches the
+//! window-shell open actions; the shell performs the editor orchestration.
 
 use std::path::Path;
 
@@ -11,7 +11,7 @@ use gpui::*;
 
 use window::actions::{OpenPath, OpenPathInSplit};
 
-use crate::state::state::ExplorerState;
+use crate::state::ExplorerState;
 
 impl ExplorerState {
     /// Select and reveal `path` in the tree: expand ancestor directories,
