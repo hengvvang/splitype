@@ -4,8 +4,10 @@
 //!
 //! Platform-level contracts (panels, plugins, commands, shell actions) live
 //! in `platform_contracts`, which has zero knowledge of document editing.
-//! The two contract crates are mutually independent; document plugins depend
-//! on both, each type imported from its owning crate.
+//! This crate extends that vocabulary one-way: `DocumentPanel` refines
+//! `PanelView`, so `editor_contracts` depends on `platform_contracts` while
+//! the reverse never happens. Document plugins import each type from its
+//! owning crate.
 
 pub mod document;
 pub mod export;

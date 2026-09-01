@@ -120,13 +120,14 @@ routes through plugin-exported adapters instead (ADR-020).
 The contract layer no longer depends on the `window` shell crate. Platform
 contracts (panel/plugin/command/action vocabulary) live in
 `platform_contracts`; the document family vocabulary (`DocumentPanel`, pane
-SPI, document/search/outline) lives in `editor_contracts`. The two contract
-crates are mutually independent, `window` hosts the registry implementation,
-and every consumer imports each type from its owning contract crate directly —
-no re-export shims. Built-in kinds are namespaced (`splitype.pane.*`,
-`splitype.panel.*`), constructed via `from_static` without allocating, and
-icon asset paths are decoupled from kind strings: topbar renderers take a
-plugin-owned `icon_prefix`.
+SPI, document/search/outline) lives in `editor_contracts`, which extends the
+platform vocabulary one-way (`DocumentPanel: PanelView`) while
+`platform_contracts` never depends back. `window` hosts the registry
+implementation, and every consumer imports each type from its owning contract
+crate directly — no re-export shims. Built-in kinds are namespaced
+(`splitype.pane.*`, `splitype.panel.*`), constructed via `from_static` without
+allocating, and icon asset paths are decoupled from kind strings: topbar
+renderers take a plugin-owned `icon_prefix`.
 
 ## ADR-014: Sidebar panels are a role, and overlays are panel-owned
 
@@ -268,6 +269,7 @@ The explorer is a leaf plugin (single implementor, single consumer: the
 composition root) and therefore gets no `explorer_contracts` crate; its shell
 hooks are plain functions in the explorer crate, named concretely after what
 they do. Inventing a generic service layer for a single implementor would be a
-fake abstraction. The two contract crates never depend on each other: each
-plugin family imports exactly the vocabulary it needs from the crate that owns
-it.
+fake abstraction. The dependency runs one way only:
+`editor_contracts` refines `platform_contracts` vocabulary (`DocumentPanel:
+PanelView`) while `platform_contracts` never depends back; each plugin family
+imports exactly the vocabulary it needs from the crate that owns it.
