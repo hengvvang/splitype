@@ -472,7 +472,45 @@ impl WysiwygDocumentController {
         }
     }
 
-    pub fn navigate_to_outline(&mut self, index: usize, _theme: &Theme, cx: &mut Context<Self>) {
+    pub fn calculate_block_scroll_offset(&self, target_block_idx: usize, theme: &Theme, cx: &App) -> f32 {
+        let Some(doc) = &self.document else {
+            return 0.0;
+        };
+        let blocks = doc.blocks();
+        let font_size = theme.typography.text_size.max(14.0);
+        let line_height = (font_size * theme.typography.text_line_height).round().max(22.0);
+        let mut y = 0.0;
+        for (i, entry) in blocks.iter().enumerate() {
+            if i >= target_block_idx {
+                break;
+            }
+            let block = entry.entity.read(cx);
+            let est_h = match block.kind() {
+                markdown_parser::parse::BlockKind::Heading { level } => match level {
+                    1 => line_height * 2.2 + 16.0,
+                    2 => line_height * 1.8 + 14.0,
+                    3 => line_height * 1.5 + 12.0,
+                    _ => line_height * 1.3 + 10.0,
+                },
+                markdown_parser::parse::BlockKind::Paragraph => {
+                    let len = block.data.text.plain_len();
+                    let lines = (len / 60).max(1);
+                    (lines as f32) * line_height + 10.0
+                }
+                markdown_parser::parse::BlockKind::CodeBlock { .. } => {
+                    let lines = block.data.text.plain_text().lines().count().max(1);
+                    (lines as f32) * line_height + 24.0
+                }
+                markdown_parser::parse::BlockKind::Table => line_height * 4.0 + 16.0,
+                markdown_parser::parse::BlockKind::ThematicBreak => line_height * 1.0 + 8.0,
+                _ => line_height * 1.5 + 8.0,
+            };
+            y += est_h;
+        }
+        y
+    }
+
+    pub fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut Context<Self>) -> Option<f32> {
         let headings = self.outline_headings(cx);
         if let Some(node) = headings.get(index) {
             if let Some(entity_id) = node.block_id {
@@ -492,6 +530,10 @@ impl WysiwygDocumentController {
                     }
                 }
             }
+            let target_y = self.calculate_block_scroll_offset(node.block_index, theme, cx);
+            Some(target_y)
+        } else {
+            None
         }
     }
 
@@ -752,10 +794,13 @@ impl WysiwygDocumentController {
                 .collect();
 
             let headings = self.outline_headings(cx);
-            let first_visible_block_idx = plans.first().map(|p| p.start).unwrap_or(0);
+            let scroll_y = -f32::from(ctx.scroll.offset().y);
             let active_index = headings
                 .iter()
-                .rposition(|node| node.block_index <= first_visible_block_idx)
+                .rposition(|node| {
+                    let node_y = self.calculate_block_scroll_offset(node.block_index, &theme, cx);
+                    node_y <= scroll_y + 30.0
+                })
                 .or(if headings.is_empty() { None } else { Some(0) });
 
             let outline_host: std::sync::Arc<dyn editor_contracts::OutlineHost> =

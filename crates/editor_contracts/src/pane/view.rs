@@ -174,7 +174,9 @@ pub trait PaneView: Any + 'static {
     }
 
     /// Gate: `outline`.
-    fn navigate_to_outline(&mut self, _index: usize, _theme: &Theme, _cx: &mut App) {}
+    fn navigate_to_outline(&mut self, _index: usize, _theme: &Theme, _cx: &mut App) -> Option<f32> {
+        None
+    }
 
     /// Gate: `navigable`.
     fn handle_navigation(

@@ -52,7 +52,7 @@ pub fn render_floating_outline_hud(
                     .pl(px(indent))
                     .pr(px(10.0))
                     .py(px(4.0))
-                    .rounded(px(4.0))
+                    .rounded(px(d.outline_node_radius))
                     .cursor_pointer()
                     .flex()
                     .items_center()
@@ -83,6 +83,7 @@ pub fn render_floating_outline_hud(
                             .child(label),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        cx.stop_propagation();
                         host_navigate.navigate_to(idx, cx);
                     }),
             );
@@ -90,31 +91,46 @@ pub fn render_floating_outline_hud(
 
         Some(
             div()
-                .id(ElementId::Name("floating-outline-popover".into()))
+                .id(ElementId::Name(
+                    format!("floating-outline-popover-{pane_id}").into(),
+                ))
+                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                    cx.stop_propagation();
+                })
                 .mr(px(8.0))
                 .w(px(260.0))
                 .max_h(px(420.0))
                 .overflow_y_scroll()
                 .bg(c.dialog_surface)
-                .border_1()
+                .border(px(d.dialog_border_width))
                 .border_color(c.dialog_border)
-                .rounded(px(d.panel_tile_radius.max(8.0)))
+                .rounded(px(d.menu_panel_radius))
                 .shadow_lg()
-                .p(px(6.0))
+                .p(px(d.menu_panel_padding))
                 .flex()
                 .flex_col()
-                .gap(px(2.0))
+                .gap(px(d.menu_panel_gap))
                 .children(items),
         )
     } else {
         None
     };
 
-    // ── Equal-Length Micro-ticks Rail (Notion-style) ──
+    // ── Equal-Length / Level-Scaled Micro-ticks Rail (Notion-style) ──
     let mut ticks = Vec::with_capacity(headings.len());
-    for (idx, _node) in headings.iter().enumerate() {
+    for (idx, node) in headings.iter().enumerate() {
         let is_active = idx == active_index;
-        let (w, h) = if is_active { (18.0, 3.0) } else { (14.0, 2.0) };
+        let base_w = match node.level {
+            1 => 16.0,
+            2 => 13.0,
+            3 => 10.0,
+            _ => 8.0,
+        };
+        let (w, h) = if is_active {
+            (18.0f32.max(base_w + 2.0), 3.0)
+        } else {
+            (base_w, 2.0)
+        };
 
         let tick_color = if is_active {
             c.focus_accent
@@ -126,7 +142,7 @@ pub fn render_floating_outline_hud(
 
         ticks.push(
             div()
-                .id(ElementId::Name(format!("outline-rail-tick-{idx}").into()))
+                .id(ElementId::Name(format!("outline-rail-tick-{pane_id}-{idx}").into()))
                 .h(px(8.0))
                 .w_full()
                 .flex()
@@ -135,21 +151,24 @@ pub fn render_floating_outline_hud(
                 .cursor_pointer()
                 .child(div().w(px(w)).h(px(h)).rounded_full().bg(tick_color))
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                    cx.stop_propagation();
                     host_navigate.navigate_to(idx, cx);
                 }),
         );
     }
 
     let rail_el = div()
-        .id(ElementId::Name("floating-outline-rail".into()))
-        .w(px(24.0))
+        .id(ElementId::Name(format!("floating-outline-rail-{pane_id}").into()))
+        .w(px(28.0))
         .py(px(6.0))
-        .px(px(3.0))
+        .px(px(4.0))
+        .rounded(px(6.0))
         .flex()
         .flex_col()
         .items_end()
-        .gap(px(2.0))
+        .gap(px(3.0))
         .cursor_pointer()
+        .hover(|s| s.bg(c.panel_row_hover))
         .children(ticks);
 
     let host_hover = host.clone();
@@ -157,6 +176,7 @@ pub fn render_floating_outline_hud(
         .id(ElementId::Name(
             format!("floating-outline-hud-{pane_id}").into(),
         ))
+        .occlude()
         .absolute()
         .top(px(40.0))
         .right(px(14.0))

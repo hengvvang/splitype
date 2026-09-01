@@ -84,24 +84,21 @@ impl PaneView for PreviewState {
     }
 
     fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
-        let text = self
-            .blocks
-            .iter()
-            .map(|b| b.display_text().to_string())
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        crate::outline::extract_outline_headings(&text)
+        crate::outline::extract_preview_headings(&self.blocks)
     }
 
-    fn navigate_to_outline(&mut self, index: usize, theme: &Theme, _cx: &mut App) {
+    fn navigate_to_outline(&mut self, index: usize, theme: &Theme, _cx: &mut App) -> Option<f32> {
         let headings = self.outline_headings(_cx);
         if let Some(node) = headings.get(index) {
             let font_size = theme.typography.text_size.max(14.0);
             let line_height = (font_size * theme.typography.text_line_height)
                 .round()
                 .max(22.0);
-            let _target_y =
+            let target_y =
                 crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
+            Some(target_y)
+        } else {
+            None
         }
     }
 

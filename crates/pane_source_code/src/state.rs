@@ -841,11 +841,16 @@ impl editor_contracts::PaneView for SourceCodeState {
         crate::outline::extract_source_headings(&self.text)
     }
 
-    fn navigate_to_outline(&mut self, index: usize, _theme: &Theme, cx: &mut App) {
+    fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut App) -> Option<f32> {
         let headings = self.outline_headings(cx);
         if let Some(h) = headings.get(index) {
             let offset = self.line_start_offset(h.block_index);
             self.selections.set_single_point(offset);
+            let font_size = theme.typography.code_size.max(12.0);
+            let line_height = (font_size * theme.typography.text_line_height).round();
+            Some(h.block_index as f32 * line_height)
+        } else {
+            None
         }
     }
 
@@ -998,9 +1003,8 @@ impl editor_contracts::PaneView for SourceCodeState {
         let headings = self.outline_headings(cx);
         let font_size = theme.typography.code_size.max(12.0);
         let line_height = (font_size * theme.typography.text_line_height).round();
-        let padding = theme.dimensions.editor_padding;
         let scroll_y = -f32::from(ctx.scroll.offset().y);
-        let top_visible_line = ((scroll_y - padding) / line_height).max(0.0) as usize;
+        let top_visible_line = (scroll_y / line_height).floor().max(0.0) as usize;
         let active_index = headings
             .iter()
             .rposition(|h| h.block_index <= top_visible_line)

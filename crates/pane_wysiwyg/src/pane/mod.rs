@@ -61,11 +61,11 @@ impl PaneView for WysiwygPaneState {
             .unwrap_or_default()
     }
 
-    fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut App) {
+    fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut App) -> Option<f32> {
         let controller = self.ensure_controller(cx);
         controller.update(cx, |c, cx| {
-            c.navigate_to_outline(index, theme, cx);
-        });
+            c.navigate_to_outline(index, theme, cx)
+        })
     }
 
     fn search_matches(&self, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {
