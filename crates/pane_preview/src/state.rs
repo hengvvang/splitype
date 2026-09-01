@@ -53,7 +53,7 @@ impl PaneView for PreviewState {
             self.synced_revision = Some(revision);
             return;
         }
-        let data = markdown_parser::parse::parser::parse_preview_document(text);
+        let data = markdown_parser::parse::parse_preview_document(text);
         let mut roots = crate::node::blocks_to_preview_tree(data);
         if roots.is_empty() {
             roots.push(PreviewBlock::new(

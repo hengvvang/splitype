@@ -43,26 +43,25 @@ impl Summary for BlockSummary {
     }
 }
 
-impl Item for markdown_parser::BlockData {
+impl Item for markdown_parser::parse::BlockData {
     type Summary = BlockSummary;
     fn summary(&self, _cx: &()) -> Self::Summary {
         let line_count = self.line_count().max(1);
         let char_count = self.character_count();
         let byte_count = self.byte_count();
         let estimated_h = match &self.kind {
-            markdown_parser::BlockKind::Heading { level } => match level {
+            markdown_parser::parse::BlockKind::Heading { level } => match level {
                 1 => 56.0,
                 2 => 48.0,
                 3 => 40.0,
                 _ => 36.0,
             },
-            markdown_parser::BlockKind::CodeBlock { .. } => 24.0 * line_count as f32 + 32.0,
-            markdown_parser::BlockKind::MathBlock | markdown_parser::BlockKind::MermaidBlock => {
-                80.0
-            }
-            markdown_parser::BlockKind::Table => 28.0 * line_count as f32 + 32.0,
-            markdown_parser::BlockKind::ThematicBreak => 24.0,
-            markdown_parser::BlockKind::HtmlBlock => 24.0 * line_count as f32 + 16.0,
+            markdown_parser::parse::BlockKind::CodeBlock { .. } => 24.0 * line_count as f32 + 32.0,
+            markdown_parser::parse::BlockKind::MathBlock
+            | markdown_parser::parse::BlockKind::MermaidBlock => 80.0,
+            markdown_parser::parse::BlockKind::Table => 28.0 * line_count as f32 + 32.0,
+            markdown_parser::parse::BlockKind::ThematicBreak => 24.0,
+            markdown_parser::parse::BlockKind::HtmlBlock => 24.0 * line_count as f32 + 16.0,
             _ => 24.0 * line_count as f32 + 8.0,
         };
         BlockSummary {

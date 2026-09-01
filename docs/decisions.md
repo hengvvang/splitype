@@ -121,11 +121,12 @@ registry capabilities, so any plugin can take over the editor or sidebar role.
 
 `core_contracts` no longer depends on the `window` shell crate. Panel and pane
 contracts, kind and id types, and the document vocabulary all live in
-`core_contracts`; `window` hosts the registry implementation and re-exports the
-contract types for compatibility. Built-in kinds are namespaced
-(`splitype.pane.*`, `splitype.panel.*`), constructed via `from_static` without
-allocating, and icon asset paths are decoupled from kind strings: topbar
-renderers take a plugin-owned `icon_prefix`.
+`core_contracts`; `window` hosts the registry implementation, and every
+consumer imports contract types from `core_contracts` directly — no re-export
+shims. Built-in kinds are namespaced (`splitype.pane.*`, `splitype.panel.*`),
+constructed via `from_static` without allocating, and icon asset paths are
+decoupled from kind strings: topbar renderers take a plugin-owned
+`icon_prefix`.
 
 ## ADR-014: Sidebar panels are a role, and overlays are panel-owned
 
@@ -196,5 +197,21 @@ shell-owned `MissingPanelView` placeholder instead of a blank tile: the
 layout stays intact and the placeholder names the owning plugin through the
 plugin registry. User-installed manifests under the config `plugins/`
 directory are discovered, validated, and recorded as metadata so missing
-kinds can still be named — even though code transports for user plugins do
+kind strings can still be named — even though code transports for user plugins do
 not exist yet.
+
+## ADR-019: One canonical path per item — no compatibility shims
+
+**Status:** Accepted
+
+The codebase keeps exactly one design and one path per item. Cross-crate
+re-export facades are removed (consumers import contract types from
+`core_contracts` only), plugin crate roots expose their descriptor as the
+sole root-level entry point while internals stay at canonical module paths,
+and `pane_wysiwyg` addresses `markdown_parser`/`syntax_highlighter` directly
+instead of through `pub use` facades. `markdown_parser` owns its model under
+`parse::*` (the `parse::parser` nesting is gone) and carries no GPUI identity.
+The editor keeps action dispatch handlers in `editor::actions` while state
+mutations live in the session and navigation modules; `explorer::state` is a
+single module rather than `state::state`. Backward-compatibility aliases are
+deleted on the spot, never kept.

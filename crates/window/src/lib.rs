@@ -11,7 +11,7 @@ pub use actions::{
     ClosePanel, Copy, Cut, DismissTransientUi, OpenPath, OpenPathInSplit, Paste, SplitPanel,
     ToggleKindDropdown, TogglePanelMaximized, UpdateOpenTabPaths,
 };
-pub use builder::WindowBuilder;
+pub use builder::WindowLayoutBuilder;
 pub use icons::{border_menu_style, panel_topbar_icon};
 pub use layout::WindowLayout;
 pub use panel::{MissingPanelView, PanelRegistry};

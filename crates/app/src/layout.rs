@@ -45,7 +45,7 @@ impl WindowPanels {
             .find(|descriptor| descriptor.capabilities().documents);
         let left_id = core_contracts::PanelId(1);
         let right_id = core_contracts::PanelId(2);
-        let builder = window::WindowBuilder::new();
+        let builder = window::WindowLayoutBuilder::new();
         match (sidebar, documents) {
             (Some(sidebar), Some(documents)) => builder.with_split(
                 left_id,

@@ -316,37 +316,47 @@ transitional hardcoding listed below is removed.
 - `EditorHost` is renamed `DocumentHost` (with `open_file_in_active_document_panel`
   and `on_document_path_changed`); the shell hands it to any document panel via
   `DocumentPanel::attach_document_host`.
-- `core_contracts` no longer depends on `window`: panel contracts (`PanelView`,
-  `PanelDescriptor`, `PanelHost`, `PanelKind`, `PanelId`, `PanelRenderContext`)
-  moved into `core_contracts::panel`, and `window` hosts the registry while
-  re-exporting the contract types. Built-in kinds are namespaced
-  (`splitype.pane.wysiwyg|source_code|preview`, `splitype.panel.editor|explorer|settings`)
-  and built via `from_static`; `panel_topbar_icon` takes a plugin-owned icon
-  prefix instead of deriving paths from kind strings. Both window open paths
-  (`open_editor_window`, `open_cloned_window`) create every panel through the
-  registry.
+- `core_contracts` no longer depends on `window` and carries no GPUI
+  presentation: panel contracts (`PanelView`, `PanelDescriptor`, `PanelHost`,
+  `PanelKind`, `PanelId`, `PanelRenderContext`) live in `core_contracts::panel`,
+  the outline HUD / search panel renderers moved to the `ui` crate, and
+  `window` hosts the panel registry without re-exporting contract types —
+  every consumer imports them from `core_contracts` directly. Built-in kinds
+  are namespaced (`splitype.pane.wysiwyg|source_code|preview`,
+  `splitype.panel.editor|explorer|settings`) and built via `from_static`;
+  `panel_topbar_icon` takes a plugin-owned icon prefix instead of deriving
+  paths from kind strings. Both window open paths (`open_editor_window`,
+  `open_cloned_window`) create every panel through the registry.
+- The codebase keeps a single canonical path per item: crate roots no longer
+  re-export foreign contract types, plugin crates expose their descriptor as
+  the only root-level entry point, `markdown_parser` addresses its model as
+  `parse::*` (the `parse::parser` nesting and GPUI `EntityId` identity are
+  gone), and `pane_wysiwyg` addresses `markdown_parser`/`syntax_highlighter`
+  directly instead of through re-export facades (its contract adapter lives
+  in `pane_wysiwyg::pane`). The editor aggregate keeps action dispatch
+  handlers in `editor::actions` while state mutations live in the session /
+  navigation modules.
 
 ### Remaining critical migration work
 
-1. `core_contracts` still depends on `theme` and GPUI presentation helpers
-   (outline HUD, search UI); split the stable vocabulary/API from UI adapters
-   so the contracts crate stays presentation-free.
-2. External plugin code loading is not implemented yet: no WASM/subprocess
+1. External plugin code loading is not implemented yet: no WASM/subprocess
    transports, permission model, unregister/shutdown protocol, or
    `AssetSource::list` directory listing — user manifests are metadata-only
    today.
-3. Keybindings are still driven by the config `ShortcutCommand` vocabulary
+2. Keybindings are still driven by the config `ShortcutCommand` vocabulary
    rather than manifest-declared shortcuts, and GPUI's typed
    `cx.on_action` API requires per-command dispatch handlers in the
    composition root (command table + handlers must be kept in sync). Panel
    topbar chrome is duplicated per plugin; consider a shared chrome
    renderer driven by descriptor metadata.
-4. Per-pane view state (cursor, scroll, selections) is not persisted, and the
+3. Per-pane view state (cursor, scroll, selections) is not persisted, and the
    explorer restores folder roots without their expansion state.
-5. Preview selection/navigation and common autoscroll have incomplete wiring.
-6. `markdown_parser` contains GPUI entity identity and consumer-specific parse
-   modes; replace them with domain IDs and recursive parse policy.
-7. `PaneView` default no-op methods should eventually fold into the capability
+4. Preview pane selection rendering exists but no input is routed to it, and
+   the editor's autoscroll execution is still a stub.
+5. `markdown_parser` still carries consumer-specific parse modes
+   (`ParseMode::Wysiwyg`/`Preview`); replace them with a recursive parse
+   policy owned by the domain.
+6. `PaneView` default no-op methods should eventually fold into the capability
    model, but callers already check capabilities first.
 
 ## Migration plan and acceptance criteria

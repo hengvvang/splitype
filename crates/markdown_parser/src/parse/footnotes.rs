@@ -10,7 +10,7 @@ use crate::parse::kind::BlockKind;
 
 pub(crate) fn build_native_footnote_definition_block(
     lines: &[String],
-    mode: crate::parse::parser::ParseMode,
+    mode: crate::parse::ParseMode,
 ) -> Option<Vec<BlockData>> {
     let (id, first_line) = parse_footnote_definition_head(lines.first()?)?;
     // A definition line can carry several `[^id]:` heads on one line

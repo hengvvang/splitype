@@ -63,7 +63,7 @@ impl WysiwygDocumentController {
 
     /// Rebuilds document tree and event subscriptions from raw Markdown text.
     pub fn rebuild_from_markdown(&mut self, text: &str, revision: u64, cx: &mut Context<Self>) {
-        let parsed = markdown_parser::parse_wysiwyg_document(text);
+        let parsed = markdown_parser::parse::parse_wysiwyg_document(text);
         let block_count = parsed.len();
         let mut entities: std::collections::HashMap<uuid::Uuid, Entity<Block>> =
             std::collections::HashMap::with_capacity(block_count);

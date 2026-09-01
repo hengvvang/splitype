@@ -1,50 +1,26 @@
-//! Window builder for configuring and spawning window instances.
+//! Window layout factory — fluent constructors for the window-level split
+//! layout root.
 
 use crate::layout::WindowLayout;
 use core_contracts::{PanelId, PanelKind};
-use gpui::{Bounds, Pixels, Point, px, size};
 use splitter::container::SplitterContainer;
 use splitter::root::SplitterRoot;
 use splitter::tree::{SplitAxis, SplitTree};
 
-/// Fluent builder for constructing and configuring window layouts.
-pub struct WindowBuilder {
-    title: String,
-    bounds: Option<Bounds<Pixels>>,
+/// Fluent builder producing a [`WindowLayout`] from panel kinds and ids.
+pub struct WindowLayoutBuilder {
     layout: Option<WindowLayout>,
 }
 
-impl Default for WindowBuilder {
+impl Default for WindowLayoutBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl WindowBuilder {
+impl WindowLayoutBuilder {
     pub fn new() -> Self {
-        Self {
-            title: "Splitype".to_string(),
-            bounds: None,
-            layout: None,
-        }
-    }
-
-    pub fn with_title(mut self, title: impl Into<String>) -> Self {
-        self.title = title.into();
-        self
-    }
-
-    pub fn with_bounds(mut self, bounds: Bounds<Pixels>) -> Self {
-        self.bounds = Some(bounds);
-        self
-    }
-
-    pub fn with_dimensions(mut self, width: f32, height: f32) -> Self {
-        self.bounds = Some(Bounds {
-            origin: Point::default(),
-            size: size(px(width), px(height)),
-        });
-        self
+        Self { layout: None }
     }
 
     pub fn with_layout(mut self, layout: WindowLayout) -> Self {
@@ -87,14 +63,6 @@ impl WindowBuilder {
             focused_leaf: None,
         });
         self
-    }
-
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-
-    pub fn bounds(&self) -> Option<Bounds<Pixels>> {
-        self.bounds
     }
 
     pub fn take_layout(&mut self) -> Option<WindowLayout> {
