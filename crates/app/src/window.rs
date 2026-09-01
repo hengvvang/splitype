@@ -62,13 +62,14 @@ pub fn open_editor_window(
                     })
                     .collect();
 
-                let shell = cx.new(move |_cx| Shell {
+                let shell = cx.new(move |cx| Shell {
                     panel_views: HashMap::new(),
                     retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
                     last_viewport: None,
                     info_dialog: None,
+                    focus_handle: cx.focus_handle(),
                     unsaved_dialog: None,
                     update_check_in_progress: false,
                     close_guard_installed: false,
@@ -182,13 +183,14 @@ fn open_window_with_retained(
                         panels.layout.activation_history.clear();
                     }
                 }
-                let shell = cx.new(move |_cx| Shell {
+                let shell = cx.new(move |cx| Shell {
                     panel_views: HashMap::new(),
                     retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
                     last_viewport: None,
                     info_dialog: None,
+                    focus_handle: cx.focus_handle(),
                     unsaved_dialog: None,
                     update_check_in_progress: false,
                     close_guard_installed: false,

@@ -17,6 +17,8 @@ impl Render for Shell {
         let (titlebar, menu_panel, titlebar_height) = self.render_window_chrome(&theme, window, cx);
 
         let mut base = div()
+            .track_focus(&self.focus_handle)
+            .key_context("Shell")
             .w_full()
             .h_full()
             .flex()

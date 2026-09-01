@@ -58,15 +58,21 @@ impl Editor {
                 svg()
                     .path(panel_topbar_icon(icon_prefix, "split-h"))
                     .size(px(btn_icon_size))
-                    .text_color(c.dialog_muted),
+                    .text_color(if is_maximized {
+                        c.dialog_muted.opacity(0.3)
+                    } else {
+                        c.dialog_muted
+                    }),
             )
-            .on_click(move |_event, _window, cx| {
-                let _ = split_h_editor.update(cx, |editor, cx| {
-                    editor.defer_host_action(cx, move |host, cx| {
-                        host.split_panel(panel_id, SplitAxis::Horizontal, 0.5, true, cx);
+            .when(!is_maximized, |this| {
+                this.on_click(move |_event, _window, cx| {
+                    let _ = split_h_editor.update(cx, |editor, cx| {
+                        editor.defer_host_action(cx, move |host, cx| {
+                            host.split_panel(panel_id, SplitAxis::Horizontal, 0.5, true, cx);
+                        });
+                        cx.notify();
                     });
-                    cx.notify();
-                });
+                })
             });
 
         let split_v_editor = editor.clone();
@@ -76,15 +82,21 @@ impl Editor {
                 svg()
                     .path(panel_topbar_icon(icon_prefix, "split-v"))
                     .size(px(btn_icon_size))
-                    .text_color(c.dialog_muted),
+                    .text_color(if is_maximized {
+                        c.dialog_muted.opacity(0.3)
+                    } else {
+                        c.dialog_muted
+                    }),
             )
-            .on_click(move |_event, _window, cx| {
-                let _ = split_v_editor.update(cx, |editor, cx| {
-                    editor.defer_host_action(cx, move |host, cx| {
-                        host.split_panel(panel_id, SplitAxis::Vertical, 0.5, true, cx);
+            .when(!is_maximized, |this| {
+                this.on_click(move |_event, _window, cx| {
+                    let _ = split_v_editor.update(cx, |editor, cx| {
+                        editor.defer_host_action(cx, move |host, cx| {
+                            host.split_panel(panel_id, SplitAxis::Vertical, 0.5, true, cx);
+                        });
+                        cx.notify();
                     });
-                    cx.notify();
-                });
+                })
             });
 
         let search_editor = editor.clone();

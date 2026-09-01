@@ -33,6 +33,9 @@ impl Shell {
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<PanelId> {
+        if self.panels.layout.tree.find_maximized_leaf().is_some() {
+            return None;
+        }
         let panel_id = panel_id.into();
         let target_leaf_id = self.panels.layout.resolve_leaf(panel_id.0)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;

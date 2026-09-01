@@ -86,6 +86,9 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
     /// original container and a freshly created one. Returns the new
     /// leaf's id.
     pub fn split_leaf(&mut self, target_id: NodeId, axis: SplitAxis, ratio: f32) -> Option<NodeId> {
+        if self.tree.find_maximized_leaf().is_some() {
+            return None;
+        }
         let leaf_id = self.resolve_leaf(target_id)?;
         let kind = self.tree.find_leaf_kind(leaf_id)?;
         let split_id = self.next_node_id;
@@ -219,6 +222,9 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         dock_target: crate::sessions::AreaDockTarget,
         ratio: f32,
     ) -> Option<NodeId> {
+        if self.tree.find_maximized_leaf().is_some() {
+            return None;
+        }
         if source_id == target_id {
             return None;
         }
@@ -355,6 +361,9 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         pos: Point<Pixels>,
         modifier: CornerDragModifier,
     ) {
+        if self.tree.find_maximized_leaf().is_some() {
+            return;
+        }
         if let Some(panel) = self.tree.find_leaf_mut(target_id) {
             panel.start_corner_drag(pos, modifier);
             self.focused_leaf = Some(target_id);
@@ -476,6 +485,9 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         let Some(facts) = self.finish_corner_drag() else {
             return crate::policy::CornerDragResult::None;
         };
+        if self.tree.find_maximized_leaf().is_some() {
+            return crate::policy::CornerDragResult::None;
+        }
         crate::policy::apply_corner_drag_session(self, &facts, container_size)
     }
 

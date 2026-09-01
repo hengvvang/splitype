@@ -74,20 +74,23 @@ pub fn splitter_bar_h(
     active: bool,
     style: &OverlayStyle,
 ) -> Stateful<Div> {
+    let hit_width = 12.0;
+    let offset = -hit_width / 2.0;
     if active {
         // Drag-in-progress: highlight the boundary line with 2.5px thickness.
         div()
             .id(id)
             .absolute()
             .left(relative(ratio))
+            .ml(px(offset))
             .top_0()
             .bottom_0()
-            .w(px(5.0))
+            .w(px(hit_width))
             .cursor_col_resize()
             .child(
                 div()
                     .absolute()
-                    .left_0()
+                    .left(px((hit_width - 2.5) / 2.0))
                     .top_0()
                     .bottom_0()
                     .w(px(2.5))
@@ -98,14 +101,15 @@ pub fn splitter_bar_h(
             .id(id)
             .absolute()
             .left(relative(ratio))
+            .ml(px(offset))
             .top_0()
             .bottom_0()
-            .w(px(4.0))
+            .w(px(hit_width))
             .cursor_col_resize()
             .child(
                 div()
                     .absolute()
-                    .left_0()
+                    .left(px((hit_width - 1.0) / 2.0))
                     .top_0()
                     .bottom_0()
                     .w(px(1.0))
@@ -118,27 +122,30 @@ pub fn splitter_bar_h(
 /// Vertical splitter bar (resizes columns).
 ///
 /// Same overlay model as [`splitter_bar_h`]: floats on the boundary at
-/// `ratio` of the container height, 4px hit zone plus a guide line.
+/// `ratio` of the container height, 12px hit zone plus a centered guide line.
 pub fn splitter_bar_v(
     id: impl Into<ElementId>,
     ratio: f32,
     active: bool,
     style: &OverlayStyle,
 ) -> Stateful<Div> {
+    let hit_height = 12.0;
+    let offset = -hit_height / 2.0;
     if active {
         // Drag-in-progress: highlight the boundary line with 2.5px thickness.
         div()
             .id(id)
             .absolute()
             .top(relative(ratio))
+            .mt(px(offset))
             .left_0()
             .right_0()
-            .h(px(5.0))
+            .h(px(hit_height))
             .cursor_row_resize()
             .child(
                 div()
                     .absolute()
-                    .top_0()
+                    .top(px((hit_height - 2.5) / 2.0))
                     .left_0()
                     .right_0()
                     .h(px(2.5))
@@ -149,14 +156,15 @@ pub fn splitter_bar_v(
             .id(id)
             .absolute()
             .top(relative(ratio))
+            .mt(px(offset))
             .left_0()
             .right_0()
-            .h(px(4.0))
+            .h(px(hit_height))
             .cursor_row_resize()
             .child(
                 div()
                     .absolute()
-                    .top_0()
+                    .top(px((hit_height - 1.0) / 2.0))
                     .left_0()
                     .right_0()
                     .h(px(1.0))
@@ -177,6 +185,9 @@ pub fn start_splitter_drag<T: Clone + PartialEq>(
     start_pointer_pos: f32,
     current_ratio: f32,
 ) {
+    if container.tree.find_maximized_leaf().is_some() {
+        return;
+    }
     container.active_splitter_drag = Some(crate::sessions::SplitterDragSession {
         split_id,
         axis,
@@ -193,6 +204,9 @@ pub fn open_border_menu<T: Clone + PartialEq>(
     axis: SplitAxis,
     position: Point<Pixels>,
 ) {
+    if container.tree.find_maximized_leaf().is_some() {
+        return;
+    }
     container.active_border_menu = Some(crate::sessions::BorderMenuState {
         split_id,
         axis,
@@ -267,18 +281,16 @@ fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
     }
 }
 
-/// Build the four corner-drag handles of a tile.
+/// Build the four corner-gap drag handles of a tile located in the difference
+/// area between the tile rectangle and the inner panel card.
 ///
-/// `id_prefix` names the handles ("panel-corner" for window panels,
-/// "inner-corner" for editor panels) so ids stay unique per tree level;
-/// `target_id` is the leaf id embedded in each handle's id and passed to
-/// the drag callback. `on_start_drag` receives the decoded modifier, the
-/// pointer position, and the app context on a left mouse-down.
+/// - `gap`: Margin thickness around the inner panel card.
+/// - `corner_span`: Span of the corner drag zone along each edge (e.g. 48.0px).
 pub fn corner_drag_handles<F>(
     id_prefix: &'static str,
     target_id: NodeId,
     gap: f32,
-    handle_size: f32,
+    corner_span: f32,
     rounded: bool,
     occlude: bool,
     on_start_drag: F,
@@ -286,49 +298,119 @@ pub fn corner_drag_handles<F>(
 where
     F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
 {
-    let make = |id_str: &'static str, top: bool, left: bool| {
+    corner_drag_handles_sides(
+        id_prefix,
+        target_id,
+        gap,
+        corner_span,
+        rounded,
+        occlude,
+        true,
+        true,
+        on_start_drag,
+    )
+}
+
+/// Build the corner-gap drag handles of a tile with selectable top/bottom sides.
+pub fn corner_drag_handles_sides<F>(
+    id_prefix: &'static str,
+    target_id: NodeId,
+    gap: f32,
+    corner_span: f32,
+    _rounded: bool,
+    _occlude: bool,
+    include_top: bool,
+    include_bottom: bool,
+    on_start_drag: F,
+) -> Stateful<Div>
+where
+    F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
+{
+    let gap_thickness = gap.max(6.0);
+    let make_corner = |corner_str: &'static str, top: bool, left: bool| {
         let on_start_drag = on_start_drag.clone();
-        let mut corner_div = div()
+        let make_arm = |dir_str: &'static str, is_h: bool| {
+            let on_start_drag = on_start_drag.clone();
+            let mut arm = div()
+                .id((
+                    SharedString::from(format!("{id_prefix}-{corner_str}-{dir_str}")),
+                    target_id,
+                ))
+                .absolute()
+                .cursor_crosshair()
+                .hover(|s| s.bg(hsla(0.0, 0.0, 1.0, 0.15)));
+
+            if top {
+                arm = arm.top_0();
+            } else {
+                arm = arm.bottom_0();
+            }
+            if left {
+                arm = arm.left_0();
+            } else {
+                arm = arm.right_0();
+            }
+
+            if is_h {
+                arm = arm.h(px(gap_thickness)).w(px(corner_span));
+            } else {
+                arm = arm.w(px(gap_thickness)).h(px(corner_span));
+            }
+
+            arm.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                let modifier = corner_drag_modifier(event);
+                on_start_drag(modifier, event.position, cx);
+            })
+        };
+
+        let mut corner_box = div()
             .id((
-                SharedString::from(format!("{id_prefix}-{id_str}")),
+                SharedString::from(format!("{id_prefix}-{corner_str}")),
                 target_id,
             ))
             .absolute()
-            .size(px(handle_size))
-            .cursor_crosshair();
-        if rounded {
-            corner_div = corner_div.rounded(px(4.0));
-        }
-        if occlude {
-            corner_div = corner_div.occlude();
-        }
+            .w(px(corner_span))
+            .h(px(corner_span));
+
         if top {
-            corner_div = corner_div.top(px(gap));
+            corner_box = corner_box.top_0();
         } else {
-            corner_div = corner_div.bottom(px(gap));
+            corner_box = corner_box.bottom_0();
         }
         if left {
-            corner_div = corner_div.left(px(gap));
+            corner_box = corner_box.left_0();
         } else {
-            corner_div = corner_div.right(px(gap));
+            corner_box = corner_box.right_0();
         }
-        corner_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-            let modifier = corner_drag_modifier(event);
-            on_start_drag(modifier, event.position, cx);
-        })
+
+        corner_box
+            .child(make_arm("h", true))
+            .child(make_arm("v", false))
     };
 
-    div()
+    let mut container = div()
         .id((
             SharedString::from(format!("{id_prefix}-corners")),
             target_id,
         ))
         .absolute()
-        .inset(px(-gap))
-        .child(make("tl", true, true))
-        .child(make("tr", true, false))
-        .child(make("bl", false, true))
-        .child(make("br", false, false))
+        .top_0()
+        .bottom_0()
+        .left_0()
+        .right_0();
+
+    if include_top {
+        container = container
+            .child(make_corner("tl", true, true))
+            .child(make_corner("tr", true, false));
+    }
+    if include_bottom {
+        container = container
+            .child(make_corner("bl", false, true))
+            .child(make_corner("br", false, false));
+    }
+
+    container
 }
 
 /// Visual parameters for floating menu panels (border context menus).

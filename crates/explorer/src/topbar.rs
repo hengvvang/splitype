@@ -3,6 +3,7 @@
 //! All mutations dispatch the window-shell layout actions; the shell
 //! handles them against its window layout tree.
 
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use platform_contracts::PanelId;
@@ -44,16 +45,22 @@ pub fn render_explorer_topbar(
             svg()
                 .path(panel_topbar_icon(icon_prefix, "split-h"))
                 .size(px(btn_icon_size))
-                .text_color(c.dialog_muted),
-        )
-        .on_click(move |_event, window, cx| {
-            window.dispatch_action(
-                Box::new(SplitPanel {
-                    panel: panel_id.0,
-                    axis: SplitAxis::Horizontal,
+                .text_color(if is_maximized {
+                    c.dialog_muted.opacity(0.3)
+                } else {
+                    c.dialog_muted
                 }),
-                cx,
-            );
+        )
+        .when(!is_maximized, |this| {
+            this.on_click(move |_event, window, cx| {
+                window.dispatch_action(
+                    Box::new(SplitPanel {
+                        panel: panel_id.0,
+                        axis: SplitAxis::Horizontal,
+                    }),
+                    cx,
+                );
+            })
         });
 
     let split_v_button = icon_chip_button(c, d)
@@ -62,16 +69,22 @@ pub fn render_explorer_topbar(
             svg()
                 .path(panel_topbar_icon(icon_prefix, "split-v"))
                 .size(px(btn_icon_size))
-                .text_color(c.dialog_muted),
-        )
-        .on_click(move |_event, window, cx| {
-            window.dispatch_action(
-                Box::new(SplitPanel {
-                    panel: panel_id.0,
-                    axis: SplitAxis::Vertical,
+                .text_color(if is_maximized {
+                    c.dialog_muted.opacity(0.3)
+                } else {
+                    c.dialog_muted
                 }),
-                cx,
-            );
+        )
+        .when(!is_maximized, |this| {
+            this.on_click(move |_event, window, cx| {
+                window.dispatch_action(
+                    Box::new(SplitPanel {
+                        panel: panel_id.0,
+                        axis: SplitAxis::Vertical,
+                    }),
+                    cx,
+                );
+            })
         });
 
     let mut actions = div()

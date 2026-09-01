@@ -65,6 +65,8 @@ pub struct Shell {
     pub(crate) last_viewport: Option<Size<Pixels>>,
     /// Informational dialog shown from the Help menu (About / update check).
     pub(crate) info_dialog: Option<InfoDialogKind>,
+    /// Window-level root focus handle for bubbling and global action dispatch.
+    pub(crate) focus_handle: FocusHandle,
     /// Unsaved changes confirmation dialog state (Window, Editor Panel, or Single Tab).
     pub(crate) unsaved_dialog: Option<UnsavedDialogState>,
     /// True while an online update check is running in the background.

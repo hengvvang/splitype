@@ -89,32 +89,34 @@ impl Shell {
             })
             .child(panel_card);
 
-        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
-            std::env::consts::OS,
-            Decorations::Server,
-            &theme.dimensions,
-        );
+        if !is_maximized {
+            let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
+                std::env::consts::OS,
+                Decorations::Server,
+                &theme.dimensions,
+            );
 
-        let shell_corner = cx.entity().downgrade();
-        let corner_handles = splitter::interaction::corner_drag_handles(
-            "panel-corner",
-            leaf_id,
-            gap,
-            20.0,
-            false,
-            false,
-            move |modifier, pos, cx| {
-                let _ = shell_corner.update(cx, |shell, cx| {
-                    let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
-                    shell
-                        .panels
-                        .layout
-                        .start_corner_drag(leaf_id, body_pos, modifier);
-                    cx.notify();
-                });
-            },
-        );
-        wrapped = wrapped.child(corner_handles);
+            let shell_corner = cx.entity().downgrade();
+            let corner_handles = splitter::interaction::corner_drag_handles(
+                "panel-corner",
+                leaf_id,
+                gap,
+                48.0,
+                false,
+                false,
+                move |modifier, pos, cx| {
+                    let _ = shell_corner.update(cx, |shell, cx| {
+                        let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
+                        shell
+                            .panels
+                            .layout
+                            .start_corner_drag(leaf_id, body_pos, modifier);
+                        cx.notify();
+                    });
+                },
+            );
+            wrapped = wrapped.child(corner_handles);
+        }
 
         let dropdown_open = self
             .panels

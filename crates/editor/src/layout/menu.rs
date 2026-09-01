@@ -16,6 +16,10 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         let border_menu = self.session.root.active_border_menu?;
+        if self.session.root.tree.find_maximized_leaf().is_some() {
+            self.session.root.active_border_menu = None;
+            return None;
+        }
         let editor = cx.entity().downgrade();
         let split_id = border_menu.split_id;
         let theme = cx.global::<theme::ThemeManager>().current().clone();

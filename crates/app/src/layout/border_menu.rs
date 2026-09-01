@@ -13,6 +13,10 @@ impl Shell {
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        if self.panels.layout.tree.find_maximized_leaf().is_some() {
+            self.panels.layout.active_border_menu = None;
+            return div().into_any_element();
+        }
         let shell = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 

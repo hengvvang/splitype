@@ -61,22 +61,27 @@ impl Editor {
 
                 let inner_body = self.render_pane(pane_id, window, cx);
 
-                let corner_handles = splitter::interaction::corner_drag_handles(
-                    "inner-corner",
-                    pane_id.0,
-                    d.pane_gap,
-                    20.0,
-                    false,
-                    false,
-                    move |modifier, pos, cx| {
-                        let _ = inner_editor.update(cx, |ed, cx| {
-                            ed.session_mut()
-                                .root
-                                .start_corner_drag(pane_id.0, pos, modifier);
-                            cx.notify();
-                        });
-                    },
-                );
+                let is_inner_maximized = self.session.root.tree.find_maximized_leaf().is_some();
+                let corner_handles = if !is_inner_maximized {
+                    Some(splitter::interaction::corner_drag_handles(
+                        "inner-corner",
+                        pane_id.0,
+                        d.pane_gap,
+                        48.0,
+                        false,
+                        false,
+                        move |modifier, pos, cx| {
+                            let _ = inner_editor.update(cx, |ed, cx| {
+                                ed.session_mut()
+                                    .root
+                                    .start_corner_drag(pane_id.0, pos, modifier);
+                                cx.notify();
+                            });
+                        },
+                    ))
+                } else {
+                    None
+                };
 
                 if self.focused_pane_id.is_none() {
                     self.focused_pane_id = Some(pane_id);
@@ -118,7 +123,7 @@ impl Editor {
                                 });
                             }),
                     )
-                    .child(corner_handles)
+                    .children(corner_handles)
                     .into_any_element()
             }
             SplitTree::Split {

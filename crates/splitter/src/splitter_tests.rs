@@ -76,3 +76,40 @@ fn rect_collection_partitions_the_area() {
     let total: f32 = rects.iter().map(|r| r.width * r.height).sum();
     assert!((total - 10000.0).abs() < 1.0);
 }
+
+#[test]
+fn split_is_disallowed_when_maximized() {
+    let mut root = new_root();
+    let new_id = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+    assert_eq!(root.tree.count_leaves(), 2);
+
+    // Maximize leaf 1
+    root.toggle_maximize(1);
+    assert!(root.tree.find_maximized_leaf().is_some());
+
+    // Attempt to split while maximized - must fail
+    let split_attempt = root.split_leaf(1, SplitAxis::Vertical, 0.5);
+    assert!(split_attempt.is_none());
+    assert_eq!(root.tree.count_leaves(), 2);
+
+    // Attempt to split leaf 2 while leaf 1 is maximized - must fail
+    let split_attempt2 = root.split_leaf(new_id, SplitAxis::Vertical, 0.5);
+    assert!(split_attempt2.is_none());
+    assert_eq!(root.tree.count_leaves(), 2);
+
+    // Start corner drag while maximized - must be a no-op
+    root.start_corner_drag(
+        1,
+        gpui::point(gpui::px(10.0), gpui::px(10.0)),
+        crate::sessions::CornerDragModifier::None,
+    );
+    assert!(root.corner_drag_panel().is_none());
+
+    // Unmaximize and verify split works again
+    root.toggle_maximize(1);
+    assert!(root.tree.find_maximized_leaf().is_none());
+    let split_success = root.split_leaf(1, SplitAxis::Vertical, 0.5);
+    assert!(split_success.is_some());
+    assert_eq!(root.tree.count_leaves(), 3);
+}
+
