@@ -1,11 +1,8 @@
 use crate::state::{PersistedSettingsState, SettingsUiState};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
-use core_contracts::{
-    PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView,
-};
+use core_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
-use std::sync::Arc;
 
 /// Stable kind identifier of the settings panel plugin.
 pub const PANEL_KIND: &str = "splitype.panel.settings";
@@ -121,19 +118,13 @@ impl PanelDescriptor for SettingsPanelDescriptor {
         Some("plugin://splitype.settings/panel.svg")
     }
 
-    fn create_panel(
-        &self,
-        panel_id: PanelId,
-        _host: Arc<dyn PanelHost>,
-        cx: &mut App,
-    ) -> Box<dyn PanelView> {
+    fn create_panel(&self, panel_id: PanelId, cx: &mut App) -> Box<dyn PanelView> {
         Box::new(SettingsPanelView::new(panel_id, cx))
     }
 
     fn restore_panel(
         &self,
         panel_id: PanelId,
-        _host: Arc<dyn PanelHost>,
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {

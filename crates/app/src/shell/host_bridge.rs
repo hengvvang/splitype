@@ -2,12 +2,11 @@
 
 use gpui::*;
 use std::path::Path;
-use std::sync::Arc;
 
 use crate::shell::Shell;
 use crate::window::record_recent_file_and_refresh;
-use core_contracts::{DocumentHost, TabKind};
-use core_contracts::{PanelHost, PanelId, PanelKind};
+use core_contracts::DocumentHost;
+use core_contracts::PanelId;
 use splitter::tree::SplitAxis;
 
 /// Bridges the [`DocumentHost`] contract to the window shell. Constructed
@@ -19,58 +18,6 @@ pub(crate) struct ShellDocumentHost {
 impl ShellDocumentHost {
     pub(crate) fn new(shell: WeakEntity<Shell>) -> Self {
         Self { shell }
-    }
-}
-
-/// Generic host passed to every panel created by the panel registry.
-pub(crate) struct ShellPanelHost {
-    shell: WeakEntity<Shell>,
-}
-
-impl ShellPanelHost {
-    pub(crate) fn new(shell: WeakEntity<Shell>) -> Self {
-        Self { shell }
-    }
-
-    pub(crate) fn shared(shell: WeakEntity<Shell>) -> Arc<dyn PanelHost> {
-        Arc::new(Self::new(shell))
-    }
-}
-
-impl PanelHost for ShellPanelHost {
-    fn activate_panel(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self
-            .shell
-            .update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
-    }
-
-    fn close_panel(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self
-            .shell
-            .update(cx, |shell, cx| shell.request_close_panel(panel_id, cx));
-    }
-
-    fn split_panel(
-        &self,
-        panel_id: PanelId,
-        axis: SplitAxis,
-        new_kind: Option<PanelKind>,
-        cx: &mut App,
-    ) {
-        let _ = self.shell.update(cx, |shell, cx| {
-            let Some(new_panel) = shell.split_panel(panel_id, axis, 0.5, false, cx) else {
-                return;
-            };
-            if let Some(kind) = new_kind {
-                shell.change_panel_kind(new_panel.0, kind, cx);
-            }
-        });
-    }
-
-    fn toggle_maximize(&self, panel_id: PanelId, cx: &mut App) {
-        let _ = self
-            .shell
-            .update(cx, |shell, cx| shell.toggle_panel_maximize(panel_id, cx));
     }
 }
 
@@ -116,26 +63,6 @@ impl DocumentHost for ShellDocumentHost {
         let _ = self
             .shell
             .update(cx, |shell, cx| shell.prompt_close_tab(panel_id, index, cx));
-    }
-
-    fn open_file_in_active_document_panel(
-        &self,
-        path: &Path,
-        kind: TabKind,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> bool {
-        self.shell
-            .update(cx, |shell, cx| {
-                shell.open_file_in_active_document_panel(path, kind, window, cx)
-            })
-            .unwrap_or(false)
-    }
-
-    fn hide_info_dialog(&self, cx: &mut App) {
-        let _ = self
-            .shell
-            .update(cx, |shell, cx| shell.hide_info_dialog(cx));
     }
 
     fn clear_outer_dropdowns(&self, cx: &mut App) {

@@ -150,15 +150,21 @@ an extensible format ID.
 
 ## Panel contract direction
 
-The shell supplies a mandatory `PanelHost` on creation. The host applies the
-same lifecycle to all panel kinds:
+Panels reach the shell through three contract seams, each one-way and
+role-scoped:
 
-- activation and focus;
-- split, dock, swap, move, and panel ID changes;
-- dirty inspection, save, discard, and close;
-- filesystem notifications;
-- clone/suspend/restore where capabilities declare support;
-- versioned state serialization.
+- document-routing panels call back through [`DocumentHost`];
+- the shell pushes document context and sidebar commands into sidebar
+  panels through [`SidebarPanel`];
+- layout mutations (split, close, maximize, kind switch) from panel chrome
+  are dispatched as shell-owned `window::actions`.
+
+There is no generic PanelHost: the shell materializes panels through the
+registry, applies the same lifecycle to all panel kinds (activation and
+focus; split, dock, swap, move, and panel ID changes; dirty inspection,
+save, discard, and close; filesystem notifications; clone/suspend/restore
+where capabilities declare support; versioned state serialization), and
+panels pick the seam that matches their role.
 
 Container chrome (split, close, maximize, kind selector) belongs to the shell.
 Panels contribute metadata and optional actions, then render their body. A panel
@@ -231,9 +237,6 @@ transitional hardcoding listed below is removed.
 - Panel moves now notify every view through `PanelView::set_panel_id`.
 - All panes now receive a shared `DocumentSnapshot`; Preview and WYSIWYG receive
   the authoritative document base directory.
-- `PanelHost` is implemented by the shell (`ShellPanelHost`) and injected into
-  every registry-created panel; non-editor panel splits are materialized
-  through the registry with the same host.
 - Window and panel close protection resolves dirty state through
   `PanelView::is_dirty`/`first_dirty_title`; the editor-specific retained
   session check only covers suspended editor documents.
@@ -313,11 +316,18 @@ transitional hardcoding listed below is removed.
   downcasts to `EditorPanelView` or compares `"editor"` kind strings. Menu
   actions dispatch to panels by `PanelId`, and the default window layout is
   derived from registry capabilities.
-- `EditorHost` is renamed `DocumentHost` (with `open_file_in_active_document_panel`
-  and `on_document_path_changed`); the shell hands it to any document panel via
+- `EditorHost` is renamed `DocumentHost` (with `on_document_path_changed`
+  and `record_recent_file`); the shell hands it to any document panel via
   `DocumentPanel::attach_document_host`.
+- The pane capability model is the single gate for optional behavior: every
+  optional `PaneView` method documents the capability that gates it and
+  hosts check that flag before calling, `PaneHost` exposes only the
+  operations panes actually invoke (`sync_source_text`, outline
+  navigation/hover, key/mouse event routing), and `PanelView` carries no
+  dead lifecycle hooks — panels reach the shell through `DocumentHost`,
+  `SidebarPanel`, or shell-owned actions, not a generic unused host.
 - `core_contracts` no longer depends on `window` and carries no GPUI
-  presentation: panel contracts (`PanelView`, `PanelDescriptor`, `PanelHost`,
+  presentation: panel contracts (`PanelView`, `PanelDescriptor`,
   `PanelKind`, `PanelId`, `PanelRenderContext`) live in `core_contracts::panel`,
   the outline HUD / search panel renderers moved to the `ui` crate, and
   `window` hosts the panel registry without re-exporting contract types —
@@ -356,8 +366,8 @@ transitional hardcoding listed below is removed.
 5. `markdown_parser` still carries consumer-specific parse modes
    (`ParseMode::Wysiwyg`/`Preview`); replace them with a recursive parse
    policy owned by the domain.
-6. `PaneView` default no-op methods should eventually fold into the capability
-   model, but callers already check capabilities first.
+6. Preview pane selection rendering exists but no input is routed to it, and
+   the editor's autoscroll execution is still a stub.
 
 ## Migration plan and acceptance criteria
 

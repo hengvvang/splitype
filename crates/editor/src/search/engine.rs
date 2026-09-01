@@ -465,7 +465,9 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            state.pane.navigate_to_search_match(&match_item, cx);
+            if state.pane.capabilities().searchable {
+                state.pane.navigate_to_search_match(&match_item, cx);
+            }
             if let Some(handle) = state.pane.focus_handle(cx) {
                 handle.focus(window, cx);
             }

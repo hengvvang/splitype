@@ -5,13 +5,10 @@ use crate::{
     render_explorer_topbar,
 };
 use core_contracts::{PanelCapabilities, SidebarPanel};
-use core_contracts::{
-    PanelDescriptor, PanelHost, PanelId, PanelKind, PanelRenderContext, PanelView,
-};
+use core_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
 use std::path::PathBuf;
-use std::sync::Arc;
 use theme::ThemeManager;
 
 /// Stable kind identifier of the explorer panel plugin.
@@ -185,19 +182,13 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
         Some("plugin://splitype.explorer/panel.svg")
     }
 
-    fn create_panel(
-        &self,
-        panel_id: PanelId,
-        _host: Arc<dyn PanelHost>,
-        cx: &mut App,
-    ) -> Box<dyn PanelView> {
+    fn create_panel(&self, panel_id: PanelId, cx: &mut App) -> Box<dyn PanelView> {
         Box::new(ExplorerPanelView::new(panel_id, cx))
     }
 
     fn restore_panel(
         &self,
         panel_id: PanelId,
-        _host: Arc<dyn PanelHost>,
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {

@@ -2,7 +2,7 @@
 
 use crate::panel::{DocumentPanel, PanelCapabilities, PanelId, PanelKind, SidebarPanel};
 use config::language::I18nStrings;
-use gpui::{AnyElement, App, Bounds, FocusHandle, Pixels, Point, SharedString, Window};
+use gpui::{AnyElement, App, Bounds, Pixels, Point, SharedString, Window};
 use std::any::Any;
 use std::path::Path;
 use theme::Theme;
@@ -86,24 +86,11 @@ pub trait PanelView: 'static {
         None
     }
 
-    /// Save modifications in this panel.
-    fn save(&mut self, _window: &mut Window, _cx: &mut App) -> Result<(), String> {
+    /// Save all dirty tabs/items in this panel. Panels without durable
+    /// documents keep the default no-op success.
+    fn save_all(&mut self, _window: &mut Window, _cx: &mut App) -> Result<(), String> {
         Ok(())
     }
-
-    /// Save modifications to a new location.
-    fn save_as(&mut self, _window: &mut Window, _cx: &mut App) {}
-
-    /// Query whether this panel can be closed safely.
-    fn can_close(&self, _cx: &App) -> bool {
-        true
-    }
-
-    /// Callback when this panel's activation state changes.
-    fn on_active_changed(&mut self, _is_active: bool, _cx: &mut App) {}
-
-    /// Callback when a filesystem path is modified, renamed, or deleted.
-    fn on_fs_change(&mut self, _target_path: Option<&Path>, _cx: &mut App) {}
 
     /// Callback when a filesystem path is renamed or moved from one path to another.
     fn on_fs_path_renamed(&mut self, _from: &Path, _to: &Path, _cx: &mut App) {}
@@ -144,16 +131,6 @@ pub trait PanelView: 'static {
 
     /// Discards unsaved changes in this panel.
     fn discard_changes(&mut self, _cx: &mut App) {}
-
-    /// Save all dirty tabs/items in this panel.
-    fn save_all(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> {
-        self.save(window, cx)
-    }
-
-    /// The FocusHandle owned by this panel for keyboard navigation.
-    fn focus_handle(&self, _cx: &App) -> Option<FocusHandle> {
-        None
-    }
 
     /// Upcast to Any for reflection when necessary.
     fn as_any(&self) -> &dyn Any;

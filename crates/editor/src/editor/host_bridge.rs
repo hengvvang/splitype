@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use core_contracts::{AutoscrollStrategy, PaneHost, PaneId};
+use core_contracts::{PaneHost, PaneId};
 use gpui::{App, Bounds, KeyDownEvent, Pixels, WeakEntity, Window};
 
 use crate::editor::Editor;
@@ -280,60 +280,10 @@ impl core_contracts::SearchIme for EditorSearchIme {
 }
 
 impl PaneHost for EditorPaneHost {
-    fn focus_pane(&self, pane_id: PaneId, window: &mut Window, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| editor.focus_pane(pane_id, window, cx));
-        }
-    }
-
-    fn apply_pending_focus(&self, pane_id: PaneId, window: &mut Window, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.apply_pending_focus(pane_id, window, cx)
-            });
-        }
-    }
-
-    fn apply_pending_autoscroll(&self, pane_id: PaneId, window: &mut Window, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.apply_pending_autoscroll(pane_id, window, cx)
-            });
-        }
-    }
-
-    fn request_autoscroll(&self, pane_id: PaneId, strategy: AutoscrollStrategy, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.request_autoscroll(pane_id, strategy, cx)
-            });
-        }
-    }
-
-    fn notify(&self, cx: &mut App) {
-        cx.notify(self.editor.entity_id());
-    }
-
     fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
                 editor.update_raw_document_text(text, pane_id, cx);
-            });
-        }
-    }
-
-    fn undo(&self, window: &mut Window, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.on_undo(&crate::actions::defs::Undo, window, cx);
-            });
-        }
-    }
-
-    fn redo(&self, window: &mut Window, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.on_redo(&crate::actions::defs::Redo, window, cx);
             });
         }
     }

@@ -8,7 +8,6 @@
 pub mod capabilities;
 pub mod descriptor;
 pub mod document;
-pub mod host;
 pub mod id;
 pub mod kind;
 pub mod sidebar;
@@ -17,7 +16,6 @@ pub mod view;
 pub use capabilities::PanelCapabilities;
 pub use descriptor::PanelDescriptor;
 pub use document::DocumentPanel;
-pub use host::PanelHost;
 pub use id::PanelId;
 pub use kind::PanelKind;
 pub use sidebar::SidebarPanel;

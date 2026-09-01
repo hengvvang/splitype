@@ -6,7 +6,7 @@ use std::path::Path;
 
 use super::RetainedPanel;
 use super::Shell;
-use super::host_bridge::{ShellDocumentHost, ShellPanelHost};
+use super::host_bridge::ShellDocumentHost;
 use crate::window::open_cloned_window;
 use core_contracts::TabKind;
 use core_contracts::{PanelId, PanelKind, PanelView};
@@ -85,14 +85,7 @@ impl Shell {
         state: Box<dyn std::any::Any>,
         cx: &mut Context<Self>,
     ) -> bool {
-        let host = ShellPanelHost::shared(cx.entity().downgrade());
-        match window::PanelRegistry::restore_registered_panel(
-            kind.clone(),
-            panel_id,
-            host,
-            state,
-            cx,
-        ) {
+        match window::PanelRegistry::restore_registered_panel(kind.clone(), panel_id, state, cx) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true
@@ -120,8 +113,7 @@ impl Shell {
         if self.panel_views.contains_key(&panel_id) {
             return true;
         }
-        let host = ShellPanelHost::shared(cx.entity().downgrade());
-        match window::PanelRegistry::create_registered_panel(kind.clone(), panel_id, host, cx) {
+        match window::PanelRegistry::create_registered_panel(kind.clone(), panel_id, cx) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true

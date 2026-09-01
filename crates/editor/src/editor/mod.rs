@@ -480,21 +480,4 @@ impl Editor {
     pub fn set_maximized(&mut self, is_maximized: bool) {
         self.is_maximized = is_maximized;
     }
-
-    pub fn active_focus_handle(&self, cx: &App) -> Option<FocusHandle> {
-        if let Some(tab) = self.session.active_tab() {
-            let pane_id = self
-                .focused_pane_id
-                .unwrap_or_else(|| self.active_pane_id());
-            if let Some(state) = tab.panes.get(&pane_id) {
-                return state.pane.focus_handle(cx);
-            }
-            for state in tab.panes.values() {
-                if let Some(handle) = state.pane.focus_handle(cx) {
-                    return Some(handle);
-                }
-            }
-        }
-        None
-    }
 }

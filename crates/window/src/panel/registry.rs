@@ -6,7 +6,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use gpui::App;
 
-use core_contracts::{PanelDescriptor, PanelHost, PanelId, PanelKind, PanelView};
+use core_contracts::{PanelDescriptor, PanelId, PanelKind, PanelView};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PanelRegistryError {
@@ -94,24 +94,22 @@ impl PanelRegistry {
     pub fn create_registered_panel(
         kind: PanelKind,
         panel_id: PanelId,
-        host: Arc<dyn PanelHost>,
         cx: &mut App,
     ) -> Result<Option<Box<dyn PanelView>>, PanelRegistryError> {
         // Never execute plugin code while holding the registry mutex. A panel
         // factory may legitimately query another descriptor during creation.
         let descriptor = Self::registered(kind)?;
-        Ok(descriptor.map(|descriptor| descriptor.create_panel(panel_id, host, cx)))
+        Ok(descriptor.map(|descriptor| descriptor.create_panel(panel_id, cx)))
     }
 
     pub fn restore_registered_panel(
         kind: PanelKind,
         panel_id: PanelId,
-        host: Arc<dyn PanelHost>,
         state: Box<dyn std::any::Any>,
         cx: &mut App,
     ) -> Result<Option<Box<dyn PanelView>>, PanelRegistryError> {
         let descriptor = Self::registered(kind)?;
-        Ok(descriptor.and_then(|descriptor| descriptor.restore_panel(panel_id, host, state, cx)))
+        Ok(descriptor.and_then(|descriptor| descriptor.restore_panel(panel_id, state, cx)))
     }
 
     pub fn default_kind(&self) -> Option<PanelKind> {
@@ -174,12 +172,7 @@ mod tests {
             "Test".into()
         }
 
-        fn create_panel(
-            &self,
-            _panel_id: PanelId,
-            _host: Arc<dyn PanelHost>,
-            _cx: &mut App,
-        ) -> Box<dyn PanelView> {
+        fn create_panel(&self, _panel_id: PanelId, _cx: &mut App) -> Box<dyn PanelView> {
             panic!("factory is not needed by this test")
         }
     }

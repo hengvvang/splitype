@@ -17,18 +17,16 @@ pub struct PaneRenderContext<'a> {
     pub host: &'a Arc<dyn PaneHost>,
 }
 
+/// Host seam a pane uses to reach back into the coordinating editor.
+///
+/// Only operations that panes actually invoke are exposed; everything the
+/// editor does on its own schedule (focus, autoscroll, refresh) stays
+/// editor-internal.
 pub trait PaneHost: Send + Sync + 'static {
-    fn focus_pane(&self, pane_id: PaneId, window: &mut Window, cx: &mut App);
-    fn apply_pending_focus(&self, pane_id: PaneId, window: &mut Window, cx: &mut App);
-    fn apply_pending_autoscroll(&self, pane_id: PaneId, window: &mut Window, cx: &mut App);
-    fn request_autoscroll(&self, pane_id: PaneId, strategy: AutoscrollStrategy, cx: &mut App);
-    fn notify(&self, cx: &mut App);
     /// Atomically replaces the authoritative document text. The editor bumps
     /// the revision, marks the document dirty, invalidates caches, and
     /// broadcasts the next snapshot to the other panes in one commit.
     fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App);
-    fn undo(&self, window: &mut Window, cx: &mut App);
-    fn redo(&self, window: &mut Window, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
     fn set_outline_hovered(
         &self,

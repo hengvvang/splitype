@@ -12,7 +12,7 @@ pub mod view;
 use gpui::*;
 use std::collections::HashMap;
 
-pub(crate) use self::host_bridge::{ShellDocumentHost, ShellPanelHost};
+pub(crate) use self::host_bridge::ShellDocumentHost;
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;

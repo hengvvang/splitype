@@ -1,7 +1,7 @@
 use crate::editor::Editor;
 use crate::session::EditorSession;
 use core_contracts::{DocumentHost, DocumentPanel, PanelCapabilities, PanelKind, TabKind};
-use core_contracts::{PanelDescriptor, PanelHost, PanelId, PanelRenderContext, PanelView};
+use core_contracts::{PanelDescriptor, PanelId, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
 use std::path::{Path, PathBuf};
@@ -66,37 +66,6 @@ impl PanelView for EditorPanelView {
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "Untitled".to_string())
         })
-    }
-
-    fn save(&mut self, window: &mut Window, cx: &mut App) -> Result<(), String> {
-        self.editor.update(cx, |editor, cx| {
-            editor.save_document(window, cx);
-        });
-        Ok(())
-    }
-
-    fn save_as(&mut self, window: &mut Window, cx: &mut App) {
-        self.editor.update(cx, |editor, cx| {
-            editor.save_document_as(window, cx);
-        });
-    }
-
-    fn on_active_changed(&mut self, _is_active: bool, cx: &mut App) {
-        cx.notify(self.editor.entity_id());
-    }
-
-    fn on_fs_change(&mut self, target_path: Option<&Path>, cx: &mut App) {
-        if let Some(path) = target_path {
-            self.editor.update(cx, |editor, _cx| {
-                for tab in editor.session.tabs_mut() {
-                    if let Some(p) = &tab.file.path {
-                        if p == path || p.starts_with(path) {
-                            tab.file.pending_window_title_refresh = true;
-                        }
-                    }
-                }
-            });
-        }
     }
 
     fn on_fs_path_renamed(&mut self, from: &Path, to: &Path, cx: &mut App) {
@@ -173,10 +142,6 @@ impl PanelView for EditorPanelView {
             editor.save_all_dirty_tabs(window, cx);
         });
         Ok(())
-    }
-
-    fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
-        self.editor.read(cx).active_focus_handle(cx)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -376,12 +341,7 @@ impl PanelDescriptor for EditorPanelDescriptor {
         Some("plugin://splitype.editor/panel.svg")
     }
 
-    fn create_panel(
-        &self,
-        panel_id: PanelId,
-        _host: Arc<dyn PanelHost>,
-        cx: &mut App,
-    ) -> Box<dyn PanelView> {
+    fn create_panel(&self, panel_id: PanelId, cx: &mut App) -> Box<dyn PanelView> {
         let session = crate::session::EditorSession::empty();
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         Box::new(EditorPanelView::new(editor))
@@ -390,7 +350,6 @@ impl PanelDescriptor for EditorPanelDescriptor {
     fn restore_panel(
         &self,
         panel_id: PanelId,
-        _host: Arc<dyn PanelHost>,
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {

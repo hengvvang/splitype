@@ -1,9 +1,8 @@
 //! Panel descriptor trait for registering panel plugins.
 
-use crate::panel::{PanelCapabilities, PanelHost, PanelId, PanelKind, PanelView};
+use crate::panel::{PanelCapabilities, PanelId, PanelKind, PanelView};
 use gpui::{App, SharedString};
 use std::any::Any;
-use std::sync::Arc;
 
 /// Factory descriptor for a Panel plugin.
 pub trait PanelDescriptor: Send + Sync + 'static {
@@ -26,12 +25,7 @@ pub trait PanelDescriptor: Send + Sync + 'static {
     }
 
     /// Instantiates a new PanelView for a given PanelId.
-    fn create_panel(
-        &self,
-        panel_id: PanelId,
-        host: Arc<dyn PanelHost>,
-        cx: &mut App,
-    ) -> Box<dyn PanelView>;
+    fn create_panel(&self, panel_id: PanelId, cx: &mut App) -> Box<dyn PanelView>;
 
     /// Rebuilds a panel from a state previously returned by
     /// [`PanelView::suspend_state`] or [`PanelView::clone_state`].
@@ -40,11 +34,10 @@ pub trait PanelDescriptor: Send + Sync + 'static {
     fn restore_panel(
         &self,
         panel_id: PanelId,
-        host: Arc<dyn PanelHost>,
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
-        let _ = (panel_id, host, state, cx);
+        let _ = (panel_id, state, cx);
         None
     }
 

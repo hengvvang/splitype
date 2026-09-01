@@ -21,8 +21,8 @@ pub use pane::{
     PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
 };
 pub use panel::{
-    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelHost, PanelId, PanelKind,
-    PanelRenderContext, PanelView, SidebarPanel,
+    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelId, PanelKind, PanelRenderContext,
+    PanelView, SidebarPanel,
 };
 pub use plugin::{
     ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,

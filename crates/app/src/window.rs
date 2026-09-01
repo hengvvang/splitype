@@ -195,14 +195,12 @@ fn open_window_with_retained(
                     about_bg_emojis: Vec::new(),
                 });
                 let shell_weak = shell.downgrade();
-                let panel_host = crate::shell::ShellPanelHost::shared(shell_weak.clone());
 
                 let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
                 for (panel_id, parked) in retained {
                     match window::PanelRegistry::restore_registered_panel(
                         parked.kind.clone(),
                         panel_id,
-                        panel_host.clone(),
                         parked.state,
                         cx,
                     ) {
@@ -226,7 +224,6 @@ fn open_window_with_retained(
                         match window::PanelRegistry::create_registered_panel(
                             kind.clone(),
                             panel_id,
-                            panel_host.clone(),
                             cx,
                         ) {
                             Ok(Some(view)) => {
