@@ -1,4 +1,4 @@
-//! Explorer panel lifecycle: drawer visibility, worktree management
+//! Explorer panel lifecycle: tree visibility, worktree management
 //! (add / remove / reorder), scan events, settings sync and path helpers.
 
 use std::path::{Path, PathBuf};
@@ -10,17 +10,17 @@ use crate::state::*;
 use config::settings::SettingsStore;
 
 impl ExplorerState {
-    pub fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut App) {
-        if self.is_open {
-            self.is_open = false;
+    pub fn toggle_tree(&mut self, window: &mut Window, cx: &mut App) {
+        if self.tree_visible {
+            self.tree_visible = false;
         } else {
-            self.is_open = true;
+            self.tree_visible = true;
             self.sync_explorer_models(cx);
             window.activate_window();
         }
         cx.refresh_windows();
     }
-    pub fn close_explorer_folder(&mut self, cx: &mut App) {
+    pub fn close_folder_scope(&mut self, cx: &mut App) {
         let explorer = &mut *self;
         explorer.worktrees.clear();
         explorer.snapshots.clear();
@@ -76,7 +76,7 @@ impl ExplorerState {
         {
             return; // already added
         }
-        explorer.is_open = true;
+        explorer.tree_visible = true;
         let worktree_id = WorktreeId(explorer.worktrees.len());
         let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
         let explorer_weak = explorer.self_weak.clone();
@@ -203,7 +203,7 @@ impl ExplorerState {
         self.add_explorer_worktree(path, window, cx);
     }
     pub fn sync_explorer_after_document_path_change(&mut self, cx: &mut App) {
-        if self.is_open && !self.worktrees.is_empty() {
+        if self.tree_visible && !self.worktrees.is_empty() {
             self.sync_explorer_models(cx);
         }
     }

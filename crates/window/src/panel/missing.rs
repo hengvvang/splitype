@@ -6,7 +6,7 @@
 //! intact and names the owning plugin when its manifest is known.
 
 use gpui::*;
-use platform_contracts::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
+use platform_contracts::{PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
 
 /// Placeholder shown for a panel kind whose plugin is not available.
@@ -48,10 +48,6 @@ impl PanelView for MissingPanelView {
 
     fn display_name(&self) -> SharedString {
         self.display_name.clone()
-    }
-
-    fn capabilities(&self) -> PanelCapabilities {
-        PanelCapabilities::NONE
     }
 
     fn render(

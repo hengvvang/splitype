@@ -1,8 +1,8 @@
-//! Explorer sidebar state and file-tree model.
+//! Explorer file-tree state and model.
 //!
 //! Pure data-driven state: worktree snapshots, the flat visible-row model,
 //! selection, expansion, drag-and-drop state, and the inline filename
-//! editor. Each sidebar panel instance owns one [`ExplorerState`] entity
+//! editor. Each explorer panel instance owns one [`ExplorerState`] entity
 //! (one per `ExplorerPanelView`), so split and multi-window panels never
 //! share tree state. The VIEW (interactions, rendering) lives in the
 //! crate's sibling modules and depends on this state one-way.
@@ -13,7 +13,7 @@
 //! - [`WorktreeId`] & [`ExplorerEntryId`] — strongly-typed stable identifiers.
 //! - [`SelectedEntry`] — the composite selection key `(worktree_id, entry_id)`.
 //! - [`VisibleExplorerEntry`] — flat view row derived directly from `WorktreeSnapshot`.
-//! - [`ExplorerState`] — sidebar interaction and view-model state.
+//! - [`ExplorerState`] — file-tree interaction and view-model state.
 
 pub mod undo;
 pub mod utils;
@@ -295,11 +295,11 @@ impl DragExplorerTarget {
     }
 }
 
-// ── Explorer Sidebar State ──────────────────────────────────────────────
+// ── Explorer State ─────────────────────────────────────────────────────
 
-/// Top-level explorer sidebar state (pure Zed design).
+/// Top-level explorer file-tree state.
 pub struct ExplorerState {
-    pub is_open: bool,
+    pub tree_visible: bool,
     /// Worktree entities in display order (mirrors Zed's `visible_worktrees`).
     pub worktrees: Vec<Entity<Worktree>>,
     /// Immutable worktree snapshots kept in sync on scan events.
@@ -366,7 +366,7 @@ impl ExplorerState {
 impl Default for ExplorerState {
     fn default() -> Self {
         let mut state = Self {
-            is_open: false,
+            tree_visible: false,
             worktrees: Vec::new(),
             snapshots: Vec::new(),
             next_entry_id: Arc::new(AtomicU64::new(1)),

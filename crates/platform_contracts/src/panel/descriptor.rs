@@ -1,6 +1,6 @@
 //! Panel descriptor trait for registering panel plugins.
 
-use crate::panel::{PanelCapabilities, PanelId, PanelKind, PanelView};
+use crate::panel::{PanelId, PanelKind, PanelView};
 use gpui::{App, SharedString};
 use std::any::Any;
 
@@ -15,13 +15,6 @@ pub trait PanelDescriptor: Send + Sync + 'static {
     /// Icon path for this panel kind.
     fn icon(&self) -> Option<&'static str> {
         None
-    }
-
-    /// The roles panels of this kind can serve. Hosts consult this before
-    /// instantiation (e.g. to build the default layout or decide activation
-    /// policy) without comparing kind strings.
-    fn capabilities(&self) -> PanelCapabilities {
-        PanelCapabilities::default()
     }
 
     /// Instantiates a new PanelView for a given PanelId.

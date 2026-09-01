@@ -16,7 +16,7 @@ use theme::{Theme, ThemeManager};
 use ui::corner_drag_preview::render_corner_drag_preview;
 use window::WindowLayout;
 
-/// Sidebar and tiled-layout state of the window.
+/// Tiled-layout state of the window.
 pub struct WindowPanels {
     pub(crate) layout: WindowLayout,
 }
@@ -30,35 +30,30 @@ impl Default for WindowPanels {
 }
 
 impl WindowPanels {
-    /// Builds the default window layout from the registered panel
-    /// capabilities: one sidebar panel on the left and one document panel
-    /// on the right. No built-in kind names are hardcoded here, so a
-    /// third-party sidebar or document plugin can take over the default
-    /// slots just by declaring the matching capability.
+    /// Builds the default window layout from the composition root's role
+    /// routing: the explorer panel on the left and the primary document
+    /// panel on the right, when their plugins are present. No built-in kind
+    /// names are hardcoded here.
     pub(crate) fn default_layout() -> WindowLayout {
-        let descriptors = window::PanelRegistry::registered_descriptors().unwrap_or_default();
-        let sidebar = descriptors
-            .iter()
-            .find(|descriptor| descriptor.capabilities().sidebar);
-        let documents = descriptors
-            .iter()
-            .find(|descriptor| descriptor.capabilities().documents);
         let left_id = platform_contracts::PanelId(1);
         let right_id = platform_contracts::PanelId(2);
         let builder = window::WindowLayoutBuilder::new();
-        match (sidebar, documents) {
-            (Some(sidebar), Some(documents)) => builder.with_split(
-                left_id,
-                sidebar.kind(),
-                right_id,
-                documents.kind(),
-                0.3,
-                right_id,
-            ),
-            (None, Some(documents)) => builder.with_single_panel(left_id, documents.kind()),
-            (Some(sidebar), None) => builder.with_single_panel(left_id, sidebar.kind()),
+        let document_kind = crate::routing::primary_document_kind();
+        let explorer_kind = crate::routing::explorer_kind().filter(|kind| {
+            window::PanelRegistry::registered(kind.clone())
+                .ok()
+                .flatten()
+                .is_some()
+        });
+        match (explorer_kind, document_kind) {
+            (Some(explorer), Some(documents)) => {
+                builder.with_split(left_id, explorer, right_id, documents, 0.3, right_id)
+            }
+            (None, Some(documents)) => builder.with_single_panel(left_id, documents),
+            (Some(explorer), None) => builder.with_single_panel(left_id, explorer),
             (None, None) => {
-                let kind = descriptors
+                let kind = window::PanelRegistry::registered_descriptors()
+                    .unwrap_or_default()
                     .first()
                     .map(|descriptor| descriptor.kind())
                     .expect(

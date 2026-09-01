@@ -8,7 +8,7 @@ use std::path::PathBuf;
 /// folder paths on restore.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PersistedExplorerState {
-    pub is_open: bool,
+    pub tree_visible: bool,
     pub open_folders: Vec<PathBuf>,
 }
 
@@ -19,12 +19,12 @@ mod tests {
     #[test]
     fn persisted_explorer_state_round_trips() {
         let state = PersistedExplorerState {
-            is_open: true,
+            tree_visible: true,
             open_folders: vec![PathBuf::from("/notes")],
         };
         let json = serde_json::to_value(&state).expect("serialize");
         let restored: PersistedExplorerState = serde_json::from_value(json).expect("deserialize");
-        assert!(restored.is_open);
+        assert!(restored.tree_visible);
         assert_eq!(restored.open_folders, vec![PathBuf::from("/notes")]);
     }
 }

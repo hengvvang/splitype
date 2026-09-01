@@ -45,7 +45,7 @@ impl Shell {
 
         let panel_card: AnyElement = if let Some(view) = self.panel_views.get_mut(&panel_id) {
             let rendered = view.render(&render_ctx, _window, cx);
-            if view.capabilities().documents {
+            if crate::routing::is_document_kind(&view.kind()) {
                 rendered
             } else {
                 let card = div()

@@ -10,10 +10,7 @@ pub use actions::{
     ToggleKindDropdown, TogglePanelMaximized, UpdateOpenTabPaths,
 };
 pub use command::{CommandContribution, CommandId, CommandRegistry, CommandRegistryError};
-pub use panel::{
-    PanelCapabilities, PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView,
-    SidebarPanel,
-};
+pub use panel::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 pub use plugin::{
     ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,
     PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,

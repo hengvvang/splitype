@@ -128,7 +128,7 @@ impl TypographyScope {
 
     pub fn display_description(&self) -> &'static str {
         match self {
-            Self::Ui => "Font used for menus, explorer sidebar, and application chrome",
+            Self::Ui => "Font used for menus, file navigation panel, and application chrome",
             Self::Prose => {
                 "Font used for Markdown prose, headings, and tables (both Editor and Preview)"
             }

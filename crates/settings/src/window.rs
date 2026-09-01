@@ -974,7 +974,7 @@ impl Render for SettingsWindow {
         window.set_window_title(window_title.as_ref());
         let titlebar_height = custom_titlebar_height(window, d);
 
-        // Left Sidebar Navigation
+        // Left navigation rail
         let nav_item = |id: &'static str, label: &'static str, is_selected: bool| -> AnyElement {
             nav_tab(id, c, d)
                 .bg(if is_selected {

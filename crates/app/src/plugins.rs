@@ -1,20 +1,29 @@
 //! Bundled in-process plugin catalog — the composition-root link between
-//! plugin manifests and their statically linked descriptor factories.
+//! plugin manifests, their statically linked descriptor factories, and their
+//! role adapters.
 //!
 //! This module is the ONLY place allowed to map a manifest registration key
-//! to concrete descriptor constructors. Everything downstream (registries,
-//! shell, resources) treats plugins through their manifests and contracts.
+//! to concrete descriptor constructors and role adapters. Everything
+//! downstream (registries, shell, resources) treats plugins through their
+//! manifests and contracts.
 
 use std::borrow::Cow;
 use std::sync::Arc;
 
 use editor_contracts::PaneDescriptor;
-use platform_contracts::{PanelDescriptor, PluginId, PluginManifest, PluginRegistry};
+use platform_contracts::{PanelDescriptor, PanelKind, PluginId, PluginManifest, PluginRegistry};
 
-/// Descriptor factories produced by one in-process registration.
+use crate::routing::{DocumentRouting, ExplorerHooks};
+
+/// Descriptor factories and role adapters produced by one in-process
+/// registration.
 struct PluginRegistration {
     pane_descriptors: Vec<(Arc<dyn PaneDescriptor>, bool)>,
     panel_descriptors: Vec<(Arc<dyn PanelDescriptor>, bool)>,
+    /// Document-role adapter plus its kind and whether it is the preferred
+    /// document panel of the default window layout.
+    document_routing: Option<(PanelKind, DocumentRouting, bool)>,
+    explorer_hooks: Option<ExplorerHooks>,
 }
 
 /// Resolves a manifest registration key to the plugin's descriptor factories.
@@ -23,6 +32,8 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
         "wysiwyg" => PluginRegistration {
             pane_descriptors: vec![(Arc::new(pane_wysiwyg::WysiwygDescriptor::new()), true)],
             panel_descriptors: Vec::new(),
+            document_routing: None,
+            explorer_hooks: None,
         },
         "source-code" => PluginRegistration {
             pane_descriptors: vec![(
@@ -30,27 +41,52 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
                 false,
             )],
             panel_descriptors: Vec::new(),
+            document_routing: None,
+            explorer_hooks: None,
         },
         "preview" => PluginRegistration {
             pane_descriptors: vec![(Arc::new(pane_preview::PreviewDescriptor::new()), false)],
             panel_descriptors: Vec::new(),
+            document_routing: None,
+            explorer_hooks: None,
         },
         "editor" => PluginRegistration {
             pane_descriptors: Vec::new(),
             panel_descriptors: vec![(Arc::new(editor::EditorPanelDescriptor::new()), true)],
+            document_routing: Some((
+                PanelKind::from_static(editor::PANEL_KIND),
+                DocumentRouting {
+                    as_document: editor::document_role,
+                    as_document_mut: editor::document_role_mut,
+                },
+                true,
+            )),
+            explorer_hooks: None,
         },
         "explorer" => PluginRegistration {
             pane_descriptors: Vec::new(),
             panel_descriptors: vec![(Arc::new(explorer::ExplorerPanelDescriptor::new()), false)],
+            document_routing: None,
+            explorer_hooks: Some(ExplorerHooks {
+                kind: PanelKind::from_static(explorer::PANEL_KIND),
+                set_active_document_path: explorer::set_active_document_path,
+                on_document_path_changed: explorer::on_document_path_changed,
+                toggle_tree: explorer::toggle_tree,
+                close_folder_scope: explorer::close_folder_scope,
+            }),
         },
         "settings" => PluginRegistration {
             pane_descriptors: Vec::new(),
             panel_descriptors: vec![(Arc::new(settings::SettingsPanelDescriptor::new()), false)],
+            document_routing: None,
+            explorer_hooks: None,
         },
         // The core plugin contributes commands only; no descriptors.
         "core" => PluginRegistration {
             pane_descriptors: Vec::new(),
             panel_descriptors: Vec::new(),
+            document_routing: None,
+            explorer_hooks: None,
         },
         _ => return None,
     };
@@ -111,6 +147,12 @@ pub(crate) fn init_plugins() {
             );
             window::PanelRegistry::register_global(descriptor.clone(), *is_default)
                 .expect("bundled panel kinds must be unique");
+        }
+        if let Some((kind, routing, is_primary)) = &factory.document_routing {
+            crate::routing::register_document_routing(kind.clone(), *routing, *is_primary);
+        }
+        if let Some(hooks) = &factory.explorer_hooks {
+            crate::routing::register_explorer_hooks(hooks.clone());
         }
         for command in &commands {
             let full_id = format!("{}.{}", plugin, command.id);

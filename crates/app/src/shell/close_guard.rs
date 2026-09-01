@@ -250,22 +250,22 @@ impl Shell {
         }
     }
 
-    pub(crate) fn on_toggle_sidebar_action(
+    pub(crate) fn on_toggle_explorer_action(
         &mut self,
         _: &ToggleExplorer,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.toggle_sidebar_drawers(window, cx);
+        self.toggle_explorer_tree(window, cx);
     }
 
-    pub(crate) fn on_close_sidebar_folder_action(
+    pub(crate) fn on_close_explorer_folder_action(
         &mut self,
         _: &CloseExplorerFolder,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.close_sidebar_folders(cx);
+        self.close_explorer_folder_scope(cx);
     }
 
     pub(crate) fn on_toggle_kind_dropdown(

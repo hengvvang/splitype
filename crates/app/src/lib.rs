@@ -20,6 +20,7 @@ pub mod links;
 pub mod menus;
 pub mod platform;
 pub mod plugins;
+pub mod routing;
 pub mod shell;
 pub mod window;
 pub mod window_state;

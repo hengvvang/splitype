@@ -1,6 +1,6 @@
-//! Explorer — the file-tree sidebar view, a Zed `project_panel` port.
+//! Explorer — the file-tree panel plugin.
 //!
-//! # Architecture (mirroring Zed's project panel)
+//! # Architecture
 //!
 //! - **State & model** live in [`state`]: the [`state::worktree`] scan
 //!   entities, the file-tree nodes / visible rows / selection, the
@@ -9,20 +9,23 @@
 //!   `ExplorerPanelView`), so split and multi-window panels never share
 //!   tree state; the panel never touches the window shell, and shell
 //!   interactions go through the [`platform_contracts`] host seams.
-//! - **Selection** is keyed by the Zed-style double key
-//!   `(worktree index, stable entry id)`; ids survive renames and moves, so
+//! - **Selection** is keyed by the stable double key
+//!   `(worktree index, entry id)`; ids survive renames and moves, so
 //!   selection and expansion state survive rescans. Multi-select marks,
 //!   range selection, and keyboard navigation live in [`ops::selection`].
 //! - **File operations** ([`ops::file_ops`], [`state::undo`]) cover delete /
-//!   trash / cut / copy / paste / duplicate with a Zed-style undo manager;
-//!   the filesystem helpers run on a background thread through [`fs`].
-//! - **Drag & drop** ([`ops::drag_and_drop`]) mirrors Zed's panel: edge
-//!   auto-scroll with proximity-based speed, move-vs-copy cursor, hover
-//!   expansion of collapsed directories, highlight of the drop target and
-//!   its descendants, external file drops with collision prompts, and
-//!   dragging worktree roots to reorder them.
+//!   trash / cut / copy / paste / duplicate with an undo manager; the
+//!   filesystem helpers run on a background thread through [`fs`].
+//! - **Drag & drop** ([`ops::drag_and_drop`]) provides edge auto-scroll with
+//!   proximity-based speed, move-vs-copy cursor, hover expansion of collapsed
+//!   directories, highlight of the drop target and its descendants, external
+//!   file drops with collision prompts, and dragging worktree roots to
+//!   reorder them.
 //! - **Rendering** ([`render`]) virtualizes the file tree and draws the
 //!   root rows with their title buttons and the inline edit row.
+//! - **Shell hooks** ([`plugin`]) export the functions the composition root
+//!   registers to push document context into this panel and to dispatch its
+//!   commands (toggle tree, close folder scope) by kind.
 //!
 //! The panel never imports the editor family, and vice versa.
 

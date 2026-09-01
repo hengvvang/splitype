@@ -73,7 +73,7 @@ impl DocumentHost for ShellDocumentHost {
 
     fn on_document_path_changed(&self, cx: &mut App) {
         let _ = self.shell.update(cx, |shell, cx| {
-            shell.notify_sidebar_document_path_changed(cx);
+            shell.notify_document_path_changed(cx);
         });
     }
 

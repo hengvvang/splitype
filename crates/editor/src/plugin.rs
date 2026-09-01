@@ -2,9 +2,7 @@ use crate::editor::Editor;
 use crate::session::EditorSession;
 use editor_contracts::{DocumentHost, DocumentPanel, TabKind};
 use gpui::*;
-use platform_contracts::{
-    PanelCapabilities, PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView,
-};
+use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -32,10 +30,6 @@ impl EditorPanelView {
 impl PanelView for EditorPanelView {
     fn kind(&self) -> PanelKind {
         PanelKind::from_static(PANEL_KIND)
-    }
-
-    fn capabilities(&self) -> PanelCapabilities {
-        PanelCapabilities::DOCUMENTS
     }
 
     fn display_name(&self) -> SharedString {
@@ -308,6 +302,24 @@ impl DocumentPanel for EditorPanelView {
     }
 }
 
+/// Casts a panel view to its document role when it is an editor panel.
+///
+/// Registered with the composition root's document-routing table. The
+/// concrete downcast lives here because only the editor knows its view type;
+/// the shell never imports [`EditorPanelView`].
+pub fn document_role(view: &dyn PanelView) -> Option<&dyn DocumentPanel> {
+    view.as_any()
+        .downcast_ref::<EditorPanelView>()
+        .map(|view| view as &dyn DocumentPanel)
+}
+
+/// Mutable variant of [`document_role`].
+pub fn document_role_mut(view: &mut dyn PanelView) -> Option<&mut dyn DocumentPanel> {
+    view.as_any_mut()
+        .downcast_mut::<EditorPanelView>()
+        .map(|view| view as &mut dyn DocumentPanel)
+}
+
 /// Panel descriptor for the Editor plugin.
 #[derive(Clone, Debug, Default)]
 pub struct EditorPanelDescriptor {}
@@ -321,10 +333,6 @@ impl EditorPanelDescriptor {
 impl PanelDescriptor for EditorPanelDescriptor {
     fn kind(&self) -> PanelKind {
         PanelKind::from_static(PANEL_KIND)
-    }
-
-    fn capabilities(&self) -> PanelCapabilities {
-        PanelCapabilities::DOCUMENTS
     }
 
     fn display_name(&self) -> SharedString {

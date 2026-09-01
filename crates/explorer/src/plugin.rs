@@ -5,7 +5,6 @@ use crate::{
     render_explorer_topbar,
 };
 use gpui::*;
-use platform_contracts::{PanelCapabilities, SidebarPanel};
 use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
 use std::path::PathBuf;
@@ -20,7 +19,7 @@ pub const PLUGIN_ID: &str = "splitype.explorer";
 /// Asset directory holding the explorer panel's topbar chrome icons.
 pub const TOPBAR_ICON_PREFIX: &str = "icons/explorer";
 
-/// View wrapper implementing [`PanelView`] for the Explorer sidebar.
+/// View wrapper implementing [`PanelView`] for the Explorer file-tree panel.
 pub struct ExplorerPanelView {
     pub panel_id: PanelId,
     /// The panel's own explorer state entity (one per panel instance, so
@@ -40,18 +39,6 @@ impl ExplorerPanelView {
 impl PanelView for ExplorerPanelView {
     fn kind(&self) -> PanelKind {
         PanelKind::from_static(PANEL_KIND)
-    }
-
-    fn capabilities(&self) -> PanelCapabilities {
-        PanelCapabilities::SIDEBAR
-    }
-
-    fn as_sidebar_panel(&self) -> Option<&dyn SidebarPanel> {
-        Some(self)
-    }
-
-    fn as_sidebar_panel_mut(&mut self) -> Option<&mut dyn SidebarPanel> {
-        Some(self)
     }
 
     fn render_overlay(&mut self, window: &mut Window, cx: &mut App) -> Option<AnyElement> {
@@ -118,7 +105,7 @@ impl PanelView for ExplorerPanelView {
             .map(|worktree| worktree.read(cx).root().to_path_buf())
             .collect();
         Some(Box::new(PersistedExplorerState {
-            is_open: state.is_open,
+            tree_visible: state.tree_visible,
             open_folders,
         }))
     }
@@ -132,26 +119,37 @@ impl PanelView for ExplorerPanelView {
     }
 }
 
-impl SidebarPanel for ExplorerPanelView {
-    fn set_active_document_path(&mut self, path: Option<PathBuf>, cx: &mut App) {
-        self.state.update(cx, |state, _cx| state.active_file = path);
+/// Pushes the active document path into a panel view of this plugin's kind.
+/// Registered with the composition root's explorer hooks.
+pub fn set_active_document_path(view: &mut dyn PanelView, path: Option<PathBuf>, cx: &mut App) {
+    if let Some(view) = view.as_any_mut().downcast_mut::<ExplorerPanelView>() {
+        view.state.update(cx, |state, _cx| state.active_file = path);
     }
+}
 
-    fn on_document_path_changed(&mut self, cx: &mut App) {
-        self.state.update(cx, |state, cx| {
+/// Notifies a panel view of this plugin's kind that a document's backing
+/// path changed.
+pub fn on_document_path_changed(view: &mut dyn PanelView, cx: &mut App) {
+    if let Some(view) = view.as_any_mut().downcast_mut::<ExplorerPanelView>() {
+        view.state.update(cx, |state, cx| {
             state.sync_explorer_after_document_path_change(cx)
         });
     }
+}
 
-    fn toggle_drawer(&mut self, window: &mut Window, cx: &mut App) {
-        self.state.update(cx, |state, cx| {
-            state.toggle_explorer_drawer(window, cx);
-        });
+/// Toggles the file tree of a panel view of this plugin's kind.
+pub fn toggle_tree(view: &mut dyn PanelView, window: &mut Window, cx: &mut App) {
+    if let Some(view) = view.as_any_mut().downcast_mut::<ExplorerPanelView>() {
+        view.state
+            .update(cx, |state, cx| state.toggle_tree(window, cx));
     }
+}
 
-    fn close_active_folder(&mut self, cx: &mut App) {
-        self.state
-            .update(cx, |state, cx| state.close_explorer_folder(cx));
+/// Closes the open folder scope of a panel view of this plugin's kind.
+pub fn close_folder_scope(view: &mut dyn PanelView, cx: &mut App) {
+    if let Some(view) = view.as_any_mut().downcast_mut::<ExplorerPanelView>() {
+        view.state
+            .update(cx, |state, cx| state.close_folder_scope(cx));
     }
 }
 
@@ -168,10 +166,6 @@ impl ExplorerPanelDescriptor {
 impl PanelDescriptor for ExplorerPanelDescriptor {
     fn kind(&self) -> PanelKind {
         PanelKind::from_static(PANEL_KIND)
-    }
-
-    fn capabilities(&self) -> PanelCapabilities {
-        PanelCapabilities::SIDEBAR
     }
 
     fn display_name(&self) -> SharedString {
@@ -198,7 +192,7 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
             .map(|boxed| *boxed)?;
         let view = ExplorerPanelView::new(panel_id, cx);
         view.state.update(cx, |explorer, cx| {
-            explorer.is_open = state.is_open;
+            explorer.tree_visible = state.tree_visible;
             for path in state.open_folders {
                 explorer.restore_worktree(path, cx);
             }

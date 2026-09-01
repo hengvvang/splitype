@@ -1,5 +1,5 @@
 //! Empty state style builder — the centered placeholder container used by
-//! empty editor panels and the explorer sidebar.
+//! empty editor panels and the explorer file tree.
 
 use gpui::*;
 

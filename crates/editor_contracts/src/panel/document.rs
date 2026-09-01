@@ -1,9 +1,10 @@
 //! Optional document-routing role for window panels.
 //!
-//! A panel whose descriptor declares [`PanelCapabilities::documents`] should
-//! also implement this trait so the shell can route document operations to
-//! it without knowing its concrete type. Any plugin can provide a document
-//! panel and take over the built-in editor's role.
+//! Panels that manage documents implement this trait, and their plugin
+//! exports an adapter casting its panel view to this role; the composition
+//! root registers that adapter by kind. The shell routes document operations
+//! through it without knowing the concrete type. Any plugin can provide a
+//! document panel and take over the built-in editor's role.
 
 use crate::document::{DocumentHost, TabKind};
 use crate::export::ExportFormat;

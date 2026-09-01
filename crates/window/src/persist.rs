@@ -12,7 +12,7 @@ use splitter::tree::{NodeId, SplitTree};
 
 /// Current schema version of [`PersistedWindowState`]. Bump on breaking
 /// changes; loaders must reject versions they do not understand.
-pub const WINDOW_STATE_VERSION: u32 = 1;
+pub const WINDOW_STATE_VERSION: u32 = 2;
 
 /// Persisted state of one window panel tile.
 #[derive(Clone, Debug, Serialize, Deserialize)]

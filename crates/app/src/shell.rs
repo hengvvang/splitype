@@ -59,8 +59,7 @@ pub struct Shell {
     pub(crate) retained_panel_states: HashMap<PanelId, RetainedPanel>,
     /// Open/hover state for the in-window titlebar menu bar.
     pub(crate) menu_bar: MenuBarState,
-    /// Window panel state: the outer area layout tree plus the explorer /
-    /// settings sidebar states.
+    /// Window panel state: the outer area layout tree and its chrome state.
     pub(crate) panels: WindowPanels,
     /// The last rendered viewport size.
     pub(crate) last_viewport: Option<Size<Pixels>>,
@@ -87,8 +86,70 @@ impl Shell {
     pub(crate) fn primary_document_panel_id(&self) -> Option<PanelId> {
         self.panel_views
             .iter()
-            .find(|(_, view)| view.capabilities().documents)
+            .find(|(_, view)| crate::routing::is_document_kind(&view.kind()))
             .map(|(id, _)| *id)
+    }
+
+    /// Whether `leaf` currently holds a document-routing panel.
+    ///
+    /// Consults the live view first and falls back to the registered
+    /// routing table so unmaterialized leaves still answer correctly.
+    pub(crate) fn leaf_is_document_panel(&self, leaf: NodeId) -> bool {
+        if let Some(view) = self.panel_views.get(&PanelId(leaf)) {
+            return crate::routing::is_document_kind(&view.kind());
+        }
+        let Some(kind) = self.panels.layout.tree.find_leaf_kind(leaf) else {
+            return false;
+        };
+        Self::kind_is_document_panel(&kind)
+    }
+
+    /// Whether panels of `kind` route documents, per the routing table.
+    pub(crate) fn kind_is_document_panel(kind: &PanelKind) -> bool {
+        crate::routing::is_document_kind(kind)
+    }
+
+    /// The document-routing view of `panel_id`, if it has one.
+    pub(crate) fn document_panel_for(
+        &self,
+        panel_id: impl Into<PanelId>,
+    ) -> Option<&dyn DocumentPanel> {
+        let view = self.panel_views.get(&panel_id.into())?;
+        crate::routing::document_routing(&view.kind())
+            .and_then(|routing| (routing.as_document)(view.as_ref()))
+    }
+
+    /// The mutable document-routing view of `panel_id`, if it has one.
+    pub(crate) fn document_panel_mut_for(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+    ) -> Option<&mut dyn DocumentPanel> {
+        let view = self.panel_views.get_mut(&panel_id.into())?;
+        let routing = crate::routing::document_routing(&view.kind())?;
+        (routing.as_document_mut)(view.as_mut())
+    }
+
+    /// The document panel currently requesting the unsaved-changes dialog.
+    pub(crate) fn document_panel_with_unsaved_dialog_mut(
+        &mut self,
+        cx: &App,
+    ) -> Option<&mut dyn DocumentPanel> {
+        self.panel_views.values_mut().find_map(|view| {
+            let routing = crate::routing::document_routing(&view.kind())?;
+            (routing.as_document_mut)(view.as_mut()).filter(|panel| panel.has_unsaved_dialog(cx))
+        })
+    }
+
+    /// The document panel currently requesting the drop-replace dialog.
+    pub(crate) fn document_panel_with_drop_replace_dialog_mut(
+        &mut self,
+        cx: &App,
+    ) -> Option<&mut dyn DocumentPanel> {
+        self.panel_views.values_mut().find_map(|view| {
+            let routing = crate::routing::document_routing(&view.kind())?;
+            (routing.as_document_mut)(view.as_mut())
+                .filter(|panel| panel.has_drop_replace_dialog(cx))
+        })
     }
 
     /// The active document panel, or the first document panel as fallback.
@@ -105,68 +166,6 @@ impl Shell {
     pub(crate) fn active_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
         let panel_id = self.active_document_panel_id()?;
         self.document_panel_mut_for(panel_id)
-    }
-
-    /// Whether `leaf` currently holds a document-routing panel.
-    ///
-    /// Consults the live view first and falls back to the registered
-    /// descriptor so unmaterialized leaves still answer correctly.
-    pub(crate) fn leaf_is_document_panel(&self, leaf: NodeId) -> bool {
-        if let Some(view) = self.panel_views.get(&PanelId(leaf)) {
-            return view.capabilities().documents;
-        }
-        let Some(kind) = self.panels.layout.tree.find_leaf_kind(leaf) else {
-            return false;
-        };
-        Self::kind_is_document_panel(&kind)
-    }
-
-    /// Whether panels of `kind` route documents, per their descriptor.
-    pub(crate) fn kind_is_document_panel(kind: &PanelKind) -> bool {
-        window::PanelRegistry::registered(kind.clone())
-            .ok()
-            .flatten()
-            .is_some_and(|descriptor| descriptor.capabilities().documents)
-    }
-
-    /// The document-routing view of `panel_id`, if it has one.
-    pub(crate) fn document_panel_for(
-        &self,
-        panel_id: impl Into<PanelId>,
-    ) -> Option<&dyn DocumentPanel> {
-        self.panel_views
-            .get(&panel_id.into())
-            .and_then(|view| as_document_panel(view.as_ref()))
-    }
-
-    /// The mutable document-routing view of `panel_id`, if it has one.
-    pub(crate) fn document_panel_mut_for(
-        &mut self,
-        panel_id: impl Into<PanelId>,
-    ) -> Option<&mut dyn DocumentPanel> {
-        self.panel_views
-            .get_mut(&panel_id.into())
-            .and_then(|view| as_document_panel_mut(view))
-    }
-
-    /// The document panel currently requesting the unsaved-changes dialog.
-    pub(crate) fn document_panel_with_unsaved_dialog_mut(
-        &mut self,
-        cx: &App,
-    ) -> Option<&mut dyn DocumentPanel> {
-        self.panel_views.values_mut().find_map(|view| {
-            as_document_panel_mut(view).filter(|panel| panel.has_unsaved_dialog(cx))
-        })
-    }
-
-    /// The document panel currently requesting the drop-replace dialog.
-    pub(crate) fn document_panel_with_drop_replace_dialog_mut(
-        &mut self,
-        cx: &App,
-    ) -> Option<&mut dyn DocumentPanel> {
-        self.panel_views.values_mut().find_map(|view| {
-            as_document_panel_mut(view).filter(|panel| panel.has_drop_replace_dialog(cx))
-        })
     }
 
     /// Seeds the active document panel with the window's initial document.
@@ -220,42 +219,69 @@ impl Shell {
         }
     }
 
-    /// Recomputes every sidebar panel's pushed document context.
-    pub(crate) fn sync_panel_states(&mut self, cx: &mut Context<Self>) {
+    /// Pushes the active document context into every panel whose plugin
+    /// registered a context hook (currently the explorer).
+    pub(crate) fn push_active_document_context(&mut self, cx: &mut Context<Self>) {
         let Some(_viewport) = self.last_viewport else {
             return;
         };
         let active_tab_path = self.active_document_tab_path(cx);
+        let Some(hooks) = crate::routing::explorer_hooks() else {
+            return;
+        };
         for view in self.panel_views.values_mut() {
-            if let Some(panel) = view.as_sidebar_panel_mut() {
-                panel.set_active_document_path(active_tab_path.clone(), cx);
+            if view.kind() == hooks.kind {
+                (hooks.set_active_document_path)(view.as_mut(), active_tab_path.clone(), cx);
             }
         }
     }
 
-    /// Notifies every sidebar panel that a document's backing path changed.
-    pub(crate) fn notify_sidebar_document_path_changed(&mut self, cx: &mut Context<Self>) {
+    /// Notifies the explorer panels that a document's backing path changed.
+    pub(crate) fn notify_document_path_changed(&mut self, cx: &mut Context<Self>) {
+        let Some(hooks) = crate::routing::explorer_hooks() else {
+            return;
+        };
         for view in self.panel_views.values_mut() {
-            if let Some(panel) = view.as_sidebar_panel_mut() {
-                panel.on_document_path_changed(cx);
+            if view.kind() == hooks.kind {
+                (hooks.on_document_path_changed)(view.as_mut(), cx);
             }
         }
     }
 
-    /// Toggles the drawer of every sidebar panel in this window.
-    pub(crate) fn toggle_sidebar_drawers(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        for view in self.panel_views.values_mut() {
-            if let Some(panel) = view.as_sidebar_panel_mut() {
-                panel.toggle_drawer(window, cx);
-            }
+    /// Toggles the file tree of the active explorer panel, falling back to
+    /// the first explorer panel in this window.
+    pub(crate) fn toggle_explorer_tree(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(hooks) = crate::routing::explorer_hooks() else {
+            return;
+        };
+        let is_explorer = |id: &PanelId| {
+            self.panel_views
+                .get(id)
+                .is_some_and(|view| view.kind() == hooks.kind)
+        };
+        let target = self
+            .panels
+            .layout
+            .active_leaf
+            .map(PanelId)
+            .filter(is_explorer)
+            .or_else(|| self.panel_views.keys().copied().find(is_explorer));
+        let Some(panel_id) = target else {
+            return;
+        };
+        if let Some(view) = self.panel_views.get_mut(&panel_id) {
+            (hooks.toggle_tree)(view.as_mut(), window, cx);
         }
     }
 
-    /// Closes the open folder scope of every sidebar panel in this window.
-    pub(crate) fn close_sidebar_folders(&mut self, cx: &mut Context<Self>) {
+    /// Closes the open folder scope of every explorer panel in this window.
+    pub(crate) fn close_explorer_folder_scope(&mut self, cx: &mut Context<Self>) {
+        let Some(hooks) = crate::routing::explorer_hooks() else {
+            return;
+        };
         for view in self.panel_views.values_mut() {
-            if let Some(panel) = view.as_sidebar_panel_mut() {
-                panel.close_active_folder(cx);
+            if view.kind() == hooks.kind {
+                (hooks.close_folder_scope)(view.as_mut(), cx);
             }
         }
     }
@@ -328,7 +354,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         self.panels.layout.toggle_maximize(panel_id.into().0);
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
         cx.notify();
     }
 
@@ -336,20 +362,4 @@ impl Shell {
     pub(crate) fn layout_leaf_count(&self) -> usize {
         self.panels.layout.tree.count_leaves()
     }
-}
-
-pub(crate) fn as_document_panel(
-    view: &dyn platform_contracts::PanelView,
-) -> Option<&dyn DocumentPanel> {
-    view.as_any()
-        .downcast_ref::<editor::EditorPanelView>()
-        .map(|v| v as &dyn DocumentPanel)
-}
-
-pub(crate) fn as_document_panel_mut(
-    view: &mut Box<dyn platform_contracts::PanelView>,
-) -> Option<&mut dyn DocumentPanel> {
-    view.as_any_mut()
-        .downcast_mut::<editor::EditorPanelView>()
-        .map(|v| v as &mut dyn DocumentPanel)
 }

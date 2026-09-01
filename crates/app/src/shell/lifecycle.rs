@@ -21,7 +21,7 @@ impl Shell {
     /// active-flag to every editor entity.
     pub(crate) fn activate_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
         self.panels.layout.activate_leaf(panel_id.into().0);
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
     }
 
     /// Split `panel_id` at `ratio` with a sibling of the SAME kind.
@@ -46,7 +46,7 @@ impl Shell {
         if !inserted {
             self.ensure_registered_panel_view(PanelId(new_id), kind, cx);
         }
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
         Some(PanelId(new_id))
     }
 
@@ -70,9 +70,11 @@ impl Shell {
         mut view: Box<dyn PanelView>,
         cx: &mut Context<Self>,
     ) {
-        if let Some(panel) = crate::shell::as_document_panel_mut(&mut view) {
-            let host = std::sync::Arc::new(ShellDocumentHost::new(cx.entity().downgrade()));
-            panel.attach_document_host(host, cx);
+        if let Some(routing) = crate::routing::document_routing(&view.kind()) {
+            if let Some(panel) = (routing.as_document_mut)(view.as_mut()) {
+                let host = std::sync::Arc::new(ShellDocumentHost::new(cx.entity().downgrade()));
+                panel.attach_document_host(host, cx);
+            }
         }
         self.panel_views.insert(panel_id, view);
     }
@@ -152,7 +154,7 @@ impl Shell {
         if !inserted {
             self.ensure_registered_panel_view(new_id, kind, cx);
         }
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
     }
 
     /// Close an area and drop its view and retained state.
@@ -162,7 +164,7 @@ impl Shell {
             self.panels.layout.close_leaf(target_leaf_id);
             self.remove_panel_view(target_leaf_id);
             self.retained_panel_states.remove(&PanelId(target_leaf_id));
-            self.sync_panel_states(cx);
+            self.push_active_document_context(cx);
         }
     }
 
@@ -170,13 +172,13 @@ impl Shell {
     pub(crate) fn handle_joined_panel(&mut self, removed_id: NodeId, cx: &mut Context<Self>) {
         self.remove_panel_view(removed_id);
         self.retained_panel_states.remove(&PanelId(removed_id));
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
     }
 
     /// Update panel contents when a swap operation has already swapped tree kinds.
     pub(crate) fn handle_swapped_panels(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
         self.swap_panel_contents(a, b, cx);
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
     }
 
     /// Change an area's kind.
@@ -193,7 +195,7 @@ impl Shell {
         if !was_document && self.leaf_is_document_panel(panel_id) {
             self.panels.layout.activate_leaf(panel_id);
         }
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
     }
 
     /// The document panel that a file open should target.
@@ -357,7 +359,7 @@ impl Shell {
                 self.retained_panel_states.insert(new_leaf_id, retained);
             }
         }
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
     }
 
     /// Synchronizes the live panel view with the layout tree's current kind.

@@ -241,11 +241,11 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = with_shell_window(cx, |shell, window, cx| {
-            shell.toggle_sidebar_drawers(window, cx);
+            shell.toggle_explorer_tree(window, cx);
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let _ = with_shell_window(cx, |shell, _window, cx| {
-            shell.close_sidebar_folders(cx);
+            shell.close_explorer_folder_scope(cx);
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -372,11 +372,11 @@ pub(crate) fn dispatch_menu_action_for_panel(
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            shell.toggle_sidebar_drawers(window, cx);
+            shell.toggle_explorer_tree(window, cx);
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let _ = target_shell.update(cx, |shell, cx| {
-            shell.close_sidebar_folders(cx);
+            shell.close_explorer_folder_scope(cx);
         });
     } else if action.as_any().is::<OpenSplitypeRepository>() {
         crate::links::open_repository(cx);

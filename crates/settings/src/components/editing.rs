@@ -94,7 +94,7 @@ pub(crate) fn render_typography_section(
             c,
             d,
             "Interface Font",
-            "Font used for menus, explorer sidebar, and application chrome",
+            "Font used for menus, file navigation panel, and application chrome",
             props.on_reset_ui_font,
             ui_picker,
         ));

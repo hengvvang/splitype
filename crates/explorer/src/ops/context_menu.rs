@@ -1,8 +1,8 @@
 //! Explorer row context menu — a window-level overlay owned by the Shell.
 //!
-//! The menu is triggered from the explorer sidebar but must float over the
+//! The menu is triggered from the explorer panel but must float over the
 //! whole window (its position arrives in window coordinates), so the Shell
-//! renders it at the window root instead of inside an editor tile. State
+//! renders it at the window root instead of inside an explorer tile. State
 //! lives on `Shell::explorer_file_menu`; every action operates on the
 //! explorer model directly.
 

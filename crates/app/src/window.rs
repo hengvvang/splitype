@@ -250,11 +250,13 @@ fn open_window_with_retained(
                     shell.panel_views = panel_views;
                     for view in shell.panel_views.values_mut() {
                         // Wire document hosts for restored document panels.
-                        if let Some(panel) = crate::shell::as_document_panel_mut(view) {
-                            panel.attach_document_host(
-                                std::sync::Arc::new(ShellDocumentHost::new(shell_weak.clone())),
-                                cx,
-                            );
+                        if let Some(routing) = crate::routing::document_routing(&view.kind()) {
+                            if let Some(panel) = (routing.as_document_mut)(view.as_mut()) {
+                                panel.attach_document_host(
+                                    std::sync::Arc::new(ShellDocumentHost::new(shell_weak.clone())),
+                                    cx,
+                                );
+                            }
                         }
                     }
                 });

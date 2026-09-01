@@ -9,7 +9,7 @@ use theme::ThemeManager;
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.last_viewport = Some(window.viewport_size());
-        self.sync_panel_states(cx);
+        self.push_active_document_context(cx);
         self.install_close_guard(window, cx);
 
         let theme = cx.global::<ThemeManager>().current_arc();
@@ -25,9 +25,9 @@ impl Render for Shell {
             .bg(theme.colors.editor_background)
             .font(theme::TypographyStore::ui_font(cx))
             .on_action(cx.listener(Self::on_close_window))
-            .on_action(cx.listener(Self::on_toggle_sidebar_action))
+            .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_toggle_maximize_area_action))
-            .on_action(cx.listener(Self::on_close_sidebar_folder_action))
+            .on_action(cx.listener(Self::on_close_explorer_folder_action))
             .on_action(cx.listener(Self::on_quit_application))
             .on_action(cx.listener(Self::on_install_cli_tool))
             .on_action(cx.listener(Self::on_uninstall_cli_tool))

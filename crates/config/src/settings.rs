@@ -382,7 +382,7 @@ impl std::str::FromStr for ExplorerSortOrder {
     }
 }
 
-/// Explorer sidebar settings.
+/// Explorer panel settings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExplorerSettings {
     #[serde(default = "default_true")]

@@ -55,7 +55,8 @@ impl Shell {
             );
         }
         if self.panel_views.values().any(|view| {
-            crate::shell::as_document_panel(view.as_ref())
+            crate::routing::document_routing(&view.kind())
+                .and_then(|routing| (routing.as_document)(view.as_ref()))
                 .is_some_and(|panel| panel.has_drop_replace_dialog(cx))
         }) {
             return Some(
@@ -65,7 +66,8 @@ impl Shell {
         }
         if self.unsaved_dialog.is_some()
             || self.panel_views.values().any(|view| {
-                crate::shell::as_document_panel(view.as_ref())
+                crate::routing::document_routing(&view.kind())
+                    .and_then(|routing| (routing.as_document)(view.as_ref()))
                     .is_some_and(|panel| panel.has_unsaved_dialog(cx))
             })
         {

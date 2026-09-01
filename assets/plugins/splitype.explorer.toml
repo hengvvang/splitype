@@ -1,9 +1,9 @@
-# Splitype Explorer sidebar panel plugin manifest.
+# Splitype Explorer file-tree panel plugin manifest.
 manifest_version = 1
 plugin = "splitype.explorer"
 name = "Explorer"
 version = "0.1.0"
-description = "File-tree sidebar with worktree scanning, selection, and drag-and-drop."
+description = "File-tree panel with worktree scanning, selection, and drag-and-drop."
 
 [entry]
 kind = "in_process"
