@@ -10,7 +10,6 @@
 //! [`pane::WysiwygPaneState`]: pane::state::WysiwygPaneState
 
 pub mod builder;
-pub mod export;
 pub mod input;
 pub mod model;
 pub mod net;

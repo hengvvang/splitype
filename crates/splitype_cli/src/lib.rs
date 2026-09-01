@@ -3,8 +3,8 @@
 //! Owns nothing but the CLI argument surface: the parsed [`Args`] and the
 //! `parse()`/`--help` handling. Pure `std` — the app composition root
 //! reads the parsed arguments and boots its windows from them; the
-//! macOS CLI-tool installation wizard lives in the app (it needs gpui
-//! windows, i18n and platform operations).
+//! macOS CLI-tool installation wizard lives in `splitype_installer`
+//! (it needs gpui windows, i18n and platform operations).
 
 use std::path::PathBuf;
 

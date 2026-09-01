@@ -14,7 +14,7 @@
 //! - The drag-session records and the [`DragPolicy`] defaults.
 //!
 //! It depends only on gpui's geometry types (`Point`/`Size`/`Pixels`);
-//! rendering and Editor state live in `src/editor`.
+//! rendering and panel/pane state live in the consuming crates.
 
 pub mod container;
 pub mod interaction;

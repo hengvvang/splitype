@@ -9,7 +9,7 @@ use std::ops::Range;
 #[cfg(feature = "html-native")]
 use tree_sitter::Parser;
 
-use crate::inline::html::{HtmlInlineStyle, css_number, parse_css_number, parse_inline_style};
+use crate::inline::html::{HtmlInlineStyle, parse_css_number, parse_inline_style};
 
 /// Active fenced code block while scanning for image/link reference definitions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,22 +72,6 @@ pub struct HtmlImageBlock {
 impl HtmlImageBlock {
     pub fn zoom_factor(&self) -> f32 {
         self.zoom.clamp(0.1, 3.0)
-    }
-
-    pub fn to_sanitized_html_with_src(&self, src: &str) -> String {
-        let mut html = format!("<img src=\"{}\"", escape_html_attr(src));
-        if !self.alt.is_empty() {
-            html.push_str(" alt=\"");
-            html.push_str(&escape_html_attr(&self.alt));
-            html.push('"');
-        }
-        if (self.zoom_factor() - 1.0).abs() > f32::EPSILON {
-            html.push_str(" style=\"zoom: ");
-            html.push_str(&css_number(self.zoom_factor() * 100.0));
-            html.push_str("%;\"");
-        }
-        html.push('>');
-        html
     }
 }
 
@@ -180,29 +164,6 @@ pub fn parse_html_document(raw_source: &str) -> HtmlDocument {
     }
 }
 
-/// Rewrites an HTML fragment for document export: safe semantic nodes keep
-/// their HTML shape, while raw text nodes are escaped so browsers cannot
-/// execute or interpret them.
-pub fn sanitize_html_for_export(raw_source: &str) -> String {
-    if let Some(image) = parse_html_image_block(raw_source) {
-        return image.to_sanitized_html_with_src(&image.src);
-    }
-
-    let document = parse_html_document(raw_source);
-    if !document.is_semantic() {
-        return format!(
-            "<pre class=\"vlt-raw-html\">{}</pre>",
-            escape_html(raw_source)
-        );
-    }
-
-    document
-        .nodes
-        .iter()
-        .map(sanitize_node_for_export)
-        .collect::<String>()
-}
-
 /// Parses the safe visual subset of a semantic node's `style` attribute.
 pub fn style_for_node(node: &HtmlNode) -> HtmlInlineStyle {
     if node.kind == HtmlNodeKind::RawTextBlock {
@@ -214,93 +175,6 @@ pub fn style_for_node(node: &HtmlNode) -> HtmlInlineStyle {
     };
 
     parse_inline_style(style)
-}
-
-fn sanitize_node_for_export(node: &HtmlNode) -> String {
-    if node.kind == HtmlNodeKind::RawTextBlock {
-        return format!(
-            "<span class=\"vlt-raw-html\">{}</span>",
-            escape_html(&node.raw_source)
-        );
-    }
-
-    if node.tag_name == "#text" {
-        return node.raw_source.clone();
-    }
-
-    if is_void_tag(&node.tag_name) {
-        return sanitized_open_tag(node);
-    }
-
-    let Some(_open_end) = node.raw_source.find('>').map(|index| index + 1) else {
-        return escape_html(&node.raw_source);
-    };
-    let close_start =
-        find_closing_tag_start(&node.raw_source, &node.tag_name).unwrap_or(node.raw_source.len());
-    let close = &node.raw_source[close_start..];
-    let children = node
-        .children
-        .iter()
-        .map(sanitize_node_for_export)
-        .collect::<String>();
-    format!("{}{children}{close}", sanitized_open_tag(node))
-}
-
-fn sanitized_open_tag(node: &HtmlNode) -> String {
-    if node.tag_name == "img"
-        && let Some(image) = parse_html_image_block(&node.raw_source)
-    {
-        return image.to_sanitized_html_with_src(&image.src);
-    }
-
-    let mut open = format!("<{}", node.tag_name);
-    for attr in &node.attrs {
-        if attr.name == "style" {
-            continue;
-        }
-        open.push(' ');
-        open.push_str(&attr.raw_source);
-    }
-    if let Some(style) = style_for_node(node).to_css() {
-        open.push_str(" style=\"");
-        open.push_str(&escape_html_attr(&style));
-        open.push('"');
-    }
-    open.push('>');
-    open
-}
-
-fn find_closing_tag_start(raw_source: &str, tag_name: &str) -> Option<usize> {
-    let needle = format!("</{tag_name}");
-    raw_source.to_ascii_lowercase().rfind(&needle)
-}
-
-pub(crate) fn escape_html_attr(value: &str) -> String {
-    let mut escaped = String::new();
-    for ch in value.chars() {
-        match ch {
-            '&' => escaped.push_str("&amp;"),
-            '<' => escaped.push_str("&lt;"),
-            '"' => escaped.push_str("&quot;"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
-}
-
-fn escape_html(value: &str) -> String {
-    let mut escaped = String::new();
-    for ch in value.chars() {
-        match ch {
-            '&' => escaped.push_str("&amp;"),
-            '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
-            '"' => escaped.push_str("&quot;"),
-            '\'' => escaped.push_str("&#39;"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped
 }
 
 fn parse_nodes(

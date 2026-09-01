@@ -8,7 +8,6 @@ use gpui::*;
 
 use crate::editor::Editor;
 use config::language::I18nManager;
-use theme::{Theme, ThemeManager};
 
 use core_contracts::{ExportError, ExportFormat};
 
@@ -48,9 +47,7 @@ impl Editor {
     pub fn render_export_bytes(
         format: ExportFormat,
         markdown: &str,
-        _theme: &Theme,
         title: &str,
-        _source_base_dir: Option<&Path>,
     ) -> Result<Vec<u8>, ExportError> {
         match format {
             ExportFormat::Html => {
@@ -68,12 +65,10 @@ impl Editor {
     pub fn write_export_bytes(
         format: ExportFormat,
         markdown: &str,
-        theme: &Theme,
         title: &str,
         path: &Path,
-        source_base_dir: Option<&Path>,
     ) -> Result<(), ExportError> {
-        let bytes = Self::render_export_bytes(format, markdown, theme, title, source_base_dir)?;
+        let bytes = Self::render_export_bytes(format, markdown, title)?;
         std::fs::write(path, bytes).map_err(ExportError::Io)
     }
 
@@ -87,14 +82,7 @@ impl Editor {
             return;
         }
         let markdown = self.serialized_document_text(cx);
-        let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
-        let source_base_dir = self
-            .session
-            .active_tab()
-            .and_then(|tab| tab.file.path.as_ref())
-            .and_then(|path| path.parent())
-            .map(Path::to_path_buf);
         let (default_dir, suggested_name) = self.export_dialog_defaults(format);
         let prompt = cx.prompt_for_new_path(&default_dir, Some(&suggested_name));
         let window_handle = window.window_handle();
@@ -123,14 +111,7 @@ impl Editor {
             let spawn_result = thread::Builder::new()
                 .name("splitype-export".to_string())
                 .spawn(move || {
-                    let result = Self::write_export_bytes(
-                        format,
-                        &markdown,
-                        &theme,
-                        &title,
-                        &path,
-                        source_base_dir.as_deref(),
-                    );
+                    let result = Self::write_export_bytes(format, &markdown, &title, &path);
                     let _ = sender.send(result);
                 });
 
