@@ -16,9 +16,17 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.search.visible {
+            if self.search.search_focus_handle.is_focused(window)
+                || self.search.replace_focus_handle.is_focused(window)
+            {
+                return;
+            }
+        }
+
         if let Some(state) = self.pane_state_mut(pane_id) {
             if let Some(handle) = state.pane.focus_handle(cx) {
-                if !handle.is_focused(window) {
+                if !handle.is_focused(window) && self.focused_pane_id == Some(pane_id) {
                     handle.focus(window, cx);
                 }
             }

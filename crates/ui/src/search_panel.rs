@@ -147,11 +147,29 @@ pub fn render_search_panel_overlay(
     // ── Search Input Box Container ──────────────────────────────────
     let search_focus = state.search_focus_handle.clone();
     let search_box_editor = host.clone();
+    let is_query_active = state.active_field == SearchActiveField::Query;
+
+    let search_bottom_indicator = if is_query_active {
+        Some(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.0))
+                .rounded_b(px(d.select_trigger_radius))
+                .bg(c.focus_accent),
+        )
+    } else {
+        None
+    };
 
     let search_input_box = div()
         .id("editor-search-input-box")
         .key_context("SearchQueryInput")
         .track_focus(&search_focus)
+        .relative()
+        .overflow_hidden()
         .flex_1()
         .h(px(32.0))
         .px(px(8.0))
@@ -160,11 +178,7 @@ pub fn render_search_panel_overlay(
         .gap(px(4.0))
         .bg(c.dialog_surface)
         .border_1()
-        .border_color(if state.active_field == SearchActiveField::Query {
-            c.app_menu_active
-        } else {
-            c.dialog_border
-        })
+        .border_color(c.dialog_border)
         .rounded(px(d.select_trigger_radius))
         .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
             search_box_editor.focus_query(window, cx);
@@ -190,7 +204,8 @@ pub fn render_search_panel_overlay(
                 .child(case_toggle)
                 .child(word_toggle)
                 .child(regex_toggle),
-        );
+        )
+        .children(search_bottom_indicator);
 
     // ── Search Right Actions (Prev, Next, Scope, Close) ────────────
     let prev_editor = host.clone();
@@ -281,6 +296,22 @@ pub fn render_search_panel_overlay(
     let replace_row = if show_replace {
         let replace_focus = state.replace_focus_handle.clone();
         let replace_box_editor = host.clone();
+        let is_replace_active = state.active_field == SearchActiveField::Replace;
+
+        let replace_bottom_indicator = if is_replace_active {
+            Some(
+                div()
+                    .absolute()
+                    .bottom_0()
+                    .left_0()
+                    .right_0()
+                    .h(px(2.0))
+                    .rounded_b(px(d.select_trigger_radius))
+                    .bg(c.focus_accent),
+            )
+        } else {
+            None
+        };
 
         let preserve_editor = host.clone();
         let preserve_toggle = div()
@@ -310,6 +341,8 @@ pub fn render_search_panel_overlay(
             .id("editor-replace-input-box")
             .key_context("SearchReplaceInput")
             .track_focus(&replace_focus)
+            .relative()
+            .overflow_hidden()
             .flex_1()
             .h(px(32.0))
             .px(px(8.0))
@@ -318,11 +351,7 @@ pub fn render_search_panel_overlay(
             .gap(px(4.0))
             .bg(c.dialog_surface)
             .border_1()
-            .border_color(if state.active_field == SearchActiveField::Replace {
-                c.app_menu_active
-            } else {
-                c.dialog_border
-            })
+            .border_color(c.dialog_border)
             .rounded(px(d.select_trigger_radius))
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                 replace_box_editor.focus_replace(window, cx);
@@ -346,7 +375,8 @@ pub fn render_search_panel_overlay(
                     .items_center()
                     .gap(px(2.0))
                     .child(preserve_toggle),
-            );
+            )
+            .children(replace_bottom_indicator);
 
         let replace_single_editor = host.clone();
         let replace_single_btn = div()
@@ -446,10 +476,26 @@ pub fn render_search_panel_overlay(
             let item_editor = host.clone();
             let toggle_editor = host.clone();
 
+            let selected_indicator = if is_active {
+                Some(
+                    div()
+                        .absolute()
+                        .left(px(2.0))
+                        .top(px(4.0))
+                        .bottom(px(4.0))
+                        .w(px(3.0))
+                        .rounded_full()
+                        .bg(c.focus_accent),
+                )
+            } else {
+                None
+            };
+
             // ── Compact Single-line Header Row ───────────────────────
             let row_header = div()
                 .h(px(24.0))
-                .px(px(6.0))
+                .pl(px(9.0))
+                .pr(px(6.0))
                 .flex()
                 .items_center()
                 .justify_between()
@@ -579,19 +625,16 @@ pub fn render_search_panel_overlay(
             };
 
             let mut item_card = div()
+                .id(("search-match-item-card", idx))
+                .relative()
                 .rounded(px(d.menu_item_radius))
-                .border_1()
-                .border_color(if is_active {
-                    c.app_menu_active
-                } else {
-                    hsla(0.0, 0.0, 0.0, 0.0)
-                })
                 .bg(if is_active {
                     c.panel_row_selected
                 } else {
                     hsla(0.0, 0.0, 0.0, 0.0)
                 })
                 .hover(|this| this.bg(c.panel_row_hover))
+                .children(selected_indicator)
                 .child(row_header);
 
             if let Some(details) = details_drawer {

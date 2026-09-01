@@ -104,6 +104,7 @@ impl editor_contracts::SearchHost for EditorSearchHost {
             editor.update(cx, |editor, cx| {
                 editor.search.active_field = editor_contracts::SearchActiveField::Query;
                 window.focus(&editor.search.search_focus_handle, cx);
+                cx.notify();
             });
         }
     }
@@ -113,6 +114,7 @@ impl editor_contracts::SearchHost for EditorSearchHost {
             editor.update(cx, |editor, cx| {
                 editor.search.active_field = editor_contracts::SearchActiveField::Replace;
                 window.focus(&editor.search.replace_focus_handle, cx);
+                cx.notify();
             });
         }
     }

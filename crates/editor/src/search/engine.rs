@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use gpui::{App, Context, KeyDownEvent, Window};
+use gpui::{App, ClipboardItem, Context, KeyDownEvent, Window};
 
 use crate::editor::Editor;
 use editor_contracts::SearchQuery;
@@ -12,14 +12,28 @@ use editor_contracts::{SearchActiveField, SearchMatch, SearchScope};
 impl Editor {
     /// Toggles visibility of the Search and Replace overlay panel.
     pub fn toggle_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.search.visible = !self.search.visible;
         if self.search.visible {
+            if self.search.search_focus_handle.is_focused(window) {
+                self.search.visible = false;
+                self.clear_search_highlights_from_document(cx);
+                let active_pane = self.active_pane_id();
+                self.focused_pane_id = Some(active_pane);
+                if let Some(state) = self.pane_state_mut(active_pane) {
+                    if let Some(handle) = state.pane.focus_handle(cx) {
+                        handle.focus(window, cx);
+                    }
+                }
+            } else {
+                self.search.active_field = SearchActiveField::Query;
+                window.focus(&self.search.search_focus_handle, cx);
+                self.search.search_input.select_all();
+            }
+        } else {
+            self.search.visible = true;
             self.search.active_field = SearchActiveField::Query;
             window.focus(&self.search.search_focus_handle, cx);
             self.search.search_input.select_all();
             self.execute_search(cx);
-        } else {
-            self.clear_search_highlights_from_document(cx);
         }
         cx.notify();
     }
@@ -35,6 +49,10 @@ impl Editor {
             self.execute_search(cx);
         } else if !self.search.show_replace {
             self.search.show_replace = true;
+            self.search.active_field = SearchActiveField::Replace;
+            window.focus(&self.search.replace_focus_handle, cx);
+            self.search.replace_input.select_all();
+        } else if !self.search.replace_focus_handle.is_focused(window) {
             self.search.active_field = SearchActiveField::Replace;
             window.focus(&self.search.replace_focus_handle, cx);
             self.search.replace_input.select_all();
@@ -200,6 +218,13 @@ impl Editor {
         if keystroke.key == "escape" {
             self.search.visible = false;
             self.clear_search_highlights_from_document(cx);
+            let active_pane = self.active_pane_id();
+            self.focused_pane_id = Some(active_pane);
+            if let Some(state) = self.pane_state_mut(active_pane) {
+                if let Some(handle) = state.pane.focus_handle(cx) {
+                    handle.focus(window, cx);
+                }
+            }
             cx.notify();
             cx.stop_propagation();
             return;
@@ -239,16 +264,6 @@ impl Editor {
             return;
         }
 
-        if (keystroke.modifiers.control || keystroke.modifiers.platform) && keystroke.key == "a" {
-            match self.search.active_field {
-                SearchActiveField::Query => self.search.search_input.select_all(),
-                SearchActiveField::Replace => self.search.replace_input.select_all(),
-            }
-            cx.notify();
-            cx.stop_propagation();
-            return;
-        }
-
         let is_query_field = self.search.active_field == SearchActiveField::Query;
         let input = if is_query_field {
             &mut self.search.search_input
@@ -256,15 +271,67 @@ impl Editor {
             &mut self.search.replace_input
         };
 
+        let ctrl = keystroke.modifiers.control || keystroke.modifiers.platform;
+        if ctrl && !keystroke.modifiers.alt {
+            match keystroke.key.as_str() {
+                "a" | "A" => {
+                    input.select_all();
+                    cx.notify();
+                    cx.stop_propagation();
+                    return;
+                }
+                "c" | "C" => {
+                    let range = input.selection_range();
+                    if !range.is_empty() {
+                        let text = input.text[range].to_string();
+                        cx.write_to_clipboard(ClipboardItem::new_string(text));
+                    }
+                    cx.stop_propagation();
+                    return;
+                }
+                "x" | "X" => {
+                    let range = input.selection_range();
+                    if !range.is_empty() {
+                        let text = input.text[range.clone()].to_string();
+                        input.replace_range(range, "");
+                        cx.write_to_clipboard(ClipboardItem::new_string(text));
+                        if is_query_field {
+                            self.execute_search(cx);
+                        } else {
+                            cx.notify();
+                        }
+                    }
+                    cx.stop_propagation();
+                    return;
+                }
+                "v" | "V" => {
+                    if let Some(clipboard) = cx.read_from_clipboard()
+                        && let Some(text) = clipboard.text()
+                    {
+                        let sanitized = text.replace(['\r', '\n'], "");
+                        input.insert_str(&sanitized);
+                        if is_query_field {
+                            self.execute_search(cx);
+                        } else {
+                            cx.notify();
+                        }
+                    }
+                    cx.stop_propagation();
+                    return;
+                }
+                _ => {}
+            }
+        }
+
         match keystroke.key.as_str() {
-            "up" if is_query_field => {
+            "up" | "arrowup" if is_query_field => {
                 if input.history_prev() {
                     self.execute_search(cx);
                 }
                 cx.stop_propagation();
                 return;
             }
-            "down" if is_query_field => {
+            "down" | "arrowdown" if is_query_field => {
                 if input.history_next() {
                     self.execute_search(cx);
                 }
@@ -277,10 +344,10 @@ impl Editor {
             "delete" => {
                 input.delete_forward();
             }
-            "left" => {
+            "left" | "arrowleft" => {
                 input.move_left(keystroke.modifiers.shift);
             }
-            "right" => {
+            "right" | "arrowright" => {
                 input.move_right(keystroke.modifiers.shift);
             }
             "home" => {
@@ -289,8 +356,24 @@ impl Editor {
             "end" => {
                 input.move_end(keystroke.modifiers.shift);
             }
-            _ => {
-                return;
+            "space" => {
+                input.insert_str(" ");
+            }
+            key => {
+                if !ctrl && !keystroke.modifiers.alt && !key.is_empty() {
+                    let mut chars = key.chars();
+                    if let Some(first) = chars.next() {
+                        if chars.next().is_none() && !first.is_control() {
+                            input.insert_str(key);
+                        } else {
+                            return;
+                        }
+                    } else {
+                        return;
+                    }
+                } else {
+                    return;
+                }
             }
         }
 
