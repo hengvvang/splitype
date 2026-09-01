@@ -149,7 +149,7 @@ pub struct ThemeColors {
     pub cursor: Hsla,
     /// Text-selection highlight colour.
     pub selection: Hsla,
-    /// Active drag accent — splitter-bar drag highlight (#72cffe sky blue).
+    /// Active drag and focus accent colour (drag lines, active pills, indicators).
     pub focus_accent: Hsla,
     /// Split-preview indicator colour (drag-to-split lines and highlights).
     pub split_indicator: Hsla,
@@ -193,8 +193,8 @@ pub struct ThemeColors {
     pub bottombar_text_dim: Hsla,
     /// Hover background for clickable status bar items.
     pub bottombar_button_hover: Hsla,
-    /// Explorer panel row hover background (translucent highlight).
+    /// Subtle row hover background (file tree, outline, menus, dropdowns, tabs).
     pub panel_row_hover: Hsla,
-    /// Explorer panel row selection background (light blue).
+    /// Subtle row selection background (file tree, outline, menus, dropdowns, tabs).
     pub panel_row_selected: Hsla,
 }

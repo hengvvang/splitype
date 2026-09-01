@@ -18,21 +18,12 @@ pub struct MatrixCellColors {
 
 impl MatrixCellColors {
     pub fn from_theme(theme: &Theme) -> Self {
-        let is_dark = theme.colors.dialog_surface.l < 0.5;
-        if is_dark {
-            Self {
-                inactive: Hsla::from(rgba(0x27272aff)),     // Dark zinc base
-                current_only: Hsla::from(rgba(0x3f3f46ff)), // Current table bounds
-                hover_only: Hsla::from(rgba(0x71717aff)),   // Hovered bounds
-                overlap: Hsla::from(rgba(0xa1a1aaff)),      // Intersection
-            }
-        } else {
-            Self {
-                inactive: Hsla::from(rgba(0xf3f4f6ff)),     // Light gray base
-                current_only: Hsla::from(rgba(0xd1d5dbff)), // Current table bounds
-                hover_only: Hsla::from(rgba(0x9ca3afff)),   // Hovered bounds
-                overlap: Hsla::from(rgba(0x4b5563ff)),      // Intersection
-            }
+        let c = &theme.colors;
+        Self {
+            inactive: c.dialog_secondary_button_bg,
+            current_only: c.dialog_secondary_button_hover,
+            hover_only: c.panel_row_selected,
+            overlap: c.focus_accent,
         }
     }
 }

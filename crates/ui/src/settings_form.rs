@@ -193,7 +193,7 @@ pub fn render_number_field(
             c.dialog_secondary_button_bg
         })
         .when(is_editing, |this| {
-            this.border_y_1().border_color(c.app_menu_active)
+            this.border_y_1().border_color(c.focus_accent)
         })
         .on_click(props.on_start_edit)
         .on_key_down(props.on_key_down)
@@ -215,7 +215,7 @@ pub fn render_number_field(
                             .w(px(1.5))
                             .h(px(13.0))
                             .ml(px(1.0))
-                            .bg(c.app_menu_active),
+                            .bg(c.focus_accent),
                     )
                 }),
         );

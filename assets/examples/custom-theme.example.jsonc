@@ -199,7 +199,11 @@
       // Secondary text color in the status bar.
       "bottombar_text_dim": null,
       // Hover background for clickable status bar item.
-      "bottombar_button_hover": null
+      "bottombar_button_hover": null,
+      // Subtle row hover background (file tree, outline, menus, dropdowns, tabs).
+      "panel_row_hover": null,
+      // Subtle row selection background (file tree, outline, menus, dropdowns, tabs).
+      "panel_row_selected": null
     },
     // Dimensions are logical pixels unless a comment explicitly says ratio.
     // Set null to inherit base_theme_id and avoid storing the field after import.

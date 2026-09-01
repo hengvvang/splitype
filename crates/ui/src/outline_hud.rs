@@ -58,7 +58,7 @@ pub fn render_floating_outline_hud(
                     .items_center()
                     .gap(px(6.0))
                     .bg(if is_active {
-                        c.source_mode_block_bg
+                        c.panel_row_selected
                     } else {
                         hsla(0.0, 0.0, 0.0, 0.0)
                     })

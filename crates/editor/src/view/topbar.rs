@@ -37,7 +37,7 @@ impl Editor {
                     svg()
                         .path(panel_topbar_icon(icon_prefix, "active"))
                         .size(px(d.topbar_height * 0.5))
-                        .text_color(c.app_menu_active),
+                        .text_color(c.focus_accent),
                 )
             })
             .on_click(move |_event, _window, cx| {
@@ -113,7 +113,7 @@ impl Editor {
                     .path("icons/editor/topbar/search.svg")
                     .size(px(btn_icon_size))
                     .text_color(if is_search_active {
-                        c.app_menu_active
+                        c.focus_accent
                     } else {
                         c.dialog_muted
                     }),

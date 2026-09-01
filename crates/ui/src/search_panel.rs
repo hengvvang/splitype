@@ -78,7 +78,7 @@ pub fn render_search_panel_overlay(
             hsla(0.0, 0.0, 0.0, 0.0)
         })
         .text_color(if match_case {
-            c.app_menu_active
+            c.focus_accent
         } else {
             c.dialog_muted
         })
@@ -102,7 +102,7 @@ pub fn render_search_panel_overlay(
             hsla(0.0, 0.0, 0.0, 0.0)
         })
         .text_color(if whole_word {
-            c.app_menu_active
+            c.focus_accent
         } else {
             c.dialog_muted
         })
@@ -111,7 +111,7 @@ pub fn render_search_panel_overlay(
         .hover(|this| this.bg(c.panel_row_hover))
         .child(div().flex().flex_col().items_center().child("ab").child(
             div().w(px(12.0)).h(px(1.0)).bg(if whole_word {
-                c.app_menu_active
+                c.focus_accent
             } else {
                 c.dialog_muted
             }),
@@ -132,7 +132,7 @@ pub fn render_search_panel_overlay(
             hsla(0.0, 0.0, 0.0, 0.0)
         })
         .text_color(if use_regex {
-            c.app_menu_active
+            c.focus_accent
         } else {
             c.dialog_muted
         })
@@ -266,7 +266,7 @@ pub fn render_search_panel_overlay(
                 .path("icons/editor/topbar/search-explorer.svg")
                 .size(px(12.0))
                 .text_color(if scope == SearchScope::Worktree {
-                    c.app_menu_active
+                    c.focus_accent
                 } else {
                     c.dialog_muted
                 }),
@@ -325,7 +325,7 @@ pub fn render_search_panel_overlay(
                 hsla(0.0, 0.0, 0.0, 0.0)
             })
             .text_color(if preserve_case {
-                c.app_menu_active
+                c.focus_accent
             } else {
                 c.dialog_muted
             })
@@ -535,8 +535,8 @@ pub fn render_search_panel_overlay(
                                 .child(div().flex_shrink_0().child(m.preview_prefix.clone()))
                                 .child(
                                     div()
-                                        .bg(c.app_menu_active.opacity(0.35))
-                                        .text_color(c.app_menu_active)
+                                        .bg(c.focus_accent.opacity(0.35))
+                                        .text_color(c.focus_accent)
                                         .rounded(px(d.tab_close_button_radius))
                                         .px(px(2.0))
                                         .flex_shrink_0()
@@ -611,8 +611,8 @@ pub fn render_search_panel_overlay(
                                 .child(m.preview_prefix.clone())
                                 .child(
                                     div()
-                                        .bg(c.app_menu_active.opacity(0.4))
-                                        .text_color(c.app_menu_active)
+                                        .bg(c.focus_accent.opacity(0.4))
+                                        .text_color(c.focus_accent)
                                         .rounded(px(d.tab_close_button_radius))
                                         .px(px(2.0))
                                         .child(m.preview_match.clone()),
@@ -694,7 +694,7 @@ pub fn render_search_panel_overlay(
                 .child(
                     div()
                         .text_size(px(10.0))
-                        .text_color(c.app_menu_active)
+                        .text_color(c.focus_accent)
                         .child(format!("{}/{}", active_num, total_num)),
                 );
 
