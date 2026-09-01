@@ -1,16 +1,12 @@
-//! core_contracts — unified universal contracts, traits, and domain vocabulary
-//! for the splitype editor family and application shell.
+//! editor_contracts — unified contracts and domain vocabulary for the splitype editor ecosystem.
 
-pub mod command;
 pub mod document;
 pub mod export;
 pub mod outline;
 pub mod pane;
 pub mod panel;
-pub mod plugin;
 pub mod search;
 
-pub use command::{CommandContribution, CommandId, CommandRegistry, CommandRegistryError};
 pub use document::{
     DocumentHost, DocumentId, DocumentSnapshot, NavigationExecutionPlan, NavigationTarget, TabKind,
 };
@@ -20,13 +16,13 @@ pub use pane::{
     AutoscrollStrategy, PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind,
     PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
 };
-pub use panel::{
-    DocumentPanel, PanelCapabilities, PanelDescriptor, PanelId, PanelKind, PanelRenderContext,
-    PanelView, SidebarPanel,
-};
-pub use plugin::{
-    ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,
-    PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
+pub use panel::DocumentPanel;
+pub use platform_contracts::{
+    CommandContribution, CommandId, CommandRegistry, CommandRegistryError, ManifestCommand,
+    PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId, PluginManifest,
+    PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
+    PanelCapabilities, PanelDescriptor, PanelId, PanelKind,
+    PanelRenderContext as PlatformPanelRenderContext, PanelView, SidebarPanel,
 };
 pub use search::{
     RawMatch, SearchActiveField, SearchHost, SearchIme, SearchInputSnapshot, SearchMatch,

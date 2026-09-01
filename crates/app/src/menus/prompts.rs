@@ -94,7 +94,7 @@ pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     let opened_in_editor = with_active_window(cx, |shell, window, cx| {
         shell.open_file_in_active_document_panel(
             path,
-            core_contracts::TabKind::Persistent,
+            editor_contracts::TabKind::Persistent,
             window,
             cx,
         )

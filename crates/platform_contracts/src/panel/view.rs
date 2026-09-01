@@ -1,6 +1,6 @@
 //! Panel view trait contract and rendering context.
 
-use crate::panel::{DocumentPanel, PanelCapabilities, PanelId, PanelKind, SidebarPanel};
+use crate::panel::{PanelCapabilities, PanelId, PanelKind, SidebarPanel};
 use config::language::I18nStrings;
 use gpui::{AnyElement, App, Bounds, Pixels, Point, SharedString, Window};
 use std::any::Any;
@@ -21,7 +21,7 @@ pub struct PanelRenderContext<'a> {
 
 /// Universal trait contract that any top-level window panel must implement.
 ///
-/// Optional roles (such as document routing) are opt-in: a panel declares
+/// Optional roles (such as sidebar) are opt-in: a panel declares
 /// them through [`PanelView::capabilities`] and exposes the corresponding
 /// trait via the `as_*` downcast hooks below. The shell never downcasts to
 /// concrete plugin types.
@@ -41,16 +41,6 @@ pub trait PanelView: 'static {
     /// window-level responsibilities without knowing the concrete type.
     fn capabilities(&self) -> PanelCapabilities {
         PanelCapabilities::default()
-    }
-
-    /// Downcast hook for the document-routing role.
-    fn as_document_panel(&self) -> Option<&dyn DocumentPanel> {
-        None
-    }
-
-    /// Mutable downcast hook for the document-routing role.
-    fn as_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
-        None
     }
 
     /// Downcast hook for the sidebar role.

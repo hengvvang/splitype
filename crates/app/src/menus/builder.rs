@@ -129,7 +129,7 @@ fn skeleton_items(
 
 /// The menu items contributed by commands located at `menu`, in registry order.
 fn registry_items(menu: &str, strings: &config::language::I18nStrings) -> Vec<MenuItem> {
-    core_contracts::CommandRegistry::registered_commands()
+    editor_contracts::CommandRegistry::registered_commands()
         .unwrap_or_default()
         .into_iter()
         .filter(|command| command.menu.as_deref() == Some(menu))
@@ -162,12 +162,12 @@ fn menu_item_for(
 
 /// Splits a full command id into `(plugin, id)` and looks up its binding.
 fn binding_for_plugin_command_id(command_id: &str) -> Option<crate::commands::CommandBinding> {
-    let (plugin, id) = command_id.split_once('.')?;
+    let (plugin, id) = command_id.rsplit_once('.')?;
     binding_for(plugin, id)
 }
 
 fn binding_for_plugin_command(
-    command_id: &core_contracts::CommandId,
+    command_id: &editor_contracts::CommandId,
 ) -> Option<crate::commands::CommandBinding> {
     binding_for_plugin_command_id(command_id.as_str())
 }
@@ -256,3 +256,30 @@ pub(super) fn build_menus(
         },
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[core::prelude::v1::test]
+    fn every_menu_skeleton_command_has_a_binding() {
+        let all_skeletons = [
+            APP_MENU_ITEMS,
+            FILE_MENU_ITEMS,
+            VIEW_MENU_ITEMS,
+            HELP_MENU_ITEMS,
+        ];
+        for items in all_skeletons {
+            for item in items {
+                if item.starts_with("__") && item.ends_with("__") {
+                    continue;
+                }
+                assert!(
+                    binding_for_plugin_command_id(item).is_some(),
+                    "menu command '{item}' has no composition-root binding"
+                );
+            }
+        }
+    }
+}
+

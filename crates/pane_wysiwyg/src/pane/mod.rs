@@ -6,9 +6,9 @@ pub mod outline;
 pub mod search;
 pub mod state;
 
-use core_contracts::OutlineNode;
-use core_contracts::{PaneCapabilities, PaneRenderContext, PaneView};
-use core_contracts::{SearchMatch, SearchQuery};
+use editor_contracts::OutlineNode;
+use editor_contracts::{PaneCapabilities, PaneRenderContext, PaneView};
+use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, AppContext, FocusHandle, Window};
 use theme::Theme;
 
@@ -16,8 +16,8 @@ use crate::pane::controller::WysiwygDocumentController;
 use crate::pane::state::WysiwygPaneState;
 
 impl PaneView for WysiwygPaneState {
-    fn kind(&self) -> core_contracts::PaneKind {
-        core_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
+    fn kind(&self) -> editor_contracts::PaneKind {
+        editor_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
     }
 
     fn capabilities(&self) -> PaneCapabilities {
@@ -30,7 +30,7 @@ impl PaneView for WysiwygPaneState {
         }
     }
 
-    fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, cx: &mut App) {
+    fn sync_document(&mut self, document: &editor_contracts::DocumentSnapshot, cx: &mut App) {
         if let Some(controller) = self.controller.clone() {
             controller.update(cx, |controller, cx| {
                 controller.sync_document(document, cx);

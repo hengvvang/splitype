@@ -313,7 +313,7 @@ impl Editor {
     /// panes receive the next snapshot — all in one atomic step.
     pub(crate) fn commit_pane_text(
         &mut self,
-        pane_id: core_contracts::PaneId,
+        pane_id: editor_contracts::PaneId,
         text: Option<String>,
         cx: &mut Context<Self>,
     ) {

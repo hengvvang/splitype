@@ -4,7 +4,7 @@ use gpui::*;
 use std::ops::Range;
 
 use crate::editor::Editor;
-use core_contracts::search::{ceil_char_boundary, floor_char_boundary};
+use editor_contracts::search::{ceil_char_boundary, floor_char_boundary};
 
 #[inline]
 fn utf16_offset_to_utf8(text: &str, utf16_offset: usize) -> usize {

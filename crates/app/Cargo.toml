@@ -24,7 +24,8 @@ config = { workspace = true }
 splitype_installer = { workspace = true }
 ui = { workspace = true }
 window = { workspace = true }
-core_contracts = { workspace = true }
+platform_contracts = { workspace = true }
+editor_contracts = { workspace = true }
 editor = { workspace = true }
 pane_wysiwyg = { workspace = true }
 pane_source_code = { workspace = true }

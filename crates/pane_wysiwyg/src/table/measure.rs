@@ -2,7 +2,7 @@
 //! window's text system.
 //!
 //! Text shaping requires a live `Window` and theme dimensions, so this
-//! presentation logic lives in `core_contracts::geometry` instead of the pure
+//! presentation logic lives in `editor_contracts::geometry` instead of the pure
 //! `markdown_parser::block::table` data model. The layout *math*
 //! (`from_preferred_widths`) stays in the model, keeping the model testable
 //! without a runtime. It is a free function (not an `impl` on

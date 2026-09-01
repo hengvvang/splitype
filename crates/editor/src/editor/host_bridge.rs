@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use core_contracts::{PaneHost, PaneId};
+use editor_contracts::{PaneHost, PaneId};
 use gpui::{App, Bounds, KeyDownEvent, Pixels, WeakEntity, Window};
 
 use crate::editor::Editor;
@@ -29,7 +29,7 @@ impl EditorSearchHost {
     }
 }
 
-impl core_contracts::SearchHost for EditorSearchHost {
+impl editor_contracts::SearchHost for EditorSearchHost {
     fn execute_search(&self, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| editor.execute_search(cx));
@@ -89,10 +89,10 @@ impl core_contracts::SearchHost for EditorSearchHost {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
                 editor.search.scope =
-                    if editor.search.scope == core_contracts::SearchScope::Worktree {
-                        core_contracts::SearchScope::CurrentTab
+                    if editor.search.scope == editor_contracts::SearchScope::Worktree {
+                        editor_contracts::SearchScope::CurrentTab
                     } else {
-                        core_contracts::SearchScope::Worktree
+                        editor_contracts::SearchScope::Worktree
                     };
                 editor.execute_search(cx);
             });
@@ -102,7 +102,7 @@ impl core_contracts::SearchHost for EditorSearchHost {
     fn focus_query(&self, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
-                editor.search.active_field = core_contracts::SearchActiveField::Query;
+                editor.search.active_field = editor_contracts::SearchActiveField::Query;
                 window.focus(&editor.search.search_focus_handle, cx);
             });
         }
@@ -111,7 +111,7 @@ impl core_contracts::SearchHost for EditorSearchHost {
     fn focus_replace(&self, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
-                editor.search.active_field = core_contracts::SearchActiveField::Replace;
+                editor.search.active_field = editor_contracts::SearchActiveField::Replace;
                 window.focus(&editor.search.replace_focus_handle, cx);
             });
         }
@@ -186,15 +186,15 @@ impl core_contracts::SearchHost for EditorSearchHost {
 
     fn set_input_last_bounds(
         &self,
-        field: core_contracts::SearchActiveField,
+        field: editor_contracts::SearchActiveField,
         bounds: Bounds<Pixels>,
         cx: &mut App,
     ) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, _cx| {
                 let input = match field {
-                    core_contracts::SearchActiveField::Query => &mut editor.search.search_input,
-                    core_contracts::SearchActiveField::Replace => &mut editor.search.replace_input,
+                    editor_contracts::SearchActiveField::Query => &mut editor.search.search_input,
+                    editor_contracts::SearchActiveField::Replace => &mut editor.search.replace_input,
                 };
                 input.last_bounds = Some(bounds);
             });
@@ -213,26 +213,26 @@ impl EditorSearchView {
     }
 }
 
-impl core_contracts::SearchStateView for EditorSearchView {
+impl editor_contracts::SearchStateView for EditorSearchView {
     fn snapshot(
         &self,
-        field: core_contracts::SearchActiveField,
+        field: editor_contracts::SearchActiveField,
         cx: &App,
-    ) -> core_contracts::SearchInputSnapshot {
+    ) -> editor_contracts::SearchInputSnapshot {
         let editor = self.editor.upgrade();
         let Some(editor) = editor else {
-            return core_contracts::SearchInputSnapshot::default();
+            return editor_contracts::SearchInputSnapshot::default();
         };
         let search = &editor.read(cx).search;
         let (input, focus_handle) = match field {
-            core_contracts::SearchActiveField::Query => {
+            editor_contracts::SearchActiveField::Query => {
                 (&search.search_input, &search.search_focus_handle)
             }
-            core_contracts::SearchActiveField::Replace => {
+            editor_contracts::SearchActiveField::Replace => {
                 (&search.replace_input, &search.replace_focus_handle)
             }
         };
-        core_contracts::SearchInputSnapshot {
+        editor_contracts::SearchInputSnapshot {
             text: input.text.clone(),
             marked_range: input.marked_range.clone(),
             selection_range: input.selection_range(),
@@ -253,10 +253,10 @@ impl EditorSearchIme {
     }
 }
 
-impl core_contracts::SearchIme for EditorSearchIme {
+impl editor_contracts::SearchIme for EditorSearchIme {
     fn handle_input(
         &self,
-        field: core_contracts::SearchActiveField,
+        field: editor_contracts::SearchActiveField,
         bounds: Bounds<Pixels>,
         window: &mut Window,
         cx: &mut App,
@@ -266,8 +266,8 @@ impl core_contracts::SearchIme for EditorSearchIme {
         };
         let focus_handle = entity.read(cx).search.search_focus_handle.clone();
         let focus_handle = match field {
-            core_contracts::SearchActiveField::Query => focus_handle,
-            core_contracts::SearchActiveField::Replace => {
+            editor_contracts::SearchActiveField::Query => focus_handle,
+            editor_contracts::SearchActiveField::Replace => {
                 entity.read(cx).search.replace_focus_handle.clone()
             }
         };
@@ -288,11 +288,11 @@ impl PaneHost for EditorPaneHost {
         }
     }
 
-    fn navigate_to_outline(&self, _pane_id: PaneId, index: usize, cx: &mut App) {
+    fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
                 let theme = cx.global::<theme::ThemeManager>().current_arc();
-                editor.navigate_to_outline_index(index, &theme, cx);
+                editor.navigate_to_outline_index(pane_id, index, &theme, cx);
             });
         }
     }

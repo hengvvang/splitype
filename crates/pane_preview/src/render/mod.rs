@@ -30,7 +30,7 @@ use std::ops::Range;
 use gpui::*;
 
 use config::language::I18nStrings;
-use core_contracts::PaneRenderContext;
+use editor_contracts::PaneRenderContext;
 use markdown_parser::parse::BlockKind;
 use theme::Theme;
 

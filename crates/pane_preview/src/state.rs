@@ -3,9 +3,9 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use core_contracts::OutlineNode;
-use core_contracts::{PaneKind, PaneOutlineHost, PaneRenderContext, PaneView};
-use core_contracts::{SearchMatch, SearchQuery};
+use editor_contracts::OutlineNode;
+use editor_contracts::{PaneKind, PaneOutlineHost, PaneRenderContext, PaneView};
+use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use theme::Theme;
 
@@ -30,8 +30,8 @@ impl PaneView for PreviewState {
         PaneKind::from_static(crate::builder::PANE_KIND)
     }
 
-    fn capabilities(&self) -> core_contracts::PaneCapabilities {
-        core_contracts::PaneCapabilities {
+    fn capabilities(&self) -> editor_contracts::PaneCapabilities {
+        editor_contracts::PaneCapabilities {
             editable: false,
             searchable: true,
             replaceable: false,
@@ -40,7 +40,7 @@ impl PaneView for PreviewState {
         }
     }
 
-    fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, _cx: &mut App) {
+    fn sync_document(&mut self, document: &editor_contracts::DocumentSnapshot, _cx: &mut App) {
         let text = document.text.as_ref();
         let revision = document.revision;
         let hash = {
@@ -120,15 +120,27 @@ impl PaneView for PreviewState {
         let strings = config::language::I18nStrings::en_us();
         let preview_body =
             crate::render::render_preview_pane(self, ctx, &theme, &strings, window, cx);
-        let outline_host: Arc<dyn core_contracts::OutlineHost> = Arc::new(PaneOutlineHost {
+        let headings = self.outline_headings(cx);
+        let font_size = theme.typography.text_size.max(14.0);
+        let line_height = (font_size * theme.typography.text_line_height).round().max(22.0);
+        let scroll_y = -f32::from(ctx.scroll.offset().y);
+        let active_index = headings
+            .iter()
+            .rposition(|node| {
+                let node_y = crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
+                node_y <= scroll_y + 20.0
+            })
+            .or(if headings.is_empty() { None } else { Some(0) });
+
+        let outline_host: Arc<dyn editor_contracts::OutlineHost> = Arc::new(PaneOutlineHost {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
         let outline_hud = ui::render_floating_outline_hud(
             ctx.pane_id.0,
-            &self.outline_headings(cx),
-            None,
-            false,
+            &headings,
+            active_index,
+            ctx.is_outline_hovered,
             &theme,
             &outline_host,
         );
@@ -143,19 +155,19 @@ impl PaneView for PreviewState {
 
     fn handle_navigation(
         &mut self,
-        target: &core_contracts::NavigationTarget,
+        target: &editor_contracts::NavigationTarget,
         _modifiers: gpui::Modifiers,
         _cx: &mut gpui::App,
-    ) -> Option<core_contracts::NavigationExecutionPlan> {
+    ) -> Option<editor_contracts::NavigationExecutionPlan> {
         match target {
-            core_contracts::NavigationTarget::External { resolved, .. } => Some(
-                core_contracts::NavigationExecutionPlan::OpenExternalUrl(resolved.clone()),
+            editor_contracts::NavigationTarget::External { resolved, .. } => Some(
+                editor_contracts::NavigationExecutionPlan::OpenExternalUrl(resolved.clone()),
             ),
-            core_contracts::NavigationTarget::FootnoteDefinition { id } => Some(
-                core_contracts::NavigationExecutionPlan::ScrollToFootnote(id.clone()),
+            editor_contracts::NavigationTarget::FootnoteDefinition { id } => Some(
+                editor_contracts::NavigationExecutionPlan::ScrollToFootnote(id.clone()),
             ),
-            core_contracts::NavigationTarget::FootnoteReference { id } => {
-                Some(core_contracts::NavigationExecutionPlan::ScrollToFootnoteRef(id.clone()))
+            editor_contracts::NavigationTarget::FootnoteReference { id } => {
+                Some(editor_contracts::NavigationExecutionPlan::ScrollToFootnoteRef(id.clone()))
             }
         }
     }

@@ -8,7 +8,7 @@ use crate::actions::{
     ToggleMaximizeArea, UninstallCliTool,
 };
 use crate::menus::request_quit_application;
-use core_contracts::PanelId;
+use editor_contracts::PanelId;
 
 impl Shell {
     /// Dirty state of one panel, resolved through the generic panel contract

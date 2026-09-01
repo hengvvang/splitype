@@ -5,7 +5,7 @@ use gpui::*;
 use crate::state::ExplorerState;
 
 use config::language::I18nStrings;
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use theme::Theme;
 use ui::empty_state::empty_state_container;
 

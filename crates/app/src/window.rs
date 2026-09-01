@@ -11,7 +11,7 @@ use crate::layout::WindowPanels;
 use crate::menus::install_menus;
 use crate::shell::{Shell, ShellDocumentHost};
 use config::recent::record_recent_file;
-use core_contracts::{PanelId, PanelKind, PanelView};
+use editor_contracts::{PanelId, PanelKind, PanelView};
 use splitter::NodeId;
 use splitter::tree::SplitTree;
 use ui::custom_titlebar::splitype_window_options;
@@ -162,7 +162,7 @@ fn open_window_with_retained(
             move |_window, cx| {
                 let mut leaf_ids = Vec::new();
                 layout.tree.leaf_ids(&mut leaf_ids);
-                let leaf_kinds: Vec<(NodeId, core_contracts::PanelKind)> = leaf_ids
+                let leaf_kinds: Vec<(NodeId, editor_contracts::PanelKind)> = leaf_ids
                     .iter()
                     .filter_map(|leaf_id| {
                         layout
@@ -250,7 +250,7 @@ fn open_window_with_retained(
                     shell.panel_views = panel_views;
                     for view in shell.panel_views.values_mut() {
                         // Wire document hosts for restored document panels.
-                        if let Some(panel) = view.as_document_panel_mut() {
+                        if let Some(panel) = crate::shell::as_document_panel_mut(view) {
                             panel.attach_document_host(
                                 std::sync::Arc::new(ShellDocumentHost::new(shell_weak.clone())),
                                 cx,

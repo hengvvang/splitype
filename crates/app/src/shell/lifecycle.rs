@@ -8,8 +8,8 @@ use super::RetainedPanel;
 use super::Shell;
 use super::host_bridge::ShellDocumentHost;
 use crate::window::open_cloned_window;
-use core_contracts::TabKind;
-use core_contracts::{PanelId, PanelKind, PanelView};
+use editor_contracts::TabKind;
+use editor_contracts::{PanelId, PanelKind, PanelView};
 use splitter::NodeId;
 use splitter::policy::ClonedContainer;
 use splitter::sessions::AreaDockTarget;
@@ -70,7 +70,7 @@ impl Shell {
         mut view: Box<dyn PanelView>,
         cx: &mut Context<Self>,
     ) {
-        if let Some(panel) = view.as_document_panel_mut() {
+        if let Some(panel) = crate::shell::as_document_panel_mut(&mut view) {
             let host = std::sync::Arc::new(ShellDocumentHost::new(cx.entity().downgrade()));
             panel.attach_document_host(host, cx);
         }

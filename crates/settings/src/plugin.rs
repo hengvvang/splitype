@@ -1,6 +1,6 @@
 use crate::state::{PersistedSettingsState, SettingsUiState};
 use crate::{render_settings_body, render_settings_bottombar, render_settings_topbar};
-use core_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
+use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
 

@@ -1,5 +1,5 @@
 use crate::state::PreviewState;
-use core_contracts::{PaneDescriptor, PaneKind, PaneView};
+use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 
 /// Stable kind identifier of the Preview pane plugin.

@@ -11,7 +11,7 @@ use gpui::*;
 
 use crate::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use theme::Theme;
 
 /// Free-function entry point: renders the explorer body (file tree or

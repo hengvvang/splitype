@@ -1,6 +1,6 @@
 //! Rich keyboard input handling for SourceCode editor.
 
-use core_contracts::PaneHost;
+use editor_contracts::PaneHost;
 use gpui::*;
 
 use crate::state::SourceCodeState;
@@ -8,7 +8,7 @@ use crate::state::SourceCodeState;
 /// Handles a key-down event against the SourceCodeState. Returns true if consumed.
 pub fn handle_key_down(
     state: &mut SourceCodeState,
-    _pane_id: core_contracts::PaneId,
+    _pane_id: editor_contracts::PaneId,
     event: &KeyDownEvent,
     _window: &mut Window,
     cx: &mut App,
@@ -185,9 +185,6 @@ pub fn handle_key_down(
                         state.insert_text(key);
                         return true;
                     }
-                } else if !key.starts_with("arrow") && !key.starts_with("f") {
-                    state.insert_text(key);
-                    return true;
                 }
             }
             false

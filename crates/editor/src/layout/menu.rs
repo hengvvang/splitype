@@ -5,7 +5,7 @@ use splitter::SplitAxis;
 use ui::popover::menu_panel;
 
 use crate::editor::Editor;
-use core_contracts::PaneId;
+use editor_contracts::PaneId;
 use theme::Theme;
 
 impl Editor {
@@ -89,7 +89,7 @@ impl Editor {
     pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
         pane_id: impl Into<PaneId>,
-        current_kind: core_contracts::PaneKind,
+        current_kind: editor_contracts::PaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -100,7 +100,7 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         let available_descriptors =
-            core_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
+            editor_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
 
         menu_panel(c, d)
             .id(("inner-pane-dropdown-overlay", pane_id.0))

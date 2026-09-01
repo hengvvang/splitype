@@ -7,7 +7,7 @@ use gpui::{App, Pixels, ScrollHandle, Size, Task};
 
 use crate::session::file::FileState;
 use crate::session::{PaneKind, TabKind};
-use core_contracts::{AutoscrollStrategy, DocumentId, DocumentSnapshot};
+use editor_contracts::{AutoscrollStrategy, DocumentId, DocumentSnapshot};
 
 /// One document tab: the authoritative raw text and all document-level metadata.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -22,7 +22,7 @@ pub struct DocumentTab {
     pub kind: TabKind,
     /// Per-pane view states, keyed by pane id (rebuilt from the text on restore).
     #[serde(skip)]
-    pub panes: HashMap<core_contracts::PaneId, PaneState>,
+    pub panes: HashMap<editor_contracts::PaneId, PaneState>,
     /// Cached (revision, word_count) to avoid full recounting on every frame.
     pub cached_word_count: Option<(u64, usize)>,
 }
@@ -30,7 +30,7 @@ pub struct DocumentTab {
 /// The independent view state of one pane inside an editor area.
 pub struct PaneState {
     pub scroll: ScrollState,
-    pub pane: Box<dyn core_contracts::PaneView>,
+    pub pane: Box<dyn editor_contracts::PaneView>,
 }
 
 /// Scroll handle, layout anchoring, and autoscroll interaction state.
@@ -113,8 +113,8 @@ impl PaneState {
     }
 }
 
-pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn core_contracts::PaneView> {
-    core_contracts::PaneRegistry::create_registered(kind.clone())
+pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn editor_contracts::PaneView> {
+    editor_contracts::PaneRegistry::create_registered(kind.clone())
         .unwrap_or_else(|error| panic!("failed to access pane registry: {error}"))
         .unwrap_or_else(|| panic!("no pane descriptor registered for {kind}"))
 }

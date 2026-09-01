@@ -1,5 +1,5 @@
-use crate::panel::PanelId;
 use gpui::App;
+use platform_contracts::PanelId;
 use std::path::Path;
 
 /// Host contract handed by the window shell to document-routing panels.

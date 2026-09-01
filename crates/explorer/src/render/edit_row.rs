@@ -6,7 +6,7 @@ use crate::filename_editor::ExplorerFilenameInputElement;
 use crate::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
 };
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use theme::Theme;
 
 impl ExplorerState {

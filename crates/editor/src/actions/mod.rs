@@ -13,7 +13,7 @@ pub use edit::{BlockStructureKind, EditCommand, InlineFormatKind, InsertionKind}
 use gpui::*;
 
 use crate::editor::Editor;
-use core_contracts::ExportFormat;
+use editor_contracts::ExportFormat;
 
 impl Editor {
     pub fn on_save_document(

@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use core_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, PanelId, TabKind};
+use editor_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, PanelId, TabKind};
 use splitter::root::SplitterRoot;
 
 use crate::editor::host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};
@@ -31,9 +31,9 @@ pub struct Editor {
     pub entity_id: EntityId,
     pub self_weak: WeakEntity<Self>,
     pub host: Option<Arc<dyn DocumentHost>>,
-    pub pane_host: Arc<dyn core_contracts::PaneHost>,
-    pub search_view: Arc<dyn core_contracts::SearchStateView>,
-    pub search_ime: Arc<dyn core_contracts::SearchIme>,
+    pub pane_host: Arc<dyn editor_contracts::PaneHost>,
+    pub search_view: Arc<dyn editor_contracts::SearchStateView>,
+    pub search_ime: Arc<dyn editor_contracts::SearchIme>,
     pub session: EditorSession,
     pub panel_rect: Option<Bounds<Pixels>>,
     pub is_active_panel: bool,
@@ -42,7 +42,7 @@ pub struct Editor {
     pub outline: OutlineHudState,
     pub focused_pane_id: Option<PaneId>,
     pub pane_dropdown_open: bool,
-    pub search: core_contracts::SearchPanelState,
+    pub search: editor_contracts::SearchPanelState,
 }
 
 impl Editor {
@@ -64,7 +64,7 @@ impl Editor {
             outline: OutlineHudState::default(),
             focused_pane_id: None,
             pane_dropdown_open: false,
-            search: core_contracts::SearchPanelState::new(cx),
+            search: editor_contracts::SearchPanelState::new(cx),
         }
     }
 
@@ -72,7 +72,7 @@ impl Editor {
     pub fn new_tab_from_markdown(markdown: String, file_path: Option<PathBuf>) -> DocumentTab {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
         DocumentTab {
-            id: core_contracts::DocumentId::new(),
+            id: editor_contracts::DocumentId::new(),
             text: normalized,
             document_revision: 1,
             file: FileState {
@@ -102,7 +102,7 @@ impl Editor {
                 }
             }
         } else {
-            let document = core_contracts::DocumentSnapshot::empty();
+            let document = editor_contracts::DocumentSnapshot::empty();
             for state in self.session.empty_panes.values_mut() {
                 state.pane.sync_document(&document, cx);
             }
@@ -287,7 +287,7 @@ impl Editor {
 
     #[inline]
     pub fn default_pane_kind(&self) -> PaneKind {
-        core_contracts::PaneRegistry::registered_default_kind()
+        editor_contracts::PaneRegistry::registered_default_kind()
             .ok()
             .flatten()
             .unwrap_or_default()

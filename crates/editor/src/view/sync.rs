@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::editor::Editor;
 use config::language::{I18nManager, I18nStrings};
-use core_contracts::{AutoscrollStrategy, PaneId};
+use editor_contracts::{AutoscrollStrategy, PaneId};
 
 impl Editor {
     /// Apply the pane's pending focus to the window keyboard focus.

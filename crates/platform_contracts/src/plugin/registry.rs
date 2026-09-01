@@ -5,7 +5,6 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use thiserror::Error;
 
-use crate::pane::PaneKind;
 use crate::panel::PanelKind;
 use crate::plugin::{PluginId, PluginManifest};
 
@@ -82,10 +81,10 @@ impl PluginRegistry {
     }
 
     /// The plugin whose manifest declares `kind` as a pane capability.
-    pub fn pane_kind_owner(&self, kind: &PaneKind) -> Option<PluginId> {
+    pub fn pane_kind_owner(&self, kind: &str) -> Option<PluginId> {
         self.manifests
             .values()
-            .find(|manifest| manifest.capabilities.panes.contains(kind))
+            .find(|manifest| manifest.capabilities.panes.iter().any(|p| p == kind))
             .map(|manifest| manifest.plugin.clone())
     }
 

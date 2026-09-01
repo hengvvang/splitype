@@ -4,7 +4,7 @@ pub mod file;
 pub mod ops;
 pub mod tab;
 
-use core_contracts::{PaneKind, TabKind};
+use editor_contracts::{PaneKind, TabKind};
 pub use file::{FileState, PendingOpenLink};
 pub use tab::{DocumentTab, PaneState, ScrollState, ScrollbarDragSession};
 
@@ -179,13 +179,13 @@ pub struct EditorSession {
     pub root: SplitterRoot<PaneKind>,
     /// Live pane entities (rebuilt from the tabs on restore).
     #[serde(skip)]
-    pub empty_panes: std::collections::HashMap<core_contracts::PaneId, PaneState>,
+    pub empty_panes: std::collections::HashMap<editor_contracts::PaneId, PaneState>,
 }
 
 impl EditorSession {
     /// A fresh session: no tabs and a single default panel.
     pub fn empty() -> Self {
-        let default_kind = core_contracts::PaneRegistry::registered_default_kind()
+        let default_kind = editor_contracts::PaneRegistry::registered_default_kind()
             .ok()
             .flatten()
             .unwrap_or_default();

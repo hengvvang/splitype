@@ -7,7 +7,7 @@ use crate::actions::{NoRecentFiles, SelectLanguage, SelectTheme};
 use crate::menus::dispatch_menu_action_for_panel;
 use crate::shell::Shell;
 use config::language::I18nManager;
-use core_contracts::PanelId;
+use editor_contracts::PanelId;
 use theme::{Theme, ThemeManager};
 use ui::menu_bar::{
     menu_item_visual_height, menu_items_visual_height_with_gaps, menu_panel_left,

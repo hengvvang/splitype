@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use core_contracts::OutlineNode;
-use core_contracts::{PaneId, PaneOutlineHost, PaneRenderContext};
-use core_contracts::{SearchMatch, SearchQuery};
+use editor_contracts::OutlineNode;
+use editor_contracts::{PaneId, PaneOutlineHost, PaneRenderContext};
+use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, FocusHandle, InteractiveElement,
     IntoElement, ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
@@ -21,7 +21,7 @@ use markdown_parser::parse::{BlockData, BlockKind};
 /// Autonomous controller for a WYSIWYG editor pane.
 pub struct WysiwygDocumentController {
     pub pane_id: PaneId,
-    pub host: Option<Arc<dyn core_contracts::PaneHost>>,
+    pub host: Option<Arc<dyn editor_contracts::PaneHost>>,
     pub document: Option<Document>,
     pub synced_revision: Option<u64>,
     pub text_stale: bool,
@@ -32,7 +32,7 @@ pub struct WysiwygDocumentController {
 }
 
 impl WysiwygDocumentController {
-    pub fn new(document: &core_contracts::DocumentSnapshot, cx: &mut Context<Self>) -> Self {
+    pub fn new(document: &editor_contracts::DocumentSnapshot, cx: &mut Context<Self>) -> Self {
         let mut controller = Self {
             pane_id: PaneId(0),
             host: None,
@@ -412,7 +412,7 @@ impl WysiwygDocumentController {
 
     pub fn sync_document(
         &mut self,
-        document: &core_contracts::DocumentSnapshot,
+        document: &editor_contracts::DocumentSnapshot,
         cx: &mut Context<Self>,
     ) {
         let next_base_dir = document
@@ -751,7 +751,14 @@ impl WysiwygDocumentController {
                 })
                 .collect();
 
-            let outline_host: std::sync::Arc<dyn core_contracts::OutlineHost> =
+            let headings = self.outline_headings(cx);
+            let first_visible_block_idx = plans.first().map(|p| p.start).unwrap_or(0);
+            let active_index = headings
+                .iter()
+                .rposition(|node| node.block_index <= first_visible_block_idx)
+                .or(if headings.is_empty() { None } else { Some(0) });
+
+            let outline_host: std::sync::Arc<dyn editor_contracts::OutlineHost> =
                 std::sync::Arc::new(PaneOutlineHost {
                     pane_id: ctx.pane_id,
                     host: ctx.host.clone(),
@@ -759,9 +766,9 @@ impl WysiwygDocumentController {
 
             let outline_hud = ui::render_floating_outline_hud(
                 ctx.pane_id.0,
-                &self.outline_headings(cx),
-                None,
-                false,
+                &headings,
+                active_index,
+                ctx.is_outline_hovered,
                 &theme,
                 &outline_host,
             );

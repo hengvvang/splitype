@@ -4,7 +4,7 @@ use std::cell::RefCell;
 use std::ops::Range;
 use std::sync::Arc;
 
-use core_contracts::{OutlineNode, SearchMatch, SearchQuery};
+use editor_contracts::{OutlineNode, SearchMatch, SearchQuery};
 use gpui::{
     App, Bounds, FocusHandle, InteractiveElement, IntoElement, ParentElement, Pixels,
     StatefulInteractiveElement, Styled, Window,
@@ -787,13 +787,13 @@ impl SourceCodeState {
     }
 }
 
-impl core_contracts::PaneView for SourceCodeState {
-    fn kind(&self) -> core_contracts::PaneKind {
-        core_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
+impl editor_contracts::PaneView for SourceCodeState {
+    fn kind(&self) -> editor_contracts::PaneKind {
+        editor_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
     }
 
-    fn capabilities(&self) -> core_contracts::PaneCapabilities {
-        core_contracts::PaneCapabilities {
+    fn capabilities(&self) -> editor_contracts::PaneCapabilities {
+        editor_contracts::PaneCapabilities {
             editable: true,
             searchable: true,
             replaceable: true,
@@ -814,7 +814,7 @@ impl core_contracts::PaneView for SourceCodeState {
         Some(self.cursor_position_1based())
     }
 
-    fn sync_document(&mut self, document: &core_contracts::DocumentSnapshot, _cx: &mut App) {
+    fn sync_document(&mut self, document: &editor_contracts::DocumentSnapshot, _cx: &mut App) {
         let text = document.text.as_ref();
         let revision = document.revision;
         if self.synced_revision == Some(revision) && self.text == text {
@@ -826,10 +826,10 @@ impl core_contracts::PaneView for SourceCodeState {
             text.hash(&mut h);
             h.finish()
         };
-        if self.synced_doc_hash != hash || self.text != text {
+        if self.text != text {
             self.set_text(text);
-            self.synced_doc_hash = hash;
         }
+        self.synced_doc_hash = hash;
         self.synced_revision = Some(revision);
     }
 
@@ -927,18 +927,18 @@ impl core_contracts::PaneView for SourceCodeState {
 
     fn handle_key_down(
         &mut self,
-        pane_id: core_contracts::PaneId,
+        pane_id: editor_contracts::PaneId,
         event: &gpui::KeyDownEvent,
         window: &mut Window,
         cx: &mut App,
-        host: &dyn core_contracts::PaneHost,
+        host: &dyn editor_contracts::PaneHost,
     ) -> bool {
         crate::input::handle_key_down(self, pane_id, event, window, cx, host)
     }
 
     fn handle_mouse_down(
         &mut self,
-        _pane_id: core_contracts::PaneId,
+        _pane_id: editor_contracts::PaneId,
         event: &gpui::MouseDownEvent,
         window: &mut Window,
         cx: &mut App,
@@ -948,7 +948,7 @@ impl core_contracts::PaneView for SourceCodeState {
 
     fn handle_mouse_move(
         &mut self,
-        _pane_id: core_contracts::PaneId,
+        _pane_id: editor_contracts::PaneId,
         event: &gpui::MouseMoveEvent,
         window: &mut Window,
         cx: &mut App,
@@ -958,7 +958,7 @@ impl core_contracts::PaneView for SourceCodeState {
 
     fn handle_mouse_up(
         &mut self,
-        _pane_id: core_contracts::PaneId,
+        _pane_id: editor_contracts::PaneId,
         _event: &gpui::MouseUpEvent,
         _window: &mut Window,
         _cx: &mut App,
@@ -968,7 +968,7 @@ impl core_contracts::PaneView for SourceCodeState {
 
     fn render(
         &mut self,
-        ctx: &core_contracts::PaneRenderContext,
+        ctx: &editor_contracts::PaneRenderContext,
         _window: &mut Window,
         cx: &mut App,
     ) -> gpui::AnyElement {
@@ -995,16 +995,27 @@ impl core_contracts::PaneView for SourceCodeState {
             ctx.host.clone(),
         );
 
-        let outline_host: Arc<dyn core_contracts::OutlineHost> =
-            Arc::new(core_contracts::PaneOutlineHost {
+        let headings = self.outline_headings(cx);
+        let font_size = theme.typography.code_size.max(12.0);
+        let line_height = (font_size * theme.typography.text_line_height).round();
+        let padding = theme.dimensions.editor_padding;
+        let scroll_y = -f32::from(ctx.scroll.offset().y);
+        let top_visible_line = ((scroll_y - padding) / line_height).max(0.0) as usize;
+        let active_index = headings
+            .iter()
+            .rposition(|h| h.block_index <= top_visible_line)
+            .or(if headings.is_empty() { None } else { Some(0) });
+
+        let outline_host: Arc<dyn editor_contracts::OutlineHost> =
+            Arc::new(editor_contracts::PaneOutlineHost {
                 pane_id: ctx.pane_id,
                 host: ctx.host.clone(),
             });
         let outline_hud = ui::render_floating_outline_hud(
             ctx.pane_id.0,
-            &self.outline_headings(cx),
-            None,
-            false,
+            &headings,
+            active_index,
+            ctx.is_outline_hovered,
             &theme,
             &outline_host,
         );

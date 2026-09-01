@@ -6,7 +6,7 @@ use splitter::tree::SplitAxis;
 
 use crate::editor::Editor;
 use crate::session::{EditorSession, PaneKind};
-use core_contracts::PaneId;
+use editor_contracts::PaneId;
 
 impl Editor {
     /// This editor's session, mutably (always present).
@@ -85,7 +85,7 @@ impl Editor {
         self.change_pane_kind(pane_id, kind);
         {
             let state = self.pane_state(pane_id);
-            state.scroll.pending_autoscroll = Some(core_contracts::AutoscrollStrategy::Fit {
+            state.scroll.pending_autoscroll = Some(editor_contracts::AutoscrollStrategy::Fit {
                 margin: gpui::px(20.0),
             });
             state.scroll.last_viewport_size = None;
@@ -103,7 +103,7 @@ impl Editor {
         let active_pane = self.active_pane_id();
         let current_kind = self.active_pane_kind();
         let descriptors =
-            core_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
+            editor_contracts::PaneRegistry::registered_descriptors().unwrap_or_default();
         let next_kind = if descriptors.is_empty() {
             current_kind
         } else {
@@ -156,6 +156,7 @@ impl Editor {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) {
+        self.focus_pane(pane_id, window, cx);
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
             pane_state
                 .pane

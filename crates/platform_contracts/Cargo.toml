@@ -1,5 +1,5 @@
 [package]
-name = "core_contracts"
+name = "platform_contracts"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,12 +13,10 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
+config = { path = "../config" }
 gpui = { workspace = true }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
-config = { path = "../config" }
-regex = "1.10"
-uuid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = "1"

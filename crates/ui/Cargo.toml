@@ -14,4 +14,5 @@ splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 config = { path = "../config" }
 gpui = { workspace = true }
-core_contracts = { path = "../core_contracts" }
+editor_contracts = { path = "../editor_contracts" }
+platform_contracts = { path = "../platform_contracts" }

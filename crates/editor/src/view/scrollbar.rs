@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::editor::Editor;
 use crate::session::ScrollbarDragSession;
-use core_contracts::{AutoscrollStrategy, PaneId};
+use editor_contracts::{AutoscrollStrategy, PaneId};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScrollbarGeometry {

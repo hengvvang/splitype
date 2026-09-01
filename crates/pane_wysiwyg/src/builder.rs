@@ -1,5 +1,5 @@
 use crate::pane::state::WysiwygPaneState;
-use core_contracts::{PaneDescriptor, PaneKind, PaneView};
+use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 
 /// Stable kind identifier of the WYSIWYG pane plugin.

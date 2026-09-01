@@ -5,7 +5,7 @@ use gpui::*;
 use crate::components::*;
 use config::language::{I18nStrings, apply_configured_language};
 use config::settings::*;
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use theme::{Theme, ThemeManager, apply_configured_theme};
 
 use crate::state::{SettingsTab, SettingsUiState};

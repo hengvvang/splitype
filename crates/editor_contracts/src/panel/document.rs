@@ -7,8 +7,8 @@
 
 use crate::document::{DocumentHost, TabKind};
 use crate::export::ExportFormat;
-use crate::panel::PanelView;
 use gpui::{App, Window};
+use platform_contracts::PanelView;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 

@@ -1,7 +1,7 @@
 //! WYSIWYG panel — the rendered block view.
 //!
 //! Row layout and spacing helpers used by the main render pass; the render
-//! orchestration itself lives in `crate::core_contracts::panes::wysiwyg::render`.
+//! orchestration itself lives in `crate::editor_contracts::panes::wysiwyg::render`.
 
 use gpui::*;
 use markdown_parser::parse::BlockId;

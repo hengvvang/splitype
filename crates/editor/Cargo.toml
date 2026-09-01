@@ -15,7 +15,8 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 config = { path = "../config" }
-core_contracts = { path = "../core_contracts" }
+editor_contracts = { path = "../editor_contracts" }
+platform_contracts = { path = "../platform_contracts" }
 futures = "0.3"
 gpui = { workspace = true }
 splitter = { path = "../splitter" }

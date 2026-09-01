@@ -23,7 +23,7 @@ use crate::pane::controller::WysiwygDocumentController;
 #[derive(Default)]
 pub struct WysiwygPaneState {
     pub controller: Option<Entity<WysiwygDocumentController>>,
-    pub pending_document: Option<core_contracts::DocumentSnapshot>,
+    pub pending_document: Option<editor_contracts::DocumentSnapshot>,
 }
 
 impl WysiwygPaneState {
@@ -34,7 +34,7 @@ impl WysiwygPaneState {
         let document = self
             .pending_document
             .clone()
-            .unwrap_or_else(core_contracts::DocumentSnapshot::empty);
+            .unwrap_or_else(editor_contracts::DocumentSnapshot::empty);
         let controller = cx.new(|cx| WysiwygDocumentController::new(&document, cx));
         self.controller = Some(controller.clone());
         controller

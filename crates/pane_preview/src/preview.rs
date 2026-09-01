@@ -5,9 +5,9 @@
 //! owns its full presentation (block renderers, footnote section, quote
 //! guides) and never touches WYSIWYG editing internals.
 //!
-//! The pane state implements [`core_contracts::PaneView`]. The coordinating
+//! The pane state implements [`editor_contracts::PaneView`]. The coordinating
 //! crate only refreshes the tree, routes focus and hands over the scroll
-//! shell through [`core_contracts::PaneRenderContext`].
+//! shell through [`editor_contracts::PaneRenderContext`].
 
 pub mod builder;
 mod context;

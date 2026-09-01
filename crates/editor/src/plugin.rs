@@ -1,7 +1,9 @@
 use crate::editor::Editor;
 use crate::session::EditorSession;
-use core_contracts::{DocumentHost, DocumentPanel, PanelCapabilities, PanelKind, TabKind};
-use core_contracts::{PanelDescriptor, PanelId, PanelRenderContext, PanelView};
+use platform_contracts::{
+    PanelCapabilities, PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView,
+};
+use editor_contracts::{DocumentHost, DocumentPanel, TabKind};
 use gpui::*;
 use std::any::Any;
 use std::path::{Path, PathBuf};
@@ -34,14 +36,6 @@ impl PanelView for EditorPanelView {
 
     fn capabilities(&self) -> PanelCapabilities {
         PanelCapabilities::DOCUMENTS
-    }
-
-    fn as_document_panel(&self) -> Option<&dyn DocumentPanel> {
-        Some(self)
-    }
-
-    fn as_document_panel_mut(&mut self) -> Option<&mut dyn DocumentPanel> {
-        Some(self)
     }
 
     fn display_name(&self) -> SharedString {
@@ -304,7 +298,7 @@ impl DocumentPanel for EditorPanelView {
 
     fn export_document(
         &mut self,
-        format: core_contracts::ExportFormat,
+        format: editor_contracts::ExportFormat,
         window: &mut Window,
         cx: &mut App,
     ) {

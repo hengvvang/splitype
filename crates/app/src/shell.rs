@@ -16,8 +16,8 @@ pub(crate) use self::host_bridge::ShellDocumentHost;
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
-use core_contracts::PanelView;
-use core_contracts::{DocumentPanel, PanelId, PanelKind};
+use editor_contracts::PanelView;
+use editor_contracts::{DocumentPanel, PanelId, PanelKind};
 use splitter::tree::NodeId;
 use std::path::PathBuf;
 
@@ -45,7 +45,7 @@ pub(crate) struct UnsavedDialogState {
 /// Durable state of a panel that suspended itself during a kind switch.
 /// Restored through the owning descriptor when its kind returns.
 pub struct RetainedPanel {
-    pub kind: core_contracts::PanelKind,
+    pub kind: editor_contracts::PanelKind,
     pub state: Box<dyn std::any::Any>,
 }
 
@@ -136,7 +136,7 @@ impl Shell {
     ) -> Option<&dyn DocumentPanel> {
         self.panel_views
             .get(&panel_id.into())
-            .and_then(|view| view.as_document_panel())
+            .and_then(|view| as_document_panel(view.as_ref()))
     }
 
     /// The mutable document-routing view of `panel_id`, if it has one.
@@ -146,7 +146,7 @@ impl Shell {
     ) -> Option<&mut dyn DocumentPanel> {
         self.panel_views
             .get_mut(&panel_id.into())
-            .and_then(|view| view.as_document_panel_mut())
+            .and_then(|view| as_document_panel_mut(view))
     }
 
     /// The document panel currently requesting the unsaved-changes dialog.
@@ -155,7 +155,7 @@ impl Shell {
         cx: &App,
     ) -> Option<&mut dyn DocumentPanel> {
         self.panel_views.values_mut().find_map(|view| {
-            view.as_document_panel_mut()
+            as_document_panel_mut(view)
                 .filter(|panel| panel.has_unsaved_dialog(cx))
         })
     }
@@ -166,7 +166,7 @@ impl Shell {
         cx: &App,
     ) -> Option<&mut dyn DocumentPanel> {
         self.panel_views.values_mut().find_map(|view| {
-            view.as_document_panel_mut()
+            as_document_panel_mut(view)
                 .filter(|panel| panel.has_drop_replace_dialog(cx))
         })
     }
@@ -338,4 +338,20 @@ impl Shell {
     pub(crate) fn layout_leaf_count(&self) -> usize {
         self.panels.layout.tree.count_leaves()
     }
+}
+
+pub(crate) fn as_document_panel(
+    view: &dyn platform_contracts::PanelView,
+) -> Option<&dyn DocumentPanel> {
+    view.as_any()
+        .downcast_ref::<editor::EditorPanelView>()
+        .map(|v| v as &dyn DocumentPanel)
+}
+
+pub(crate) fn as_document_panel_mut(
+    view: &mut Box<dyn platform_contracts::PanelView>,
+) -> Option<&mut dyn DocumentPanel> {
+    view.as_any_mut()
+        .downcast_mut::<editor::EditorPanelView>()
+        .map(|v| v as &mut dyn DocumentPanel)
 }

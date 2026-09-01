@@ -5,7 +5,7 @@
 //! placeholder instead of a blank tile. The placeholder keeps the layout
 //! intact and names the owning plugin when its manifest is known.
 
-use core_contracts::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
+use platform_contracts::{PanelCapabilities, PanelId, PanelKind, PanelRenderContext, PanelView};
 use gpui::*;
 use std::any::Any;
 
@@ -22,11 +22,11 @@ impl MissingPanelView {
     /// Builds a placeholder for `kind`, resolving the display name through
     /// the plugin registry.
     pub fn new(panel_id: PanelId, kind: PanelKind) -> Self {
-        let display_name = core_contracts::PluginRegistry::panel_kind_owner_global(kind.clone())
+        let display_name = platform_contracts::PluginRegistry::panel_kind_owner_global(kind.clone())
             .ok()
             .flatten()
             .and_then(|plugin_id| {
-                core_contracts::PluginRegistry::registered(plugin_id)
+                platform_contracts::PluginRegistry::registered(plugin_id)
                     .ok()
                     .flatten()
             })
@@ -110,28 +110,28 @@ impl PanelView for MissingPanelView {
 #[cfg(test)]
 mod tests {
     use crate::panel::MissingPanelView;
-    use core_contracts::{PanelId, PanelKind, PanelView};
+    use platform_contracts::{PanelId, PanelKind, PanelView};
     use gpui::SharedString;
 
     #[test]
     fn missing_panel_resolves_owner_display_name() {
-        let manifest = core_contracts::PluginManifest {
-            manifest_version: core_contracts::PLUGIN_MANIFEST_VERSION,
-            plugin: core_contracts::PluginId::from_static("com.example.missing-test"),
+        let manifest = platform_contracts::PluginManifest {
+            manifest_version: platform_contracts::PLUGIN_MANIFEST_VERSION,
+            plugin: platform_contracts::PluginId::from_static("com.example.missing-test"),
             name: "Missing Test".into(),
             version: "0.1.0".into(),
             description: None,
-            entry: core_contracts::PluginEntry::InProcess {
+            entry: platform_contracts::PluginEntry::InProcess {
                 registration: "test".into(),
             },
-            capabilities: core_contracts::PluginCapabilities {
+            capabilities: platform_contracts::PluginCapabilities {
                 panes: Vec::new(),
                 panels: vec![PanelKind::from_static("com.example.missing-test.panel")],
             },
-            resources: core_contracts::PluginResources::default(),
+            resources: platform_contracts::PluginResources::default(),
             commands: Vec::new(),
         };
-        core_contracts::PluginRegistry::register_global(manifest).expect("register manifest");
+        platform_contracts::PluginRegistry::register_global(manifest).expect("register manifest");
 
         let view = MissingPanelView::new(
             PanelId(1),

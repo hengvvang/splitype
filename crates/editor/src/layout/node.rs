@@ -6,13 +6,13 @@ use splitter::tree::SplitTree;
 
 use crate::editor::Editor;
 use config::language::I18nStrings;
-use core_contracts::PaneId;
+use editor_contracts::PaneId;
 use theme::Theme;
 
 impl Editor {
     pub(crate) fn render_editor_pane_split_tree(
         &mut self,
-        tree: &SplitTree<core_contracts::PaneKind>,
+        tree: &SplitTree<editor_contracts::PaneKind>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -36,7 +36,7 @@ impl Editor {
 
     pub(crate) fn render_editor_pane_node(
         &mut self,
-        node: &SplitTree<core_contracts::PaneKind>,
+        node: &SplitTree<editor_contracts::PaneKind>,
         theme: &Theme,
         _strings: &I18nStrings,
         window: &mut Window,
@@ -325,16 +325,18 @@ impl Editor {
             .session
             .active_tab()
             .map(crate::session::DocumentTab::snapshot)
-            .unwrap_or_else(core_contracts::DocumentSnapshot::empty);
+            .unwrap_or_else(editor_contracts::DocumentSnapshot::empty);
 
+        let is_outline_hovered = self.outline.is_hovered;
         if let Some(state) = self.pane_state_mut(pane_id) {
             state.pane.sync_document(&document, cx);
             let scroll = state.scroll.handle.clone();
-            let render_ctx = core_contracts::PaneRenderContext {
+            let render_ctx = editor_contracts::PaneRenderContext {
                 pane_id,
                 is_focused,
                 scroll: &scroll,
                 host: &host,
+                is_outline_hovered,
             };
             state.pane.render(&render_ctx, window, cx)
         } else {

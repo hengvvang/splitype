@@ -11,7 +11,7 @@ use ui::popover::menu_panel;
 
 use config::language::I18nStrings;
 use config::settings::{SettingsStore, StatusBarSettings};
-use core_contracts::{PaneId, PaneKind, PaneRegistry};
+use editor_contracts::{PaneId, PaneKind, PaneRegistry};
 
 use crate::editor::Editor;
 use crate::view::words::count_words;
@@ -83,7 +83,7 @@ impl Editor {
 
         if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind.clone()) {
             let toggle_editor = cx.entity().downgrade();
-            let label = core_contracts::PaneRegistry::registered(focused_kind.clone())
+            let label = editor_contracts::PaneRegistry::registered(focused_kind.clone())
                 .ok()
                 .flatten()
                 .map(|descriptor| descriptor.display_name().to_string())

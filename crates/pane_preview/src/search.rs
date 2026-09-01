@@ -1,7 +1,7 @@
 //! Preview pane search matching and highlight navigation.
 
 use crate::state::PreviewState;
-use core_contracts::{SearchMatch, SearchQuery};
+use editor_contracts::{SearchMatch, SearchQuery};
 
 /// Searches within the Markdown text source of the Preview pane.
 pub fn search_in_preview(markdown: &str, query: &SearchQuery) -> Vec<SearchMatch> {

@@ -3,9 +3,9 @@
 //!
 //! Only durable facts are captured — transient interaction sessions (splitter
 //! drags, dropdowns) are not serialized. Panels opt into state persistence
-//! through [`core_contracts::PanelDescriptor::serialize_state`].
+//! through [`platform_contracts::PanelDescriptor::serialize_state`].
 
-use core_contracts::{PanelId, PanelKind};
+use platform_contracts::{PanelId, PanelKind};
 use serde::{Deserialize, Serialize};
 use splitter::root::SplitterRoot;
 use splitter::tree::{NodeId, SplitTree};

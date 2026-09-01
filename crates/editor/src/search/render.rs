@@ -9,7 +9,7 @@ use std::sync::Arc;
 use gpui::*;
 
 use crate::editor::Editor;
-use core_contracts::SearchHost;
+use editor_contracts::SearchHost;
 use theme::Theme;
 
 impl Editor {

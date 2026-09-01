@@ -1,7 +1,7 @@
 //! Source code search matching and slice replacement.
 
 use crate::state::SourceCodeState;
-use core_contracts::{SearchMatch, SearchQuery};
+use editor_contracts::{SearchMatch, SearchQuery};
 use std::ops::Range;
 
 /// Searches within the raw source text buffer.

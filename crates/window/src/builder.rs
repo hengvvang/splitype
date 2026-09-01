@@ -2,7 +2,7 @@
 //! layout root.
 
 use crate::layout::WindowLayout;
-use core_contracts::{PanelId, PanelKind};
+use platform_contracts::{PanelId, PanelKind};
 use splitter::container::SplitterContainer;
 use splitter::root::SplitterRoot;
 use splitter::tree::{SplitAxis, SplitTree};

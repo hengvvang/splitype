@@ -1,7 +1,7 @@
 //! WYSIWYG search matching, rich-text-safe replacement, and block highlight mapping.
 
 use crate::model::Document;
-use core_contracts::{SearchMatch, SearchQuery};
+use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{App, EntityId};
 use std::ops::Range;
 

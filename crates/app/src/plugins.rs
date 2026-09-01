@@ -8,7 +8,7 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use core_contracts::{PaneDescriptor, PanelDescriptor, PluginId, PluginManifest, PluginRegistry};
+use editor_contracts::{PaneDescriptor, PanelDescriptor, PluginId, PluginManifest, PluginRegistry};
 
 /// Descriptor factories produced by one in-process registration.
 struct PluginRegistration {
@@ -86,17 +86,17 @@ pub(crate) fn init_plugins() {
             commands,
             ..
         } = manifest.clone();
-        let core_contracts::PluginEntry::InProcess { registration } = entry;
+        let editor_contracts::PluginEntry::InProcess { registration } = entry;
         let factory = descriptors_for(&registration)
             .unwrap_or_else(|| panic!("no descriptor factory for registration '{registration}'"));
 
         for (descriptor, is_default) in &factory.pane_descriptors {
             assert!(
-                capabilities.panes.contains(&descriptor.kind()),
+                capabilities.panes.iter().any(|p| p == descriptor.kind().as_str()),
                 "pane kind '{}' registered by '{plugin}' is not declared in its manifest",
                 descriptor.kind()
             );
-            core_contracts::PaneRegistry::register_global(descriptor.clone(), *is_default)
+            editor_contracts::PaneRegistry::register_global(descriptor.clone(), *is_default)
                 .expect("bundled pane kinds must be unique");
         }
         for (descriptor, is_default) in &factory.panel_descriptors {
@@ -114,8 +114,8 @@ pub(crate) fn init_plugins() {
                 crate::commands::binding_for(plugin.as_str(), &command.id).is_some(),
                 "command '{full_id}' declared by '{plugin}' has no composition-root binding"
             );
-            core_contracts::CommandRegistry::register_global(core_contracts::CommandContribution {
-                id: core_contracts::CommandId::new(full_id),
+            editor_contracts::CommandRegistry::register_global(editor_contracts::CommandContribution {
+                id: editor_contracts::CommandId::new(full_id),
                 menu: command.menu.clone().map(std::sync::Arc::from),
                 shortcuts: command
                     .shortcuts

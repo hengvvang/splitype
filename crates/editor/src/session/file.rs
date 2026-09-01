@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::editor::Editor;
 use config::language::I18nManager;
-use core_contracts::AutoscrollStrategy;
+use editor_contracts::AutoscrollStrategy;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -98,7 +98,7 @@ impl Editor {
                 .root
                 .tree
                 .first_leaf_id()
-                .map(core_contracts::PaneId)
+                .map(editor_contracts::PaneId)
         }) {
             if let Some(state) = self.session.empty_panes.get(&pane_id) {
                 state.pane.serialize_text(cx).unwrap_or_default()

@@ -1,14 +1,14 @@
 //! Search and replace floating overlay panel UI (VS Code / Zed inspired layout with separated results card).
 //!
-//! Pure presentation over [`core_contracts::SearchPanelState`]; coordination
-//! actions re-enter the editor through [`core_contracts::SearchHost`].
+//! Pure presentation over [`editor_contracts::SearchPanelState`]; coordination
+//! actions re-enter the editor through [`editor_contracts::SearchHost`].
 
 use std::sync::Arc;
 
 use gpui::*;
 
 use crate::search_input::SearchInputElement;
-use core_contracts::{
+use editor_contracts::{
     SearchActiveField, SearchHost, SearchIme, SearchPanelState, SearchScope, SearchStateView,
 };
 use theme::{Theme, TypographyScope, TypographyStore};

@@ -1,7 +1,7 @@
 //! Unified navigation engine and viewport scrolling — zero compatibility,
 //! single source of truth.
 
-use core_contracts::{NavigationExecutionPlan, NavigationTarget, PaneId};
+use editor_contracts::{NavigationExecutionPlan, NavigationTarget, PaneId};
 use gpui::*;
 
 /// A request to navigate to a target from a keyboard modifier state.

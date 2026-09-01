@@ -1,7 +1,7 @@
 //! Preview pane outline extraction and heading navigation.
 
 use crate::state::PreviewState;
-use core_contracts::OutlineNode;
+use editor_contracts::OutlineNode;
 
 /// Extracts all heading nodes from the serialized Markdown document.
 pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {

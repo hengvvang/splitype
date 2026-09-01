@@ -1,7 +1,7 @@
 //! WYSIWYG pane outline extraction and heading navigation.
 
 use crate::model::Document;
-use core_contracts::OutlineNode;
+use editor_contracts::OutlineNode;
 use gpui::App;
 use markdown_parser::parse::BlockKind;
 

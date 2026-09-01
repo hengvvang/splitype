@@ -4,7 +4,7 @@
 //! ([`keybindings`]), the bootstrap/CLI/platform glue, the menu system ([`menus`]),
 //! window chrome ([`chrome`]), layout ([`layout`]), and dialogs ([`dialogs`]).
 //!
-//! The modular editor engine (`editor`), contracts (`core_contracts`),
+//! The modular editor engine (`editor`), contracts (`editor_contracts`),
 //! pane plugins (`pane_wysiwyg`, `pane_source_code`, `pane_preview`),
 //! and panel crates (`explorer`, `settings`) are wired together here.
 

@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 use gpui::{App, Context, KeyDownEvent, Window};
 
 use crate::editor::Editor;
-use core_contracts::SearchQuery;
-use core_contracts::{SearchActiveField, SearchMatch, SearchScope};
+use editor_contracts::SearchQuery;
+use editor_contracts::{SearchActiveField, SearchMatch, SearchScope};
 
 impl Editor {
     /// Toggles visibility of the Search and Replace overlay panel.
@@ -460,7 +460,7 @@ impl Editor {
         };
 
         if let Some(ref file_path) = match_item.file_path {
-            self.open_file_in_panel(file_path, core_contracts::TabKind::Persistent, window, cx);
+            self.open_file_in_panel(file_path, editor_contracts::TabKind::Persistent, window, cx);
         }
 
         let active_pane = self.active_pane_id();
@@ -474,7 +474,7 @@ impl Editor {
         }
 
         self.sync_search_highlights_to_document(cx);
-        self.request_autoscroll(active_pane, core_contracts::AutoscrollStrategy::Center, cx);
+        self.request_autoscroll(active_pane, editor_contracts::AutoscrollStrategy::Center, cx);
         window.refresh();
         cx.notify();
     }
@@ -494,7 +494,7 @@ impl Editor {
         };
 
         let raw_replace_str = self.search.replace_query().to_string();
-        let final_replace_str = core_contracts::compute_preserve_case_replacement(
+        let final_replace_str = editor_contracts::compute_preserve_case_replacement(
             &match_item.preview_match,
             &raw_replace_str,
             self.search.preserve_case,

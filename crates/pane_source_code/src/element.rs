@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use core_contracts::{PaneHost, PaneId};
+use editor_contracts::{PaneHost, PaneId};
 use gpui::*;
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 

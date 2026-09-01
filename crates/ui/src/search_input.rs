@@ -1,4 +1,4 @@
-use core_contracts::{SearchActiveField, SearchHost, SearchIme, SearchStateView};
+use editor_contracts::{SearchActiveField, SearchHost, SearchIme, SearchStateView};
 use gpui::*;
 use std::sync::Arc;
 use theme::ThemeManager;

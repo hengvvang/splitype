@@ -8,7 +8,7 @@
 //!   instance owns its own [`ExplorerState`] entity (one per
 //!   `ExplorerPanelView`), so split and multi-window panels never share
 //!   tree state; the panel never touches the window shell, and shell
-//!   interactions go through the [`core_contracts`] host seams.
+//!   interactions go through the [`platform_contracts`] host seams.
 //! - **Selection** is keyed by the Zed-style double key
 //!   `(worktree index, stable entry id)`; ids survive renames and moves, so
 //!   selection and expansion state survive rescans. Multi-select marks,

@@ -1,6 +1,6 @@
 //! Panel framework of the window shell.
 //!
-//! The trait contracts and domain types live in `core_contracts::panel`; this
+//! The trait contracts and domain types live in `platform_contracts::panel`; this
 //! module hosts the window-side implementations: the registry and the
 //! missing-plugin placeholder.
 

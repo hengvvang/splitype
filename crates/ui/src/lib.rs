@@ -1,6 +1,6 @@
 //! Reusable UI components — small, business-free building blocks.
 //!
-//! Components here consume `core_contracts` data contracts (outline nodes,
+//! Components here consume `editor_contracts` data contracts (outline nodes,
 //! search state) plus `theme`, `config`, `splitter`, and gpui, so any view
 //! can reuse them without depending on the editor family.
 

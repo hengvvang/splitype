@@ -10,7 +10,7 @@ use gpui::*;
 
 use crate::editor::Editor;
 use config::language::I18nStrings;
-use core_contracts::PaneId;
+use editor_contracts::PaneId;
 use theme::Theme;
 
 impl Editor {

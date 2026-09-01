@@ -10,7 +10,8 @@ members = [
     "crates/config",
     "crates/ui",
     "crates/window",
-    "crates/core_contracts",
+    "crates/platform_contracts",
+    "crates/editor_contracts",
     "crates/editor",
     "crates/pane_source_code",
     "crates/pane_wysiwyg",
@@ -31,7 +32,8 @@ rust-version = "1.91"
 
 [workspace.dependencies]
 # Member crates
-core_contracts = { path = "crates/core_contracts" }
+platform_contracts = { path = "crates/platform_contracts" }
+editor_contracts = { path = "crates/editor_contracts" }
 markdown_parser = { path = "crates/markdown_parser" }
 syntax_highlighter = { path = "crates/syntax_highlighter" }
 splitter = { path = "crates/splitter" }

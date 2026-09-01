@@ -4,7 +4,6 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::pane::PaneKind;
 use crate::panel::PanelKind;
 use crate::plugin::PluginId;
 
@@ -67,7 +66,7 @@ pub enum PluginEntry {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PluginCapabilities {
     #[serde(default)]
-    pub panes: Vec<PaneKind>,
+    pub panes: Vec<String>,
     #[serde(default)]
     pub panels: Vec<PanelKind>,
 }

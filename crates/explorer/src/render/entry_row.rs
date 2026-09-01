@@ -9,7 +9,7 @@ use crate::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
     ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry, file_type_icon,
 };
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use theme::Theme;
 
 impl ExplorerState {

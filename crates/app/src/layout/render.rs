@@ -10,7 +10,7 @@ use theme::Theme;
 impl Shell {
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &splitter::SplitTree<core_contracts::PanelKind>,
+        node: &splitter::SplitTree<editor_contracts::PanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,

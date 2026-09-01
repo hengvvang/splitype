@@ -5,7 +5,7 @@
 
 use gpui::*;
 
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use splitter::SplitAxis;
 use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};

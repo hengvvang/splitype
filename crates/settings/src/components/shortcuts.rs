@@ -16,7 +16,7 @@ pub struct ShortcutItem {
 /// Groups the registry's commands with declared shortcuts by plugin id,
 /// preserving declaration order.
 pub fn shortcut_sections() -> Vec<(String, Vec<ShortcutItem>)> {
-    let contributions = core_contracts::CommandRegistry::registered_commands().unwrap_or_default();
+    let contributions = platform_contracts::CommandRegistry::registered_commands().unwrap_or_default();
     let mut sections: Vec<(String, Vec<ShortcutItem>)> = Vec::new();
     for contribution in contributions {
         if contribution.shortcuts.is_empty() {

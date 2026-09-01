@@ -1,5 +1,5 @@
 //! Outline HUD coordination — navigation and hover event bridging for the
-//! active pane. The HUD state lives in `core_contracts::OutlineHudState`;
+//! active pane. The HUD state lives in `editor_contracts::OutlineHudState`;
 //! the floating HUD rendering lives in the `ui` crate.
 
 use std::time::Duration;
@@ -7,6 +7,7 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::editor::Editor;
+use editor_contracts::PaneId;
 use theme::Theme;
 
 impl Editor {
@@ -49,15 +50,41 @@ impl Editor {
     /// Navigates the editor to the specified heading in the outline.
     pub(crate) fn navigate_to_outline_index(
         &mut self,
+        pane_id: PaneId,
         index: usize,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) {
         self.outline.active_index = Some(index);
-        let pane_id = self.active_pane_id();
+        let kind = self
+            .pane_kind(pane_id)
+            .unwrap_or_else(|| self.default_pane_kind());
         if let Some(state) = self.pane_state_mut(pane_id) {
             if state.pane.capabilities().outline {
                 state.pane.navigate_to_outline(index, theme, cx);
+                let headings = state.pane.outline_headings(cx);
+                if let Some(node) = headings.get(index) {
+                    let target_y = if kind.as_str() == "splitype.pane.source_code" {
+                        let font_size = theme.typography.code_size.max(12.0);
+                        let line_height = (font_size * theme.typography.text_line_height).round();
+                        let padding = theme.dimensions.editor_padding;
+                        (node.block_index as f32 * line_height) - padding
+                    } else if kind.as_str() == "splitype.pane.preview" {
+                        let font_size = theme.typography.text_size.max(14.0);
+                        let line_height =
+                            (font_size * theme.typography.text_line_height).round().max(22.0);
+                        (node.block_index as f32 * line_height * 2.0).max(0.0)
+                    } else {
+                        let font_size = theme.typography.text_size.max(14.0);
+                        let line_height =
+                            (font_size * theme.typography.text_line_height).round().max(24.0);
+                        (node.block_index as f32 * line_height * 1.5) - 40.0
+                    };
+                    state
+                        .scroll
+                        .handle
+                        .set_offset(point(px(0.0), px(-target_y.max(0.0))));
+                }
             }
         }
         cx.notify();

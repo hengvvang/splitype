@@ -7,7 +7,7 @@
 
 use gpui::*;
 
-use core_contracts::PanelId;
+use platform_contracts::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 

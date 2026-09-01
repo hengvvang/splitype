@@ -15,6 +15,7 @@ pub struct PaneRenderContext<'a> {
     pub is_focused: bool,
     pub scroll: &'a ScrollHandle,
     pub host: &'a Arc<dyn PaneHost>,
+    pub is_outline_hovered: bool,
 }
 
 /// Host seam a pane uses to reach back into the coordinating editor.
