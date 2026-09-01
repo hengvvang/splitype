@@ -6,11 +6,11 @@ use gpui::*;
 
 use super::Block;
 use super::state::CollapsedCaretAffinity;
-use crate::markdown::block::link::LinkReferenceDefinitions;
-use crate::markdown::inline::render_cache::{InlineRenderCache, InlineSpan};
-use crate::markdown::inline::text::BlockText;
-use crate::markdown::parse::BlockKind;
 use crate::model::block::footnotes::FootnoteMap;
+use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::inline::render_cache::{InlineRenderCache, InlineSpan};
+use markdown_parser::inline::text::BlockText;
+use markdown_parser::parse::BlockKind;
 use std::sync::Arc;
 
 impl Block {
@@ -24,11 +24,11 @@ impl Block {
         if self.selected_range.is_empty() {
             return String::new();
         }
-        let start = crate::markdown::inline::serialize::clamp_to_char_boundary(
+        let start = markdown_parser::inline::serialize::clamp_to_char_boundary(
             text,
             self.selected_range.start,
         );
-        let end = crate::markdown::inline::serialize::clamp_to_char_boundary(
+        let end = markdown_parser::inline::serialize::clamp_to_char_boundary(
             text,
             self.selected_range.end.max(start),
         );
@@ -59,7 +59,7 @@ impl Block {
     }
 
     #[cfg(test)]
-    pub fn inline_style_at(&self, offset: usize) -> crate::markdown::inline::style::InlineStyle {
+    pub fn inline_style_at(&self, offset: usize) -> markdown_parser::inline::style::InlineStyle {
         self.display_cache().style_at(offset)
     }
 
@@ -67,7 +67,7 @@ impl Block {
     pub fn inline_html_style_at(
         &self,
         offset: usize,
-    ) -> Option<crate::markdown::inline::html::HtmlInlineStyle> {
+    ) -> Option<markdown_parser::inline::html::HtmlInlineStyle> {
         self.display_cache().html_style_at(offset)
     }
 
@@ -82,7 +82,7 @@ impl Block {
 
     pub fn footnote_definition_id(&self) -> Option<String> {
         self.kind().is_footnote_definition().then(|| {
-            crate::markdown::block::footnote::split_footnote_definition_text(
+            markdown_parser::block::footnote::split_footnote_definition_text(
                 &self.data.text.plain_text(),
             )
             .0

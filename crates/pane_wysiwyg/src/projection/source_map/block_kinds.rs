@@ -2,12 +2,12 @@
 
 use gpui::*;
 
-use crate::markdown::parse::BlockKind;
 use crate::model::block::Block;
+use crate::pane::state::SourceTargetMapping;
 use crate::projection::source_map::mapping_buffer::{
     build_code_block_content_mapping, build_prefixed_content_mapping,
 };
-use crate::state::SourceTargetMapping;
+use markdown_parser::parse::BlockKind;
 
 pub fn push_inline_block_mapping(
     block: &Entity<Block>,
@@ -174,10 +174,10 @@ pub fn push_fenced_block_mapping(
         };
         let (serialized, body_range) = match block_ref.kind() {
             BlockKind::MathBlock => {
-                crate::markdown::block::math::serialize_display_math_source(&body)
+                markdown_parser::block::math::serialize_display_math_source(&body)
             }
             BlockKind::MermaidBlock => {
-                crate::markdown::block::mermaid::serialize_mermaid_source(&body)
+                markdown_parser::block::mermaid::serialize_mermaid_source(&body)
             }
             _ => (body, 0..0),
         };

@@ -11,7 +11,7 @@ impl Document {
     pub fn new(roots: Vec<Entity<Block>>) -> Self {
         Self {
             roots,
-            tree: crate::tree::SumTree::new(),
+            tree: crate::model::tree::SumTree::new(),
             index: BlockIndex::default(),
             structure_version: 0,
             metadata_rebuild_version: 0,
@@ -100,7 +100,7 @@ impl Document {
 
     pub fn find_entity_by_block_id(
         &self,
-        block_id: crate::markdown::parse::BlockId,
+        block_id: markdown_parser::parse::BlockId,
         cx: &App,
     ) -> Option<Entity<Block>> {
         self.index

@@ -1,9 +1,9 @@
 //! WYSIWYG pane outline extraction and heading navigation.
 
-use crate::markdown::parse::BlockKind;
 use crate::model::Document;
 use core_contracts::OutlineNode;
 use gpui::App;
+use markdown_parser::parse::BlockKind;
 
 /// Extracts all heading nodes from the WYSIWYG document blocks.
 pub fn extract_outline_headings(doc: &Document, cx: &App) -> Vec<OutlineNode> {

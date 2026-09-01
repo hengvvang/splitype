@@ -20,7 +20,7 @@ use editor::actions::{
 use config::keybindings::{
     SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
 };
-use pane_wysiwyg::actions::{
+use pane_wysiwyg::pane::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Delete, DeleteBackward, End, ExitCodeBlock,
     FocusNext, FocusPrevious, Home, IndentBlock, ItalicSelection, MoveLeft, MoveRight, Newline,
     OutdentBlock, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,

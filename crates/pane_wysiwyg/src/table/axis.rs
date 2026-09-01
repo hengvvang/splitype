@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::markdown::block::table::{TableAxis, TableAxisMarker};
 use crate::model::block::Block;
-use crate::state::TableAxisSelection;
+use crate::pane::state::TableAxisSelection;
+use markdown_parser::block::table::{TableAxis, TableAxisMarker};
 
 /// Converts a selection into an axis marker.
 pub fn table_axis_marker(selection: TableAxisSelection) -> TableAxisMarker {

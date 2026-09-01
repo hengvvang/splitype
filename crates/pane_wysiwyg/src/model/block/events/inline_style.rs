@@ -3,13 +3,13 @@
 
 use gpui::*;
 
-use crate::actions::{
+use crate::model::block::{Block, InlineFormat};
+use crate::model::protocol::BlockEvent;
+use crate::pane::actions::{
     BoldSelection, CodeSelection, ExitCodeBlock, ItalicSelection, StrikethroughSelection,
     UnderlineSelection,
 };
-use crate::markdown::inline::text::BlockText;
-use crate::model::block::{Block, InlineFormat};
-use crate::model::protocol::BlockEvent;
+use markdown_parser::inline::text::BlockText;
 impl Block {
     pub fn on_bold_selection(
         &mut self,

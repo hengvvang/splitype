@@ -1,6 +1,6 @@
 //! Table column operations: append, insert, align, move, delete, duplicate.
 
-use crate::markdown::block::table::{TableColumnAlignment, TableData};
+use markdown_parser::block::table::{TableColumnAlignment, TableData};
 
 pub fn append_table_column(table: &mut TableData) {
     let alignment = table

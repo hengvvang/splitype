@@ -2,13 +2,13 @@
 
 use gpui::*;
 
-use crate::markdown::block::html::{
-    HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
-};
-use crate::markdown::block::image::resolve_image_source;
-use crate::markdown::inline::html::HtmlCssColor;
 use crate::model::block::{Block, ImageHandle};
 use config::language::I18nManager;
+use markdown_parser::block::html::{
+    HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
+};
+use markdown_parser::block::image::resolve_image_source;
+use markdown_parser::inline::html::HtmlCssColor;
 use theme::Theme;
 
 /// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.

@@ -2,12 +2,12 @@
 
 use gpui::*;
 
-use crate::markdown::block::image::ImageResolvedSource;
-use crate::markdown::parse::BlockKind;
 use crate::model::block::{Block, ImageHandle};
 use crate::render::layout::centered_column_width;
 use crate::render::visible_quote_guides;
 use config::language::I18nStrings;
+use markdown_parser::block::image::ImageResolvedSource;
+use markdown_parser::parse::BlockKind;
 use theme::{Theme, ThemeDimensions};
 
 pub fn render_image_placeholder(

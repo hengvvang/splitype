@@ -1,7 +1,7 @@
 //! Pure plain-paste splitting heuristics (moved from the editor's paste module).
 
-use crate::markdown::block::html::is_inline_tag;
-use crate::markdown::block::table::collect_pipeless_table_region;
+use markdown_parser::block::html::is_inline_tag;
+use markdown_parser::block::table::collect_pipeless_table_region;
 
 pub fn should_split_plain_multiline_paste(lines: &[String]) -> bool {
     // A pipeless GFM table reads cell-by-cell as plain lines, so detect the

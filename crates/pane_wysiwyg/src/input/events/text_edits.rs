@@ -1,6 +1,6 @@
 //! Text editing block events and formatting transformations.
 
-use crate::markdown::parse::BlockKind;
+use markdown_parser::parse::BlockKind;
 
 /// Prepares trailing text for sibling blocks on Enter key press.
 pub fn sibling_kind_on_newline(kind: BlockKind) -> BlockKind {

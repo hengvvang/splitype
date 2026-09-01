@@ -2,12 +2,12 @@
 
 use gpui::*;
 
-use crate::latex::{display_math_font_size, render_display_math_svg};
-use crate::markdown::block::math::parse_display_math_source;
-use crate::markdown::block::mermaid::parse_mermaid_fence_source;
-use crate::mermaid::{mermaid_content_fingerprint, render_mermaid_svg_for_display};
 use crate::model::block::Block;
 use crate::render::media_placeholder::effective_image_width;
+use markdown_parser::block::math::parse_display_math_source;
+use markdown_parser::block::mermaid::parse_mermaid_fence_source;
+use syntax_highlighter::latex::{display_math_font_size, render_display_math_svg};
+use syntax_highlighter::mermaid::{mermaid_content_fingerprint, render_mermaid_svg_for_display};
 use theme::{Theme, ThemeDimensions};
 
 impl Block {
@@ -30,7 +30,7 @@ impl Block {
                 .unwrap_or(raw.trim())
                 .trim()
                 .to_string();
-            crate::markdown::block::math::DisplayMathSource {
+            markdown_parser::block::math::DisplayMathSource {
                 source: raw.to_string(),
                 body,
             }
@@ -93,7 +93,7 @@ impl Block {
             } else {
                 trimmed.to_string()
             };
-            crate::markdown::block::mermaid::MermaidSource {
+            markdown_parser::block::mermaid::MermaidSource {
                 source: raw.to_string(),
                 body,
                 info: "mermaid".to_string(),
@@ -156,7 +156,7 @@ impl Block {
     }
 
     pub fn render_mermaid_svg_element(
-        rendered: crate::mermaid::MermaidSvgRender,
+        rendered: syntax_highlighter::mermaid::MermaidSvgRender,
         available_width: f32,
         block: &Block,
         d: &ThemeDimensions,

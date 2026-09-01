@@ -6,12 +6,12 @@ use std::time::Instant;
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::highlight::{CodeHighlightResult, highlight_code_block};
-use crate::markdown::inline::offsets::ImeConverter;
-use crate::markdown::parse::BlockKind;
 use crate::model::block::Block;
 use crate::model::block::normalize_code_language_input;
 use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use markdown_parser::inline::offsets::ImeConverter;
+use markdown_parser::parse::BlockKind;
+use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
 
 impl Block {
     pub fn code_highlight_result(&self) -> Option<&CodeHighlightResult> {

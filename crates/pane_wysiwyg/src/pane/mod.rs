@@ -1,4 +1,4 @@
-//! WYSIWYG Pane plugin implementation — PaneView contract and lifecycle.
+//! The WYSIWYG pane: its [`PaneView`] contract adapter and submodules.
 
 pub mod actions;
 pub mod controller;
@@ -6,39 +6,14 @@ pub mod outline;
 pub mod search;
 pub mod state;
 
-pub use actions::*;
-pub use controller::*;
-pub use outline::*;
-pub use search::*;
-pub use state::*;
-
 use core_contracts::OutlineNode;
 use core_contracts::{PaneCapabilities, PaneRenderContext, PaneView};
 use core_contracts::{SearchMatch, SearchQuery};
-use gpui::{AnyElement, App, AppContext, Entity, FocusHandle, Window};
+use gpui::{AnyElement, App, AppContext, FocusHandle, Window};
 use theme::Theme;
 
-/// View state specific to a WYSIWYG editor pane.
-#[derive(Default)]
-pub struct WysiwygPaneState {
-    pub controller: Option<Entity<WysiwygDocumentController>>,
-    pub pending_document: Option<core_contracts::DocumentSnapshot>,
-}
-
-impl WysiwygPaneState {
-    fn ensure_controller(&mut self, cx: &mut App) -> Entity<WysiwygDocumentController> {
-        if let Some(controller) = &self.controller {
-            return controller.clone();
-        }
-        let document = self
-            .pending_document
-            .clone()
-            .unwrap_or_else(core_contracts::DocumentSnapshot::empty);
-        let controller = cx.new(|cx| WysiwygDocumentController::new(&document, cx));
-        self.controller = Some(controller.clone());
-        controller
-    }
-}
+use crate::pane::controller::WysiwygDocumentController;
+use crate::pane::state::WysiwygPaneState;
 
 impl PaneView for WysiwygPaneState {
     fn kind(&self) -> core_contracts::PaneKind {

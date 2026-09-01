@@ -6,8 +6,8 @@ use crate::model::Document;
 /// Normalizes two endpoints into ordered start and end positions according to document tree index.
 pub fn normalize_cross_block_endpoints(
     doc: &Document,
-    start: crate::state::CrossBlockSelectionEndpoint,
-    end: crate::state::CrossBlockSelectionEndpoint,
+    start: crate::pane::state::CrossBlockSelectionEndpoint,
+    end: crate::pane::state::CrossBlockSelectionEndpoint,
 ) -> Option<NormalizedCrossBlockSelection> {
     let start_index = doc.index_for_entity_id(start.entity_id)?;
     let end_index = doc.index_for_entity_id(end.entity_id)?;

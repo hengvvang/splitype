@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::markdown::block::CalloutKind;
 use crate::model::block::Block;
 use crate::render::layout::callout_colors;
+use markdown_parser::block::CalloutKind;
 use theme::Theme;
 
 /// Render a callout (admonition) block.

@@ -5,8 +5,8 @@ use gpui::*;
 use super::Document;
 use super::index::{BlockEntry, BlockIndex, BlockLocation, TreeInheritanceScope};
 
-use crate::markdown::parse::BlockKind;
 use crate::model::block::{Block, BlockStructureContext};
+use markdown_parser::parse::BlockKind;
 
 impl Document {
     pub fn insert_blocks_at(
@@ -63,7 +63,7 @@ impl Document {
             .entries
             .iter()
             .map(|entry| entry.entity.read(cx).data.clone());
-        self.tree = crate::tree::SumTree::from_items(items, &());
+        self.tree = crate::model::tree::SumTree::from_items(items, &());
         self.metadata_rebuild_version = self.structure_version;
     }
 

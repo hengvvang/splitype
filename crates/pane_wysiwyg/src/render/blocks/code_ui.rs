@@ -6,10 +6,10 @@ use gpui::*;
 
 use crate::render::BLOCK_EDITOR_CONTEXT;
 
-use crate::code_language::{code_language_display_name, code_language_options_matching};
 use crate::model::block::Block;
 use crate::render::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
 use config::language::I18nStrings;
+use syntax_highlighter::language::{code_language_display_name, code_language_options_matching};
 use theme::Theme;
 
 impl Block {

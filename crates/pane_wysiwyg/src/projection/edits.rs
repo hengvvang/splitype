@@ -4,12 +4,12 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::markdown::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
-use crate::markdown::parse::BlockKind;
 use crate::model::block::Block;
 use crate::model::block::CollapsedCaretAffinity;
 use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::projection::{ExpandedInlineSegmentKind, ExpandedLinkSpan};
+use markdown_parser::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
+use markdown_parser::parse::BlockKind;
 use std::time::Instant;
 
 impl Block {
@@ -362,7 +362,7 @@ impl Block {
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         let has_styled_spans = self.data.text.fragments.iter().any(|f| {
-            f.style != crate::markdown::inline::style::InlineStyle::default() || f.extra.is_some()
+            f.style != markdown_parser::inline::style::InlineStyle::default() || f.extra.is_some()
         });
         if self.edit_mode.supports_inline_projection()
             && (keep_projection || caret_may_have_closed_span || has_styled_spans)
@@ -496,7 +496,7 @@ impl Block {
             return false;
         }
 
-        let parsed_callout = crate::markdown::block::CalloutKind::parse_header_line(&source);
+        let parsed_callout = markdown_parser::block::CalloutKind::parse_header_line(&source);
         if is_blockquote && parsed_callout.is_none() {
             return false;
         }

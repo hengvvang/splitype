@@ -3,11 +3,11 @@
 
 use gpui::*;
 
-use crate::markdown::block::CalloutKind;
 use crate::model::BlockEntry;
 use crate::render::layout::{
     RowSpacingInfo, callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
 };
+use markdown_parser::block::CalloutKind;
 use theme::{Theme, ThemeDimensions};
 
 #[derive(Clone, Debug)]

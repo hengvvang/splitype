@@ -11,16 +11,16 @@ use std::sync::Arc;
 
 use gpui::{App, Entity, EntityId};
 
-use crate::markdown::block::footnote::split_footnote_definition_text;
-use crate::markdown::block::image::ImageReferenceDefinitions;
-use crate::markdown::block::link::LinkReferenceDefinitions;
-use crate::markdown::parse::{BlockId, BlockKind};
 use crate::model::Document;
 use crate::model::block::Block;
 use crate::model::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-use crate::state::TableGrids;
+use crate::pane::state::TableGrids;
+use markdown_parser::block::footnote::split_footnote_definition_text;
+use markdown_parser::block::image::ImageReferenceDefinitions;
+use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::parse::{BlockId, BlockKind};
 
 /// Rebuild the document-wide footnote registry (definitions bound to
 /// their first inline reference, plus per-block occurrence lists).

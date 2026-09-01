@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::input::selection::state::NormalizedCrossBlockSelection;
 use crate::model::Document;
-use crate::state::SourceTargetMapping;
+use crate::pane::state::SourceTargetMapping;
 
 /// Slices a string safely on UTF-8 character boundaries.
 pub fn safe_source_slice(source: &str, range: Range<usize>) -> &str {

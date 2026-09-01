@@ -1,6 +1,6 @@
 //! Cross-block selection representation and normalization.
 
-use crate::state::CrossBlockSelectionEndpoint;
+use crate::pane::state::CrossBlockSelectionEndpoint;
 
 /// Cross-block selection with endpoints ordered by document position.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

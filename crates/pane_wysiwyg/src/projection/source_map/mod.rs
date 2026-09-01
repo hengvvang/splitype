@@ -11,11 +11,11 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::model::Document;
+use crate::pane::state::SourceTargetMapping;
 pub use crate::projection::source_map::collector::collect_single_block_source_mappings;
 pub use crate::projection::source_map::mapping_buffer::{
     build_code_block_content_mapping, build_prefixed_content_mapping,
 };
-use crate::state::SourceTargetMapping;
 
 /// Builds source target mappings for the whole document.
 pub fn build_source_target_mappings(doc: &Document, cx: &App) -> Vec<SourceTargetMapping> {

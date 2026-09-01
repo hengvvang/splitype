@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::markdown::block::table::serialize_table_cell_markdown;
 use crate::model::block::Block;
-use crate::state::SourceTargetMapping;
+use crate::pane::state::SourceTargetMapping;
+use markdown_parser::block::table::serialize_table_cell_markdown;
 
 pub fn push_table_mappings(
     block: &Entity<Block>,
@@ -21,7 +21,7 @@ pub fn push_table_mappings(
         return 0;
     };
 
-    let lines = crate::markdown::block::table::serialize_table_markdown_lines(&table);
+    let lines = markdown_parser::block::table::serialize_table_markdown_lines(&table);
     let indentation = "  ".repeat(list_depth);
     let quote_prefix = "> ".repeat(quote_depth);
     let line_prefix_len = indentation.len() + quote_prefix.len();

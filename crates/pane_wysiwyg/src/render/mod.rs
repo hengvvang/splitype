@@ -22,8 +22,8 @@ pub const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 use crate::model::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
 
-use crate::markdown::parse::BlockKind;
 use config::language::I18nManager;
+use markdown_parser::parse::BlockKind;
 use theme::{Theme, ThemeDimensions, ThemeManager};
 
 fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme) -> AnyElement {
@@ -486,7 +486,7 @@ impl Render for Block {
                 render_footnote_definition(self, focused, is_placeholder, focused_base, &theme, cx)
             }
             BlockKind::CodeBlock { ref language } => {
-                if crate::markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+                if markdown_parser::block::mermaid::is_mermaid_info_string(language.as_deref()) {
                     render_mermaid_diagram(
                         self,
                         focused,

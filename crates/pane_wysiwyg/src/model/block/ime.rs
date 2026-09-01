@@ -9,10 +9,10 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::markdown::inline::offsets::ImeConverter;
 use crate::model::block::Block;
 use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::render::text_layout as element;
+use markdown_parser::inline::offsets::ImeConverter;
 
 impl EntityInputHandler for Block {
     fn text_for_range(

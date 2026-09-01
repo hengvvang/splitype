@@ -5,15 +5,15 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::markdown::parse::BlockKind;
 use crate::model::Document;
 use crate::model::block::Block;
+use crate::pane::state::SourceTargetMapping;
 use crate::projection::source_map::block_kinds::{
     push_code_block_mapping, push_fenced_block_mapping, push_footnote_definition_full_mapping,
     push_inline_block_mapping, push_raw_block_mapping, wrap_source_mapping_with_quotes,
 };
 use crate::projection::source_map::table_cells::push_table_mappings;
-use crate::state::SourceTargetMapping;
+use markdown_parser::parse::BlockKind;
 
 /// Collects source-target mappings for a single block and all its children recursively.
 pub fn collect_single_block_source_mappings(
@@ -185,7 +185,7 @@ pub fn collect_single_block_source_mappings(
         BlockKind::FootnoteDefinition => {
             let footnote_source = text.expect("footnote text").source().to_string();
             let (footnote_id, first_line) =
-                crate::markdown::block::footnote::split_footnote_definition_text(&footnote_source);
+                markdown_parser::block::footnote::split_footnote_definition_text(&footnote_source);
             push_footnote_definition_full_mapping(
                 block,
                 footnote_id,

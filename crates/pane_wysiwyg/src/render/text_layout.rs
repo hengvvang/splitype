@@ -8,9 +8,9 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::markdown::inline::footnote::InlineFootnoteHit;
-use crate::markdown::inline::link::InlineLinkHit;
 use crate::model::block::Block;
+use markdown_parser::inline::footnote::InlineFootnoteHit;
+use markdown_parser::inline::link::InlineLinkHit;
 
 const SOURCE_LINE_NUMBER_MIN_DIGITS: usize = 2;
 pub const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;

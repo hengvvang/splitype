@@ -5,9 +5,9 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::markdown::parse::BlockKind;
 use crate::model::block::{Block, TableHoverRegion};
 use crate::model::protocol::BlockEvent;
+use markdown_parser::parse::BlockKind;
 
 impl Block {
     pub fn schedule_table_append_column_close(

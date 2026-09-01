@@ -6,9 +6,9 @@
 
 use gpui::TextAlign;
 
-use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
 use crate::model::block::{Block, BlockEditMode};
 use crate::table::TableGrid;
+use markdown_parser::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
 
 impl Block {
     pub fn is_table_cell(&self) -> bool {

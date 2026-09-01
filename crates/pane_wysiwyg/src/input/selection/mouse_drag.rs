@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::state::CrossBlockSelectionEndpoint;
+use crate::pane::state::CrossBlockSelectionEndpoint;
 
 /// Computes the cross-block selection anchor for a given mouse pointer position.
 pub fn cross_block_endpoint_for_block_offset(

@@ -3,8 +3,8 @@
 //! Row layout and spacing helpers used by the main render pass; the render
 //! orchestration itself lives in `crate::core_contracts::panes::wysiwyg::render`.
 
-use crate::markdown::parse::BlockId;
 use gpui::*;
+use markdown_parser::parse::BlockId;
 
 use ::theme::*;
 
@@ -19,7 +19,7 @@ pub struct RowSpacingInfo {
     pub quote_group_id: Option<BlockId>,
     pub visible_quote_group_id: Option<BlockId>,
     pub callout_group_id: Option<BlockId>,
-    pub callout_variant: Option<crate::markdown::block::CalloutKind>,
+    pub callout_variant: Option<markdown_parser::block::CalloutKind>,
     pub is_callout_header: bool,
     pub footnote_group_id: Option<BlockId>,
     pub is_footnote_header: bool,
@@ -37,7 +37,7 @@ impl RowSpacingInfo {
             is_callout_header: block.kind().is_callout(),
             footnote_group_id: block.footnote_group_id,
             is_footnote_header: block.kind().is_footnote_definition(),
-            is_empty_paragraph: block.kind() == crate::markdown::parse::BlockKind::Paragraph
+            is_empty_paragraph: block.kind() == markdown_parser::parse::BlockKind::Paragraph
                 && block.data.text.plain_text().is_empty()
                 && block.children.is_empty(),
         }

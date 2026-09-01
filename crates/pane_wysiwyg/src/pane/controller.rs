@@ -11,12 +11,12 @@ use gpui::{
 };
 use theme::Theme;
 
-use crate::markdown::inline::text::BlockText;
-use crate::markdown::parse::{BlockData, BlockKind};
 use crate::model::Document;
 use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::model::protocol::BlockEvent;
-use crate::plugin::state::{FocusState, ReferenceRegistries, TableGrids};
+use crate::pane::state::{FocusState, ReferenceRegistries, TableGrids};
+use markdown_parser::inline::text::BlockText;
+use markdown_parser::parse::{BlockData, BlockKind};
 
 /// Autonomous controller for a WYSIWYG editor pane.
 pub struct WysiwygDocumentController {
@@ -466,7 +466,7 @@ impl WysiwygDocumentController {
 
     pub fn outline_headings(&self, cx: &App) -> Vec<OutlineNode> {
         if let Some(doc) = &self.document {
-            crate::plugin::outline::extract_outline_headings(doc, cx)
+            crate::pane::outline::extract_outline_headings(doc, cx)
         } else {
             Vec::new()
         }
@@ -497,7 +497,7 @@ impl WysiwygDocumentController {
 
     pub fn search_matches(&self, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {
         if let Some(doc) = &self.document {
-            crate::plugin::search::search_in_document(doc, query, cx)
+            crate::pane::search::search_in_document(doc, query, cx)
         } else {
             Vec::new()
         }
@@ -511,7 +511,7 @@ impl WysiwygDocumentController {
     ) -> Option<String> {
         if let Some(doc) = &self.document {
             if let Some(entity_id) = match_item.entity_id {
-                crate::plugin::search::replace_in_block_entity(
+                crate::pane::search::replace_in_block_entity(
                     doc,
                     entity_id,
                     match_item.byte_range.clone(),

@@ -6,16 +6,40 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-use gpui::{Entity, EntityId, Pixels, Point};
+use gpui::{App, AppContext, Entity, EntityId, Pixels, Point};
 
 use crate::input::history::delta::Transaction;
-use crate::markdown::block::image::ImageReferenceDefinitions;
-use crate::markdown::block::link::LinkReferenceDefinitions;
-use crate::markdown::block::table::{TableAxis, TableCellPosition};
-use crate::markdown::inline::text::BlockText;
-use crate::markdown::parse::{BlockData, BlockId};
 use crate::model::block::{Block, footnotes::FootnoteMap};
 use crate::model::protocol::UndoCaptureKind;
+use markdown_parser::block::image::ImageReferenceDefinitions;
+use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::block::table::{TableAxis, TableCellPosition};
+use markdown_parser::inline::text::BlockText;
+use markdown_parser::parse::{BlockData, BlockId};
+
+use crate::pane::controller::WysiwygDocumentController;
+
+/// View state specific to a WYSIWYG editor pane.
+#[derive(Default)]
+pub struct WysiwygPaneState {
+    pub controller: Option<Entity<WysiwygDocumentController>>,
+    pub pending_document: Option<core_contracts::DocumentSnapshot>,
+}
+
+impl WysiwygPaneState {
+    pub(crate) fn ensure_controller(&mut self, cx: &mut App) -> Entity<WysiwygDocumentController> {
+        if let Some(controller) = &self.controller {
+            return controller.clone();
+        }
+        let document = self
+            .pending_document
+            .clone()
+            .unwrap_or_else(core_contracts::DocumentSnapshot::empty);
+        let controller = cx.new(|cx| WysiwygDocumentController::new(&document, cx));
+        self.controller = Some(controller.clone());
+        controller
+    }
+}
 
 /// Focus routing and deferred focus targets.
 #[derive(Default)]

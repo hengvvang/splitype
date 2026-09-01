@@ -5,10 +5,10 @@
 //! related deltas with selection snapshots and provides an $O(1)$ [`Transaction::invert`]
 //! operation to generate the exact reverse action.
 
-use crate::markdown::inline::text::BlockText;
-use crate::markdown::parse::{BlockData, BlockId};
 use crate::model::protocol::UndoCaptureKind;
-use crate::state::UndoSelectionSnapshot;
+use crate::pane::state::UndoSelectionSnapshot;
+use markdown_parser::inline::text::BlockText;
+use markdown_parser::parse::{BlockData, BlockId};
 
 /// Atomic mutation applied to the document block tree.
 #[derive(Clone, Debug)]

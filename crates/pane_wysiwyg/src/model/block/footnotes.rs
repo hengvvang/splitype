@@ -21,7 +21,7 @@ pub struct FootnoteDefinitionBinding {
 pub struct FootnoteMap {
     pub bindings: HashMap<String, FootnoteDefinitionBinding>,
     pub block_occurrences:
-        HashMap<crate::markdown::parse::BlockId, Vec<FootnoteResolvedOccurrence>>,
+        HashMap<markdown_parser::parse::BlockId, Vec<FootnoteResolvedOccurrence>>,
 }
 
 impl FootnoteMap {
@@ -31,7 +31,7 @@ impl FootnoteMap {
 
     pub fn occurrences_for_block(
         &self,
-        block_id: crate::markdown::parse::BlockId,
+        block_id: markdown_parser::parse::BlockId,
     ) -> Option<&[FootnoteResolvedOccurrence]> {
         self.block_occurrences.get(&block_id).map(Vec::as_slice)
     }

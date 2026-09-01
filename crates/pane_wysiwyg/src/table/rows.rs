@@ -1,6 +1,6 @@
 //! Table row operations: append, insert, move, delete, duplicate.
 
-use crate::markdown::block::table::TableData;
+use markdown_parser::block::table::TableData;
 
 pub fn append_table_row(table: &mut TableData) {
     table.append_row();

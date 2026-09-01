@@ -16,7 +16,7 @@ pub fn render_html_block(
     let t = &theme.typography;
 
     let html = block.data.html.as_ref().cloned().unwrap_or_else(|| {
-        crate::markdown::block::html::parse_html_document(
+        markdown_parser::block::html::parse_html_document(
             block
                 .data
                 .raw_source

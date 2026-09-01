@@ -2,9 +2,9 @@
 
 use gpui::*;
 
-use crate::markdown::inline::text::BlockText;
-use crate::markdown::parse::BlockKind;
 use crate::model::block::Block;
+use markdown_parser::inline::text::BlockText;
+use markdown_parser::parse::BlockKind;
 
 /// Checks if a block is a candidate for Setext heading promotion.
 pub fn is_setext_heading_target(block: &Entity<Block>, cx: &App) -> bool {

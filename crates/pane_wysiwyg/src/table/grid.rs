@@ -2,17 +2,17 @@
 
 use gpui::*;
 
-use crate::markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
 use crate::model::block::Block;
-use crate::state::TableCellBinding;
+use crate::pane::state::TableCellBinding;
 use crate::table::TableGrid;
+use markdown_parser::block::table::{TableCellPosition, TableColumnAlignment, TableData};
 
 /// Installs the table grid structure onto a Table block entity.
 pub fn install_table_grid_for_block(
     table_block: &Entity<Block>,
     table: &TableData,
     mut create_cell: impl FnMut(
-        crate::markdown::inline::text::BlockText,
+        markdown_parser::inline::text::BlockText,
         TableCellPosition,
         TableColumnAlignment,
     ) -> (Entity<Block>, TableCellBinding),

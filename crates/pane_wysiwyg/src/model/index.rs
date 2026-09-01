@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::markdown::block::CalloutKind;
-use crate::markdown::parse::{BlockId, BlockKind};
 use crate::model::block::Block;
+use markdown_parser::block::CalloutKind;
+use markdown_parser::parse::{BlockId, BlockKind};
 
 /// A block together with its position in the flattened document (DFS) order.
 #[derive(Clone)]

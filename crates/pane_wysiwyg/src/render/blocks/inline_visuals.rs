@@ -2,11 +2,6 @@
 
 use gpui::*;
 
-use crate::latex::{inline_math_font_size, render_inline_math_svg};
-use crate::markdown::block::image::{
-    ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
-};
-use crate::markdown::inline::style::InlineScript;
 use crate::model::block::{Block, ImageHandle};
 use crate::render::LinkFollowCursor;
 use crate::render::html_document::html_css_color_to_hsla;
@@ -15,6 +10,11 @@ use crate::render::inline_word_chunks;
 use crate::render::render_image_placeholder;
 use crate::render::render_loading_placeholder;
 use config::language::I18nStrings;
+use markdown_parser::block::image::{
+    ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
+};
+use markdown_parser::inline::style::InlineScript;
+use syntax_highlighter::latex::{inline_math_font_size, render_inline_math_svg};
 use theme::Theme;
 
 impl Block {
@@ -62,7 +62,7 @@ impl Block {
 
     pub fn render_inline_tree_runs(
         &self,
-        tree: &crate::markdown::inline::text::BlockText,
+        tree: &markdown_parser::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -91,7 +91,7 @@ impl Block {
 
     pub fn render_inline_tree_children(
         &self,
-        tree: &crate::markdown::inline::text::BlockText,
+        tree: &markdown_parser::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -105,9 +105,9 @@ impl Block {
 
         for span in cache.spans() {
             if cursor < span.range.start {
-                let fallback_span = crate::markdown::inline::render_cache::InlineSpan {
+                let fallback_span = markdown_parser::inline::render_cache::InlineSpan {
                     range: cursor..span.range.start,
-                    style: crate::markdown::inline::style::InlineStyle::default(),
+                    style: markdown_parser::inline::style::InlineStyle::default(),
                     html_style: None,
                     link: None,
                     footnote: None,
@@ -144,9 +144,9 @@ impl Block {
         }
 
         if cursor < text.len() {
-            let fallback_span = crate::markdown::inline::render_cache::InlineSpan {
+            let fallback_span = markdown_parser::inline::render_cache::InlineSpan {
                 range: cursor..text.len(),
-                style: crate::markdown::inline::style::InlineStyle::default(),
+                style: markdown_parser::inline::style::InlineStyle::default(),
                 html_style: None,
                 link: None,
                 footnote: None,
@@ -176,7 +176,7 @@ impl Block {
     pub fn render_inline_text_word_segments(
         &self,
         text: &str,
-        span: &crate::markdown::inline::render_cache::InlineSpan,
+        span: &markdown_parser::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -205,7 +205,7 @@ impl Block {
     pub fn render_inline_text_segment(
         &self,
         text: &str,
-        span: &crate::markdown::inline::render_cache::InlineSpan,
+        span: &markdown_parser::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -355,8 +355,8 @@ impl Block {
 
     pub fn render_inline_math_segment(
         &self,
-        math: &crate::markdown::inline::latex::InlineLatex,
-        span: &crate::markdown::inline::render_cache::InlineSpan,
+        math: &markdown_parser::inline::latex::InlineLatex,
+        span: &markdown_parser::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -481,7 +481,7 @@ impl Block {
                     if let Some(runtime) = self.image_handle_for_syntax(syntax) {
                         children.push(self.render_inline_image_content(&runtime, theme, strings));
                     } else {
-                        let tree = crate::markdown::inline::text::BlockText::plain(markdown);
+                        let tree = markdown_parser::inline::text::BlockText::plain(markdown);
                         children.extend(self.render_inline_tree_children(
                             &tree,
                             theme,

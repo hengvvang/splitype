@@ -3,13 +3,13 @@
 
 use gpui::*;
 
-use crate::actions::{
+use crate::model::block::Block;
+use crate::model::protocol::BlockEvent;
+use crate::pane::actions::{
     BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll,
     SelectEnd, SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
     WordSelectRight,
 };
-use crate::model::block::Block;
-use crate::model::protocol::BlockEvent;
 impl Block {
     pub fn on_focus_previous(
         &mut self,

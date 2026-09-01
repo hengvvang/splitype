@@ -1,4 +1,4 @@
-use crate::plugin::WysiwygPaneState;
+use crate::pane::state::WysiwygPaneState;
 use core_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 

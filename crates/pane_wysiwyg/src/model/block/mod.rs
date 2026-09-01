@@ -26,18 +26,18 @@ use std::time::Instant;
 
 use gpui::*;
 
-use crate::highlight::CodeHighlightResult;
-use crate::markdown::block::CalloutKind;
-use crate::markdown::block::image::ImageReferenceDefinitions;
-use crate::markdown::block::link::LinkReferenceDefinitions;
-use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
-use crate::markdown::inline::render_cache::InlineRenderCache;
-use crate::markdown::parse::BlockId;
-use crate::markdown::parse::{BlockData, BlockKind};
-use crate::mermaid::MermaidSvgRender;
 use crate::model::protocol::BlockEvent;
 use crate::projection::ExpandedInlineProjection;
 use crate::table::TableGrid;
+use markdown_parser::block::CalloutKind;
+use markdown_parser::block::image::ImageReferenceDefinitions;
+use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
+use markdown_parser::inline::render_cache::InlineRenderCache;
+use markdown_parser::parse::BlockId;
+use markdown_parser::parse::{BlockData, BlockKind};
+use syntax_highlighter::highlight::CodeHighlightResult;
+use syntax_highlighter::mermaid::MermaidSvgRender;
 
 impl EventEmitter<BlockEvent> for Block {}
 

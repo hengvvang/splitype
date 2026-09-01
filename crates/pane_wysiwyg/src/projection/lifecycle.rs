@@ -2,14 +2,14 @@
 
 use std::ops::Range;
 
-use crate::markdown::inline::render_cache::InlineRenderCache;
-use crate::markdown::parse::BlockKind;
 use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedLinkSpan,
     ProjectedLinkSelectionSnapshot,
 };
 use gpui::Pixels;
+use markdown_parser::inline::render_cache::InlineRenderCache;
+use markdown_parser::parse::BlockKind;
 
 impl Block {
     pub fn display_cache(&self) -> &InlineRenderCache {

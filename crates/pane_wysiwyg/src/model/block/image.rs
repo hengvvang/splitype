@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use crate::markdown::block::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
-use crate::markdown::parse::BlockKind;
 use crate::model::block::{Block, ImageHandle};
+use markdown_parser::block::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
+use markdown_parser::parse::BlockKind;
 
 impl Block {
     pub fn image_handle(&self) -> Option<&ImageHandle> {

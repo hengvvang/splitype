@@ -7,14 +7,14 @@
 
 use gpui::*;
 
-use crate::actions::{
+use crate::model::block::{Block, CollapsedCaretAffinity};
+use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::pane::actions::{
     Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward,
     WordDeleteForward,
 };
-use crate::markdown::inline::text::BlockText;
-use crate::markdown::parse::BlockKind;
-use crate::model::block::{Block, CollapsedCaretAffinity};
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use markdown_parser::inline::text::BlockText;
+use markdown_parser::parse::BlockKind;
 impl Block {
     pub fn is_leaf_quote(&self) -> bool {
         self.kind() == BlockKind::Blockquote
