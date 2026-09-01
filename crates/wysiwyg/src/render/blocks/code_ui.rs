@@ -320,11 +320,7 @@ impl Block {
                         .w_full()
                         .flex_shrink_0()
                         .justify_between()
-                        .bg(if is_selected {
-                            c.panel_row_selected
-                        } else {
-                            c.dialog_surface
-                        })
+                        .bg(c.dialog_surface)
                         .active(|this| this.opacity(0.9))
                         .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                             option_block.update(cx, |block, block_cx| {
@@ -342,7 +338,7 @@ impl Block {
                                     FontWeight::NORMAL
                                 })
                                 .text_color(if is_selected {
-                                    c.text_default
+                                    c.dialog_primary_button_bg
                                 } else {
                                     c.dialog_body
                                 })
@@ -353,7 +349,7 @@ impl Block {
                                 svg()
                                     .path("icons/editor/wysiwyg/codeblock/select-checkmark.svg")
                                     .size(px(14.0))
-                                    .text_color(c.text_default),
+                                    .text_color(c.dialog_primary_button_bg),
                             )
                         } else {
                             None

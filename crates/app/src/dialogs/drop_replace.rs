@@ -71,39 +71,57 @@ impl Shell {
                     .child(
                         dialog_card(c, d)
                             .id("drop-replace-dialog")
-                            .w(px(d.dialog_width))
-                            .border(px(d.dialog_border_width))
+                            .w(px(440.0))
+                            .p(px(0.0))
+                            .gap(px(0.0))
+                            .overflow_hidden()
+                            .border(px(1.0))
                             .border_color(c.dialog_border)
                             .rounded(px(d.dialog_radius))
-                            .shadow_lg()
+                            .shadow_2xl()
                             .occlude()
                             .on_click(|_event, _window, _cx| {})
                             .child(
                                 div()
-                                    .text_size(px(t.dialog_title_size))
-                                    .font_weight(t.dialog_title_weight.to_font_weight())
-                                    .text_color(c.dialog_title)
-                                    .child(strings.drop_replace_title.clone()),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(t.dialog_body_size))
-                                    .font_weight(t.dialog_body_weight.to_font_weight())
-                                    .line_height(rems(t.text_line_height))
-                                    .text_color(c.dialog_body)
-                                    .child(strings.drop_replace_message.clone()),
-                            )
-                            .child(
-                                div()
+                                    .w_full()
+                                    .p(px(24.0))
                                     .flex()
-                                    .justify_end()
-                                    .gap(px(d.dialog_button_gap))
+                                    .flex_col()
+                                    .gap(px(12.0))
+                                    .child(
+                                        div()
+                                            .text_size(px(20.0))
+                                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                                            .text_color(c.dialog_title)
+                                            .child(strings.drop_replace_title.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_size(px(14.0))
+                                            .line_height(rems(t.text_line_height))
+                                            .text_color(c.dialog_body)
+                                            .child(strings.drop_replace_message.clone()),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .w_full()
+                                    .px(px(24.0))
+                                    .py(px(16.0))
+                                    .bg(c.dialog_secondary_button_bg)
+                                    .border_t_1()
+                                    .border_color(c.dialog_border)
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(8.0))
                                     .child(
                                         compact_primary_button(
                                             "save-and-replace-drop-dialog",
                                             c,
                                             d,
                                         )
+                                        .flex_1()
+                                        .h(px(32.0))
                                         .text_size(px(13.0))
                                         .font_weight(t.dialog_button_weight.to_font_weight())
                                         .text_color(c.dialog_primary_button_text)
@@ -111,27 +129,21 @@ impl Shell {
                                         .on_click(cx.listener(Self::on_save_and_replace_drop)),
                                     )
                                     .child(
-                                        div()
-                                            .id("discard-and-replace-drop-dialog")
-                                            .h(px(32.0))
-                                            .px(px(14.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(d.menu_item_radius))
-                                            .border(px(d.dialog_border_width))
-                                            .border_color(c.dialog_border)
-                                            .bg(c.dialog_danger_button_bg)
-                                            .hover(|this| this.bg(c.dialog_danger_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
-                                            .text_size(px(13.0))
-                                            .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_danger_button_text)
-                                            .child(strings.drop_replace_discard_and_replace.clone())
-                                            .on_click(
-                                                cx.listener(Self::on_discard_and_replace_drop),
-                                            ),
+                                        compact_secondary_button(
+                                            "discard-and-replace-drop-dialog",
+                                            c,
+                                            d,
+                                        )
+                                        .flex_1()
+                                        .h(px(32.0))
+                                        .bg(c.dialog_surface)
+                                        .text_size(px(13.0))
+                                        .font_weight(t.dialog_button_weight.to_font_weight())
+                                        .text_color(c.dialog_secondary_button_text)
+                                        .child(strings.drop_replace_discard_and_replace.clone())
+                                        .on_click(
+                                            cx.listener(Self::on_discard_and_replace_drop),
+                                        ),
                                     )
                                     .child(
                                         compact_secondary_button(
@@ -139,6 +151,9 @@ impl Shell {
                                             c,
                                             d,
                                         )
+                                        .flex_1()
+                                        .h(px(32.0))
+                                        .bg(c.dialog_surface)
                                         .text_size(px(13.0))
                                         .font_weight(t.dialog_button_weight.to_font_weight())
                                         .text_color(c.dialog_secondary_button_text)

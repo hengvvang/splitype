@@ -64,7 +64,11 @@ impl Shell {
                                 svg()
                                     .path(item_icon)
                                     .size(px(15.0))
-                                    .text_color(c.text_default),
+                                    .text_color(if is_selected {
+                                        c.dialog_primary_button_bg
+                                    } else {
+                                        c.text_default
+                                    }),
                             )
                             .child(name.clone())
                             .into_any_element(),
@@ -87,6 +91,8 @@ impl Shell {
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(if is_disabled {
                         c.dialog_muted
+                    } else if is_selected {
+                        c.dialog_primary_button_bg
                     } else {
                         c.dialog_secondary_button_text
                     })

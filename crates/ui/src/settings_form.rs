@@ -307,13 +307,13 @@ pub fn render_searchable_font_picker(
                     c,
                     d,
                 )
-                .bg(if is_default_selected {
-                    c.panel_row_selected
-                } else {
-                    c.dialog_surface
-                })
+                .bg(c.dialog_surface)
                 .text_size(px(12.0))
-                .text_color(c.text_default)
+                .text_color(if is_default_selected {
+                    c.dialog_primary_button_bg
+                } else {
+                    c.text_default
+                })
                 .child(
                     div()
                         .flex_1()
@@ -352,13 +352,13 @@ pub fn render_searchable_font_picker(
                     c,
                     d,
                 )
-                .bg(if is_selected {
-                    c.panel_row_selected
-                } else {
-                    c.dialog_surface
-                })
+                .bg(c.dialog_surface)
                 .text_size(px(12.0))
-                .text_color(c.text_default)
+                .text_color(if is_selected {
+                    c.dialog_primary_button_bg
+                } else {
+                    c.text_default
+                })
                 .child(div().flex_1().min_w(px(0.0)).truncate().child(f_name))
                 .child(if is_selected {
                     svg()
@@ -378,11 +378,14 @@ pub fn render_searchable_font_picker(
         // key events, dispatching every change through `on_search_change`.
         let search_query = props.search_query.clone();
         let search_focus = props.focus_handle.clone();
+        let search_focus_click = props.focus_handle.clone();
         let on_search_change = props.on_search_change;
         let search_box = div()
             .id(ElementId::Name(format!("{id_prefix}-search").into()))
             .key_context("SettingsSearch")
             .track_focus(&search_focus)
+            .relative()
+            .overflow_hidden()
             .cursor_text()
             .flex()
             .items_center()
@@ -395,6 +398,9 @@ pub fn render_searchable_font_picker(
             .bg(c.dialog_secondary_button_bg)
             .border_1()
             .border_color(c.dialog_border)
+            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                window.focus(&search_focus_click, cx);
+            })
             .child(
                 div()
                     .flex_1()
@@ -411,6 +417,16 @@ pub fn render_searchable_font_picker(
                         search_query.clone()
                     }),
             )
+            .child(
+                div()
+                    .absolute()
+                    .bottom_0()
+                    .left_0()
+                    .right_0()
+                    .h(px(2.0))
+                    .rounded_b(px(d.select_trigger_radius))
+                    .bg(c.focus_accent),
+            )
             .on_key_down(Box::new(
                 move |event: &KeyDownEvent, _window: &mut Window, cx: &mut App| {
                     let mut query = search_query.clone();
@@ -419,6 +435,9 @@ pub fn render_searchable_font_picker(
                             query.pop();
                         }
                         "escape" => {}
+                        "space" => {
+                            query.push(' ');
+                        }
                         _ => {
                             let text = event.keystroke.key_char.clone().unwrap_or_else(|| {
                                 if event.keystroke.key.len() == 1 {

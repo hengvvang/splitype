@@ -417,15 +417,20 @@ fn render_control(
 
             let toggle_state = state.clone();
             let toggle_key = key.clone();
+            let focus_handle_for_toggle = focus_handle.clone();
             let on_toggle = Box::new(
-                move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
-                    toggle_state.update(cx, |ui, _| {
+                move |_event: &ClickEvent, window: &mut Window, cx: &mut App| {
+                    let will_open = toggle_state.update(cx, |ui, _| {
                         ui.open_picker = if ui.open_picker.as_deref() == Some(toggle_key.as_str()) {
                             None
                         } else {
                             Some(toggle_key.clone())
                         };
+                        ui.open_picker.is_some()
                     });
+                    if will_open {
+                        window.focus(&focus_handle_for_toggle, cx);
+                    }
                     cx.refresh_windows();
                 },
             );
@@ -596,7 +601,12 @@ fn render_number_control(
             write_number(cx, &inc_plugin, &inc_key, number + step, min, max);
         },
     );
-    let on_start_edit = start_edit(state.clone(), key.clone(), format_number(number, step));
+    let on_start_edit = start_edit(
+        state.clone(),
+        key.clone(),
+        format_number(number, step),
+        focus_handle.clone(),
+    );
 
     let commit_plugin = plugin_id.to_string();
     let commit_key = key.clone();
@@ -656,6 +666,8 @@ fn render_text_control(
         .id(ElementId::Name(format!("{id_namespace}-text-{key}").into()))
         .key_context("SettingsInput")
         .track_focus(&focus_handle)
+        .relative()
+        .overflow_hidden()
         .cursor_text()
         .w(px(160.0))
         .h(px(28.0))
@@ -667,11 +679,7 @@ fn render_text_control(
             c.dialog_secondary_button_bg
         })
         .border_1()
-        .border_color(if is_editing {
-            c.app_menu_active
-        } else {
-            c.dialog_border
-        })
+        .border_color(c.dialog_border)
         .flex()
         .items_center()
         .child(
@@ -691,7 +699,21 @@ fn render_text_control(
                     display
                 }),
         )
-        .on_click(start_edit(state.clone(), key.clone(), value.clone()))
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.0))
+                .rounded_b(px(d.select_trigger_radius))
+                .bg(if is_editing {
+                    c.focus_accent
+                } else {
+                    c.dialog_border
+                }),
+        )
+        .on_click(start_edit(state.clone(), key.clone(), value.clone(), focus_handle.clone()))
         .on_key_down(on_key_down)
         .into_any_element()
 }
@@ -764,13 +786,13 @@ fn render_picker(
                     c,
                     d,
                 )
-                .bg(if is_selected {
-                    c.panel_row_selected
-                } else {
-                    c.dialog_surface
-                })
+                .bg(c.dialog_surface)
                 .text_size(px(12.0))
-                .text_color(c.text_default)
+                .text_color(if is_selected {
+                    c.dialog_primary_button_bg
+                } else {
+                    c.text_default
+                })
                 .child(option_label)
                 .child(if is_selected {
                     svg()
@@ -802,14 +824,20 @@ fn render_picker(
 }
 
 /// Builds an inline-edit start handler seeding the buffer with `seed`.
-fn start_edit(state: Entity<SettingsUiState>, key: String, seed: String) -> SettingsClickHandler {
+fn start_edit(
+    state: Entity<SettingsUiState>,
+    key: String,
+    seed: String,
+    focus_handle: FocusHandle,
+) -> SettingsClickHandler {
     Box::new(
-        move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+        move |_event: &ClickEvent, window: &mut Window, cx: &mut App| {
             state.update(cx, |ui, _| {
                 ui.edit_buffers
                     .entry(key.clone())
                     .or_insert_with(|| seed.clone());
             });
+            window.focus(&focus_handle, cx);
             cx.refresh_windows();
         },
     )
@@ -851,6 +879,16 @@ fn editable_key_handler(
                             buffer.pop();
                         }
                     });
+                }
+                "space" => {
+                    if !numeric_only {
+                        state.update(cx, |ui, _| {
+                            ui.edit_buffers
+                                .entry(key.clone())
+                                .or_default()
+                                .push(' ');
+                        });
+                    }
                 }
                 _ => {
                     let text = event.keystroke.key_char.clone().unwrap_or_else(|| {

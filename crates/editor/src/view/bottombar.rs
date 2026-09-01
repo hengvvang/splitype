@@ -283,14 +283,14 @@ impl Editor {
                         menu_item(("pane-type-opt", idx), c, d)
                             .w_full()
                             .justify_between()
-                            .bg(if is_current {
-                                c.panel_row_selected
-                            } else {
-                                c.dialog_surface
-                            })
+                            .bg(c.dialog_surface)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_button_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
+                            .text_color(if is_current {
+                                c.dialog_primary_button_bg
+                            } else {
+                                c.dialog_secondary_button_text
+                            })
                             .child(display_name)
                             .child(if is_current {
                                 svg()

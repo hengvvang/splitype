@@ -149,20 +149,18 @@ pub fn render_search_panel_overlay(
     let search_box_editor = host.clone();
     let is_query_active = state.active_field == SearchActiveField::Query;
 
-    let search_bottom_indicator = if is_query_active {
-        Some(
-            div()
-                .absolute()
-                .bottom_0()
-                .left_0()
-                .right_0()
-                .h(px(2.0))
-                .rounded_b(px(d.select_trigger_radius))
-                .bg(c.focus_accent),
-        )
-    } else {
-        None
-    };
+    let search_bottom_indicator = div()
+        .absolute()
+        .bottom_0()
+        .left_0()
+        .right_0()
+        .h(px(2.0))
+        .rounded_b(px(d.select_trigger_radius))
+        .bg(if is_query_active {
+            c.focus_accent
+        } else {
+            c.dialog_border
+        });
 
     let search_input_box = div()
         .id("editor-search-input-box")
@@ -205,7 +203,7 @@ pub fn render_search_panel_overlay(
                 .child(word_toggle)
                 .child(regex_toggle),
         )
-        .children(search_bottom_indicator);
+        .child(search_bottom_indicator);
 
     // ── Search Right Actions (Prev, Next, Scope, Close) ────────────
     let prev_editor = host.clone();
@@ -298,20 +296,18 @@ pub fn render_search_panel_overlay(
         let replace_box_editor = host.clone();
         let is_replace_active = state.active_field == SearchActiveField::Replace;
 
-        let replace_bottom_indicator = if is_replace_active {
-            Some(
-                div()
-                    .absolute()
-                    .bottom_0()
-                    .left_0()
-                    .right_0()
-                    .h(px(2.0))
-                    .rounded_b(px(d.select_trigger_radius))
-                    .bg(c.focus_accent),
-            )
-        } else {
-            None
-        };
+        let replace_bottom_indicator = div()
+            .absolute()
+            .bottom_0()
+            .left_0()
+            .right_0()
+            .h(px(2.0))
+            .rounded_b(px(d.select_trigger_radius))
+            .bg(if is_replace_active {
+                c.focus_accent
+            } else {
+                c.dialog_border
+            });
 
         let preserve_editor = host.clone();
         let preserve_toggle = div()
@@ -376,7 +372,7 @@ pub fn render_search_panel_overlay(
                     .gap(px(2.0))
                     .child(preserve_toggle),
             )
-            .children(replace_bottom_indicator);
+            .child(replace_bottom_indicator);
 
         let replace_single_editor = host.clone();
         let replace_single_btn = div()

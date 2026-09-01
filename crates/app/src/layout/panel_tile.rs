@@ -164,32 +164,18 @@ impl Shell {
                         let is_current = kind_id == current_kind;
                         let option_shell = shell.clone();
                         let display_name = desc.display_name();
-                        let icon = desc.icon();
                         menu_item(("panel-type-opt", idx), c, d)
                             .w_full()
                             .justify_between()
-                            .bg(if is_current {
-                                c.panel_row_selected
-                            } else {
-                                c.dialog_surface
-                            })
+                            .bg(c.dialog_surface)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_button_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap(px(6.0))
-                                    .children(icon.map(|icon| {
-                                        svg()
-                                            .path(icon)
-                                            .size(px(13.0))
-                                            .text_color(c.dialog_muted)
-                                            .into_any_element()
-                                    }))
-                                    .child(display_name),
-                            )
+                            .text_color(if is_current {
+                                c.dialog_primary_button_bg
+                            } else {
+                                c.dialog_secondary_button_text
+                            })
+                            .child(div().child(display_name))
                             .child(if is_current {
                                 svg()
                                     .path("icons/chrome/check.svg")

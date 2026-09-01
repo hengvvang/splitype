@@ -5,7 +5,7 @@ use gpui::*;
 use crate::shell::{Shell, UnsavedDialogScope};
 use config::language::I18nManager;
 use theme::Theme;
-use ui::button::{compact_danger_button, compact_primary_button, compact_secondary_button};
+use ui::button::{compact_primary_button, compact_secondary_button};
 use ui::dialog::dialog_card;
 use ui::popover::overlay;
 
@@ -162,30 +162,33 @@ impl Shell {
                     .child(
                         dialog_card(c, d)
                             .id("unsaved-changes-dialog")
-                            .w(px(400.0))
+                            .w(px(440.0))
+                            .p(px(0.0))
+                            .gap(px(0.0))
+                            .overflow_hidden()
                             .border(px(1.0))
                             .border_color(c.dialog_border)
                             .rounded(px(d.dialog_radius))
-                            .shadow_xl()
-                            .p(px(20.0))
-                            .gap(px(16.0))
+                            .shadow_2xl()
                             .occlude()
                             .on_click(|_event, _window, _cx| {})
                             .child(
                                 div()
+                                    .w_full()
+                                    .p(px(24.0))
                                     .flex()
                                     .flex_col()
-                                    .gap(px(6.0))
+                                    .gap(px(12.0))
                                     .child(
                                         div()
-                                            .text_size(px(16.0))
+                                            .text_size(px(20.0))
                                             .font_weight(gpui::FontWeight::SEMIBOLD)
                                             .text_color(c.dialog_title)
                                             .child(title),
                                     )
                                     .child(
                                         div()
-                                            .text_size(px(13.0))
+                                            .text_size(px(14.0))
                                             .line_height(rems(1.4))
                                             .text_color(c.dialog_body)
                                             .child(message),
@@ -193,33 +196,46 @@ impl Shell {
                             )
                             .child(
                                 div()
+                                    .w_full()
+                                    .px(px(24.0))
+                                    .py(px(16.0))
+                                    .bg(c.dialog_secondary_button_bg)
+                                    .border_t_1()
+                                    .border_color(c.dialog_border)
                                     .flex()
-                                    .justify_end()
                                     .items_center()
                                     .gap(px(8.0))
                                     .child(
-                                        compact_secondary_button("cancel-close-dialog", c, d)
-                                            .text_size(px(13.0))
-                                            .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_secondary_button_text)
-                                            .child(strings.unsaved_changes_cancel.clone())
-                                            .on_click(cx.listener(Self::on_cancel_close_dialog)),
-                                    )
-                                    .child(
-                                        compact_danger_button("discard-and-close-dialog", c, d)
-                                            .text_size(px(13.0))
-                                            .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_danger_button_text)
-                                            .child(strings.unsaved_changes_discard.clone())
-                                            .on_click(cx.listener(Self::on_discard_and_close)),
-                                    )
-                                    .child(
                                         compact_primary_button("save-and-close-dialog", c, d)
+                                            .flex_1()
+                                            .h(px(32.0))
                                             .text_size(px(13.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_primary_button_text)
                                             .child(strings.unsaved_changes_save.clone())
                                             .on_click(cx.listener(Self::on_save_and_close)),
+                                    )
+                                    .child(
+                                        compact_secondary_button("discard-and-close-dialog", c, d)
+                                            .flex_1()
+                                            .h(px(32.0))
+                                            .bg(c.dialog_surface)
+                                            .text_size(px(13.0))
+                                            .font_weight(t.dialog_button_weight.to_font_weight())
+                                            .text_color(c.dialog_secondary_button_text)
+                                            .child(strings.unsaved_changes_discard.clone())
+                                            .on_click(cx.listener(Self::on_discard_and_close)),
+                                    )
+                                    .child(
+                                        compact_secondary_button("cancel-close-dialog", c, d)
+                                            .flex_1()
+                                            .h(px(32.0))
+                                            .bg(c.dialog_surface)
+                                            .text_size(px(13.0))
+                                            .font_weight(t.dialog_button_weight.to_font_weight())
+                                            .text_color(c.dialog_secondary_button_text)
+                                            .child(strings.unsaved_changes_cancel.clone())
+                                            .on_click(cx.listener(Self::on_cancel_close_dialog)),
                                     ),
                             ),
                     ),
