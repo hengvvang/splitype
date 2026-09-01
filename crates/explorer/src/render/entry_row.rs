@@ -141,6 +141,7 @@ impl ExplorerState {
             .id(ElementId::Name(
                 format!("explorer-node-{panel_id}-{}", node_id.0).into(),
             ))
+            .relative()
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
@@ -149,18 +150,31 @@ impl ExplorerState {
             .gap(px(6.0))
             .pl(px(6.0 + entry.depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
-            .rounded(px(theme.dimensions.tree_item_radius))
             .bg(if is_drag_target {
                 c.callout_tip_bg
             } else if is_marked {
                 c.callout_note_bg
             } else if selected {
-                c.panel_row_selected
+                c.panel_row_hover
             } else {
                 hsla(0.0, 0.0, 0.0, 0.0)
             })
             .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
+            .children(if selected {
+                Some(
+                    div()
+                        .absolute()
+                        .left_0()
+                        .top(px(4.0))
+                        .bottom(px(4.0))
+                        .w(px(3.0))
+                        .rounded_r(px(2.0))
+                        .bg(c.focus_accent),
+                )
+            } else {
+                None
+            })
             .child(arrow_el)
             .children(icon.map(|(path, color)| {
                 svg()

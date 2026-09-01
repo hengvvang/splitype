@@ -47,6 +47,7 @@ impl ExplorerState {
 
         div()
             .id(ElementId::Name(format!("explorer-edit-{panel_id}").into()))
+            .relative()
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
@@ -55,8 +56,17 @@ impl ExplorerState {
             .gap(px(6.0))
             .pl(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
-            .rounded(px(theme.dimensions.tree_item_radius))
-            .bg(c.dialog_secondary_button_hover)
+            .bg(c.panel_row_hover)
+            .children(Some(
+                div()
+                    .absolute()
+                    .left_0()
+                    .top(px(4.0))
+                    .bottom(px(4.0))
+                    .w(px(3.0))
+                    .rounded_r(px(2.0))
+                    .bg(c.focus_accent),
+            ))
             // Clicks inside the edit row must not reach the panel
             // background (double-click there would create a new file).
             .on_click(|_event, _window, cx| cx.stop_propagation())

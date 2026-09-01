@@ -149,7 +149,7 @@ impl Shell {
                     .flex_shrink_0()
                     .justify_between()
                     .bg(if is_open {
-                        c.panel_row_selected
+                        c.panel_row_hover
                     } else {
                         c.dialog_surface
                     })
