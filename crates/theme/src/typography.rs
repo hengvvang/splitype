@@ -1,6 +1,6 @@
 //! Typography definitions (font families, sizes, weights).
 
-use gpui::FontWeight;
+use gpui::{BorrowAppContext, FontWeight};
 use serde::{Deserialize, Serialize};
 
 /// Serializable font weight that maps to GPUI's [`FontWeight`] constants.
@@ -154,7 +154,12 @@ pub struct TypographyStore {
 impl gpui::Global for TypographyStore {}
 
 impl TypographyStore {
-    pub fn init(cx: &mut gpui::App, settings: config::settings::TypographySettings) {
+    /// Installs the store, resolving fonts from the settings store's
+    /// typography settings. `SettingsStore` must be initialized first.
+    pub fn init(cx: &mut gpui::App) {
+        let settings = config::settings::PluginSettings::<config::settings::CoreSettings>::get(cx)
+            .typography
+            .clone();
         let (ui, prose, code) = Self::resolve_fonts(&settings);
         cx.set_global(Self {
             settings,
@@ -164,15 +169,30 @@ impl TypographyStore {
         });
     }
 
-    pub fn update(cx: &mut gpui::App, settings: config::settings::TypographySettings) {
-        let (ui, prose, code) = Self::resolve_fonts(&settings);
-        cx.set_global(Self {
-            settings,
-            cached_ui_font: ui,
-            cached_prose_font: prose,
-            cached_code_font: code,
+    /// Registers the settings sync hook that keeps the active fonts in lock
+    /// step with the settings store. Call once during application bootstrap.
+    pub fn register_settings_sync_hook() {
+        config::settings::SettingsStore::register_sync_hook(|cx, settings| {
+            let typography = settings
+                .plugin_settings::<config::settings::CoreSettings>()
+                .typography;
+            cx.update_global::<TypographyStore, _>(|store, _cx| {
+                store.apply_settings(&typography);
+            });
         });
-        cx.refresh_windows();
+    }
+
+    /// Applies the given settings snapshot, returning whether it changed.
+    pub fn apply_settings(&mut self, settings: &config::settings::TypographySettings) -> bool {
+        if settings == &self.settings {
+            return false;
+        }
+        let (ui, prose, code) = Self::resolve_fonts(settings);
+        self.settings = settings.clone();
+        self.cached_ui_font = ui;
+        self.cached_prose_font = prose;
+        self.cached_code_font = code;
+        true
     }
 
     pub fn settings(cx: &gpui::App) -> config::settings::TypographySettings {
@@ -271,5 +291,29 @@ impl FontFamilyCache {
                     .collect()
             })
             .clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typography_store_applies_settings_snapshots() {
+        let mut store = TypographyStore {
+            settings: config::settings::TypographySettings::default(),
+            cached_ui_font: gpui::font("Arial"),
+            cached_prose_font: gpui::font("Arial"),
+            cached_code_font: gpui::font("Consolas"),
+        };
+        // The same snapshot re-applies without re-resolving fonts.
+        assert!(!store.apply_settings(&config::settings::TypographySettings::default()));
+        let settings = config::settings::TypographySettings {
+            code_font_family: "Menlo".into(),
+            ..Default::default()
+        };
+        assert!(store.apply_settings(&settings));
+        assert_eq!(store.settings.code_font_family, "Menlo");
+        assert!(!store.apply_settings(&settings));
     }
 }

@@ -7,11 +7,17 @@
 //! resulting bindings.
 
 use std::collections::BTreeMap;
+use std::sync::RwLock;
 
 use gpui::*;
 
 use crate::commands::binding_for;
 use config::keybindings::normalize_shortcut_keys;
+use config::settings::{CoreSettings, SettingsStore};
+
+/// The keybinding overrides snapshot that produced the installed keymap;
+/// used to skip re-installation when settings change elsewhere.
+static SNAPSHOT: RwLock<BTreeMap<String, Vec<String>>> = RwLock::new(BTreeMap::new());
 
 /// Platform policy for shortcuts declared by manifests: OS-level keys are
 /// declared once and filtered here, where platform glue lives.
@@ -138,7 +144,32 @@ pub(crate) fn install_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<St
     cx.bind_keys(resolved_keybindings(config));
 }
 
-/// Test-only: registers default key bindings for the block editor.
+/// Applies a keybinding overrides snapshot, reporting whether it changed.
+fn apply_keybindings_snapshot(config: &BTreeMap<String, Vec<String>>) -> bool {
+    let mut snapshot = SNAPSHOT
+        .write()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if *snapshot == *config {
+        return false;
+    }
+    *snapshot = config.clone();
+    true
+}
+
+/// Installs the keymap for the given overrides and records the snapshot, so
+/// the settings sync hook can skip no-op re-installations.
 pub(crate) fn init_with_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<String>>) {
+    apply_keybindings_snapshot(config);
     install_keybindings(cx, config);
+}
+
+/// Registers the settings sync hook that keeps the keymap in lock step with
+/// the settings store. Call once during application bootstrap.
+pub(crate) fn register_keybindings_sync_hook() {
+    SettingsStore::register_sync_hook(|cx, settings| {
+        let keybindings = settings.plugin_settings::<CoreSettings>().keybindings;
+        if apply_keybindings_snapshot(&keybindings) {
+            install_keybindings(cx, &keybindings);
+        }
+    });
 }

@@ -135,12 +135,14 @@ pub fn run(args: Args) {
         I18nManager::register_settings_sync_hook();
         ThemeManager::init(cx);
         ThemeManager::register_settings_sync_hook();
-        theme::TypographyStore::init(cx, core.typography.clone());
+        theme::TypographyStore::init(cx);
+        theme::TypographyStore::register_settings_sync_hook();
         install_http_client(cx);
         crate::plugins::init_plugins();
         crate::plugins::discover_user_plugins();
         crate::plugins::register_plugin_theme_contributions(cx);
         init_editor(cx, &core.keybindings);
+        crate::keybindings::register_keybindings_sync_hook();
         init_app_menu(cx);
 
         // Prewarm CPU-intensive resources in background thread
