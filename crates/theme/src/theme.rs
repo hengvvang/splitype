@@ -1,25 +1,19 @@
-//! Theme struct and trait definitions.
+//! Runtime theme and computed style helpers.
+//!
+//! [`Theme`] is the fully resolved runtime value produced by
+//! [`crate::resolve::resolve_theme`]; it is never serialized or persisted —
+//! theme *files* use the patch schema in [`crate::content`] instead.
 
-use anyhow::{Context as _, bail};
+use std::collections::BTreeMap;
+
 use gpui::{Hsla, rgba};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 
-use config::jsonc::{
-    merge_non_empty_json_values, object_without_empty_values, prune_empty_json_values,
-    sanitize_config_file_stem,
-};
+use config::settings::Appearance;
 
 use super::colors::ThemeColors;
 use super::dimensions::ThemeDimensions;
 use super::typography::{FontWeightDef, ThemeTypography};
-
-/// Placeholder text shown in empty interactive elements.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Placeholders {
-    /// Text shown in an empty focused block.
-    pub empty_editing: String,
-}
 
 /// Computed heading typography and layout style.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -40,16 +34,34 @@ pub struct CalloutStyle {
     pub background_color: Hsla,
 }
 
-/// Top-level theme combining colors, dimensions, typography and placeholders.
-///
-/// Can be deserialized from JSON, allowing users to ship custom theme files.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+theme_section!(
+    plain
+    /// Placeholder text shown in empty interactive elements.
+    struct Placeholders,
+    /// Partial placeholder overrides; every `None` field inherits from the
+    /// base theme during resolution.
+    struct PlaceholdersPatch,
+    {
+        /// Text shown in an empty focused block.
+        empty_editing: String,
+    }
+);
+
+/// Top-level resolved theme combining colors, dimensions, typography,
+/// placeholders, and plugin extension tokens.
+#[derive(Debug, Clone)]
 pub struct Theme {
+    /// Display name of the resolved variant.
     pub name: String,
+    /// Light/dark appearance of the resolved variant.
+    pub appearance: Appearance,
     pub colors: ThemeColors,
     pub dimensions: ThemeDimensions,
     pub typography: ThemeTypography,
     pub placeholders: Placeholders,
+    /// Plugin-contributed color tokens keyed by token id, resolved from the
+    /// token schema defaults plus every theme file's `extension` patch.
+    pub extension: BTreeMap<String, Hsla>,
 }
 
 impl Theme {
@@ -125,11 +137,17 @@ impl Theme {
         }
     }
 
-    /// Returns the unified callout colors for a given callout kind.
-    /// Returns the built-in fallback theme used when no custom theme is loaded.
+    /// Looks up a plugin extension token, if registered.
+    pub fn token(&self, key: &str) -> Option<Hsla> {
+        self.extension.get(key).copied()
+    }
+
+    /// Returns the built-in dark theme — the bottom of every resolution
+    /// chain and the ultimate fallback when no theme applies.
     pub fn default_theme() -> Self {
         Self {
             name: "Dark".into(),
+            appearance: Appearance::Dark,
             colors: ThemeColors {
                 editor_background: Hsla::from(rgba(0x18181bff)),
                 source_mode_block_bg: Hsla::from(rgba(0x27272aff)),
@@ -376,6 +394,7 @@ impl Theme {
             placeholders: Placeholders {
                 empty_editing: String::new(),
             },
+            extension: BTreeMap::new(),
         }
     }
 
@@ -386,7 +405,8 @@ impl Theme {
     pub fn light_theme() -> Self {
         let base = Self::default_theme();
         Self {
-            name: BUILTIN_THEME_SPLITYPE_LIGHT_NAME.into(),
+            name: "Light".into(),
+            appearance: Appearance::Light,
             colors: ThemeColors {
                 editor_background: Hsla::from(rgba(0xffffffff)),
                 source_mode_block_bg: Hsla::from(rgba(0xf4f4f5ff)),
@@ -485,185 +505,7 @@ impl Theme {
             dimensions: base.dimensions,
             typography: base.typography,
             placeholders: base.placeholders,
+            extension: BTreeMap::new(),
         }
     }
-
-    /// Parses a theme from JSON text.
-    #[cfg(test)]
-    pub fn from_json(json: &str) -> anyhow::Result<Self> {
-        Ok(serde_json::from_str(json)?)
-    }
-
-    /// Serializes the theme into pretty-printed JSON.
-    #[cfg(test)]
-    pub fn to_json(&self) -> anyhow::Result<String> {
-        Ok(serde_json::to_string_pretty(self)?)
-    }
-}
-
-/// Metadata for a selectable theme.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ThemeCatalogEntry {
-    pub id: String,
-    pub name: String,
-}
-
-pub const BUILTIN_THEME_SPLITYPE_ID: &str = "splitype";
-pub const BUILTIN_THEME_SPLITYPE_NAME: &str = "Dark";
-pub const BUILTIN_THEME_SPLITYPE_LIGHT_ID: &str = "splitype-light";
-pub const BUILTIN_THEME_SPLITYPE_LIGHT_NAME: &str = "Light";
-
-pub fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {
-    vec![
-        ThemeCatalogEntry {
-            id: BUILTIN_THEME_SPLITYPE_ID.into(),
-            name: BUILTIN_THEME_SPLITYPE_NAME.into(),
-        },
-        ThemeCatalogEntry {
-            id: BUILTIN_THEME_SPLITYPE_LIGHT_ID.into(),
-            name: BUILTIN_THEME_SPLITYPE_LIGHT_NAME.into(),
-        },
-    ]
-}
-
-#[derive(Debug, Clone)]
-pub struct CustomThemeEntry {
-    pub id: String,
-    pub name: String,
-    pub creator: String,
-    pub base_theme_id: String,
-    pub theme: Theme,
-}
-
-pub fn custom_theme_from_value(value: Value) -> anyhow::Result<(CustomThemeEntry, Value)> {
-    custom_theme_from_value_with_default_base(value, BUILTIN_THEME_SPLITYPE_ID)
-}
-
-pub fn custom_theme_from_value_with_default_base(
-    mut value: Value,
-    default_base_theme_id: &str,
-) -> anyhow::Result<(CustomThemeEntry, Value)> {
-    prune_empty_json_values(&mut value);
-    let Value::Object(mut object) = value else {
-        bail!("theme config must be a JSON object");
-    };
-    let object = object_without_empty_values(std::mem::take(&mut object));
-    let name = required_string(&object, "name")?;
-    let creator = required_string(&object, "creator")?;
-    let base_theme_id = resolved_custom_theme_base_id(&object, default_base_theme_id);
-    let raw_theme_patch = object
-        .get("theme")
-        .cloned()
-        .unwrap_or_else(|| Value::Object(Map::new()));
-    if !raw_theme_patch.is_object() {
-        bail!("field 'theme' must be a JSON object when present");
-    }
-
-    let base_theme = custom_theme_base_theme(base_theme_id);
-    let mut merged = serde_json::to_value(base_theme)?;
-    let mut theme_patch = filter_json_by_schema(&raw_theme_patch, &merged);
-    if let Value::Object(theme_patch_object) = &mut theme_patch {
-        theme_patch_object.remove("name");
-    }
-    merge_non_empty_json_values(&mut merged, &theme_patch);
-    if let Value::Object(merged_object) = &mut merged {
-        merged_object.insert("name".into(), Value::String(name.clone()));
-    }
-    let theme: Theme = serde_json::from_value(merged)
-        .with_context(|| format!("failed to construct custom theme '{name}'"))?;
-    let id = format!(
-        "custom:{}_{}",
-        sanitize_config_file_stem(&name),
-        sanitize_config_file_stem(&creator)
-    );
-    let mut normalized_object = Map::new();
-    normalized_object.insert("name".into(), Value::String(name.clone()));
-    normalized_object.insert("creator".into(), Value::String(creator.clone()));
-    normalized_object.insert(
-        "base_theme_id".into(),
-        Value::String(base_theme_id.to_string()),
-    );
-    for key in ["description", "version", "homepage", "license"] {
-        if let Some(value) = object.get(key) {
-            normalized_object.insert(key.into(), value.clone());
-        }
-    }
-    if !theme_patch
-        .as_object()
-        .map(|object| object.is_empty())
-        .unwrap_or(false)
-    {
-        normalized_object.insert("theme".into(), theme_patch);
-    }
-    let normalized = Value::Object(normalized_object);
-
-    Ok((
-        CustomThemeEntry {
-            id,
-            name,
-            creator,
-            base_theme_id: base_theme_id.to_string(),
-            theme,
-        },
-        normalized,
-    ))
-}
-
-fn resolved_custom_theme_base_id<'a>(
-    object: &'a Map<String, Value>,
-    default_base_theme_id: &'a str,
-) -> &'a str {
-    object
-        .get("base_theme_id")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| is_builtin_theme_id(value))
-        .unwrap_or_else(|| {
-            if is_builtin_theme_id(default_base_theme_id) {
-                default_base_theme_id
-            } else {
-                BUILTIN_THEME_SPLITYPE_ID
-            }
-        })
-}
-
-fn is_builtin_theme_id(theme_id: &str) -> bool {
-    theme_id == BUILTIN_THEME_SPLITYPE_ID || theme_id == BUILTIN_THEME_SPLITYPE_LIGHT_ID
-}
-
-fn custom_theme_base_theme(theme_id: &str) -> Theme {
-    if theme_id == BUILTIN_THEME_SPLITYPE_LIGHT_ID {
-        Theme::light_theme()
-    } else {
-        Theme::default_theme()
-    }
-}
-
-fn filter_json_by_schema(value: &Value, schema: &Value) -> Value {
-    match (value, schema) {
-        (Value::Object(value_object), Value::Object(schema_object)) => {
-            let mut filtered = Map::new();
-            for (key, value) in value_object {
-                if let Some(schema_value) = schema_object.get(key) {
-                    filtered.insert(key.clone(), filter_json_by_schema(value, schema_value));
-                }
-            }
-            Value::Object(filtered)
-        }
-        (value, _) => value.clone(),
-    }
-}
-
-fn required_string(object: &Map<String, Value>, key: &str) -> anyhow::Result<String> {
-    let Some(value) = object.get(key) else {
-        bail!("missing required field '{key}'");
-    };
-    let Some(text) = value
-        .as_str()
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-    else {
-        bail!("field '{key}' must be a non-empty string");
-    };
-    Ok(text.to_string())
 }

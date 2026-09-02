@@ -34,12 +34,12 @@ actions!(
     ]
 );
 
-/// Selects a theme from the app-level theme registry.
+/// Selects a concrete theme (`family.variant` id) from the theme registry.
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
 pub struct SelectTheme {
-    /// Stable theme id from the built-in theme catalog.
+    /// Concrete theme id from the theme registry.
     pub theme_id: String,
 }
 

@@ -48,9 +48,11 @@ impl Shell {
                 let mut left_elem: Option<AnyElement> = None;
 
                 if let Some(act) = action.as_ref().as_any().downcast_ref::<SelectTheme>() {
-                    let current_theme_id = cx.global::<ThemeManager>().current_theme_id();
-                    is_selected = act.theme_id == current_theme_id;
-                    let item_icon = if name == "Light" {
+                    let theme_manager = cx.global::<ThemeManager>();
+                    is_selected = act.theme_id == theme_manager.current_theme_id();
+                    let item_icon = if theme_manager.appearance_of(&act.theme_id)
+                        == Some(theme::Appearance::Light)
+                    {
                         "icons/titlebar/app_menu/sun.svg"
                     } else {
                         "icons/titlebar/app_menu/moon.svg"
@@ -60,16 +62,13 @@ impl Shell {
                             .flex()
                             .items_center()
                             .gap(px(6.0))
-                            .child(
-                                svg()
-                                    .path(item_icon)
-                                    .size(px(15.0))
-                                    .text_color(if is_selected {
-                                        c.dialog_primary_button_bg
-                                    } else {
-                                        c.text_default
-                                    }),
-                            )
+                            .child(svg().path(item_icon).size(px(15.0)).text_color(
+                                if is_selected {
+                                    c.dialog_primary_button_bg
+                                } else {
+                                    c.text_default
+                                },
+                            ))
                             .child(name.clone())
                             .into_any_element(),
                     );

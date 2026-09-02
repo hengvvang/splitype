@@ -298,3 +298,40 @@ special app-core section — with config-only channels (keybinding overrides)
 exempted explicitly as unexposed fields. This is the shape a future WASM ABI
 can cross: schemas are serializable data, and the settings UI renders without
 loading plugin code.
+
+## ADR-023: Themes are resolved data, driven by settings
+
+**Status:** Accepted
+
+The theme system has one architecture and no legacy paths:
+
+- **One file format.** A theme file is a JSONC *family* (`ThemeFamilyContent`):
+  a name, an optional author, and variants (`ThemeContent`), each carrying a
+  partial `ThemeStyleContent` patch (`base`, `colors`, `dimensions`,
+  `typography`, `placeholders`, `extension`). Omitted fields inherit from the
+  variant's `base` chain — a single link to a `family` or `family.variant` id,
+  cycle-checked at resolution — which bottoms out at the built-in default
+  theme. Unknown keys are hard errors (`deny_unknown_fields`).
+- **One registry.** `ThemeRegistry` holds every family keyed by a lowercased
+  slug id with priority `user > plugin > builtin`, plus the plugin
+  extension-token schema (key, default, description). Builtins are ordinary
+  families seeded from the built-in dark/light themes, so user themes,
+  plugin themes, and builtins flow through the same pipeline.
+- **One resolver.** `resolve_theme` merges in one place: built-in default →
+  base chain (root first) → the variant's own patch → settings color
+  overrides. Extension tokens resolve from schema defaults through the chain
+  and the overrides. Color parsing is gpui's own `Hsla` serde
+  (`#rrggbb[aa]`) — the only color parser in the codebase.
+- **Settings are the source of truth.** `ThemeSettingsContent`
+  (`appearance`, `family`, `overrides` — a flat `colors.<field>` / token-key
+  color map) lives in the core settings blob. Every theme change — menu,
+  settings picker, import, override panel — writes settings; a `SettingsStore`
+  sync hook calls `ThemeManager::apply_settings`, which re-resolves only when
+  the snapshot changed. There is no `theme_id`, no catalog of
+  `CustomThemeEntry`s, and no direct manager mutation path.
+
+Runtime `Theme` stays flat semantic tokens (`colors` / `dimensions` /
+`typography` / `placeholders` / `extension`) rather than Zed's nested player
+roles; consumer code reads `ThemeManager::current_arc()` unchanged. Plugin
+theme contributions (`[[themes]]`, `[[theme_tokens]]`) plug into the registry
+without schema changes.

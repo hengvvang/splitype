@@ -144,10 +144,25 @@ title = "Restore Window Geometry & State"
 description = "Remember previous window dimensions, position, and layout splits on startup"
 
 [[settings]]
-key = "interface.theme_id"
+key = "theme.appearance"
+kind = "enum"
+default = "dark"
+title = "Theme Appearance"
+description = "Light or dark appearance of the selected theme"
+
+[[settings.options]]
+value = "dark"
+label = "Dark"
+
+[[settings.options]]
+value = "light"
+label = "Light"
+
+[[settings]]
+key = "theme.family"
 kind = "theme"
 default = "splitype"
-title = "Color Theme"
+title = "Theme Family"
 description = "Select the application-wide visual theme"
 
 [[settings]]

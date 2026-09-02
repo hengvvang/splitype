@@ -13,8 +13,43 @@ use crate::recent::read_recent_files;
 pub type SubsystemSyncHook = fn(&mut App, &AppSettings);
 static SYNC_HOOKS: std::sync::RwLock<Vec<SubsystemSyncHook>> = std::sync::RwLock::new(Vec::new());
 
-pub const DEFAULT_THEME_ID: &str = "splitype";
+pub const DEFAULT_THEME_FAMILY: &str = "splitype";
 pub const DEFAULT_LANGUAGE_ID: &str = "en-US";
+
+/// Light/dark appearance of a theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Appearance {
+    #[default]
+    Dark,
+    Light,
+}
+
+impl Appearance {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dark => "dark",
+            Self::Light => "light",
+        }
+    }
+}
+
+impl std::fmt::Display for Appearance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for Appearance {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "light" => Ok(Self::Light),
+            _ => Ok(Self::Dark),
+        }
+    }
+}
 
 /// Document selection behavior when launching the application.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,11 +119,9 @@ impl Default for StartupSettings {
     }
 }
 
-/// Interface appearance, theme, and language configuration.
+/// Interface appearance and language configuration.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InterfaceSettings {
-    #[serde(default = "default_theme_id_string")]
-    pub theme_id: String,
     #[serde(default = "default_language_id_string")]
     pub language_id: String,
 }
@@ -96,18 +129,46 @@ pub struct InterfaceSettings {
 impl Default for InterfaceSettings {
     fn default() -> Self {
         Self {
-            theme_id: DEFAULT_THEME_ID.to_string(),
             language_id: DEFAULT_LANGUAGE_ID.to_string(),
         }
     }
 }
 
-fn default_theme_id_string() -> String {
-    DEFAULT_THEME_ID.to_string()
-}
-
 fn default_language_id_string() -> String {
     DEFAULT_LANGUAGE_ID.to_string()
+}
+
+/// Theme selection and per-user color overrides.
+///
+/// The theme manager resolves the active theme from this snapshot — settings
+/// are the single source of truth for the active theme. Override keys are
+/// `colors.<field>` token paths or plugin extension token keys.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ThemeSettingsContent {
+    /// Dark/light appearance of the selected theme.
+    #[serde(default)]
+    pub appearance: Appearance,
+    /// Selected theme family id.
+    #[serde(default = "default_theme_family_string")]
+    pub family: String,
+    /// User color overrides applied above every theme file.
+    #[serde(default)]
+    pub overrides: BTreeMap<String, gpui::Hsla>,
+}
+
+impl Default for ThemeSettingsContent {
+    fn default() -> Self {
+        Self {
+            appearance: Appearance::default(),
+            family: DEFAULT_THEME_FAMILY.to_string(),
+            overrides: BTreeMap::new(),
+        }
+    }
+}
+
+fn default_theme_family_string() -> String {
+    DEFAULT_THEME_FAMILY.to_string()
 }
 
 /// Typography preferences (UI, Prose, and Code fonts, sizes, and line heights).
@@ -163,6 +224,8 @@ pub struct CoreSettings {
     pub interface: InterfaceSettings,
     #[serde(default)]
     pub typography: TypographySettings,
+    #[serde(default)]
+    pub theme: ThemeSettingsContent,
     /// User shortcut overrides keyed by full command id (e.g.
     /// `splitype.editor.save`); values are gpui keystroke strings.
     #[serde(default)]
@@ -199,7 +262,7 @@ impl AppSettings {
     }
 
     /// Reads one settings value by dotted key path (e.g.
-    /// `interface.theme_id`) from a plugin's blob.
+    /// `theme.family`) from a plugin's blob.
     pub fn plugin_value(&self, plugin: &str, key: &str) -> Option<serde_json::Value> {
         let blob = self.plugins.get(plugin)?;
         let mut current: &serde_json::Value = blob;
@@ -504,10 +567,11 @@ mod tests {
         let manifest: platform_contracts::PluginManifest =
             toml::from_str(include_str!("../../../assets/plugins/splitype.core.toml"))
                 .expect("bundled core manifest must be valid TOML");
-        // Keybinding overrides are a config-only channel with no settings UI.
+        // Keybinding overrides and theme color overrides are config-only
+        // channels with no settings UI rows.
         let problems = platform_contracts::verify_setting_declarations::<CoreSettings>(
             &manifest.settings,
-            &["keybindings"],
+            &["keybindings", "theme.overrides"],
         );
         assert!(problems.is_empty(), "declaration mismatches: {problems:#?}");
     }

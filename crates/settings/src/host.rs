@@ -5,19 +5,21 @@
 //! [`PluginRegistry`] for manifests with `settings` declarations, draws the
 //! navigation from the plugin names, and renders one control per declaration
 //! from its [`SettingKind`]. Values are read from and written to the
-//! canonical [`SettingsStore`] through dotted keys; theme and language
-//! selections additionally apply live through their managers.
+//! canonical [`SettingsStore`] through dotted keys; theme selections apply
+//! live through the settings sync hook, and the group declaring the theme
+//! family picker also hosts the per-user color override panel.
 
 use std::sync::Arc;
 
-use gpui::*;
 use gpui::prelude::FluentBuilder;
+use gpui::*;
 use serde_json::Value;
 
 use config::language::I18nManager;
-use config::settings::SettingsStore;
+use config::settings::{CoreSettings, PluginSettings, SettingsStore};
 use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, SettingKind};
-use theme::{Theme, ThemeManager};
+use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
+use ui::section::section_card;
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::settings_form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsKeyHandler,
@@ -163,8 +165,8 @@ fn render_plugin_page(
     let plugin_id = manifest.plugin.as_str();
 
     let groups = settings_groups(manifest);
-    let has_multiple_groups = groups.len() > 1
-        || groups.first().is_some_and(|(g, _)| g != &manifest.name);
+    let has_multiple_groups =
+        groups.len() > 1 || groups.first().is_some_and(|(g, _)| g != &manifest.name);
 
     let mut section_elements = Vec::new();
     for (group, declarations) in groups {
@@ -189,6 +191,15 @@ fn render_plugin_page(
         }
         group_div = group_div.children(rows);
         section_elements.push(group_div.into_any_element());
+
+        // The group declaring the theme family picker also hosts the
+        // per-user color override panel.
+        if declarations
+            .iter()
+            .any(|declaration| declaration.kind == SettingKind::Theme)
+        {
+            section_elements.push(render_theme_overrides_panel(id_namespace, state, theme, cx));
+        }
     }
 
     let description = manifest.description.clone().map(|text| {
@@ -481,13 +492,21 @@ fn render_control(
             )
         }
         SettingKind::Theme => {
+            // One option per family; user families shadow plugin/builtin
+            // families with the same id.
+            let mut seen = std::collections::BTreeSet::new();
             let options: Vec<PickerOption> = cx
                 .global::<ThemeManager>()
                 .available_themes()
                 .iter()
+                .filter(|entry| seen.insert(entry.family.clone()))
                 .map(|entry| PickerOption {
-                    value: entry.id.clone(),
-                    label: entry.name.clone(),
+                    value: entry.family.clone(),
+                    label: if entry.author.is_empty() {
+                        entry.family_name.clone()
+                    } else {
+                        format!("{} · {}", entry.family_name, entry.author)
+                    },
                 })
                 .collect();
             let label = current.as_str().map(|id| {
@@ -507,11 +526,9 @@ fn render_control(
                 label,
                 c,
                 d,
-                |cx, theme_id| {
-                    let _ = cx.update_global::<ThemeManager, _>(|manager, _cx| {
-                        manager.set_theme_by_id(&theme_id)
-                    });
-                },
+                // The settings write below triggers the theme sync hook,
+                // which resolves and applies the selected family live.
+                |_cx, _value| {},
                 cx,
             )
         }
@@ -707,7 +724,12 @@ fn render_text_control(
                     c.dialog_border
                 }),
         )
-        .on_click(start_edit(state.clone(), key.clone(), value.clone(), focus_handle.clone()))
+        .on_click(start_edit(
+            state.clone(),
+            key.clone(),
+            value.clone(),
+            focus_handle.clone(),
+        ))
         .on_key_down(on_key_down)
         .into_any_element()
 }
@@ -877,10 +899,7 @@ fn editable_key_handler(
                 "space" => {
                     if !numeric_only {
                         state.update(cx, |ui, _| {
-                            ui.edit_buffers
-                                .entry(key.clone())
-                                .or_default()
-                                .push(' ');
+                            ui.edit_buffers.entry(key.clone()).or_default().push(' ');
                         });
                     }
                 }
@@ -959,4 +978,310 @@ fn title_case(input: &str) -> String {
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
         None => String::new(),
     }
+}
+
+/// Renders the theme color-override panel: a searchable list of every color
+/// token with inline hex editing. Appended to the group that declares the
+/// theme family picker (kind [`SettingKind::Theme`]).
+fn render_theme_overrides_panel(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+
+    let overrides = PluginSettings::<CoreSettings>::get(cx)
+        .theme
+        .overrides
+        .clone();
+
+    // Every color token: (override key, display name, effective color).
+    let mut tokens: Vec<(String, String, Hsla)> = ThemeColors::TOKEN_FIELD_NAMES
+        .iter()
+        .filter_map(|field| {
+            let hsla = theme.colors.color_token(field)?;
+            Some((format!("colors.{field}"), (*field).to_string(), hsla))
+        })
+        .collect();
+    for (token_key, declaration) in cx.global::<ThemeManager>().registry().token_schema() {
+        tokens.push((
+            token_key.clone(),
+            token_key.clone(),
+            theme
+                .extension
+                .get(token_key)
+                .copied()
+                .unwrap_or(declaration.default),
+        ));
+    }
+
+    let search_key = format!("{id_namespace}-theme-overrides");
+    let query = state
+        .read(cx)
+        .search_queries
+        .get(&search_key)
+        .cloned()
+        .unwrap_or_default()
+        .to_lowercase();
+
+    let search_focus = state.update(cx, |ui, cx| ui.focus_handle(&search_key, cx));
+    let search_state = state.clone();
+    let search_state_key = search_key.clone();
+    let search_input = div()
+        .id(ElementId::Name(format!("{search_key}-input").into()))
+        .key_context("SettingsInput")
+        .track_focus(&search_focus)
+        .relative()
+        .overflow_hidden()
+        .cursor_text()
+        .w_full()
+        .h(px(28.0))
+        .px(px(8.0))
+        .rounded(px(d.select_trigger_radius))
+        .bg(c.dialog_secondary_button_bg)
+        .border_1()
+        .border_color(c.dialog_border)
+        .flex()
+        .items_center()
+        .child(
+            div()
+                .text_size(px(12.0))
+                .text_color(if query.is_empty() {
+                    c.dialog_muted
+                } else {
+                    c.text_default
+                })
+                .child(if query.is_empty() {
+                    "Search color tokens…".to_string()
+                } else {
+                    query.clone()
+                }),
+        )
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.0))
+                .rounded_b(px(d.select_trigger_radius))
+                .bg(c.dialog_border),
+        )
+        .on_click(Box::new(
+            move |_event: &ClickEvent, window: &mut Window, cx: &mut App| {
+                window.focus(&search_focus, cx);
+            },
+        ))
+        .on_key_down(Box::new(
+            move |event: &KeyDownEvent, _window: &mut Window, cx: &mut App| {
+                search_state.update(cx, |ui, _| {
+                    let query = ui
+                        .search_queries
+                        .entry(search_state_key.clone())
+                        .or_default();
+                    match event.keystroke.key.as_str() {
+                        "escape" => query.clear(),
+                        "backspace" => {
+                            query.pop();
+                        }
+                        _ => {
+                            let text = event.keystroke.key_char.clone().unwrap_or_else(|| {
+                                if event.keystroke.key.len() == 1 {
+                                    event.keystroke.key.clone()
+                                } else {
+                                    String::new()
+                                }
+                            });
+                            if !text.is_empty() && !text.chars().any(|ch| ch.is_control()) {
+                                query.push_str(&text);
+                            }
+                        }
+                    }
+                });
+                cx.refresh_windows();
+            },
+        ));
+
+    let mut rows: Vec<AnyElement> = Vec::new();
+    for (token_key, display, effective) in tokens {
+        if !query.is_empty() && !display.to_lowercase().contains(&query) {
+            continue;
+        }
+        let overridden = overrides.contains_key(&token_key);
+        let desc = format!(
+            "{} · {}",
+            if overridden {
+                "Overridden"
+            } else {
+                "Inherited"
+            },
+            hsla_to_hex(effective),
+        );
+        let reset: Option<SettingsClickHandler> = if overridden {
+            let reset_key = token_key.clone();
+            Some(Box::new(
+                move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                    write_color_override(cx, &reset_key, None);
+                },
+            ))
+        } else {
+            None
+        };
+        let control = render_color_control(
+            id_namespace,
+            state,
+            &token_key,
+            effective,
+            overridden,
+            c,
+            d,
+            cx,
+        );
+        rows.push(make_row_with_reset(
+            c.dialog_border,
+            c,
+            d,
+            display,
+            desc,
+            reset,
+            control,
+        ));
+    }
+
+    section_card(c, d)
+        .child(
+            div()
+                .text_size(px(13.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(c.text_default)
+                .child("Color Overrides"),
+        )
+        .child(search_input)
+        .children(rows)
+        .into_any_element()
+}
+
+/// Inline hex color input with a swatch, committing `#rrggbb[aa]` colors.
+#[allow(clippy::too_many_arguments)]
+fn render_color_control(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    token_key: &str,
+    effective: Hsla,
+    overridden: bool,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    cx: &mut App,
+) -> AnyElement {
+    let edit_key = format!("override:{token_key}");
+    let is_editing = state.read(cx).edit_buffers.contains_key(&edit_key);
+    let display = state
+        .read(cx)
+        .edit_buffers
+        .get(&edit_key)
+        .cloned()
+        .unwrap_or_else(|| hsla_to_hex(effective));
+    let focus_handle = state.update(cx, |ui, cx| ui.focus_handle(&edit_key, cx));
+
+    let commit_key = token_key.to_string();
+    let on_key_down =
+        editable_key_handler(state.clone(), edit_key.clone(), false, move |cx, text| {
+            write_color_override(cx, &commit_key, Some(text));
+        });
+
+    div()
+        .id(ElementId::Name(
+            format!("{id_namespace}-color-{token_key}").into(),
+        ))
+        .key_context("SettingsInput")
+        .track_focus(&focus_handle)
+        .relative()
+        .overflow_hidden()
+        .cursor_text()
+        .w(px(150.0))
+        .h(px(28.0))
+        .px(px(8.0))
+        .rounded(px(d.select_trigger_radius))
+        .bg(if is_editing {
+            c.dialog_surface
+        } else {
+            c.dialog_secondary_button_bg
+        })
+        .border_1()
+        .border_color(if overridden {
+            c.focus_accent
+        } else {
+            c.dialog_border
+        })
+        .flex()
+        .items_center()
+        .gap(px(6.0))
+        .child(
+            div()
+                .flex_shrink_0()
+                .w(px(14.0))
+                .h(px(14.0))
+                .rounded_sm()
+                .border_1()
+                .border_color(c.dialog_border)
+                .bg(effective),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.0))
+                .truncate()
+                .text_size(px(12.0))
+                .text_color(if overridden {
+                    c.text_default
+                } else {
+                    c.dialog_muted
+                })
+                .child(display),
+        )
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.0))
+                .rounded_b(px(d.select_trigger_radius))
+                .bg(if is_editing {
+                    c.focus_accent
+                } else {
+                    c.dialog_border
+                }),
+        )
+        .on_click(start_edit(
+            state.clone(),
+            edit_key.clone(),
+            hsla_to_hex(effective),
+            focus_handle.clone(),
+        ))
+        .on_key_down(on_key_down)
+        .into_any_element()
+}
+
+/// Writes (or, with `None`, removes) one theme color override through the
+/// settings store; the theme sync hook applies it live. Invalid hex input
+/// is ignored.
+fn write_color_override(cx: &mut App, key: &str, hex: Option<String>) {
+    let parsed = hex.map(|text| gpui::Rgba::try_from(text.trim()).map(gpui::Hsla::from));
+    let _ = PluginSettings::<CoreSettings>::update(cx, |settings| match parsed {
+        Some(Ok(hsla)) => {
+            settings.theme.overrides.insert(key.to_string(), hsla);
+        }
+        Some(Err(_)) => {}
+        None => {
+            settings.theme.overrides.remove(key);
+        }
+    });
+}
+
+/// Formats an Hsla color as its `#rrggbbaa` hex string.
+fn hsla_to_hex(hsla: Hsla) -> String {
+    format!("#{:08x}", u32::from(gpui::Rgba::from(hsla)))
 }

@@ -1,28 +1,45 @@
-//! Theme manager for loading, switching, and applying themes.
+//! Theme manager — the gpui global owning the registry and the resolved
+//! current theme.
+//!
+//! The manager never picks themes on its own: [`ThemeSettingsContent`] in
+//! the settings store is the single source of truth. Settings writes flow
+//! through `SettingsStore` sync hooks into [`ThemeManager::apply_settings`],
+//! which re-resolves only when the settings snapshot actually changed.
 
 use std::path::Path;
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use gpui::{App, BorrowAppContext, Global};
 
 use config::dirs::SplitypeConfigDirs;
-use config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use config::jsonc::read_json_or_jsonc;
+use config::settings::{Appearance, CoreSettings, PluginSettings, ThemeSettingsContent};
 
-use super::theme::{
-    BUILTIN_THEME_SPLITYPE_ID, BUILTIN_THEME_SPLITYPE_LIGHT_ID, CustomThemeEntry, Theme,
-    ThemeCatalogEntry, builtin_theme_catalog, custom_theme_from_value,
-    custom_theme_from_value_with_default_base,
-};
+use super::content::{ThemeFamilyContent, validate_family};
+use super::registry::{ThemeCatalogEntry, ThemeRegistry};
+use super::resolve::resolve_theme;
+use super::theme::Theme;
 
-/// Global singleton that holds the current [`Theme`].
+/// The built-in family id.
+pub const BUILTIN_THEME_FAMILY_ID: &str = "splitype";
+
+/// A theme family file imported into the user's theme library.
+pub struct ImportedTheme {
+    pub family_id: String,
+    pub theme_id: String,
+    pub appearance: Appearance,
+}
+
+/// Global singleton that holds the resolved current [`Theme`].
 ///
 /// Registered via [`Global`] so every component can access it through
 /// `cx.global::<ThemeManager>().current()` without passing props.
 pub struct ThemeManager {
+    registry: ThemeRegistry,
     current: Arc<Theme>,
     current_theme_id: String,
-    custom_themes: Vec<CustomThemeEntry>,
-    theme_catalog: Vec<ThemeCatalogEntry>,
+    settings_snapshot: ThemeSettingsContent,
 }
 
 impl Global for ThemeManager {}
@@ -30,25 +47,39 @@ impl Global for ThemeManager {}
 impl Default for ThemeManager {
     fn default() -> Self {
         Self {
+            registry: ThemeRegistry::with_builtins(),
             current: Arc::new(Theme::default_theme()),
-            current_theme_id: BUILTIN_THEME_SPLITYPE_ID.into(),
-            custom_themes: Vec::new(),
-            theme_catalog: builtin_theme_catalog(),
+            current_theme_id: format!("{BUILTIN_THEME_FAMILY_ID}.dark"),
+            settings_snapshot: ThemeSettingsContent::default(),
         }
     }
 }
 
 impl ThemeManager {
-    /// Installs a specific theme into GPUI's global state.
-    pub fn init_with_theme_id(cx: &mut App, theme_id: &str) {
+    /// Installs the manager, loading user theme families and applying the
+    /// settings store's theme settings. `SettingsStore` must be initialized
+    /// first.
+    pub fn init(cx: &mut App) {
         let mut manager = Self::default();
         if let Ok(dirs) = SplitypeConfigDirs::from_system()
-            && let Err(err) = manager.load_custom_themes_from_dirs(&dirs)
+            && let Err(err) = manager.registry.load_user_themes(&dirs)
         {
-            tracing::warn!(error = %err, "failed to load custom themes");
+            tracing::warn!(error = %err, "failed to load user theme families");
         }
-        let _ = manager.set_theme_by_id(theme_id);
+        let settings = PluginSettings::<CoreSettings>::get(cx).theme;
+        let _ = manager.apply_settings(&settings);
         cx.set_global(manager);
+    }
+
+    /// Registers the settings sync hook that keeps the active theme in lock
+    /// step with the settings store. Call once during application bootstrap.
+    pub fn register_settings_sync_hook() {
+        config::settings::SettingsStore::register_sync_hook(|cx, settings| {
+            let theme_settings = settings.plugin_settings::<CoreSettings>().theme;
+            cx.update_global::<ThemeManager, _>(|manager, _cx| {
+                manager.apply_settings(&theme_settings);
+            });
+        });
     }
 
     /// Returns the currently active theme.
@@ -58,334 +89,346 @@ impl ThemeManager {
 
     /// Returns an `Arc` clone of the currently active theme — O(1), no
     /// per-field copy. Use this in hot render paths instead of cloning the
-    /// whole `Theme` struct (which has ~200 fields and a `String` name).
+    /// whole `Theme` struct.
     pub fn current_arc(&self) -> Arc<Theme> {
         self.current.clone()
     }
 
-    /// Returns the identifier of the currently active theme.
+    /// Concrete id (`family.variant`) of the currently active theme.
     pub fn current_theme_id(&self) -> &str {
         &self.current_theme_id
     }
 
-    /// Returns all built-in and imported themes exposed in the native menu.
-    pub fn available_themes(&self) -> &[ThemeCatalogEntry] {
-        &self.theme_catalog
+    /// The theme registry backing this manager.
+    pub fn registry(&self) -> &ThemeRegistry {
+        &self.registry
     }
 
-    /// Restores the built-in default theme.
-    pub fn reset(&mut self) {
-        self.current = Arc::new(Theme::default_theme());
-        self.current_theme_id = BUILTIN_THEME_SPLITYPE_ID.into();
+    /// Every selectable theme exposed in menus and settings.
+    pub fn available_themes(&self) -> Vec<ThemeCatalogEntry> {
+        self.registry.catalog()
     }
 
-    /// Activates a theme by identifier.
-    pub fn set_theme_by_id(&mut self, theme_id: &str) -> bool {
-        match theme_id {
-            id if id == BUILTIN_THEME_SPLITYPE_ID => {
-                self.current = Arc::new(Theme::default_theme());
-                self.current_theme_id = BUILTIN_THEME_SPLITYPE_ID.into();
-                true
+    /// Appearance of a concrete theme id, for menu icons.
+    pub fn appearance_of(&self, theme_id: &str) -> Option<Appearance> {
+        self.registry
+            .catalog()
+            .into_iter()
+            .find(|entry| entry.id == theme_id)
+            .map(|entry| entry.appearance)
+    }
+
+    /// Re-resolves the active theme from the given settings snapshot,
+    /// returning whether the snapshot changed. On resolution failure the
+    /// previous theme is kept and the error is logged.
+    pub fn apply_settings(&mut self, settings: &ThemeSettingsContent) -> bool {
+        if settings == &self.settings_snapshot {
+            return false;
+        }
+        self.settings_snapshot = settings.clone();
+        match resolve_theme(
+            &self.registry,
+            &settings.family,
+            settings.appearance,
+            &settings.overrides,
+        ) {
+            Ok(resolved) => {
+                self.current = resolved.theme;
+                self.current_theme_id = resolved.id;
             }
-            id if id == BUILTIN_THEME_SPLITYPE_LIGHT_ID => {
-                self.current = Arc::new(Theme::light_theme());
-                self.current_theme_id = BUILTIN_THEME_SPLITYPE_LIGHT_ID.into();
-                true
-            }
-            id => {
-                let Some(entry) = self.custom_themes.iter().find(|entry| entry.id == id) else {
-                    return false;
-                };
-                self.current = Arc::new(entry.theme.clone());
-                self.current_theme_id = entry.id.clone();
-                true
+            Err(err) => {
+                tracing::warn!(
+                    error = %err,
+                    family = %settings.family,
+                    "failed to resolve theme settings; keeping the current theme"
+                );
             }
         }
+        true
     }
 
-    /// Imports a user theme pack, persists a normalized copy, and activates it.
-    pub fn import_theme_config(&mut self, path: impl AsRef<Path>) -> anyhow::Result<String> {
+    /// Imports a theme family file into the user theme library: validates,
+    /// persists a normalized copy, registers it, and resolves it once to
+    /// surface any base-chain or override errors at import time.
+    pub fn import_theme_file(&mut self, path: impl AsRef<Path>) -> anyhow::Result<ImportedTheme> {
         let dirs = SplitypeConfigDirs::from_system()?;
-        self.import_theme_config_with_dirs(path, &dirs)
+        self.import_theme_file_with_dirs(path, &dirs)
     }
 
-    fn import_theme_config_with_dirs(
+    fn import_theme_file_with_dirs(
         &mut self,
         path: impl AsRef<Path>,
         dirs: &SplitypeConfigDirs,
-    ) -> anyhow::Result<String> {
-        let raw = read_json_or_jsonc(path.as_ref())?;
-        let default_base_theme_id = self.theme_import_base_theme_id();
-        let (entry, normalized) =
-            custom_theme_from_value_with_default_base(raw, default_base_theme_id.as_str())?;
-        let file_name = format!(
-            "{}_{}.json",
-            sanitize_config_file_stem(&entry.name),
-            sanitize_config_file_stem(&entry.creator)
-        );
+    ) -> anyhow::Result<ImportedTheme> {
+        let path = path.as_ref();
+        let value = read_json_or_jsonc(path)?;
+        let family: ThemeFamilyContent = serde_json::from_value(value)
+            .with_context(|| format!("invalid theme file '{}'", path.display()))?;
+        validate_family(&family)?;
+
+        let family_id = family.id();
+        let variant = family
+            .themes
+            .iter()
+            .find(|theme| theme.appearance == self.settings_snapshot.appearance)
+            .or_else(|| family.themes.first())
+            .expect("family validated to have at least one theme");
+        let theme_id = format!("{family_id}.{}", variant.id());
+        let appearance = variant.appearance;
+
+        self.registry.insert_user(family.clone())?;
+        if let Err(err) = resolve_theme(
+            &self.registry,
+            &theme_id,
+            appearance,
+            &self.settings_snapshot.overrides,
+        ) {
+            self.registry.remove_user(&family_id);
+            return Err(err).with_context(|| {
+                format!("theme family '{family_id}' does not resolve from base '{theme_id}'")
+            });
+        }
+
         let themes_dir = dirs.themes_dir();
         std::fs::create_dir_all(&themes_dir)?;
         std::fs::write(
-            themes_dir.join(file_name),
-            serde_json::to_string_pretty(&normalized)?,
+            themes_dir.join(format!("{family_id}.json")),
+            serde_json::to_string_pretty(&family)?,
         )?;
-        let imported_id = entry.id.clone();
-        self.upsert_custom_theme(entry);
-        self.set_theme_by_id(&imported_id);
-        Ok(imported_id)
-    }
 
-    fn load_custom_themes_from_dirs(&mut self, dirs: &SplitypeConfigDirs) -> anyhow::Result<()> {
-        let themes_dir = dirs.themes_dir();
-        if !themes_dir.exists() {
-            return Ok(());
-        }
-
-        let mut loaded = Vec::new();
-        for entry in std::fs::read_dir(&themes_dir)? {
-            let path = entry?.path();
-            if path.is_file() {
-                match read_json_or_jsonc(&path)
-                    .and_then(|value| custom_theme_from_value(value).map(|(entry, _)| entry))
-                {
-                    Ok(entry) => loaded.push(entry),
-                    Err(err) => {
-                        tracing::warn!(path = %path.display(), error = %err, "skipping invalid custom theme config");
-                    }
-                }
-            }
-        }
-        loaded.sort_by(|left, right| {
-            left.name
-                .cmp(&right.name)
-                .then(left.creator.cmp(&right.creator))
-        });
-        for entry in loaded {
-            self.upsert_custom_theme(entry);
-        }
-        Ok(())
-    }
-
-    fn upsert_custom_theme(&mut self, entry: CustomThemeEntry) {
-        if let Some(existing) = self
-            .custom_themes
-            .iter_mut()
-            .find(|existing| existing.id == entry.id)
-        {
-            *existing = entry;
-        } else {
-            self.custom_themes.push(entry);
-        }
-        self.rebuild_theme_catalog();
-    }
-
-    fn rebuild_theme_catalog(&mut self) {
-        let mut catalog = builtin_theme_catalog();
-        catalog.extend(self.custom_themes.iter().map(|entry| ThemeCatalogEntry {
-            id: entry.id.clone(),
-            name: format!("{} - {}", entry.name, entry.creator),
-        }));
-        self.theme_catalog = catalog;
-    }
-
-    fn theme_import_base_theme_id(&self) -> String {
-        match self.current_theme_id.as_str() {
-            BUILTIN_THEME_SPLITYPE_LIGHT_ID => BUILTIN_THEME_SPLITYPE_LIGHT_ID.into(),
-            BUILTIN_THEME_SPLITYPE_ID => BUILTIN_THEME_SPLITYPE_ID.into(),
-            id => self
-                .custom_themes
-                .iter()
-                .find(|entry| entry.id == id)
-                .map(|entry| entry.base_theme_id.clone())
-                .unwrap_or_else(|| BUILTIN_THEME_SPLITYPE_ID.into()),
-        }
+        Ok(ImportedTheme {
+            family_id,
+            theme_id,
+            appearance,
+        })
     }
 }
 
-/// Apply configured theme live and persist in `SettingsStore`.
-pub fn apply_configured_theme(cx: &mut gpui::App, theme_id: &str) -> anyhow::Result<bool> {
-    let mut applied = false;
-    let changed = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
-        let changed = theme_manager.set_theme_by_id(theme_id);
-        applied = changed || theme_manager.current_theme_id() == theme_id;
-        changed
+/// Selects a concrete theme (`family.variant`) and records the choice in
+/// the settings store; the settings sync hook applies it live.
+pub fn apply_theme_selection(cx: &mut App, theme_id: &str) -> anyhow::Result<()> {
+    let selection = cx.update_global::<ThemeManager, _>(|manager, _cx| {
+        manager
+            .available_themes()
+            .into_iter()
+            .find(|entry| entry.id == theme_id)
+            .map(|entry| (entry.family, entry.appearance))
     });
-    if !applied {
-        return Ok(false);
-    }
-    if cx.has_global::<config::settings::SettingsStore>() {
-        let _ = config::settings::PluginSettings::<config::settings::CoreSettings>::update(
-            cx,
-            |settings| {
-                settings.interface.theme_id = theme_id.to_string();
-            },
-        );
-    }
-    Ok(changed)
+    let Some((family, appearance)) = selection else {
+        anyhow::bail!("unknown theme '{theme_id}'");
+    };
+    PluginSettings::<CoreSettings>::update(cx, |settings| {
+        settings.theme.family = family;
+        settings.theme.appearance = appearance;
+    })?;
+    Ok(())
 }
 
-/// Import a custom theme JSON file and select it.
+/// Imports a theme family file and selects it through the settings store.
 pub fn import_theme_config_and_select(
-    cx: &mut gpui::App,
-    path: impl AsRef<std::path::Path>,
+    cx: &mut App,
+    path: impl AsRef<Path>,
 ) -> anyhow::Result<String> {
-    let imported_id = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
-        theme_manager.import_theme_config(path)
+    let imported =
+        cx.update_global::<ThemeManager, _>(|manager, _cx| manager.import_theme_file(path))?;
+    PluginSettings::<CoreSettings>::update(cx, |settings| {
+        settings.theme.family = imported.family_id;
+        settings.theme.appearance = imported.appearance;
     })?;
-    if cx.has_global::<config::settings::SettingsStore>() {
-        let _ = config::settings::PluginSettings::<config::settings::CoreSettings>::update(
-            cx,
-            |settings| {
-                settings.interface.theme_id = imported_id.clone();
-            },
-        );
-    }
-    Ok(imported_id)
+    Ok(imported.theme_id)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::ThemeManager;
-    use crate::Theme;
-    use config::dirs::SplitypeConfigDirs;
+    use std::collections::BTreeMap;
 
+    use super::*;
+    use crate::content::ThemeStyleContent;
+    use crate::registry::ThemeRegistry;
+    use crate::resolve::resolve_theme;
+    use config::dirs::SplitypeConfigDirs;
     use gpui::rgba;
 
     #[test]
-    fn imports_partial_jsonc_theme_and_persists_normalized_json() {
+    fn switches_builtin_themes_via_settings() {
+        let mut manager = ThemeManager::default();
+        assert_eq!(manager.current_theme_id(), "splitype.dark");
+        assert_eq!(manager.current().name, "Dark");
+        assert_eq!(manager.current().appearance, Appearance::Dark);
+
+        let settings = ThemeSettingsContent {
+            appearance: Appearance::Light,
+            ..Default::default()
+        };
+        assert!(manager.apply_settings(&settings));
+        assert_eq!(manager.current_theme_id(), "splitype.light");
+        assert_eq!(manager.current().name, "Light");
+        assert_eq!(
+            manager.current().colors.editor_background,
+            Theme::light_theme().colors.editor_background
+        );
+
+        // The same snapshot re-applies without re-resolving.
+        assert!(!manager.apply_settings(&settings));
+
+        // An unknown family keeps the current theme.
+        let broken = ThemeSettingsContent {
+            family: "missing".into(),
+            ..Default::default()
+        };
+        assert!(manager.apply_settings(&broken));
+        assert_eq!(manager.current_theme_id(), "splitype.light");
+    }
+
+    #[test]
+    fn imports_family_file_and_persists_normalized_json() {
         let root = std::env::temp_dir().join(format!("splitype-theme-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("temp root should be created");
         let source = root.join("theme.jsonc");
         std::fs::write(
             &source,
-            r#"{
-                // Required metadata.
+            r##"{
+                // A user theme family with one variant.
                 "name": "Night Writer",
-                "creator": "Ada",
-                "description": "",
-                "theme": {
-                    "dimensions": {
-                        "block_gap": 12.0,
-                        "menu_text_size": null
-                    },
-                    "placeholders": {
-                        "empty_editing": ""
+                "author": "Ada",
+                "themes": [
+                    {
+                        "name": "Dark",
+                        "appearance": "dark",
+                        "style": {
+                            "base": "splitype.Dark",
+                            "colors": {
+                                "focus_accent": "#8b5cf6"
+                            },
+                            "dimensions": {
+                                "block_gap": 12.0
+                            }
+                        }
                     }
-                }
-            }"#,
+                ]
+            }"##,
         )
-        .expect("theme config should be written");
+        .expect("theme family config should be written");
 
         let dirs = SplitypeConfigDirs::from_root(&root);
         let mut manager = ThemeManager::default();
-        let imported_id = manager
-            .import_theme_config_with_dirs(&source, &dirs)
-            .expect("theme config should import");
+        let imported = manager
+            .import_theme_file_with_dirs(&source, &dirs)
+            .expect("theme family config should import");
 
-        assert_eq!(manager.current_theme_id(), imported_id);
-        assert_eq!(manager.current().name, "Night Writer");
+        assert_eq!(imported.family_id, "night_writer");
+        assert_eq!(imported.theme_id, "night_writer.dark");
+        assert_eq!(imported.appearance, Appearance::Dark);
+
+        // Base inheritance plus the patch.
+        let resolved = resolve_theme(
+            &manager.registry,
+            "night_writer.dark",
+            Appearance::Dark,
+            &BTreeMap::new(),
+        )
+        .expect("imported theme should resolve");
+        assert_eq!(resolved.theme.name, "Dark");
+        assert_eq!(resolved.theme.colors.focus_accent, rgba(0x8b5cf6ff).into());
+        assert_eq!(resolved.theme.dimensions.block_gap, 12.0);
         assert_eq!(
-            manager.current().colors.editor_background,
+            resolved.theme.colors.editor_background,
             Theme::default_theme().colors.editor_background
         );
-        assert_eq!(manager.current().dimensions.block_gap, 12.0);
-        assert_eq!(manager.current().dimensions.menu_text_size, 11.0);
-        assert!(
-            manager
-                .available_themes()
-                .iter()
-                .any(|entry| { entry.id == imported_id && entry.name == "Night Writer - Ada" })
-        );
+        assert_eq!(resolved.theme.dimensions.menu_text_size, 11.0);
 
-        let normalized = std::fs::read_to_string(dirs.themes_dir().join("Night_Writer_Ada.json"))
-            .expect("normalized theme config should exist");
+        // The normalized copy is persisted in the family format.
+        let normalized = std::fs::read_to_string(dirs.themes_dir().join("night_writer.json"))
+            .expect("normalized theme family config should exist");
         assert!(normalized.contains("\"name\": \"Night Writer\""));
-        assert!(normalized.contains("\"creator\": \"Ada\""));
-        assert!(normalized.contains("\"base_theme_id\": \"splitype\""));
-        assert!(normalized.contains("\"block_gap\": 12.0"));
-        assert!(!normalized.contains("menu_text_size"));
-        assert!(!normalized.contains("empty_editing"));
-        assert!(!normalized.contains("description"));
+        assert!(normalized.contains("\"base\": \"splitype.Dark\""));
+        assert!(normalized.contains("\"focus_accent\": \"#8b5cf6ff\""));
 
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn importing_without_base_uses_current_builtin_theme_as_base() {
-        let root =
-            std::env::temp_dir().join(format!("splitype-light-theme-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&root).expect("temp root should be created");
-        let source = root.join("theme.jsonc");
-        std::fs::write(
-            &source,
-            r#"{
-                "name": "Light Radius",
-                "creator": "Ada",
-                "theme": {
-                    "dimensions": {
-                        "menu_panel_radius": 14.0
-                    }
-                }
-            }"#,
-        )
-        .expect("theme config should be written");
-
-        let dirs = SplitypeConfigDirs::from_root(&root);
-        let mut manager = ThemeManager::default();
-        assert!(manager.set_theme_by_id("splitype-light"));
-        let imported_id = manager
-            .import_theme_config_with_dirs(&source, &dirs)
-            .expect("theme config should import");
-
-        assert_eq!(manager.current_theme_id(), imported_id);
-        assert_eq!(
-            manager.current().colors.editor_background,
-            Theme::light_theme().colors.editor_background
-        );
-        assert_eq!(manager.current().dimensions.menu_panel_radius, 14.0);
-
-        let normalized = std::fs::read_to_string(dirs.themes_dir().join("Light_Radius_Ada.json"))
-            .expect("normalized theme config should exist");
-        assert!(normalized.contains("\"base_theme_id\": \"splitype-light\""));
-
+        // A fresh manager reloads the family from disk.
         let mut reloaded = ThemeManager::default();
         reloaded
-            .load_custom_themes_from_dirs(&dirs)
-            .expect("saved theme should reload");
-        assert!(reloaded.set_theme_by_id(&imported_id));
-        assert_eq!(
-            reloaded.current().colors.editor_background,
-            Theme::light_theme().colors.editor_background
-        );
+            .registry
+            .load_user_themes(&dirs)
+            .expect("saved family should reload");
+        assert!(reloaded.registry.family("night_writer").is_some());
 
         let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
-    fn theme_manager_switches_builtin_themes() {
+    fn applies_settings_color_overrides_above_everything() {
         let mut manager = ThemeManager::default();
-        assert_eq!(manager.current_theme_id(), "splitype");
-        assert_eq!(manager.current().name, "Dark");
-        assert_eq!(
-            manager
-                .available_themes()
-                .iter()
-                .map(|entry| entry.name.as_str())
-                .collect::<Vec<_>>(),
-            vec!["Dark", "Light"]
-        );
-
-        assert!(manager.set_theme_by_id("splitype-light"));
-        assert_eq!(manager.current_theme_id(), "splitype-light");
-        assert_eq!(manager.current().name, "Light");
+        let mut settings = ThemeSettingsContent::default();
+        settings
+            .overrides
+            .insert("colors.editor_background".into(), rgba(0x123456ff).into());
+        assert!(manager.apply_settings(&settings));
         assert_eq!(
             manager.current().colors.editor_background,
-            rgba(0xffffffff).into()
+            rgba(0x123456ff).into()
         );
 
-        assert!(manager.set_theme_by_id("splitype"));
-        assert_eq!(manager.current_theme_id(), "splitype");
-        assert_eq!(manager.current().name, "Dark");
-        assert!(!manager.set_theme_by_id("missing"));
+        // An unknown override key fails resolution and keeps the theme.
+        let mut broken = ThemeSettingsContent::default();
+        broken
+            .overrides
+            .insert("colors.nope".into(), rgba(0xffffffff).into());
+        assert!(manager.apply_settings(&broken));
+        assert_eq!(
+            manager.current().colors.editor_background,
+            rgba(0x123456ff).into()
+        );
+    }
+
+    #[test]
+    fn rejects_base_cycles_and_unknown_file_keys() {
+        let mut registry = ThemeRegistry::with_builtins();
+        let family = ThemeFamilyContent {
+            name: "Cycle".into(),
+            author: String::new(),
+            themes: vec![
+                crate::ThemeContent {
+                    name: "A".into(),
+                    appearance: Appearance::Dark,
+                    style: ThemeStyleContent {
+                        base: Some("Cycle.B".into()),
+                        ..Default::default()
+                    },
+                },
+                crate::ThemeContent {
+                    name: "B".into(),
+                    appearance: Appearance::Dark,
+                    style: ThemeStyleContent {
+                        base: Some("Cycle.A".into()),
+                        ..Default::default()
+                    },
+                },
+            ],
+        };
+        registry
+            .insert_user(family)
+            .expect("family should validate");
+        let err = resolve_theme(&registry, "cycle.a", Appearance::Dark, &BTreeMap::new())
+            .expect_err("base cycle must fail resolution");
+        assert!(err.to_string().contains("cycle"), "error was: {err}");
+
+        // Unknown keys in theme files are hard errors.
+        let raw = r##"{ "name": "X", "themes": [{ "name": "Dark", "style": { "colors": { "nope": "#fff" } } }] }"##;
+        assert!(serde_json::from_str::<ThemeFamilyContent>(raw).is_err());
+
+        // Import-time resolution failure removes the family again.
+        let mut manager = ThemeManager::default();
+        let root = std::env::temp_dir().join(format!("splitype-cycle-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).expect("temp root should be created");
+        let source = root.join("broken.json");
+        std::fs::write(
+            &source,
+            r#"{ "name": "Broken", "themes": [{ "name": "Dark", "style": { "base": "missing.Base" } }] }"#,
+        )
+        .expect("broken theme file should be written");
+        let dirs = SplitypeConfigDirs::from_root(&root);
+        assert!(manager.import_theme_file_with_dirs(&source, &dirs).is_err());
+        assert!(manager.registry.family("broken").is_none());
+        let _ = std::fs::remove_dir_all(root);
     }
 }

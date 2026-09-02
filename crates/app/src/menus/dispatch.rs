@@ -20,7 +20,7 @@ use editor_contracts::{DocumentPanel, ExportFormat};
 use platform_contracts::PanelId;
 use settings::open_settings_window;
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
-use theme::apply_configured_theme;
+use theme::apply_theme_selection;
 
 pub(crate) fn show_window_prompt(
     window: Option<AnyWindowHandle>,
@@ -196,12 +196,10 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
             panel.export_document(ExportFormat::Pdf, window, cx)
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
-        match apply_configured_theme(cx, &action.theme_id) {
-            Ok(changed) => {
-                if changed {
-                    install_menus(cx);
-                    cx.refresh_windows();
-                }
+        match apply_theme_selection(cx, &action.theme_id) {
+            Ok(()) => {
+                install_menus(cx);
+                cx.refresh_windows();
             }
             Err(err) => {
                 let title = cx
@@ -325,12 +323,10 @@ pub(crate) fn dispatch_menu_action_for_panel(
             }
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
-        match apply_configured_theme(cx, &action.theme_id) {
-            Ok(changed) => {
-                if changed {
-                    install_menus(cx);
-                    cx.refresh_windows();
-                }
+        match apply_theme_selection(cx, &action.theme_id) {
+            Ok(()) => {
+                install_menus(cx);
+                cx.refresh_windows();
             }
             Err(err) => {
                 let title = cx

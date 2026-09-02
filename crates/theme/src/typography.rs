@@ -56,52 +56,58 @@ impl FontWeightDef {
     }
 }
 
-/// All configurable typography settings (font sizes, weights, line heights).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThemeTypography {
-    /// Default body text font size.
-    pub text_size: f32,
-    /// Default body text line height as a ratio of font size.
-    pub text_line_height: f32,
-    /// H1 heading font size.
-    pub h1_size: f32,
-    /// H1 heading font weight.
-    pub h1_weight: FontWeightDef,
-    /// H2 heading font size.
-    pub h2_size: f32,
-    /// H2 heading font weight.
-    pub h2_weight: FontWeightDef,
-    /// H3 heading font size.
-    pub h3_size: f32,
-    /// H3 heading font weight.
-    pub h3_weight: FontWeightDef,
-    /// H4 heading font size.
-    pub h4_size: f32,
-    /// H4 heading font weight.
-    pub h4_weight: FontWeightDef,
-    /// H5 heading font size.
-    pub h5_size: f32,
-    /// H5 heading font weight.
-    pub h5_weight: FontWeightDef,
-    /// H6 heading font size.
-    pub h6_size: f32,
-    /// H6 heading font weight.
-    pub h6_weight: FontWeightDef,
-    /// Code-block text font size.
-    pub code_size: f32,
-    /// Dialog title font size.
-    pub dialog_title_size: f32,
-    /// Dialog title font weight.
-    pub dialog_title_weight: FontWeightDef,
-    /// Dialog body font size.
-    pub dialog_body_size: f32,
-    /// Dialog body font weight.
-    pub dialog_body_weight: FontWeightDef,
-    /// Dialog button font size.
-    pub dialog_button_size: f32,
-    /// Dialog button font weight.
-    pub dialog_button_weight: FontWeightDef,
-}
+theme_section!(
+    plain
+    /// All configurable typography settings (font sizes, weights, line heights).
+    struct ThemeTypography,
+    /// Partial typography overrides; every `None` field inherits from the base
+    /// theme during resolution.
+    struct ThemeTypographyPatch,
+    {
+        /// Default body text font size.
+        text_size: f32,
+        /// Default body text line height as a ratio of font size.
+        text_line_height: f32,
+        /// H1 heading font size.
+        h1_size: f32,
+        /// H1 heading font weight.
+        h1_weight: FontWeightDef,
+        /// H2 heading font size.
+        h2_size: f32,
+        /// H2 heading font weight.
+        h2_weight: FontWeightDef,
+        /// H3 heading font size.
+        h3_size: f32,
+        /// H3 heading font weight.
+        h3_weight: FontWeightDef,
+        /// H4 heading font size.
+        h4_size: f32,
+        /// H4 heading font weight.
+        h4_weight: FontWeightDef,
+        /// H5 heading font size.
+        h5_size: f32,
+        /// H5 heading font weight.
+        h5_weight: FontWeightDef,
+        /// H6 heading font size.
+        h6_size: f32,
+        /// H6 heading font weight.
+        h6_weight: FontWeightDef,
+        /// Code-block text font size.
+        code_size: f32,
+        /// Dialog title font size.
+        dialog_title_size: f32,
+        /// Dialog title font weight.
+        dialog_title_weight: FontWeightDef,
+        /// Dialog body font size.
+        dialog_body_size: f32,
+        /// Dialog body font weight.
+        dialog_body_weight: FontWeightDef,
+        /// Dialog button font size.
+        dialog_button_size: f32,
+        /// Dialog button font weight.
+        dialog_button_weight: FontWeightDef,
+    }
+);
 
 /// Three-tier typography scopes (Application Chrome UI, Document Prose, and Syntax Code).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

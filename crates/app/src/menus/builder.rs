@@ -79,8 +79,15 @@ fn skeleton_items(
                 .available_themes()
                 .iter()
                 .map(|entry| {
+                    let label = if entry.family == theme::BUILTIN_THEME_FAMILY_ID {
+                        entry.name.clone()
+                    } else if entry.author.is_empty() {
+                        format!("{} · {}", entry.family_name, entry.name)
+                    } else {
+                        format!("{} · {}", entry.name, entry.author)
+                    };
                     MenuItem::action(
-                        entry.name.to_string(),
+                        label,
                         SelectTheme {
                             theme_id: entry.id.to_string(),
                         },

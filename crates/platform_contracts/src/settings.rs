@@ -49,7 +49,7 @@ pub struct SettingOption {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SettingDeclaration {
     /// Plugin-local settings key; dotted paths address nested struct
-    /// fields (e.g. `interface.theme_id`).
+    /// fields (e.g. `theme.family`).
     pub key: String,
     /// The control kind rendered for this key.
     pub kind: SettingKind,
