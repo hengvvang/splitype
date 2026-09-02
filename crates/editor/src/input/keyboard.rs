@@ -1,7 +1,6 @@
 //! Keyboard event handling for the Editor frame.
 
 use gpui::*;
-use platform_contracts::actions::DismissTransientUi;
 
 use crate::editor::Editor;
 
@@ -29,21 +28,20 @@ impl Editor {
         }
     }
 
-    /// Esc (the global `DismissTransientUi` action) cancels in-progress pane
-    /// split operations: drag gestures (without applying them), the border
-    /// context menu, and open pane-kind dropdowns.
-    pub(crate) fn on_dismiss_transient_ui(
-        &mut self,
-        _: &DismissTransientUi,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    /// Esc dismissal, invoked by the shell's global `DismissTransientUi`
+    /// action through [`platform_contracts::PanelView::dismiss_overlays`].
+    ///
+    /// Cancels in-progress pane split operations: drag gestures (without
+    /// applying them), the border context menu, and open pane-kind
+    /// dropdowns. Returns whether anything was dismissed.
+    pub fn dismiss_transient_ui(&mut self, cx: &mut Context<Self>) -> bool {
         let cancelled_drag = self.session.root.cancel_drag_gesture();
         let closed_menu = self.session.root.active_border_menu.take().is_some();
         let closed_dropdown = self.session.root.clear_dropdowns();
-        if cancelled_drag || closed_menu || closed_dropdown {
-            cx.stop_propagation();
+        let handled = cancelled_drag || closed_menu || closed_dropdown;
+        if handled {
             cx.notify();
         }
+        handled
     }
 }

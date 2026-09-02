@@ -77,6 +77,13 @@ impl PanelView for EditorPanelView {
             .update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
     }
 
+    /// Esc dismissal (routed by the shell's global `DismissTransientUi`
+    /// action): cancels in-progress pane split operations.
+    fn dismiss_overlays(&mut self, cx: &mut App) -> bool {
+        self.editor
+            .update(cx, |editor, cx| editor.dismiss_transient_ui(cx))
+    }
+
     fn suspend_state(&mut self, cx: &mut App) -> Option<Box<dyn Any>> {
         let editor = self.editor.clone();
         Some(Box::new(editor.update(cx, |editor, cx| {

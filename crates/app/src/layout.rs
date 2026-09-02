@@ -241,7 +241,10 @@ impl Shell {
 
     /// Esc (the global `DismissTransientUi` action) cancels in-progress
     /// window split operations: drag gestures (without applying them), the
-    /// border context menu, and open panel-kind dropdowns.
+    /// border context menu, and open panel-kind dropdowns — then asks every
+    /// panel to dismiss its own transient split UI (inner drags, menus,
+    /// dropdowns), so the dismissal works regardless of where keyboard
+    /// focus currently sits.
     pub(crate) fn on_dismiss_transient_ui(
         &mut self,
         _: &platform_contracts::actions::DismissTransientUi,
@@ -251,7 +254,11 @@ impl Shell {
         let cancelled_drag = self.panels.layout.cancel_drag_gesture();
         let closed_menu = self.panels.layout.active_border_menu.take().is_some();
         let closed_dropdown = self.panels.layout.clear_dropdowns();
-        if cancelled_drag || closed_menu || closed_dropdown {
+        let mut handled = cancelled_drag || closed_menu || closed_dropdown;
+        for view in self.panel_views.values_mut() {
+            handled |= view.dismiss_overlays(cx);
+        }
+        if handled {
             cx.stop_propagation();
             cx.notify();
         }

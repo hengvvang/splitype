@@ -74,7 +74,6 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_page_down))
             .on_action(cx.listener(Self::on_jump_to_top))
             .on_action(cx.listener(Self::on_jump_to_bottom))
-            .on_action(cx.listener(Self::on_dismiss_transient_ui))
             .child(self.render_editor_topbar(
                 crate::plugin::TOPBAR_ICON_PREFIX,
                 &theme,
