@@ -531,10 +531,7 @@ pub fn render_search_panel_overlay(
                                 .child(div().flex_shrink_0().child(m.preview_prefix.clone()))
                                 .child(
                                     div()
-                                        .bg(c.focus_accent.opacity(0.35))
                                         .text_color(c.focus_accent)
-                                        .rounded(px(d.tab_close_button_radius))
-                                        .px(px(2.0))
                                         .flex_shrink_0()
                                         .child(m.preview_match.clone()),
                                 )
@@ -607,10 +604,7 @@ pub fn render_search_panel_overlay(
                                 .child(m.preview_prefix.clone())
                                 .child(
                                     div()
-                                        .bg(c.focus_accent.opacity(0.4))
                                         .text_color(c.focus_accent)
-                                        .rounded(px(d.tab_close_button_radius))
-                                        .px(px(2.0))
                                         .child(m.preview_match.clone()),
                                 )
                                 .child(m.preview_suffix.clone()),
@@ -625,7 +619,7 @@ pub fn render_search_panel_overlay(
                 .relative()
                 .rounded(px(d.menu_item_radius))
                 .bg(if is_active {
-                    c.panel_row_selected
+                    c.panel_row_hover
                 } else {
                     hsla(0.0, 0.0, 0.0, 0.0)
                 })

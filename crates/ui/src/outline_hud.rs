@@ -34,11 +34,11 @@ pub fn render_floating_outline_hud(
         for (idx, node) in headings.iter().enumerate() {
             let is_active = idx == active_index;
             let indent = match node.level {
-                1 => 6.0,
-                2 => 16.0,
-                3 => 26.0,
-                4 => 36.0,
-                _ => 44.0,
+                1 => 12.0,
+                2 => 22.0,
+                3 => 32.0,
+                4 => 42.0,
+                _ => 50.0,
             };
             let label = node.label.clone();
             let host_navigate = host.clone();
@@ -48,6 +48,7 @@ pub fn render_floating_outline_hud(
                     .id(ElementId::Name(
                         format!("outline-popover-item-{idx}").into(),
                     ))
+                    .relative()
                     .w_full()
                     .pl(px(indent))
                     .pr(px(10.0))
@@ -58,11 +59,25 @@ pub fn render_floating_outline_hud(
                     .items_center()
                     .gap(px(6.0))
                     .bg(if is_active {
-                        c.panel_row_selected
+                        c.panel_row_hover
                     } else {
                         hsla(0.0, 0.0, 0.0, 0.0)
                     })
                     .hover(|style| style.bg(c.panel_row_hover))
+                    .children(if is_active {
+                        Some(
+                            div()
+                                .absolute()
+                                .left(px(4.0))
+                                .top(px(5.0))
+                                .bottom(px(5.0))
+                                .w(px(3.0))
+                                .rounded_full()
+                                .bg(c.focus_accent),
+                        )
+                    } else {
+                        None
+                    })
                     .child(
                         div()
                             .flex_1()
@@ -75,11 +90,7 @@ pub fn render_floating_outline_hud(
                             } else {
                                 c.text_default
                             })
-                            .font_weight(if is_active {
-                                FontWeight::SEMIBOLD
-                            } else {
-                                FontWeight::NORMAL
-                            })
+                            .font_weight(FontWeight::NORMAL)
                             .child(label),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
