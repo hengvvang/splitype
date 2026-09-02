@@ -12,12 +12,14 @@ use super::packs::{
 use super::strings::I18nStrings;
 use crate::dirs::SplitypeConfigDirs;
 use crate::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use crate::settings::{CoreSettings, PluginSettings, SettingsStore};
 
 pub struct I18nManager {
     current_language_id: String,
     strings: Arc<I18nStrings>,
     custom_languages: Vec<I18nLanguagePack>,
     language_catalog: Vec<LanguageCatalogEntry>,
+    settings_snapshot: String,
 }
 
 impl Global for I18nManager {}
@@ -29,30 +31,37 @@ impl Default for I18nManager {
 }
 
 impl I18nManager {
-    /// Test-only: installs the configured UI language into GPUI's global state.
-    #[cfg(test)]
+    /// Installs the manager, loading user language packs and applying the
+    /// settings store's language selection. `SettingsStore` must be
+    /// initialized first.
     pub fn init(cx: &mut App) {
-        let language_id = crate::settings::read_app_settings()
-            .map(|settings| {
-                settings
-                    .plugin_settings::<crate::settings::CoreSettings>()
-                    .interface
-                    .language_id
-            })
-            .unwrap_or_else(|_| BUILTIN_LANGUAGE_EN_US_ID.into());
-        Self::init_with_language_id(cx, &language_id);
-    }
-
-    /// Installs a specific UI language into GPUI's global state.
-    pub fn init_with_language_id(cx: &mut App, language_id: &str) {
-        let mut manager = Self::new_with_language_id(BUILTIN_LANGUAGE_EN_US_ID);
+        let mut manager = Self::default();
         if let Ok(dirs) = SplitypeConfigDirs::from_system()
             && let Err(err) = manager.load_custom_languages_from_dirs(&dirs)
         {
             tracing::warn!(error = %err, "failed to load custom languages");
         }
-        let _ = manager.set_language_by_id(language_id);
+        let language_id = PluginSettings::<CoreSettings>::get(cx)
+            .interface
+            .language_id
+            .clone();
+        let _ = manager.apply_settings(&language_id);
         cx.set_global(manager);
+    }
+
+    /// Registers the settings sync hook that keeps the active language in
+    /// lock step with the settings store. Call once during application
+    /// bootstrap.
+    pub fn register_settings_sync_hook() {
+        SettingsStore::register_sync_hook(|cx, settings| {
+            let language_id = settings
+                .plugin_settings::<CoreSettings>()
+                .interface
+                .language_id;
+            cx.update_global::<I18nManager, _>(|manager, _cx| {
+                manager.apply_settings(&language_id);
+            });
+        });
     }
 
     /// Creates a manager with a known language id, falling back to English.
@@ -70,6 +79,7 @@ impl I18nManager {
             ),
             custom_languages: Vec::new(),
             language_catalog: builtin_language_catalog(),
+            settings_snapshot: current_language_id.into(),
         }
     }
 
@@ -96,7 +106,7 @@ impl I18nManager {
     }
 
     /// Activates a UI language by identifier.
-    pub fn set_language_by_id(&mut self, language_id: &str) -> bool {
+    fn set_language_by_id(&mut self, language_id: &str) -> bool {
         let strings = if let Some(strings) = I18nStrings::for_language_id(language_id) {
             strings
         } else if let Some(pack) = self
@@ -112,6 +122,22 @@ impl I18nManager {
         self.current_language_id = language_id.into();
         self.strings = Arc::new(strings);
         changed
+    }
+
+    /// Applies the given settings snapshot, returning whether it changed.
+    /// An unknown language id keeps the current language and logs a warning.
+    pub fn apply_settings(&mut self, language_id: &str) -> bool {
+        if language_id == self.settings_snapshot {
+            return false;
+        }
+        self.settings_snapshot = language_id.to_string();
+        if !self.set_language_by_id(language_id) {
+            tracing::warn!(
+                language_id,
+                "failed to apply language settings; keeping the current language"
+            );
+        }
+        true
     }
 
     /// Imports a user language pack, persists a normalized copy, and activates it.
@@ -136,7 +162,6 @@ impl I18nManager {
         )?;
         let imported_id = pack.id.clone();
         self.upsert_custom_language(pack);
-        self.set_language_by_id(&imported_id);
         Ok(imported_id)
     }
 
@@ -196,29 +221,25 @@ impl I18nManager {
     }
 }
 
-/// Apply configured language live and persist in `SettingsStore`.
-pub fn apply_configured_language(cx: &mut gpui::App, language_id: &str) -> anyhow::Result<bool> {
-    let mut applied = false;
-    let changed = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
-        let changed = i18n_manager.set_language_by_id(language_id);
-        applied = changed || i18n_manager.current_language_id() == language_id;
-        changed
+/// Selects a UI language and records the choice in the settings store; the
+/// settings sync hook applies it live.
+pub fn apply_language_selection(cx: &mut gpui::App, language_id: &str) -> anyhow::Result<()> {
+    let known = cx.update_global::<I18nManager, _>(|manager, _cx| {
+        manager
+            .available_languages()
+            .iter()
+            .any(|entry| entry.id == language_id)
     });
-    if !applied {
-        return Ok(false);
+    if !known {
+        anyhow::bail!("unknown language '{language_id}'");
     }
-    if cx.has_global::<crate::settings::SettingsStore>() {
-        let _ = crate::settings::PluginSettings::<crate::settings::CoreSettings>::update(
-            cx,
-            |settings| {
-                settings.interface.language_id = language_id.to_string();
-            },
-        );
-    }
-    Ok(changed)
+    PluginSettings::<CoreSettings>::update(cx, |settings| {
+        settings.interface.language_id = language_id.to_string();
+    })?;
+    Ok(())
 }
 
-/// Import a custom language pack JSON file and select it.
+/// Imports a custom language pack and selects it through the settings store.
 pub fn import_language_config_and_select(
     cx: &mut gpui::App,
     path: impl AsRef<std::path::Path>,
@@ -226,13 +247,10 @@ pub fn import_language_config_and_select(
     let imported_id = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
         i18n_manager.import_language_config(path)
     })?;
-    if cx.has_global::<crate::settings::SettingsStore>() {
-        let _ = crate::settings::PluginSettings::<crate::settings::CoreSettings>::update(
-            cx,
-            |settings| {
-                settings.interface.language_id = imported_id.clone();
-            },
-        );
+    if cx.has_global::<SettingsStore>() {
+        let _ = PluginSettings::<CoreSettings>::update(cx, |settings| {
+            settings.interface.language_id = imported_id.clone();
+        });
     }
     Ok(imported_id)
 }
@@ -280,6 +298,19 @@ mod tests {
         assert_eq!(manager.strings().menu_export, "导出");
         assert!(!manager.set_language_by_id("zh-CN"));
         assert!(!manager.set_language_by_id("missing"));
+    }
+
+    #[test]
+    fn apply_settings_is_snapshot_driven() {
+        let mut manager = I18nManager::default();
+        assert!(manager.apply_settings("zh-CN"));
+        assert_eq!(manager.current_language_id(), "zh-CN");
+        assert_eq!(manager.strings().menu_file, "文件");
+        // The same snapshot re-applies without re-activating.
+        assert!(!manager.apply_settings("zh-CN"));
+        // An unknown language id keeps the current language.
+        assert!(manager.apply_settings("missing"));
+        assert_eq!(manager.current_language_id(), "zh-CN");
     }
 
     #[test]
@@ -355,6 +386,10 @@ mod tests {
             .expect("language config should import");
 
         assert_eq!(imported_id, "ja-JP");
+        // Importing registers the pack; applying the settings snapshot
+        // activates it (mirroring the settings sync hook).
+        assert_ne!(manager.current_language_id(), "ja-JP");
+        assert!(manager.apply_settings("ja-JP"));
         assert_eq!(manager.current_language_id(), "ja-JP");
         assert_eq!(manager.strings().menu_file, "ファイル");
         assert_eq!(manager.strings().menu_export, "Export");

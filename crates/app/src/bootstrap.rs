@@ -131,7 +131,8 @@ pub fn run(args: Args) {
         });
         let core = settings.plugin_settings::<config::settings::CoreSettings>();
         SettingsStore::init(cx, settings.clone());
-        I18nManager::init_with_language_id(cx, &core.interface.language_id);
+        I18nManager::init(cx);
+        I18nManager::register_settings_sync_hook();
         ThemeManager::init(cx);
         ThemeManager::register_settings_sync_hook();
         theme::TypographyStore::init(cx, core.typography.clone());

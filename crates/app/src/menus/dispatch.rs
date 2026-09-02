@@ -14,7 +14,7 @@ use crate::actions::{
 use crate::dialogs::InfoDialogKind;
 use crate::shell::Shell;
 use crate::window::open_editor_window;
-use config::language::{I18nManager, apply_configured_language};
+use config::language::{I18nManager, apply_language_selection};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use editor_contracts::{DocumentPanel, ExportFormat};
 use platform_contracts::PanelId;
@@ -211,12 +211,10 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
             }
         }
     } else if let Some(action) = action.as_any().downcast_ref::<SelectLanguage>() {
-        match apply_configured_language(cx, &action.language_id) {
-            Ok(changed) => {
-                if changed {
-                    install_menus(cx);
-                    cx.refresh_windows();
-                }
+        match apply_language_selection(cx, &action.language_id) {
+            Ok(()) => {
+                install_menus(cx);
+                cx.refresh_windows();
             }
             Err(err) => {
                 let title = cx
@@ -338,12 +336,10 @@ pub(crate) fn dispatch_menu_action_for_panel(
             }
         }
     } else if let Some(action) = action.as_any().downcast_ref::<SelectLanguage>() {
-        match apply_configured_language(cx, &action.language_id) {
-            Ok(changed) => {
-                if changed {
-                    install_menus(cx);
-                    cx.refresh_windows();
-                }
+        match apply_language_selection(cx, &action.language_id) {
+            Ok(()) => {
+                install_menus(cx);
+                cx.refresh_windows();
             }
             Err(err) => {
                 let title = cx
@@ -354,6 +350,7 @@ pub(crate) fn dispatch_menu_action_for_panel(
                 show_window_prompt(current_window, &title, &err.to_string(), cx);
             }
         }
+    } else if action.as_any().is::<CheckForUpdates>() {
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {

@@ -559,11 +559,9 @@ fn render_control(
                 label,
                 c,
                 d,
-                |cx, language_id| {
-                    let _ = cx.update_global::<I18nManager, _>(|manager, _cx| {
-                        manager.set_language_by_id(&language_id)
-                    });
-                },
+                // The settings write below triggers the language sync hook,
+                // which applies the selected language live.
+                |_cx, _value| {},
                 cx,
             )
         }
