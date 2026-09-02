@@ -345,7 +345,7 @@ impl Editor {
         let active_pane = self.active_pane_id();
         if let Some(pos) = self
             .pane_state_ref(active_pane)
-            .and_then(|state| state.pane.cursor_position(cx))
+            .and_then(|state| state.pane().cursor_position(cx))
         {
             return pos;
         }

@@ -154,7 +154,7 @@ impl Editor {
                 tab.pending.window_title_refresh = true;
                 tab.pending.window_edited = true;
                 for state in tab.panes.values_mut() {
-                    state.pane.sync_document(&document, cx);
+                    state.sync_active(&document, cx);
                 }
             }
         }
@@ -173,7 +173,7 @@ impl Editor {
         let document = buffer.read(cx).snapshot();
         if let Some(tab_mut) = self.session.active_tab_mut() {
             for state in tab_mut.panes.values_mut() {
-                state.pane.sync_document(&document, cx);
+                state.sync_active(&document, cx);
             }
         }
     }
@@ -460,7 +460,7 @@ impl Editor {
             return;
         }
         if let Some(state) = self.pane_state_mut(pane_id) {
-            if let Some(handle) = state.pane.focus_handle(cx) {
+            if let Some(handle) = state.pane().focus_handle(cx) {
                 handle.focus(window, cx);
             }
         }

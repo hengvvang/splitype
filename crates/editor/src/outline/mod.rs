@@ -54,8 +54,8 @@ impl Editor {
     ) {
         self.outline.active_index = Some(index);
         if let Some(state) = self.pane_state_mut(pane_id) {
-            if state.pane.capabilities().outline {
-                let target_y = state.pane.navigate_to_outline(index, theme, cx);
+            if state.pane().capabilities().outline {
+                let target_y = state.pane_mut().navigate_to_outline(index, theme, cx);
                 if let Some(target_y) = target_y {
                     state
                         .scroll

@@ -18,7 +18,7 @@ impl Editor {
             let active_pane = self.active_pane_id();
             self.focused_pane_id = Some(active_pane);
             if let Some(state) = self.pane_state_mut(active_pane) {
-                if let Some(handle) = state.pane.focus_handle(cx) {
+                if let Some(handle) = state.pane().focus_handle(cx) {
                     handle.focus(window, cx);
                 }
             }
@@ -217,9 +217,9 @@ impl Editor {
         let Some(state) = self.pane_state_mut(active_pane) else {
             return;
         };
-        if state.pane.capabilities().searchable {
+        if state.pane().capabilities().searchable {
             state
-                .pane
+                .pane_mut()
                 .set_search_highlights(&highlights, active_index, cx);
         }
     }
@@ -227,8 +227,8 @@ impl Editor {
     /// Clears search highlights from the active pane.
     pub fn clear_search_highlights_from_document(&mut self, cx: &mut App) {
         if let Some(state) = self.pane_state_mut(self.active_pane_id()) {
-            if state.pane.capabilities().searchable {
-                state.pane.set_search_highlights(&[], None, cx);
+            if state.pane().capabilities().searchable {
+                state.pane_mut().set_search_highlights(&[], None, cx);
             }
         }
     }
@@ -248,7 +248,7 @@ impl Editor {
             let active_pane = self.active_pane_id();
             self.focused_pane_id = Some(active_pane);
             if let Some(state) = self.pane_state_mut(active_pane) {
-                if let Some(handle) = state.pane.focus_handle(cx) {
+                if let Some(handle) = state.pane().focus_handle(cx) {
                     handle.focus(window, cx);
                 }
             }
@@ -430,8 +430,8 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         let mut pane_matches = if let Some(state) = self.pane_state_ref(active_pane) {
-            if state.pane.capabilities().searchable {
-                state.pane.search_matches(query, cx)
+            if state.pane().capabilities().searchable {
+                state.pane().search_matches(query, cx)
             } else {
                 Vec::new()
             }
@@ -575,15 +575,15 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            if state.pane.capabilities().searchable {
-                if let Some(target_y) = state.pane.navigate_to_search_match(&match_item, cx) {
+            if state.pane().capabilities().searchable {
+                if let Some(target_y) = state.pane_mut().navigate_to_search_match(&match_item, cx) {
                     state
                         .scroll
                         .handle
                         .set_offset(point(px(0.0), px(-target_y.max(0.0))));
                 }
             }
-            if let Some(handle) = state.pane.focus_handle(cx) {
+            if let Some(handle) = state.pane().focus_handle(cx) {
                 handle.focus(window, cx);
             }
         }
@@ -616,11 +616,11 @@ impl Editor {
 
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            if !state.pane.capabilities().replaceable {
+            if !state.pane().capabilities().replaceable {
                 return;
             }
             let edit = state
-                .pane
+                .pane_mut()
                 .replace_match(&match_item, &final_replace_str, cx);
             if let Some(edit) = edit {
                 self.commit_document_edit(edit, cx);
@@ -655,10 +655,12 @@ impl Editor {
         );
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
-            if !state.pane.capabilities().replaceable {
+            if !state.pane().capabilities().replaceable {
                 return;
             }
-            let edit = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
+            let edit = state
+                .pane_mut()
+                .replace_all_matches(&query, &raw_replace_str, cx);
             if let Some(edit) = edit {
                 self.commit_document_edit(edit, cx);
             }

@@ -324,8 +324,11 @@ impl Editor {
 
         let is_outline_hovered = self.outline.is_hovered;
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.sync_document(&document, cx);
+            // Syncing here every frame is the activation catch-up: a kind
+            // switch (ensure_kind) happens just above, and the revision
+            // guard makes this a no-op when nothing changed.
             let scroll = state.scroll.handle.clone();
+            state.pane_mut().sync_document(&document, cx);
             let render_ctx = editor_contracts::PaneRenderContext {
                 pane_id,
                 is_focused,
@@ -333,7 +336,7 @@ impl Editor {
                 host: &host,
                 is_outline_hovered,
             };
-            state.pane.render(&render_ctx, window, cx)
+            state.pane_mut().render(&render_ctx, window, cx)
         } else {
             div().into_any_element()
         }

@@ -90,7 +90,7 @@ impl Editor {
         let pane_id = self.active_pane_id();
         if let Some(text) = self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.pane.selected_text(cx))
+            .and_then(|state| state.pane().selected_text(cx))
         {
             cx.write_to_clipboard(ClipboardItem::new_string(text));
         }
@@ -103,13 +103,13 @@ impl Editor {
         let pane_id = self.active_pane_id();
         if let Some(text) = self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.pane.selected_text(cx))
+            .and_then(|state| state.pane().selected_text(cx))
         {
             cx.write_to_clipboard(ClipboardItem::new_string(text));
         }
         let edit = self
             .pane_state_mut(pane_id)
-            .and_then(|state| state.pane.delete_selection(cx));
+            .and_then(|state| state.pane_mut().delete_selection(cx));
         if let Some(edit) = edit {
             self.commit_document_edit(edit, cx);
         }
@@ -126,7 +126,7 @@ impl Editor {
         let pane_id = self.active_pane_id();
         let edit = self
             .pane_state_mut(pane_id)
-            .and_then(|state| state.pane.insert_text(&text, cx));
+            .and_then(|state| state.pane_mut().insert_text(&text, cx));
         if let Some(edit) = edit {
             self.commit_document_edit(edit, cx);
         }
@@ -139,7 +139,7 @@ impl Editor {
         }
         let pane_id = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.pane.select_all(cx);
+            state.pane_mut().select_all(cx);
             cx.notify();
         }
     }

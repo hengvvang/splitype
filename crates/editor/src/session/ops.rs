@@ -144,8 +144,10 @@ impl Editor {
         }
     }
 
-    /// Switches `pane_id` to `kind`, resetting its viewport and syncing the
-    /// freshly created pane with the active document.
+    /// Switches `pane_id` to `kind`, resetting its viewport tracking and
+    /// syncing the now-active pane instance with the active document. The
+    /// pane instance itself survives the switch (per-kind caching), so its
+    /// cursors, folds, and scroll position are preserved.
     pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKind, cx: &mut Context<Self>) {
         self.change_pane_kind(pane_id, kind);
         if !self.has_tabs() {
@@ -161,6 +163,11 @@ impl Editor {
             tab.pending.close_dialog_restore_focus = None;
         }
         self.sync_panes_with_active_tab(cx);
+        // Match results are pane-kind-specific; re-run the open search so
+        // matches and highlights reflect the newly active pane.
+        if self.search.visible {
+            self.execute_search(cx);
+        }
         cx.notify();
     }
 
@@ -198,7 +205,7 @@ impl Editor {
         let host = self.pane_host.clone();
         let handled = if let Some(pane_state) = self.pane_state_mut(pane_id) {
             pane_state
-                .pane
+                .pane_mut()
                 .handle_key_down(pane_id, event, window, cx, &*host)
         } else {
             false
@@ -219,7 +226,7 @@ impl Editor {
         self.focus_pane(pane_id, window, cx);
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
             pane_state
-                .pane
+                .pane_mut()
                 .handle_mouse_down(pane_id, event, window, cx);
             cx.notify();
         }
@@ -234,7 +241,7 @@ impl Editor {
     ) {
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
             pane_state
-                .pane
+                .pane_mut()
                 .handle_mouse_move(pane_id, event, window, cx);
             cx.notify();
         }
@@ -248,7 +255,9 @@ impl Editor {
         cx: &mut gpui::Context<Self>,
     ) {
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
-            pane_state.pane.handle_mouse_up(pane_id, event, window, cx);
+            pane_state
+                .pane_mut()
+                .handle_mouse_up(pane_id, event, window, cx);
             cx.notify();
         }
     }
