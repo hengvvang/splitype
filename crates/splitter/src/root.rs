@@ -292,15 +292,21 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         }
     }
 
-    /// Close every panel's dropdown in this root.
-    pub fn clear_dropdowns(&mut self) {
+    /// Close every panel's dropdown in this root. Returns whether any
+    /// dropdown was open.
+    pub fn clear_dropdowns(&mut self) -> bool {
         let mut ids = Vec::new();
         self.tree.leaf_ids(&mut ids);
+        let mut closed = false;
         for id in ids {
             if let Some(panel) = self.tree.find_leaf_mut(id) {
-                panel.open_dropdown = false;
+                if panel.open_dropdown {
+                    panel.open_dropdown = false;
+                    closed = true;
+                }
             }
         }
+        closed
     }
 
     // ------------------------------------------------------------------

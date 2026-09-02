@@ -1,6 +1,7 @@
 //! Keyboard event handling for the Editor frame.
 
 use gpui::*;
+use platform_contracts::actions::DismissTransientUi;
 
 use crate::editor::Editor;
 
@@ -21,18 +22,28 @@ impl Editor {
             }
         }
 
-        // Escape cancels an in-progress pane-layout drag gesture without
-        // applying it.
-        if event.keystroke.key == "escape" && self.session.root.cancel_drag_gesture() {
-            cx.stop_propagation();
-            cx.notify();
-            return;
-        }
-
         let active_pane = self.active_pane_id();
         let handled = self.handle_pane_key_down(active_pane, event, window, cx);
         if handled {
             cx.stop_propagation();
+        }
+    }
+
+    /// Esc (the global `DismissTransientUi` action) cancels in-progress pane
+    /// split operations: drag gestures (without applying them), the border
+    /// context menu, and open pane-kind dropdowns.
+    pub(crate) fn on_dismiss_transient_ui(
+        &mut self,
+        _: &DismissTransientUi,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let cancelled_drag = self.session.root.cancel_drag_gesture();
+        let closed_menu = self.session.root.active_border_menu.take().is_some();
+        let closed_dropdown = self.session.root.clear_dropdowns();
+        if cancelled_drag || closed_menu || closed_dropdown {
+            cx.stop_propagation();
+            cx.notify();
         }
     }
 }

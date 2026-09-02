@@ -26,7 +26,7 @@ impl Render for Shell {
             .relative()
             .bg(theme.colors.editor_background)
             .font(theme::TypographyStore::ui_font(cx))
-            .capture_key_down(cx.listener(Self::on_shell_key_down_capture))
+            .on_action(cx.listener(Self::on_dismiss_transient_ui))
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_toggle_maximize_area_action))

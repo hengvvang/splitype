@@ -239,15 +239,19 @@ impl Shell {
         }
     }
 
-    /// Escape cancels an in-progress window-level drag gesture (splitter bar
-    /// or corner drag) without applying it.
-    pub(crate) fn on_shell_key_down_capture(
+    /// Esc (the global `DismissTransientUi` action) cancels in-progress
+    /// window split operations: drag gestures (without applying them), the
+    /// border context menu, and open panel-kind dropdowns.
+    pub(crate) fn on_dismiss_transient_ui(
         &mut self,
-        event: &KeyDownEvent,
+        _: &platform_contracts::actions::DismissTransientUi,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if event.keystroke.key == "escape" && self.panels.layout.cancel_drag_gesture() {
+        let cancelled_drag = self.panels.layout.cancel_drag_gesture();
+        let closed_menu = self.panels.layout.active_border_menu.take().is_some();
+        let closed_dropdown = self.panels.layout.clear_dropdowns();
+        if cancelled_drag || closed_menu || closed_dropdown {
             cx.stop_propagation();
             cx.notify();
         }
