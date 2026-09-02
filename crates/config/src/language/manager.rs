@@ -3,15 +3,16 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use anyhow::Context as _;
 use gpui::{App, BorrowAppContext, Global};
 
 use super::packs::{
-    BUILTIN_LANGUAGE_EN_US_ID, I18nLanguagePack, LanguageCatalogEntry, builtin_language_catalog,
-    custom_language_pack_from_value,
+    BUILTIN_LANGUAGE_EN_US_ID, I18nLanguagePack, LanguageCatalogEntry, LanguagePackContent,
+    builtin_language_catalog,
 };
 use super::strings::I18nStrings;
 use crate::dirs::SplitypeConfigDirs;
-use crate::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use crate::jsonc::{is_supported_config_file, sanitize_config_file_stem};
 use crate::settings::{CoreSettings, PluginSettings, SettingsStore};
 
 pub struct I18nManager {
@@ -151,14 +152,21 @@ impl I18nManager {
         path: impl AsRef<Path>,
         dirs: &SplitypeConfigDirs,
     ) -> anyhow::Result<String> {
-        let raw = read_json_or_jsonc(path.as_ref())?;
-        let (pack, normalized) = custom_language_pack_from_value(raw)?;
+        let path = path.as_ref();
+        if !is_supported_config_file(path) {
+            anyhow::bail!("language packs must use the .json or .jsonc extension");
+        }
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("failed to read '{}'", path.display()))?;
+        let content = LanguagePackContent::from_jsonc(&text)
+            .with_context(|| format!("invalid language pack '{}'", path.display()))?;
+        let pack = content.resolve();
         let file_name = format!("{}.json", sanitize_config_file_stem(&pack.id));
         let languages_dir = dirs.languages_dir();
         std::fs::create_dir_all(&languages_dir)?;
         std::fs::write(
             languages_dir.join(file_name),
-            serde_json::to_string_pretty(&normalized)?,
+            serde_json::to_string_pretty(&content)?,
         )?;
         let imported_id = pack.id.clone();
         self.upsert_custom_language(pack);
@@ -174,17 +182,27 @@ impl I18nManager {
         let mut loaded = Vec::new();
         for entry in std::fs::read_dir(&languages_dir)? {
             let path = entry?.path();
-            if path.is_file() {
-                match read_json_or_jsonc(&path).and_then(|value| {
-                    custom_language_pack_from_value(value).map(|(pack, _normalized)| pack)
-                }) {
-                    Ok(pack) => loaded.push(pack),
-                    Err(err) => tracing::warn!(
+            if !path.is_file() || !is_supported_config_file(&path) {
+                continue;
+            }
+            let text = match std::fs::read_to_string(&path) {
+                Ok(text) => text,
+                Err(err) => {
+                    tracing::warn!(
                         path = %path.display(),
                         error = %err,
-                        "skipping custom language config"
-                    ),
+                        "skipping unreadable language config"
+                    );
+                    continue;
                 }
+            };
+            match LanguagePackContent::from_jsonc(&text) {
+                Ok(content) => loaded.push(content.resolve()),
+                Err(err) => tracing::warn!(
+                    path = %path.display(),
+                    error = %err,
+                    "skipping custom language config"
+                ),
             }
         }
         loaded.sort_by(|left, right| left.name.cmp(&right.name).then(left.id.cmp(&right.id)));
@@ -215,6 +233,7 @@ impl I18nManager {
                 .map(|pack| LanguageCatalogEntry {
                     id: pack.id.clone(),
                     name: pack.name.clone(),
+                    author: pack.author.clone(),
                 }),
         );
         self.language_catalog = catalog;
@@ -257,7 +276,7 @@ pub fn import_language_config_and_select(
 
 #[cfg(test)]
 mod tests {
-    use super::{I18nLanguagePack, I18nManager, I18nStrings};
+    use super::{I18nManager, I18nStrings};
     use crate::dirs::SplitypeConfigDirs;
     use crate::language::packs::language_id_for_locale_settings;
 
@@ -370,10 +389,9 @@ mod tests {
                 // Required metadata.
                 "id": "ja-JP",
                 "name": "日本語",
-                "author": "",
+                "author": "Tanaka",
                 "strings": {
-                    "menu_file": "ファイル",
-                    "menu_export": ""
+                    "menu_file": "ファイル"
                 }
             }"#,
         )
@@ -397,14 +415,27 @@ mod tests {
             manager
                 .available_languages()
                 .iter()
-                .any(|entry| entry.id == "ja-JP" && entry.name == "日本語")
+                .any(|entry| entry.id == "ja-JP" && entry.name == "日本語" && entry.author == "Tanaka")
         );
 
+        // The persisted copy is the partial patch, not the merged result.
         let normalized = std::fs::read_to_string(dirs.languages_dir().join("ja-JP.json"))
             .expect("normalized language config should exist");
         assert!(normalized.contains("\"menu_file\": \"ファイル\""));
+        assert!(normalized.contains("\"author\": \"Tanaka\""));
         assert!(!normalized.contains("menu_export"));
-        assert!(!normalized.contains("author"));
+
+        // A fresh manager reloads the pack from disk.
+        let mut reloaded = I18nManager::default();
+        reloaded
+            .load_custom_languages_from_dirs(&dirs)
+            .expect("saved pack should reload");
+        assert!(
+            reloaded
+                .available_languages()
+                .iter()
+                .any(|entry| entry.id == "ja-JP")
+        );
 
         let _ = std::fs::remove_dir_all(root);
     }
@@ -429,67 +460,12 @@ mod tests {
         let err = manager
             .import_language_config_with_dirs(&source, &dirs)
             .expect_err("built-in language ids should be rejected");
-        assert!(err.to_string().contains("built-in language"));
+        assert!(
+            err.chain()
+                .any(|cause| cause.to_string().contains("built-in language")),
+            "error was: {err:?}"
+        );
 
         let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn custom_language_pack_json_overlays_base_strings() {
-        let pack = I18nLanguagePack::from_json(
-            r#"{
-                "id": "zh-CN",
-                "name": "简体中文",
-                "strings": {
-                    "menu_file": "文件菜单",
-                    "custom_extension": "extra_val",
-                    "unknown_field": "ignored"
-                }
-            }"#,
-        )
-        .expect("language pack should load");
-
-        assert_eq!(pack.id, "zh-CN");
-        assert_eq!(pack.name, "简体中文");
-        assert_eq!(pack.strings.menu_file, "文件菜单");
-        assert_eq!(pack.strings.menu_export, "导出");
-        assert_eq!(pack.strings.info_dialog_ok, "确定");
-        assert_eq!(pack.strings.update_open_release, "前往下载");
-        assert_eq!(pack.strings.help_about_github_label, "GitHub");
-        assert_eq!(
-            pack.strings.help_about_star_message,
-            "如果本项目对您有帮助，那不妨给本项目一颗 Star⭐，十分感谢！"
-        );
-    }
-
-    #[test]
-    fn unknown_language_pack_falls_back_to_english_strings() {
-        let pack = I18nLanguagePack::from_json(
-            r#"{
-                "id": "fr-FR",
-                "strings": {
-                    "menu_file": "Fichier"
-                }
-            }"#,
-        )
-        .expect("language pack should load");
-
-        assert_eq!(pack.id, "fr-FR");
-        assert_eq!(pack.name, "fr-FR");
-        assert_eq!(pack.strings.menu_file, "Fichier");
-        assert_eq!(pack.strings.menu_export, "Export");
-        assert_eq!(pack.strings.info_dialog_ok, "OK");
-        assert_eq!(pack.strings.update_open_release, "Open Releases");
-        assert_eq!(pack.strings.menu_open_recent_file, "Open Recent File");
-        assert_eq!(pack.strings.menu_no_recent_files, "No Recent Files");
-        assert_eq!(
-            pack.strings.recent_file_missing_title,
-            "Recent File Missing"
-        );
-        assert_eq!(pack.strings.help_about_github_label, "GitHub");
-        assert_eq!(
-            pack.strings.help_about_star_message,
-            "If this project helps you, consider giving it a Star⭐. Thank you!"
-        );
     }
 }

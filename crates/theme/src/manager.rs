@@ -14,15 +14,14 @@ use gpui::{App, BorrowAppContext, Global};
 
 use config::dirs::SplitypeConfigDirs;
 use config::jsonc::read_json_or_jsonc;
-use config::settings::{Appearance, CoreSettings, PluginSettings, ThemeSettingsContent};
+use config::settings::{
+    Appearance, CoreSettings, DEFAULT_THEME_FAMILY, PluginSettings, ThemeSettingsContent,
+};
 
 use super::content::{ThemeFamilyContent, validate_family};
 use super::registry::{ThemeCatalogEntry, ThemeRegistry, TokenDeclaration};
 use super::resolve::resolve_theme;
 use super::theme::Theme;
-
-/// The built-in family id.
-pub const BUILTIN_THEME_FAMILY_ID: &str = "splitype";
 
 /// Maps the OS window appearance onto the theme appearance vocabulary.
 fn system_appearance(cx: &App) -> Appearance {
@@ -58,7 +57,7 @@ impl Default for ThemeManager {
         Self {
             registry: ThemeRegistry::with_builtins(),
             current: Arc::new(Theme::default_theme()),
-            current_theme_id: format!("{BUILTIN_THEME_FAMILY_ID}.dark"),
+            current_theme_id: format!("{DEFAULT_THEME_FAMILY}.dark"),
             settings_snapshot: ThemeSettingsContent::default(),
             system_appearance: Appearance::Dark,
         }

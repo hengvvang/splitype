@@ -404,13 +404,6 @@ impl SettingsStore {
         Ok(result)
     }
 
-    /// Replace the entire settings configuration.
-    pub fn set(cx: &mut App, new_settings: AppSettings) -> anyhow::Result<()> {
-        Self::update(cx, |settings| {
-            *settings = new_settings;
-        })
-    }
-
     /// Writes one settings value by dotted key path into a plugin's blob,
     /// persisting and refreshing all windows.
     pub fn set_plugin_value(
@@ -442,11 +435,6 @@ impl SettingsStore {
             }
         }
     }
-}
-
-/// Read configuration from disk using system configuration directories.
-pub fn read_app_settings() -> anyhow::Result<AppSettings> {
-    read_app_settings_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
 /// Read configuration from disk using the specified configuration directories.

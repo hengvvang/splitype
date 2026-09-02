@@ -1,13 +1,12 @@
-//! Language packs: built-in catalog, custom pack import, and locale
+//! Language packs: built-in catalog, custom pack schema, and locale
 //! detection.
 
-use anyhow::bail;
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use std::collections::BTreeMap;
 
-use crate::jsonc::{
-    merge_non_empty_json_values, object_without_empty_values, prune_empty_json_values,
-};
+use anyhow::{Context as _, bail};
+use serde::{Deserialize, Serialize};
+
+use crate::jsonc::parse_jsonc_value;
 
 use super::strings::{I18N_STRING_KEYS, I18nStrings};
 
@@ -16,87 +15,12 @@ pub const BUILTIN_LANGUAGE_ZH_CN_ID: &str = "zh-CN";
 const BUILTIN_LANGUAGE_ZH_CN_NAME: &str = "简体中文";
 const BUILTIN_LANGUAGE_EN_US_NAME: &str = "English";
 
-/// Strongly typed, normalized BCP-47 language identifier (e.g. "en-US", "zh-CN").
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct LanguageId(String);
-
-impl LanguageId {
-    pub const EN_US: &'static str = BUILTIN_LANGUAGE_EN_US_ID;
-    pub const ZH_CN: &'static str = BUILTIN_LANGUAGE_ZH_CN_ID;
-
-    pub fn new(raw: impl AsRef<str>) -> Self {
-        let s = raw.as_ref().trim();
-        let normalized = if s.contains('_') {
-            s.replace('_', "-")
-        } else {
-            s.to_string()
-        };
-        Self(normalized)
-    }
-
-    pub fn en_us() -> Self {
-        Self(Self::EN_US.to_string())
-    }
-
-    pub fn zh_cn() -> Self {
-        Self(Self::ZH_CN.to_string())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl Default for LanguageId {
-    fn default() -> Self {
-        Self::en_us()
-    }
-}
-
-impl std::fmt::Display for LanguageId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::str::FromStr for LanguageId {
-    type Err = std::convert::Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::new(s))
-    }
-}
-
-impl std::ops::Deref for LanguageId {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl AsRef<str> for LanguageId {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<&str> for LanguageId {
-    fn from(s: &str) -> Self {
-        Self::new(s)
-    }
-}
-
-impl From<String> for LanguageId {
-    fn from(s: String) -> Self {
-        Self::new(s)
-    }
-}
-
+/// One selectable language exposed in menus and settings.
+#[derive(Debug, Clone, PartialEq)]
 pub struct LanguageCatalogEntry {
     pub id: String,
     pub name: String,
+    pub author: String,
 }
 
 pub fn builtin_language_catalog() -> Vec<LanguageCatalogEntry> {
@@ -104,72 +28,108 @@ pub fn builtin_language_catalog() -> Vec<LanguageCatalogEntry> {
         LanguageCatalogEntry {
             id: BUILTIN_LANGUAGE_ZH_CN_ID.into(),
             name: BUILTIN_LANGUAGE_ZH_CN_NAME.into(),
+            author: String::new(),
         },
         LanguageCatalogEntry {
             id: BUILTIN_LANGUAGE_EN_US_ID.into(),
             name: BUILTIN_LANGUAGE_EN_US_NAME.into(),
+            author: String::new(),
         },
     ]
 }
 
-/// A JSON language pack with metadata and canonical strings.
+/// The one canonical language pack file schema: metadata plus a partial
+/// string patch. Every omitted string key inherits from the base language
+/// (`base` when set, otherwise English); unknown keys and empty values are
+/// hard errors.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LanguagePackContent {
+    /// BCP-47 language id (e.g. `ja-JP`).
+    pub id: String,
+    /// Display name shown in the language menu.
+    pub name: String,
+    /// Optional author, shown in the language menu.
+    #[serde(default)]
+    pub author: String,
+    /// Optional built-in base language (e.g. `zh-CN`); defaults to English.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base: Option<String>,
+    /// Partial UI string overrides keyed by canonical string id.
+    pub strings: BTreeMap<String, String>,
+}
+
+impl LanguagePackContent {
+    /// Parses and validates a language pack JSONC document.
+    pub fn from_jsonc(text: &str) -> anyhow::Result<Self> {
+        let value = parse_jsonc_value(text).context("invalid language pack document")?;
+        let content: Self =
+            serde_json::from_value(value).context("invalid language pack schema")?;
+        content.validate()?;
+        Ok(content)
+    }
+
+    /// Validates the pack invariants shared by imports and directory loads.
+    pub fn validate(&self) -> anyhow::Result<()> {
+        let id = self.id.trim();
+        if id.is_empty() {
+            bail!("language pack id must not be empty");
+        }
+        if is_builtin_language_id(id) {
+            bail!("language pack id '{id}' would override a built-in language");
+        }
+        if !is_valid_custom_language_id(id) {
+            bail!("language pack id '{id}' contains unsupported characters");
+        }
+        if let Some(base) = &self.base {
+            let base = base.trim();
+            if !is_builtin_language_id(base) {
+                bail!("language pack base '{base}' is not a built-in language");
+            }
+        }
+        if self.name.trim().is_empty() {
+            bail!("language pack name must not be empty");
+        }
+        for key in self.strings.keys() {
+            if !I18N_STRING_KEYS.contains(&key.as_str()) {
+                bail!("unknown language string key '{key}'");
+            }
+            if self.strings[key].trim().is_empty() {
+                bail!("language string '{key}' must not be empty");
+            }
+        }
+        Ok(())
+    }
+
+    /// Resolves the pack onto its base language, producing the runtime
+    /// string set.
+    pub fn resolve(&self) -> I18nLanguagePack {
+        let base_id = self.base.as_deref().unwrap_or(BUILTIN_LANGUAGE_EN_US_ID);
+        let base = I18nStrings::for_language_id(base_id).unwrap_or_else(I18nStrings::en_us);
+        let mut merged = serde_json::to_value(base).expect("built-in strings must serialize");
+        if let serde_json::Value::Object(object) = &mut merged {
+            for (key, value) in &self.strings {
+                object.insert(key.clone(), serde_json::Value::String(value.clone()));
+            }
+        }
+        let strings: I18nStrings =
+            serde_json::from_value(merged).expect("patched strings must deserialize");
+        I18nLanguagePack {
+            id: self.id.clone(),
+            name: self.name.clone(),
+            author: self.author.clone(),
+            strings,
+        }
+    }
+}
+
+/// A resolved language pack: metadata plus the complete runtime strings.
+#[derive(Debug, Clone)]
 pub struct I18nLanguagePack {
     pub id: String,
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub homepage: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub license: Option<String>,
+    pub author: String,
     pub strings: I18nStrings,
-}
-
-impl I18nLanguagePack {
-    /// Parses a language pack from JSON text.
-    pub fn from_json(json: &str) -> anyhow::Result<Self> {
-        let mut value: Value = serde_json::from_str(json)?;
-        prune_empty_json_values(&mut value);
-        let Value::Object(object) = value else {
-            bail!("language config must be a JSON object");
-        };
-        let object = object_without_empty_values(object);
-        let id = required_string(&object, "id")?;
-        let name = object
-            .get("name")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(ToString::to_string)
-            .unwrap_or_else(|| id.clone());
-        let base_strings = I18nStrings::for_language_id(&id).unwrap_or_else(I18nStrings::en_us);
-        let mut merged_strings = serde_json::to_value(base_strings)?;
-        if let Some(strings) = object.get("strings").and_then(Value::as_object) {
-            let mut normalized_strings = Map::new();
-            for key in I18N_STRING_KEYS {
-                if let Some(val) = strings.get(*key) {
-                    normalized_strings.insert((*key).into(), val.clone());
-                }
-            }
-            merge_non_empty_json_values(&mut merged_strings, &Value::Object(normalized_strings));
-        }
-        let mut pack_object = Map::new();
-        pack_object.insert("id".into(), Value::String(id));
-        pack_object.insert("name".into(), Value::String(name));
-        for key in ["author", "description", "version", "homepage", "license"] {
-            if let Some(val) = object.get(key) {
-                pack_object.insert(key.into(), val.clone());
-            }
-        }
-        pack_object.insert("strings".into(), merged_strings);
-        let pack: Self = serde_json::from_value(Value::Object(pack_object))?;
-        Ok(pack)
-    }
 }
 
 fn is_builtin_language_id(language_id: &str) -> bool {
@@ -224,56 +184,75 @@ fn language_id_for_locale(locale: &str) -> Option<&'static str> {
     }
 }
 
-pub fn custom_language_pack_from_value(
-    mut value: Value,
-) -> anyhow::Result<(I18nLanguagePack, Value)> {
-    prune_empty_json_values(&mut value);
-    let Value::Object(object) = &value else {
-        bail!("language config must be a JSON object");
-    };
-    let object = object_without_empty_values(object.clone());
-    let id = required_string(&object, "id")?;
-    if is_builtin_language_id(&id) {
-        bail!("custom language id '{id}' would override a built-in language");
-    }
-    if !is_valid_custom_language_id(&id) {
-        bail!("custom language id '{id}' contains unsupported characters");
-    }
-    let name = required_string(&object, "name")?;
-    let mut normalized_object = Map::new();
-    normalized_object.insert("id".into(), Value::String(id.clone()));
-    normalized_object.insert("name".into(), Value::String(name));
-    for key in ["author", "description", "version", "homepage", "license"] {
-        if let Some(val) = object.get(key) {
-            normalized_object.insert(key.into(), val.clone());
-        }
-    }
-    if let Some(strings) = object.get("strings").and_then(Value::as_object) {
-        let mut normalized_strings = Map::new();
-        for key in I18N_STRING_KEYS {
-            if let Some(val) = strings.get(*key) {
-                normalized_strings.insert((*key).into(), val.clone());
-            }
-        }
-        if !normalized_strings.is_empty() {
-            normalized_object.insert("strings".into(), Value::Object(normalized_strings));
-        }
-    }
-    let pack = I18nLanguagePack::from_json(&serde_json::to_string(&value)?)?;
-    let normalized = Value::Object(normalized_object);
-    Ok((pack, normalized))
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-fn required_string(object: &Map<String, Value>, key: &str) -> anyhow::Result<String> {
-    let Some(value) = object.get(key) else {
-        bail!("missing required field '{key}'");
-    };
-    let Some(text) = value
-        .as_str()
-        .map(str::trim)
-        .filter(|text| !text.is_empty())
-    else {
-        bail!("field '{key}' must be a non-empty string");
-    };
-    Ok(text.to_string())
+    #[test]
+    fn parses_and_resolves_partial_packs() {
+        let pack = LanguagePackContent::from_jsonc(
+            r#"{
+                "id": "ja-JP",
+                "name": "日本語",
+                "author": "Tanaka",
+                "strings": { "menu_file": "ファイル" }
+            }"#,
+        )
+        .expect("pack should parse");
+        let resolved = pack.resolve();
+        assert_eq!(resolved.id, "ja-JP");
+        assert_eq!(resolved.author, "Tanaka");
+        assert_eq!(resolved.strings.menu_file, "ファイル");
+        // Omitted keys inherit from English.
+        assert_eq!(resolved.strings.menu_export, I18nStrings::en_us().menu_export);
+
+        // Custom packs based on a built-in base language inherit it.
+        let zh = LanguagePackContent::from_jsonc(
+            r#"{
+                "id": "zh-HK",
+                "name": "香港中文",
+                "base": "zh-CN",
+                "strings": { "menu_file": "文件菜单" }
+            }"#,
+        )
+        .expect("pack should parse");
+        let resolved = zh.resolve();
+        assert_eq!(resolved.strings.menu_file, "文件菜单");
+        assert_eq!(resolved.strings.menu_export, I18nStrings::zh_cn().menu_export);
+    }
+
+    #[test]
+    fn rejects_unknown_keys_and_builtin_ids() {
+        assert!(
+            LanguagePackContent::from_jsonc(
+                r#"{ "id": "ja-JP", "name": "日本語", "strings": { "nope": "x" } }"#
+            )
+            .is_err()
+        );
+        assert!(
+            LanguagePackContent::from_jsonc(
+                r#"{ "id": "ja-JP", "name": "日本語", "strings": { "menu_file": "" } }"#
+            )
+            .is_err()
+        );
+        assert!(
+            LanguagePackContent::from_jsonc(
+                r#"{ "id": "en-US", "name": "Override", "strings": {} }"#
+            )
+            .is_err()
+        );
+        assert!(LanguagePackContent::from_jsonc(r#"{ "id": "ja-JP", "strings": {} }"#).is_err());
+        assert!(LanguagePackContent::from_jsonc(
+            r#"{ "id": "ja-JP", "name": "日本語", "base": "fr-FR", "strings": {} }"#
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn built_in_chinese_strings_are_utf8() {
+        let strings = I18nStrings::zh_cn();
+        assert_eq!(strings.menu_file, "文件");
+        assert_eq!(strings.menu_export, "导出");
+        assert_eq!(strings.menu_language, "语言");
+    }
 }

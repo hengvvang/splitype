@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use anyhow::{Context as _, bail};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 pub fn is_supported_config_file(path: &Path) -> bool {
     path.extension()
@@ -162,61 +162,5 @@ pub fn sanitize_config_file_stem(value: &str) -> String {
         "custom".into()
     } else {
         output
-    }
-}
-
-pub fn prune_empty_json_values(value: &mut Value) -> bool {
-    match value {
-        Value::Null => true,
-        Value::String(text) => text.trim().is_empty(),
-        Value::Array(items) => {
-            items.retain_mut(|item| !prune_empty_json_values(item));
-            items.is_empty()
-        }
-        Value::Object(object) => {
-            object.retain(|_, item| !prune_empty_json_values(item));
-            object.is_empty()
-        }
-        Value::Bool(_) | Value::Number(_) => false,
-    }
-}
-
-pub fn merge_non_empty_json_values(base: &mut Value, patch: &Value) {
-    if is_empty_json_value(patch) {
-        return;
-    }
-
-    match (base, patch) {
-        (Value::Object(base_object), Value::Object(patch_object)) => {
-            for (key, patch_value) in patch_object {
-                if is_empty_json_value(patch_value) {
-                    continue;
-                }
-                match base_object.get_mut(key) {
-                    Some(base_value) => merge_non_empty_json_values(base_value, patch_value),
-                    None => {
-                        base_object.insert(key.clone(), patch_value.clone());
-                    }
-                }
-            }
-        }
-        (base_value, patch_value) => {
-            *base_value = patch_value.clone();
-        }
-    }
-}
-
-pub fn object_without_empty_values(mut object: Map<String, Value>) -> Map<String, Value> {
-    object.retain(|_, value| !prune_empty_json_values(value));
-    object
-}
-
-fn is_empty_json_value(value: &Value) -> bool {
-    match value {
-        Value::Null => true,
-        Value::String(text) => text.trim().is_empty(),
-        Value::Array(items) => items.iter().all(is_empty_json_value),
-        Value::Object(object) => object.values().all(is_empty_json_value),
-        Value::Bool(_) | Value::Number(_) => false,
     }
 }

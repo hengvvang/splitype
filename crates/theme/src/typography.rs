@@ -224,12 +224,6 @@ impl TypographyStore {
         true
     }
 
-    pub fn settings(cx: &gpui::App) -> config::settings::TypographySettings {
-        cx.try_global::<Self>()
-            .map(|store| store.settings.clone())
-            .unwrap_or_default()
-    }
-
     pub fn font(cx: &gpui::App, scope: TypographyScope) -> gpui::Font {
         if let Some(store) = cx.try_global::<Self>() {
             match scope {
@@ -297,29 +291,6 @@ impl TypographyStore {
             gpui::font(prose_family),
             gpui::font(code_family),
         )
-    }
-}
-
-/// Global cache of all installed and available font families on the system.
-///
-/// Enumerating fonts from the OS text system is done via `cx.text_system().all_font_names()`
-/// and cached using `OnceLock` to provide instant searching and rendering in settings.
-pub struct FontFamilyCache;
-
-impl FontFamilyCache {
-    pub fn list_font_families(cx: &gpui::App) -> Vec<gpui::SharedString> {
-        static CACHED: std::sync::OnceLock<Vec<gpui::SharedString>> = std::sync::OnceLock::new();
-        CACHED
-            .get_or_init(|| {
-                let mut font_names: Vec<String> = cx.text_system().all_font_names();
-                font_names.sort_by_key(|a| a.to_lowercase());
-                font_names.dedup();
-                font_names
-                    .into_iter()
-                    .map(gpui::SharedString::from)
-                    .collect()
-            })
-            .clone()
     }
 }
 

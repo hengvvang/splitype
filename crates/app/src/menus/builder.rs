@@ -79,13 +79,14 @@ fn skeleton_items(
                 .available_themes()
                 .iter()
                 .map(|entry| {
-                    let label = if entry.family == theme::BUILTIN_THEME_FAMILY_ID {
-                        entry.name.clone()
-                    } else if entry.author.is_empty() {
-                        format!("{} · {}", entry.family_name, entry.name)
-                    } else {
-                        format!("{} · {}", entry.name, entry.author)
-                    };
+                    let label =
+                        if entry.family == config::settings::DEFAULT_THEME_FAMILY {
+                            entry.name.clone()
+                        } else if entry.author.is_empty() {
+                            format!("{} · {}", entry.family_name, entry.name)
+                        } else {
+                            format!("{} · {}", entry.name, entry.author)
+                        };
                     MenuItem::action(
                         label,
                         SelectTheme {
@@ -110,8 +111,13 @@ fn skeleton_items(
                 .available_languages()
                 .iter()
                 .map(|entry| {
+                    let label = if entry.author.is_empty() {
+                        entry.name.clone()
+                    } else {
+                        format!("{} · {}", entry.name, entry.author)
+                    };
                     MenuItem::action(
-                        entry.name.to_string(),
+                        label,
                         SelectLanguage {
                             language_id: entry.id.to_string(),
                         },

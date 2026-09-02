@@ -1871,7 +1871,7 @@ fn remove_installed_theme(cx: &mut App, family_id: &str) {
             cx,
             "splitype.core",
             "theme.family",
-            Value::String("splitype".into()),
+            Value::String(config::settings::DEFAULT_THEME_FAMILY.into()),
         );
     }
     let removed =

@@ -150,13 +150,12 @@ pub use config::settings::Appearance;
 pub use content::{ThemeContent, ThemeFamilyContent, ThemeStyleContent, validate_family};
 pub use dimensions::{ThemeDimensions, ThemeDimensionsPatch};
 pub use manager::{
-    BUILTIN_THEME_FAMILY_ID, ImportedTheme, ThemeManager, apply_theme_selection,
-    import_theme_config_and_select,
+    ImportedTheme, ThemeManager, apply_theme_selection, import_theme_config_and_select,
 };
 pub use registry::{ThemeCatalogEntry, ThemeRegistry, TokenDeclaration};
 pub use resolve::{ResolvedTheme, resolve_theme};
 pub use theme::{CalloutStyle, HeadingStyle, Placeholders, PlaceholdersPatch, Theme};
 pub use typography::{
-    FontFamilyCache, FontWeightDef, TYPOGRAPHY_SIZE_FIELDS, TYPOGRAPHY_WEIGHT_FIELDS,
-    ThemeTypography, ThemeTypographyPatch, TypographyScope, TypographyStore,
+    FontWeightDef, TYPOGRAPHY_SIZE_FIELDS, TYPOGRAPHY_WEIGHT_FIELDS, ThemeTypography,
+    ThemeTypographyPatch, TypographyScope, TypographyStore,
 };
