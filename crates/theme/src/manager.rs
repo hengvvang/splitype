@@ -17,7 +17,7 @@ use config::jsonc::read_json_or_jsonc;
 use config::settings::{Appearance, CoreSettings, PluginSettings, ThemeSettingsContent};
 
 use super::content::{ThemeFamilyContent, validate_family};
-use super::registry::{ThemeCatalogEntry, ThemeRegistry};
+use super::registry::{ThemeCatalogEntry, ThemeRegistry, TokenDeclaration};
 use super::resolve::resolve_theme;
 use super::theme::Theme;
 
@@ -126,6 +126,49 @@ impl ThemeManager {
             return false;
         }
         self.settings_snapshot = settings.clone();
+        self.resolve_current();
+        true
+    }
+
+    /// Registers one plugin's theme contributions — theme families (JSONC
+    /// documents in the same format as user theme files) and extension token
+    /// declarations — then re-resolves the active theme so contributions take
+    /// effect even when the settings snapshot did not change. Family parsing
+    /// is all-or-nothing: a single invalid document registers nothing.
+    pub fn register_plugin_contributions(
+        &mut self,
+        plugin_id: &str,
+        family_jsoncs: &[String],
+        tokens: &[TokenDeclaration],
+    ) -> anyhow::Result<()> {
+        let mut families = Vec::with_capacity(family_jsoncs.len());
+        for jsonc in family_jsoncs {
+            let value = config::jsonc::parse_jsonc_value(jsonc)?;
+            let family: ThemeFamilyContent = serde_json::from_value(value)?;
+            validate_family(&family)?;
+            families.push(family);
+        }
+        self.registry.insert_plugin(plugin_id, families)?;
+        self.registry
+            .register_tokens(plugin_id, tokens.iter().cloned());
+        self.resolve_current();
+        Ok(())
+    }
+
+    /// Removes one plugin's theme contributions and re-resolves. When the
+    /// re-resolution fails (e.g. the settings still select the removed
+    /// family), the previously resolved theme keeps rendering and a warning
+    /// is logged.
+    pub fn unregister_plugin_contributions(&mut self, plugin_id: &str) {
+        self.registry.remove_plugin(plugin_id);
+        self.registry.unregister_plugin_tokens(plugin_id);
+        self.resolve_current();
+    }
+
+    /// Resolves the active theme from the last applied settings snapshot,
+    /// regardless of whether it changed (used after registry mutations).
+    fn resolve_current(&mut self) {
+        let settings = self.settings_snapshot.clone();
         match resolve_theme(
             &self.registry,
             &settings.family,
@@ -144,7 +187,6 @@ impl ThemeManager {
                 );
             }
         }
-        true
     }
 
     /// Imports a theme family file into the user theme library: validates,
@@ -430,5 +472,153 @@ mod tests {
         assert!(manager.import_theme_file_with_dirs(&source, &dirs).is_err());
         assert!(manager.registry.family("broken").is_none());
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn registers_plugin_contributions_and_reapplies() {
+        let mut manager = ThemeManager::default();
+        let family_jsonc = r##"{
+            "name": "Acme",
+            "author": "Acme Inc",
+            "themes": [
+                {
+                    "name": "Dark",
+                    "appearance": "dark",
+                    "style": {
+                        "base": "splitype",
+                        "colors": { "focus_accent": "#8b5cf6" }
+                    }
+                }
+            ]
+        }"##;
+        manager
+            .register_plugin_contributions(
+                "com.acme",
+                &[family_jsonc.to_string()],
+                &[TokenDeclaration {
+                    key: "com.acme.brand".into(),
+                    default: Some(rgba(0x8b5cf6ff).into()),
+                    description: "Brand color".into(),
+                }],
+            )
+            .expect("plugin contributions should register");
+
+        // The token default resolves into the active theme immediately.
+        assert_eq!(
+            manager.current().token("com.acme.brand"),
+            Some(rgba(0x8b5cf6ff).into())
+        );
+        assert!(
+            manager
+                .available_themes()
+                .iter()
+                .any(|entry| entry.id == "acme.dark")
+        );
+
+        // Settings can select the plugin-contributed family.
+        let settings = ThemeSettingsContent {
+            family: "acme".into(),
+            ..Default::default()
+        };
+        assert!(manager.apply_settings(&settings));
+        assert_eq!(manager.current_theme_id(), "acme.dark");
+        assert_eq!(
+            manager.current().colors.focus_accent,
+            rgba(0x8b5cf6ff).into()
+        );
+
+        // A settings override above the plugin family.
+        let mut overridden = ThemeSettingsContent {
+            family: "acme".into(),
+            ..Default::default()
+        };
+        overridden
+            .overrides
+            .insert("com.acme.brand".into(), rgba(0x112233ff).into());
+        assert!(manager.apply_settings(&overridden));
+        assert_eq!(
+            manager.current().token("com.acme.brand"),
+            Some(rgba(0x112233ff).into())
+        );
+
+        // Unregistering removes the family and the token; the kept theme
+        // keeps rendering until the next settings change.
+        manager.unregister_plugin_contributions("com.acme");
+        assert!(manager.registry.family("acme").is_none());
+        assert!(manager.registry.token_schema().is_empty());
+        assert!(
+            !manager
+                .available_themes()
+                .iter()
+                .any(|entry| entry.id == "acme.dark")
+        );
+        assert!(
+            resolve_theme(
+                &manager.registry,
+                "acme.dark",
+                Appearance::Dark,
+                &BTreeMap::new()
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn extension_tokens_without_default_fall_back_to_consumers() {
+        let mut manager = ThemeManager::default();
+        manager
+            .register_plugin_contributions(
+                "com.acme",
+                &[],
+                &[TokenDeclaration {
+                    key: "com.acme.accent".into(),
+                    default: None,
+                    description: String::new(),
+                }],
+            )
+            .expect("token should register");
+
+        // No default: the consumer supplies its own fallback.
+        assert_eq!(manager.current().token("com.acme.accent"), None);
+
+        // A settings override brings the token to life.
+        let mut settings = ThemeSettingsContent::default();
+        settings
+            .overrides
+            .insert("com.acme.accent".into(), rgba(0xaabbccff).into());
+        assert!(manager.apply_settings(&settings));
+        assert_eq!(
+            manager.current().token("com.acme.accent"),
+            Some(rgba(0xaabbccff).into())
+        );
+
+        // Unknown extension keys in theme files are hard errors.
+        let mut extension = BTreeMap::new();
+        extension.insert("com.unknown.token".into(), rgba(0xffffffff).into());
+        let family = ThemeFamilyContent {
+            name: "Bad".into(),
+            author: String::new(),
+            themes: vec![crate::ThemeContent {
+                name: "Dark".into(),
+                appearance: Appearance::Dark,
+                style: ThemeStyleContent {
+                    extension: Some(extension),
+                    ..Default::default()
+                },
+            }],
+        };
+        manager
+            .registry
+            .insert_user(family)
+            .expect("family should validate");
+        assert!(
+            resolve_theme(
+                &manager.registry,
+                "bad.dark",
+                Appearance::Dark,
+                &BTreeMap::new()
+            )
+            .is_err()
+        );
     }
 }

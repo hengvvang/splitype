@@ -998,11 +998,13 @@ fn render_theme_overrides_panel(
         .clone();
 
     // Every color token: (override key, display name, effective color).
-    let mut tokens: Vec<(String, String, Hsla)> = ThemeColors::TOKEN_FIELD_NAMES
+    // Extension tokens without a default and without an override have no
+    // effective color — the consuming UI supplies its own fallback.
+    let mut tokens: Vec<(String, String, Option<Hsla>)> = ThemeColors::TOKEN_FIELD_NAMES
         .iter()
         .filter_map(|field| {
             let hsla = theme.colors.color_token(field)?;
-            Some((format!("colors.{field}"), (*field).to_string(), hsla))
+            Some((format!("colors.{field}"), (*field).to_string(), Some(hsla)))
         })
         .collect();
     for (token_key, declaration) in cx.global::<ThemeManager>().registry().token_schema() {
@@ -1013,7 +1015,7 @@ fn render_theme_overrides_panel(
                 .extension
                 .get(token_key)
                 .copied()
-                .unwrap_or(declaration.default),
+                .or(declaration.default),
         ));
     }
 
@@ -1110,15 +1112,21 @@ fn render_theme_overrides_panel(
             continue;
         }
         let overridden = overrides.contains_key(&token_key);
-        let desc = format!(
-            "{} · {}",
-            if overridden {
-                "Overridden"
-            } else {
-                "Inherited"
-            },
-            hsla_to_hex(effective),
-        );
+        let desc = match effective {
+            Some(hsla) => format!(
+                "{} · {}",
+                if overridden {
+                    "Overridden"
+                } else {
+                    "Inherited"
+                },
+                hsla_to_hex(hsla),
+            ),
+            None => format!(
+                "{} · consumer fallback",
+                if overridden { "Overridden" } else { "Unset" }
+            ),
+        };
         let reset: Option<SettingsClickHandler> = if overridden {
             let reset_key = token_key.clone();
             Some(Box::new(
@@ -1164,12 +1172,13 @@ fn render_theme_overrides_panel(
 }
 
 /// Inline hex color input with a swatch, committing `#rrggbb[aa]` colors.
+/// A `None` effective color renders an empty swatch and a `—` value.
 #[allow(clippy::too_many_arguments)]
 fn render_color_control(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
     token_key: &str,
-    effective: Hsla,
+    effective: Option<Hsla>,
     overridden: bool,
     c: &ThemeColors,
     d: &ThemeDimensions,
@@ -1182,7 +1191,11 @@ fn render_color_control(
         .edit_buffers
         .get(&edit_key)
         .cloned()
-        .unwrap_or_else(|| hsla_to_hex(effective));
+        .unwrap_or_else(|| {
+            effective
+                .map(hsla_to_hex)
+                .unwrap_or_else(|| "—".to_string())
+        });
     let focus_handle = state.update(cx, |ui, cx| ui.focus_handle(&edit_key, cx));
 
     let commit_key = token_key.to_string();
@@ -1226,7 +1239,7 @@ fn render_color_control(
                 .rounded_sm()
                 .border_1()
                 .border_color(c.dialog_border)
-                .bg(effective),
+                .bg(effective.unwrap_or(Hsla::transparent_black())),
         )
         .child(
             div()
@@ -1258,7 +1271,7 @@ fn render_color_control(
         .on_click(start_edit(
             state.clone(),
             edit_key.clone(),
-            hsla_to_hex(effective),
+            effective.map(hsla_to_hex).unwrap_or_default(),
             focus_handle.clone(),
         ))
         .on_key_down(on_key_down)

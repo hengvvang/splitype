@@ -36,6 +36,21 @@ pub struct PluginManifest {
     /// Settings schema the plugin contributes to the settings UI.
     #[serde(default)]
     pub settings: Vec<SettingDeclaration>,
+    /// Theme families the plugin contributes, in the same JSONC family
+    /// format as user theme files.
+    #[serde(default)]
+    pub themes: Vec<ThemeFamilyDeclaration>,
+    /// Extension color tokens the plugin registers for theming.
+    #[serde(default)]
+    pub theme_tokens: Vec<theme::TokenDeclaration>,
+}
+
+/// One theme family contributed by a plugin, written in the same JSONC
+/// family format as user theme files.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThemeFamilyDeclaration {
+    /// The family document as a JSONC string.
+    pub json: String,
 }
 
 /// One command contribution declared by a manifest.
@@ -106,6 +121,12 @@ pub enum PluginManifestError {
     EnumWithoutOptions(String),
     #[error("number setting '{0}' declares bounds or options only valid on other kinds")]
     InvalidSettingBounds(String),
+    #[error("theme token '{0}' must be namespaced under the plugin id")]
+    InvalidThemeTokenKey(String),
+    #[error("theme token '{0}' is declared more than once")]
+    DuplicateThemeTokenKey(String),
+    #[error("theme family #{0} is invalid: {1}")]
+    InvalidThemeFamily(usize, String),
 }
 
 impl PluginManifest {
@@ -131,6 +152,34 @@ impl PluginManifest {
             return Err(PluginManifestError::EmptyRegistration);
         }
         self.validate_settings()?;
+        self.validate_theme_contributions()?;
+        Ok(())
+    }
+
+    fn validate_theme_contributions(&self) -> Result<(), PluginManifestError> {
+        let prefix = format!("{}.", self.plugin);
+        let mut seen = std::collections::BTreeSet::new();
+        for token in &self.theme_tokens {
+            if !token.key.starts_with(&prefix) || token.key.len() == prefix.len() {
+                return Err(PluginManifestError::InvalidThemeTokenKey(token.key.clone()));
+            }
+            if !seen.insert(token.key.clone()) {
+                return Err(PluginManifestError::DuplicateThemeTokenKey(
+                    token.key.clone(),
+                ));
+            }
+        }
+        for (index, declaration) in self.themes.iter().enumerate() {
+            let parsed = config::jsonc::parse_jsonc_value(&declaration.json).and_then(|value| {
+                serde_json::from_value::<theme::ThemeFamilyContent>(value).map_err(Into::into)
+            });
+            if let Err(err) = parsed.and_then(|family| theme::validate_family(&family)) {
+                return Err(PluginManifestError::InvalidThemeFamily(
+                    index,
+                    err.to_string(),
+                ));
+            }
+        }
         Ok(())
     }
 

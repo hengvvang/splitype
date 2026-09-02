@@ -9,7 +9,7 @@ use gpui::Hsla;
 use config::settings::Appearance;
 
 use super::content::{ThemeContent, ThemeStyleContent};
-use super::registry::ThemeRegistry;
+use super::registry::{ThemeRegistry, TokenDeclaration};
 use super::theme::Theme;
 
 /// A fully resolved theme plus its concrete id.
@@ -60,9 +60,16 @@ pub fn resolve_theme(
     variant.style.apply_to(&mut theme);
 
     // Extension tokens: schema defaults, then chain and variant patches.
+    // Patch keys must address registered tokens — unknown keys are hard
+    // errors, like every other unknown key in the theme schema.
     let mut extension = registry.token_defaults();
     for style in chain.iter().chain(std::iter::once(&variant.style)) {
         if let Some(patch) = &style.extension {
+            for key in patch.keys() {
+                if !registry.token_schema().contains_key(key) {
+                    bail!("unknown extension token '{key}' in theme patch");
+                }
+            }
             for (key, value) in patch {
                 extension.insert(key.clone(), *value);
             }
@@ -71,7 +78,13 @@ pub fn resolve_theme(
 
     // Settings color overrides sit above every theme file.
     for (key, value) in overrides {
-        apply_override(&mut theme, &mut extension, key, *value)?;
+        apply_override(
+            &mut theme,
+            &mut extension,
+            registry.token_schema(),
+            key,
+            *value,
+        )?;
     }
     theme.extension = extension;
 
@@ -119,6 +132,7 @@ fn locate<'a>(
 fn apply_override(
     theme: &mut Theme,
     extension: &mut BTreeMap<String, Hsla>,
+    token_schema: &BTreeMap<String, TokenDeclaration>,
     key: &str,
     value: Hsla,
 ) -> anyhow::Result<()> {
@@ -128,8 +142,8 @@ fn apply_override(
         }
         return Ok(());
     }
-    if let Some(current) = extension.get_mut(key) {
-        *current = value;
+    if token_schema.contains_key(key) {
+        extension.insert(key.to_string(), value);
         return Ok(());
     }
     bail!("unknown theme override key '{key}'")

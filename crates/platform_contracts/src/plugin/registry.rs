@@ -126,6 +126,8 @@ mod tests {
             resources: crate::plugin::PluginResources::default(),
             commands: Vec::new(),
             settings: Vec::new(),
+            themes: Vec::new(),
+            theme_tokens: Vec::new(),
         }
     }
 

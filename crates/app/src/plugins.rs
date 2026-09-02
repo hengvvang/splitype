@@ -10,6 +10,8 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use gpui::{App, BorrowAppContext};
+
 use editor_contracts::PaneDescriptor;
 use platform_contracts::{PanelDescriptor, PanelKind, PluginId, PluginManifest, PluginRegistry};
 
@@ -247,6 +249,39 @@ pub(crate) fn discover_user_plugins_in(dir: &std::path::Path) {
     }
 }
 
+/// Registers every registered manifest's theme contributions (theme families
+/// and extension tokens) with the theme manager.
+///
+/// Theme contributions are pure manifest data, so they activate even for
+/// user-installed plugins whose code transport is not implemented yet.
+/// Call once after bundled and user plugin discovery.
+pub(crate) fn register_plugin_theme_contributions(cx: &mut App) {
+    let manifests = PluginRegistry::registered_manifests().unwrap_or_default();
+    cx.update_global::<theme::ThemeManager, _>(|manager, _cx| {
+        for manifest in &manifests {
+            if manifest.themes.is_empty() && manifest.theme_tokens.is_empty() {
+                continue;
+            }
+            let family_jsoncs: Vec<String> = manifest
+                .themes
+                .iter()
+                .map(|declaration| declaration.json.clone())
+                .collect();
+            if let Err(err) = manager.register_plugin_contributions(
+                manifest.plugin.as_str(),
+                &family_jsoncs,
+                &manifest.theme_tokens,
+            ) {
+                tracing::warn!(
+                    plugin = %manifest.plugin,
+                    error = %err,
+                    "failed to register plugin theme contributions"
+                );
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -314,5 +349,71 @@ panels = ["com.example.test.panel"]
         assert_eq!(recorded.name, "Example Test");
 
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn manifests_declare_valid_theme_contributions() {
+        let valid = r##"
+manifest_version = 1
+plugin = "com.example.theme"
+name = "Example Theme"
+version = "0.1.0"
+
+[entry]
+kind = "in_process"
+registration = "example-theme"
+
+[[themes]]
+json = """
+{
+  "name": "Example",
+  "author": "Example Inc",
+  "themes": [
+    {
+      "name": "Dark",
+      "appearance": "dark",
+      "style": { "base": "splitype", "colors": { "focus_accent": "#8b5cf6" } }
+    }
+  ]
+}
+"""
+
+[[theme_tokens]]
+key = "com.example.theme.brand"
+default = "#8b5cf6"
+description = "Brand color"
+"##;
+        let manifest: PluginManifest = toml::from_str(valid).expect("valid TOML");
+        manifest
+            .validate()
+            .expect("theme contributions must validate");
+        assert_eq!(manifest.themes.len(), 1);
+        assert_eq!(manifest.theme_tokens.len(), 1);
+        assert_eq!(
+            manifest.theme_tokens[0].default,
+            Some(gpui::rgba(0x8b5cf6ff).into())
+        );
+
+        // Token keys must be namespaced under the plugin id.
+        let bad_key = valid.replace(
+            "key = \"com.example.theme.brand\"",
+            "key = \"com.other.plugin.brand\"",
+        );
+        let manifest: PluginManifest = toml::from_str(&bad_key).expect("valid TOML");
+        assert!(matches!(
+            manifest.validate(),
+            Err(platform_contracts::PluginManifestError::InvalidThemeTokenKey(_))
+        ));
+
+        // Invalid theme family documents fail manifest validation.
+        let bad_family = valid.replace("\"name\": \"Example\"", "\"name\": \"\"");
+        let manifest: PluginManifest = toml::from_str(&bad_family).expect("valid TOML");
+        assert!(matches!(
+            manifest.validate(),
+            Err(platform_contracts::PluginManifestError::InvalidThemeFamily(
+                _,
+                _
+            ))
+        ));
     }
 }

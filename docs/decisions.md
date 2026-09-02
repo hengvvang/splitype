@@ -332,6 +332,15 @@ The theme system has one architecture and no legacy paths:
 
 Runtime `Theme` stays flat semantic tokens (`colors` / `dimensions` /
 `typography` / `placeholders` / `extension`) rather than Zed's nested player
-roles; consumer code reads `ThemeManager::current_arc()` unchanged. Plugin
-theme contributions (`[[themes]]`, `[[theme_tokens]]`) plug into the registry
-without schema changes.
+roles; consumer code reads `ThemeManager::current_arc()` unchanged.
+
+Plugins contribute themes and tokens through the same manifest data channel
+as commands and settings: `[[themes]]` holds theme families in the identical
+JSONC format as user theme files (validated at manifest load), and
+`[[theme_tokens]]` declares extension tokens whose keys must be namespaced
+under the plugin id. Token defaults are optional — a `None` default means
+consuming UI falls back to a core token itself (`Theme::token(key).unwrap_or(...)`),
+keeping plugin UI in lock step with the active theme until a theme file or
+settings override pins the token. Contributions are pure data, so they
+activate even for user-installed plugins without a code transport; every
+registration or removal re-resolves the active theme.

@@ -168,7 +168,11 @@ impl ExplorerState {
                         .bottom(px(4.0))
                         .w(px(3.0))
                         .rounded_r(px(2.0))
-                        .bg(c.focus_accent),
+                        .bg(
+                            theme
+                                .token("splitype.explorer.selection_accent")
+                                .unwrap_or(c.focus_accent),
+                        ),
                 )
             } else {
                 None

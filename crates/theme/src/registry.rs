@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use gpui::Hsla;
+use serde::{Deserialize, Serialize};
 
 use config::dirs::SplitypeConfigDirs;
 use config::jsonc::read_json_or_jsonc;
@@ -29,23 +30,39 @@ pub struct ThemeCatalogEntry {
 }
 
 /// One plugin-contributed extension token declaration.
-#[derive(Debug, Clone, PartialEq)]
+///
+/// `default` is the fallback color used until a theme or a settings override
+/// sets the token. A `None` default means the consuming UI supplies its own
+/// fallback (usually a core theme token), so the token stays in lock step
+/// with the active theme until someone overrides it explicitly.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TokenDeclaration {
-    /// Stable token key (e.g. `splitype.explorer.accent`).
+    /// Stable token key (e.g. `splitype.explorer.accent`), namespaced under
+    /// the contributing plugin's id.
     pub key: String,
-    /// Fallback color used before any theme overrides it.
-    pub default: Hsla,
+    /// Fallback color, or `None` for consumer-supplied fallbacks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<Hsla>,
     /// Human-readable description.
+    #[serde(default)]
     pub description: String,
 }
 
 /// All known theme families keyed by id, with priority `user > plugin >
-/// builtin`, plus the plugin extension-token schema.
+/// builtin`, plus the plugin extension-token schema with per-plugin
+/// ownership.
 pub struct ThemeRegistry {
     builtin: BTreeMap<String, ThemeFamilyContent>,
-    plugin: BTreeMap<String, ThemeFamilyContent>,
+    /// Plugin id → the families it contributes. Multiple plugins may
+    /// contribute families with colliding ids; the lexicographically later
+    /// plugin id wins during resolution.
+    plugin: BTreeMap<String, Vec<ThemeFamilyContent>>,
     user: BTreeMap<String, ThemeFamilyContent>,
+    /// Token key → declaration.
     token_schema: BTreeMap<String, TokenDeclaration>,
+    /// Token key → owning plugin id.
+    token_owners: BTreeMap<String, String>,
 }
 
 impl ThemeRegistry {
@@ -56,6 +73,7 @@ impl ThemeRegistry {
             plugin: BTreeMap::new(),
             user: BTreeMap::new(),
             token_schema: BTreeMap::new(),
+            token_owners: BTreeMap::new(),
         };
         let family = splitype_builtin_family();
         registry.builtin.insert(family.id(), family);
@@ -69,17 +87,22 @@ impl ThemeRegistry {
         Ok(())
     }
 
-    /// Inserts a plugin-contributed family, overwriting any previous one
-    /// with its id.
-    pub fn insert_plugin(&mut self, family: ThemeFamilyContent) -> anyhow::Result<()> {
-        validate_family(&family)?;
-        self.plugin.insert(family.id(), family);
+    /// Replaces one plugin's contributed families (validated all-or-nothing).
+    pub fn insert_plugin(
+        &mut self,
+        plugin_id: &str,
+        families: Vec<ThemeFamilyContent>,
+    ) -> anyhow::Result<()> {
+        for family in &families {
+            validate_family(family)?;
+        }
+        self.plugin.insert(plugin_id.to_string(), families);
         Ok(())
     }
 
-    /// Removes a plugin-contributed family.
-    pub fn remove_plugin(&mut self, family_id: &str) {
-        self.plugin.remove(family_id);
+    /// Removes one plugin's contributed families.
+    pub fn remove_plugin(&mut self, plugin_id: &str) {
+        self.plugin.remove(plugin_id);
     }
 
     /// Inserts a user family, overwriting any previous one with its id.
@@ -94,27 +117,77 @@ impl ThemeRegistry {
         self.user.remove(family_id);
     }
 
+    /// Registers one plugin's extension tokens, overwriting any previous
+    /// declaration (and ownership) with the same key.
+    pub fn register_tokens(
+        &mut self,
+        plugin_id: &str,
+        tokens: impl IntoIterator<Item = TokenDeclaration>,
+    ) {
+        for token in tokens {
+            self.token_owners
+                .insert(token.key.clone(), plugin_id.to_string());
+            self.token_schema.insert(token.key.clone(), token);
+        }
+    }
+
+    /// Removes every token declaration owned by the plugin.
+    pub fn unregister_plugin_tokens(&mut self, plugin_id: &str) {
+        self.token_schema.retain(|key, _| {
+            self.token_owners
+                .get(key)
+                .is_none_or(|owner| owner != plugin_id)
+        });
+        self.token_owners.retain(|_, owner| owner != plugin_id);
+    }
+
+    /// The registered extension-token schema.
+    pub fn token_schema(&self) -> &BTreeMap<String, TokenDeclaration> {
+        &self.token_schema
+    }
+
+    /// Fallback colors of the extension tokens that declare a default.
+    pub fn token_defaults(&self) -> BTreeMap<String, Hsla> {
+        self.token_schema
+            .iter()
+            .filter_map(|(key, token)| token.default.map(|hsla| (key.clone(), hsla)))
+            .collect()
+    }
+
+    /// The effective plugin families after cross-plugin id collisions, with
+    /// the lexicographically later plugin id winning.
+    fn plugin_families(&self) -> BTreeMap<String, &ThemeFamilyContent> {
+        let mut merged: BTreeMap<String, &ThemeFamilyContent> = BTreeMap::new();
+        for families in self.plugin.values() {
+            for family in families {
+                merged.insert(family.id(), family);
+            }
+        }
+        merged
+    }
+
     /// Highest-priority family with `family_id`, if any.
     pub fn family(&self, family_id: &str) -> Option<&ThemeFamilyContent> {
         self.user
             .get(family_id)
-            .or_else(|| self.plugin.get(family_id))
+            .or_else(|| self.plugin_families().get(family_id).copied())
             .or_else(|| self.builtin.get(family_id))
     }
 
     /// Every family with its id, highest priority first: user, plugin, builtin.
     pub fn families(&self) -> Vec<(String, &ThemeFamilyContent)> {
+        let plugin = self.plugin_families();
         let mut families = Vec::new();
         for (id, family) in &self.user {
             families.push((id.clone(), family));
         }
-        for (id, family) in &self.plugin {
+        for (id, family) in &plugin {
             if !self.user.contains_key(id) {
-                families.push((id.clone(), family));
+                families.push((id.clone(), *family));
             }
         }
         for (id, family) in &self.builtin {
-            if !self.user.contains_key(id) && !self.plugin.contains_key(id) {
+            if !self.user.contains_key(id) && !plugin.contains_key(id) {
                 families.push((id.clone(), family));
             }
         }
@@ -137,34 +210,6 @@ impl ThemeRegistry {
             }
         }
         entries
-    }
-
-    /// Registers plugin extension tokens, overwriting any previous
-    /// declaration with the same key.
-    pub fn register_tokens(&mut self, tokens: impl IntoIterator<Item = TokenDeclaration>) {
-        for token in tokens {
-            self.token_schema.insert(token.key.clone(), token);
-        }
-    }
-
-    /// Removes token declarations by exact key.
-    pub fn unregister_tokens(&mut self, keys: &[String]) {
-        for key in keys {
-            self.token_schema.remove(key);
-        }
-    }
-
-    /// The registered extension-token schema.
-    pub fn token_schema(&self) -> &BTreeMap<String, TokenDeclaration> {
-        &self.token_schema
-    }
-
-    /// Fallback colors of every registered extension token.
-    pub fn token_defaults(&self) -> BTreeMap<String, Hsla> {
-        self.token_schema
-            .values()
-            .map(|token| (token.key.clone(), token.default))
-            .collect()
     }
 
     /// Loads every theme family file from the user themes directory,

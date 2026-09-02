@@ -138,6 +138,7 @@ pub fn run(args: Args) {
         install_http_client(cx);
         crate::plugins::init_plugins();
         crate::plugins::discover_user_plugins();
+        crate::plugins::register_plugin_theme_contributions(cx);
         init_editor(cx, &core.keybindings);
         init_app_menu(cx);
 

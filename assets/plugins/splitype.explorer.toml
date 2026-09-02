@@ -63,3 +63,7 @@ kind = "bool"
 default = true
 title = "Auto Reveal Active File"
 description = "Reveal and select the active document's file in the tree"
+
+[[theme_tokens]]
+key = "splitype.explorer.selection_accent"
+description = "Accent bar color of the selected file-tree row"
