@@ -318,6 +318,22 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        // With no open tab there is no document to edit: render a blank,
+        // input-inert surface instead of an interactive pane.
+        let Some(document) = self
+            .session
+            .active_tab()
+            .map(crate::session::DocumentTab::snapshot)
+        else {
+            let theme = cx.global::<theme::ThemeManager>().current_arc();
+            return div()
+                .id(("empty-pane", pane_id.0))
+                .w_full()
+                .h_full()
+                .bg(theme.colors.editor_background)
+                .into_any_element();
+        };
+
         if pane_id == self.active_pane_id() {
             self.apply_pending_focus(pane_id, window, cx);
             self.apply_pending_autoscroll(pane_id, window, cx);
@@ -325,12 +341,6 @@ impl Editor {
 
         let is_focused = self.focused_pane_id == Some(pane_id);
         let host = self.pane_host.clone();
-
-        let document = self
-            .session
-            .active_tab()
-            .map(crate::session::DocumentTab::snapshot)
-            .unwrap_or_else(editor_contracts::DocumentSnapshot::empty);
 
         let is_outline_hovered = self.outline.is_hovered;
         if let Some(state) = self.pane_state_mut(pane_id) {

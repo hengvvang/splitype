@@ -123,28 +123,24 @@ impl Editor {
         origin_pane: PaneId,
         cx: &mut Context<Self>,
     ) {
-        if self.session.has_tabs() {
-            if let Some(tab) = self.session.active_tab_mut() {
-                tab.text = new_text;
-                tab.document_revision = tab.document_revision.wrapping_add(1);
-                tab.file.dirty = true;
-                tab.file.pending_window_edited = true;
-                tab.cached_word_count = None;
-
-                let document = tab.snapshot();
-                for (&pane_id, state) in tab.panes.iter_mut() {
-                    if pane_id != origin_pane {
-                        state.pane.sync_document(&document, cx);
-                    }
-                }
-            }
-        } else {
-            let mut tab = Self::new_tab_from_markdown(new_text, None);
+        if !self.session.has_tabs() {
+            // No open tab: there is nothing to edit — ignore pane-driven
+            // input instead of implicitly creating a tab.
+            return;
+        }
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.text = new_text;
+            tab.document_revision = tab.document_revision.wrapping_add(1);
             tab.file.dirty = true;
             tab.file.pending_window_edited = true;
-            tab.panes = std::mem::take(&mut self.session.empty_panes);
-            let last = self.session.push_tab(tab);
-            self.activate_tab(last, cx);
+            tab.cached_word_count = None;
+
+            let document = tab.snapshot();
+            for (&pane_id, state) in tab.panes.iter_mut() {
+                if pane_id != origin_pane {
+                    state.pane.sync_document(&document, cx);
+                }
+            }
         }
         cx.notify();
     }

@@ -124,6 +124,9 @@ impl Editor {
         window: &mut gpui::Window,
         cx: &mut gpui::Context<Self>,
     ) -> bool {
+        if !self.has_tabs() {
+            return false;
+        }
         let prev_text = self
             .pane_state_ref(pane_id)
             .and_then(|p| p.pane.serialize_text(cx));
