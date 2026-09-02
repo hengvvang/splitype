@@ -67,40 +67,48 @@ pub fn render_settings_body(
             .is_some_and(|active| active.plugin.as_str() == plugin_id);
         let label = manifest.name.clone();
         let nav_state = state.clone();
-        nav_items.push(
-            nav_tab(
-                ElementId::Name(format!("{id_namespace}-nav-{plugin_id}").into()),
-                c,
-                d,
-            )
-            .bg(if is_active {
-                c.panel_row_selected
-            } else {
-                c.dialog_surface
-            })
-            .child(
+        let mut tab = nav_tab(
+            ElementId::Name(format!("{id_namespace}-nav-{plugin_id}").into()),
+            c,
+            d,
+        )
+        .relative()
+        .bg(if is_active {
+            c.panel_row_hover
+        } else {
+            c.dialog_surface
+        })
+        .child(
+            div()
+                .text_size(px(13.0))
+                .text_color(if is_active {
+                    c.text_default
+                } else {
+                    c.dialog_muted
+                })
+                .child(label),
+        )
+        .on_click(move |_event, _window, cx| {
+            nav_state.update(cx, |ui, _| {
+                ui.active_plugin = plugin_id.clone();
+            });
+            cx.refresh_windows();
+        });
+
+        if is_active {
+            tab = tab.child(
                 div()
-                    .text_size(px(13.0))
-                    .font_weight(if is_active {
-                        FontWeight::BOLD
-                    } else {
-                        FontWeight::NORMAL
-                    })
-                    .text_color(if is_active {
-                        c.text_default
-                    } else {
-                        c.dialog_muted
-                    })
-                    .child(label),
-            )
-            .on_click(move |_event, _window, cx| {
-                nav_state.update(cx, |ui, _| {
-                    ui.active_plugin = plugin_id.clone();
-                });
-                cx.refresh_windows();
-            })
-            .into_any_element(),
-        );
+                    .absolute()
+                    .left_0()
+                    .top(px(8.0))
+                    .bottom(px(8.0))
+                    .w(px(3.0))
+                    .rounded_full()
+                    .bg(c.focus_accent),
+            );
+        }
+
+        nav_items.push(tab.into_any_element());
     }
 
     let nav_rail = div()

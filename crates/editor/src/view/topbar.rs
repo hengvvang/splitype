@@ -198,7 +198,7 @@ impl Editor {
             for (index, (file_name, is_transient, _is_dirty)) in tab_infos.iter().enumerate() {
                 let is_active = index == active_tab;
                 let tab_bg = if is_active {
-                    c.panel_row_selected
+                    c.dialog_secondary_button_hover
                 } else {
                     hsla(0.0, 0.0, 0.0, 0.0)
                 };
@@ -220,53 +220,73 @@ impl Editor {
                     title_div = title_div.italic();
                 }
 
-                tab_elements.push(
-                    small_pill_button(c, d)
-                        .px(px(6.0))
-                        .bg(tab_bg)
-                        .text_size(px(11.0))
-                        .cursor_pointer()
-                        .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                            let is_double = event.click_count > 1;
-                            let _ = tab_editor.update(cx, |ed, cx| {
-                                ed.defer_host_action(cx, move |host, cx| {
-                                    host.activate_panel(panel_id, cx);
-                                });
-                                if is_double {
-                                    if let Some(tab) = ed.session.tab_mut(index) {
-                                        tab.persist();
-                                    }
-                                }
-                                ed.activate_tab(index, cx);
-                                cx.notify();
+                let height = toolbar_button_size(d.topbar_height);
+                let mut tab_button = div()
+                    .h(px(height))
+                    .px(px(6.0))
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0))
+                    .rounded(px(d.tab_radius))
+                    .bg(tab_bg)
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .relative()
+                    .text_size(px(11.0))
+                    .cursor_pointer()
+                    .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                        let is_double = event.click_count > 1;
+                        let _ = tab_editor.update(cx, |ed, cx| {
+                            ed.defer_host_action(cx, move |host, cx| {
+                                host.activate_panel(panel_id, cx);
                             });
-                        })
-                        .child(title_div)
-                        .child(
-                            div()
-                                .size(px(12.0))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(d.tab_close_button_radius))
-                                .hover(|this| this.bg(c.dialog_secondary_button_bg.opacity(0.6)))
-                                .cursor_pointer()
-                                .child(
-                                    svg()
-                                        .path(panel_topbar_icon(icon_prefix, "close"))
-                                        .size(px(8.0))
-                                        .text_color(c.dialog_muted),
-                                )
-                                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                    cx.stop_propagation();
-                                    let _ = close_editor.update(cx, |ed, cx| {
-                                        ed.request_close_tab(index, cx);
-                                        cx.notify();
-                                    });
-                                }),
-                        )
-                        .into_any_element(),
-                );
+                            if is_double {
+                                if let Some(tab) = ed.session.tab_mut(index) {
+                                    tab.persist();
+                                }
+                            }
+                            ed.activate_tab(index, cx);
+                            cx.notify();
+                        });
+                    })
+                    .child(title_div)
+                    .child(
+                        div()
+                            .size(px(12.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .rounded(px(d.tab_close_button_radius))
+                            .hover(|this| this.bg(c.dialog_secondary_button_bg.opacity(0.6)))
+                            .cursor_pointer()
+                            .child(
+                                svg()
+                                    .path(panel_topbar_icon(icon_prefix, "close"))
+                                    .size(px(8.0))
+                                    .text_color(c.dialog_muted),
+                            )
+                            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                                cx.stop_propagation();
+                                let _ = close_editor.update(cx, |ed, cx| {
+                                    ed.request_close_tab(index, cx);
+                                    cx.notify();
+                                });
+                            }),
+                    );
+
+                if is_active {
+                    tab_button = tab_button.child(
+                        div()
+                            .absolute()
+                            .bottom_0()
+                            .left_0()
+                            .right_0()
+                            .h(px(1.5))
+                            .rounded_b(px(d.tab_radius))
+                            .bg(c.focus_accent),
+                    );
+                }
+
+                tab_elements.push(tab_button.into_any_element());
             }
 
             let add_editor = editor.clone();
