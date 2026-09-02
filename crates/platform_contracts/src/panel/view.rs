@@ -50,6 +50,18 @@ pub trait PanelView: 'static {
         false
     }
 
+    /// Esc dismissal, invoked only from the shell's global
+    /// `DismissTransientUi` action handling. Cancels in-progress
+    /// panel-internal split operations (drag gestures, border menus, kind
+    /// dropdowns). Returns `true` when something was dismissed.
+    ///
+    /// Deliberately separate from [`PanelView::dismiss_overlays`], which
+    /// also runs on every body mouse-down (click-away): drags must never
+    /// be cancelled by the same event that just started them.
+    fn handle_dismiss_transient_ui(&mut self, _cx: &mut App) -> bool {
+        false
+    }
+
     /// Whether this panel currently has unsaved modifications.
     fn is_dirty(&self, _cx: &App) -> bool {
         false

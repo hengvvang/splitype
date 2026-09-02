@@ -78,8 +78,10 @@ impl PanelView for EditorPanelView {
     }
 
     /// Esc dismissal (routed by the shell's global `DismissTransientUi`
-    /// action): cancels in-progress pane split operations.
-    fn dismiss_overlays(&mut self, cx: &mut App) -> bool {
+    /// action): cancels in-progress pane split operations. Never invoked
+    /// from click-away dismissal, so drags started by the current
+    /// mouse-down are not cancelled by the same event.
+    fn handle_dismiss_transient_ui(&mut self, cx: &mut App) -> bool {
         self.editor
             .update(cx, |editor, cx| editor.dismiss_transient_ui(cx))
     }

@@ -256,7 +256,7 @@ impl Shell {
         let closed_dropdown = self.panels.layout.clear_dropdowns();
         let mut handled = cancelled_drag || closed_menu || closed_dropdown;
         for view in self.panel_views.values_mut() {
-            handled |= view.dismiss_overlays(cx);
+            handled |= view.handle_dismiss_transient_ui(cx);
         }
         if handled {
             cx.stop_propagation();
