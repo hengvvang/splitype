@@ -200,7 +200,9 @@ impl Editor {
     /// them however it decorates its content.
     pub fn sync_search_highlights_to_document(&mut self, cx: &mut App) {
         let active_pane = self.active_pane_id();
-        let active_file_path = self.active_tab().and_then(|tab| tab.file.path.clone());
+        let active_file_path = self
+            .active_tab()
+            .and_then(|tab| tab.buffer.read(cx).path.clone());
         let mut highlights: Vec<SearchMatch> = Vec::new();
         let mut active_index = None;
         for (idx, item) in self.search.matches.iter().enumerate() {
@@ -420,7 +422,7 @@ impl Editor {
         let Some(tab) = self.active_tab() else {
             return;
         };
-        let active_file_path = tab.file.path.clone();
+        let active_file_path = tab.buffer.read(cx).path.clone();
         let file_name = active_file_path
             .as_ref()
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
@@ -449,11 +451,11 @@ impl Editor {
         &self,
         query: &SearchQuery,
         matches: &mut Vec<SearchMatch>,
-        _cx: &App,
+        cx: &App,
     ) {
         let mut search_dirs = Vec::new();
         if let Some(tab) = self.active_tab() {
-            if let Some(ref path) = tab.file.path {
+            if let Some(ref path) = tab.buffer.read(cx).path {
                 if let Some(parent) = path.parent() {
                     search_dirs.push(parent.to_path_buf());
                 }
@@ -620,7 +622,7 @@ impl Editor {
             let text = state
                 .pane
                 .replace_match(&match_item, &final_replace_str, cx);
-            self.commit_pane_text(active_pane, text, cx);
+            self.commit_pane_text(text, cx);
         } else if let Some(ref file_path) = match_item.file_path {
             if let Ok(content) = fs::read_to_string(file_path) {
                 if range.start <= content.len() && range.end <= content.len() {
@@ -655,7 +657,7 @@ impl Editor {
                 return;
             }
             let text = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
-            self.commit_pane_text(active_pane, text, cx);
+            self.commit_pane_text(text, cx);
         }
 
         self.execute_search(cx);

@@ -1,5 +1,6 @@
 //! Panel descriptor trait for registering panel plugins.
 
+use crate::document_id::DocumentId;
 use crate::panel::{PanelId, PanelKind, PanelView};
 use gpui::{App, SharedString};
 use std::any::Any;
@@ -43,6 +44,16 @@ pub trait PanelDescriptor: Send + Sync + 'static {
 
     /// Discards unsaved changes held inside suspended state of this panel kind.
     fn discard_retained(&self, _state: &mut Box<dyn Any>, _cx: &mut App) {}
+
+    /// Releases every document view held inside the suspended state without
+    /// touching content, ahead of teardown.
+    fn release_retained(&self, _state: &mut Box<dyn Any>, _cx: &mut App) {}
+
+    /// Buffer identities held inside the suspended state (deduplicated), for
+    /// window-level close-guard aggregation.
+    fn retained_buffer_ids(&self, _state: &dyn Any, _cx: &App) -> Vec<DocumentId> {
+        Vec::new()
+    }
 
     /// Serializes a state blob (from [`PanelView::suspend_state`] or
     /// [`PanelView::clone_state`]) for window-state persistence.

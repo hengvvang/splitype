@@ -155,8 +155,8 @@ impl Editor {
             state.scroll.last_viewport_size = None;
         }
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.pending_window_title_refresh = true;
-            tab.file.close_dialog_restore_focus = None;
+            tab.pending.window_title_refresh = true;
+            tab.pending.close_dialog_restore_focus = None;
         }
         self.sync_panes_with_active_tab(cx);
         cx.notify();
@@ -208,7 +208,7 @@ impl Editor {
                 .and_then(|p| p.pane.serialize_text(cx));
             if let Some(next_text) = next_text {
                 if prev_text.as_ref() != Some(&next_text) {
-                    self.update_raw_document_text(next_text, pane_id, cx);
+                    self.commit_document_text(next_text, cx);
                 }
             }
             cx.notify();

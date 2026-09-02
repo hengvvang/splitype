@@ -2,6 +2,7 @@
 
 pub mod actions;
 pub mod command;
+pub mod document_id;
 pub mod panel;
 pub mod plugin;
 pub mod settings;
@@ -11,6 +12,7 @@ pub use actions::{
     ToggleKindDropdown, TogglePanelMaximized, UpdateOpenTabPaths,
 };
 pub use command::{CommandContribution, CommandId, CommandRegistry, CommandRegistryError};
+pub use document_id::DocumentId;
 pub use panel::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 pub use plugin::{
     ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,

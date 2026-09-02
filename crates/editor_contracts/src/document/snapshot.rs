@@ -1,29 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-
-/// Stable identity of a document during its lifetime in the host.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct DocumentId(Uuid);
-
-impl DocumentId {
-    pub fn new() -> Self {
-        Self(Uuid::new_v4())
-    }
-
-    pub const fn nil() -> Self {
-        Self(Uuid::nil())
-    }
-}
-
-impl Default for DocumentId {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub use platform_contracts::DocumentId;
 
 /// Immutable document state shared with every pane implementation.
 ///

@@ -34,10 +34,10 @@ impl std::fmt::Display for ExportError {
 }
 
 impl Editor {
-    pub fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
+    pub fn export_dialog_defaults(&self, format: ExportFormat, cx: &App) -> (PathBuf, String) {
         let extension = format.extension();
         if let Some(tab) = self.session.active_tab() {
-            if let Some(path) = tab.file.path.as_ref() {
+            if let Some(path) = tab.buffer.read(cx).path.as_ref() {
                 let directory = path.parent().map(Path::to_path_buf).unwrap_or_else(|| {
                     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
                 });
@@ -56,12 +56,14 @@ impl Editor {
         )
     }
 
-    pub fn export_title(&self) -> String {
+    pub fn export_title(&self, cx: &App) -> String {
         self.session
             .active_tab()
-            .and_then(|tab| tab.file.path.as_ref())
-            .and_then(|path| path.file_stem())
-            .map(|stem| stem.to_string_lossy().to_string())
+            .and_then(|tab| tab.buffer.read(cx).path.clone())
+            .and_then(|path| {
+                path.file_stem()
+                    .map(|stem| stem.to_string_lossy().to_string())
+            })
             .filter(|stem| !stem.is_empty())
             .unwrap_or_else(|| "Untitled".to_string())
     }
@@ -104,8 +106,8 @@ impl Editor {
             return;
         }
         let markdown = self.serialized_document_text(cx);
-        let title = self.export_title();
-        let (default_dir, suggested_name) = self.export_dialog_defaults(format);
+        let title = self.export_title(cx);
+        let (default_dir, suggested_name) = self.export_dialog_defaults(format, cx);
         let prompt = cx.prompt_for_new_path(&default_dir, Some(&suggested_name));
         let window_handle = window.window_handle();
 

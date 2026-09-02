@@ -119,6 +119,12 @@ pub fn open_restored_window(
     cx: &mut App,
     mut state: window::PersistedWindowState,
 ) -> WindowHandle<Shell> {
+    // Restore the shared documents first: panel sessions resolve their
+    // buffer references from the store during restore.
+    let documents: Vec<editor::document::PersistedDocument> =
+        serde_json::from_value(state.documents.clone()).unwrap_or_default();
+    editor::document::DocumentStore::restore(documents, cx);
+
     let mut retained = HashMap::new();
     let panels = std::mem::take(&mut state.panels);
     for panel in panels {

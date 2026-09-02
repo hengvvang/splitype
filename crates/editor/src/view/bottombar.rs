@@ -15,7 +15,6 @@ use editor_contracts::{PaneId, PaneKind, PaneRegistry};
 
 use crate::editor::Editor;
 use crate::settings::EditorSettings;
-use crate::view::words::count_words;
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
@@ -331,22 +330,11 @@ impl Editor {
             .into_any_element()
     }
 
-    pub(crate) fn active_tab_word_count(&mut self, cx: &App) -> usize {
-        if let Some(tab) = self.session.active_tab() {
-            let rev = tab.document_revision;
-            if let Some((cached_rev, count)) = tab.cached_word_count {
-                if cached_rev == rev {
-                    return count;
-                }
-            }
-        }
-        let text = self.serialized_document_text(cx);
-        let count = count_words(&text);
-        if let Some(tab) = self.session.active_tab_mut() {
-            let rev = tab.document_revision;
-            tab.cached_word_count = Some((rev, count));
-        }
-        count
+    pub(crate) fn active_tab_word_count(&mut self, cx: &mut App) -> usize {
+        let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
+            return 0;
+        };
+        buffer.update(cx, |buffer, _cx| buffer.word_count())
     }
 
     pub(crate) fn bottombar_settings(&self, cx: &App) -> EditorSettings {

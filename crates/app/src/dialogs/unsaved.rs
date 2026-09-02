@@ -83,7 +83,9 @@ impl Shell {
                     for view in self.panel_views.values_mut() {
                         view.discard_changes(cx);
                     }
-                    self.close_window_now(window, cx);
+                    self.sweep_orphaned_dirty_buffers(cx);
+                    self.snapshot_window_state(cx);
+                    window.remove_window();
                 }
                 UnsavedDialogScope::Panel(panel_id) => {
                     if let Some(view) = self.panel_views.get_mut(&panel_id) {

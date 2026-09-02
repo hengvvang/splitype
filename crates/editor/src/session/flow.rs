@@ -1,61 +1,23 @@
-//! File lifecycle state and disk persistence flows.
+//! Document lifecycle flows: save, save-as, close confirmations, and
+//! drop-replacement. All content mutations go through the shared buffer.
 
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use gpui::*;
 
+use crate::document::{DocumentBuffer, DocumentStore};
 use crate::editor::Editor;
+use crate::session::PendingOpenLink;
 use config::language::I18nManager;
-
-/// Link navigation request deferred until a `Window` is available.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PendingOpenLink {
-    pub prompt_target: String,
-    pub open_target: String,
-}
-
-/// File lifecycle: path, dirty tracking, save/close and drop-replace flows.
-///
-/// Only the durable facts (path + dirty) are persisted; every pending-flow
-/// flag is transient UI bookkeeping.
-#[derive(Default, serde::Serialize, serde::Deserialize)]
-pub struct FileState {
-    pub path: Option<PathBuf>,
-    pub dirty: bool,
-    #[serde(skip)]
-    pub pending_save: bool,
-    #[serde(skip)]
-    pub pending_save_as: bool,
-    #[serde(skip)]
-    pub pending_open_link: Option<PendingOpenLink>,
-    #[serde(skip)]
-    pub pending_window_edited: bool,
-    #[serde(skip)]
-    pub pending_window_title_refresh: bool,
-    #[serde(skip)]
-    pub show_unsaved_changes_dialog: bool,
-    #[serde(skip)]
-    pub pending_close_after_save: bool,
-    #[serde(skip)]
-    pub close_dialog_restore_focus: Option<EntityId>,
-    #[serde(skip)]
-    pub pending_drop_replace_path: Option<PathBuf>,
-    #[serde(skip)]
-    pub show_drop_replace_dialog: bool,
-    #[serde(skip)]
-    pub pending_drop_replace_after_save: bool,
-    #[serde(skip)]
-    pub drop_replace_restore_focus: Option<EntityId>,
-}
 
 impl Editor {
     /// Queues a save request for the active tab, consumed on the next
     /// render frame by the view-sync layer.
     pub fn request_save_document(&mut self, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            if !tab.file.pending_save {
-                tab.file.pending_save = true;
+            if !tab.pending.pending_save {
+                tab.pending.pending_save = true;
                 cx.notify();
             }
         }
@@ -65,14 +27,14 @@ impl Editor {
     /// render frame by the view-sync layer.
     pub fn request_save_document_as(&mut self, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            if !tab.file.pending_save_as {
-                tab.file.pending_save_as = true;
+            if !tab.pending.pending_save_as {
+                tab.pending.pending_save_as = true;
                 cx.notify();
             }
         }
     }
 
-    /// Queues an external-link open prompt for the active tab's file state.
+    /// Queues an external-link open prompt for the active tab.
     pub fn request_open_link_prompt(
         &mut self,
         prompt_target: String,
@@ -80,7 +42,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.pending_open_link = Some(PendingOpenLink {
+            tab.pending.pending_open_link = Some(PendingOpenLink {
                 prompt_target,
                 open_target,
             });
@@ -91,7 +53,7 @@ impl Editor {
     /// The active tab's current authoritative raw text.
     pub fn serialized_document_text(&self, cx: &App) -> String {
         if let Some(tab) = self.session.active_tab() {
-            tab.serialized_text(cx)
+            tab.buffer.read(cx).text.clone()
         } else if let Some(pane_id) = self.focused_pane_id.or_else(|| {
             self.session
                 .root
@@ -109,9 +71,9 @@ impl Editor {
         }
     }
 
-    pub fn save_dialog_defaults(&self) -> (PathBuf, Option<String>) {
+    pub fn save_dialog_defaults(&self, cx: &App) -> (PathBuf, Option<String>) {
         if let Some(tab) = self.session.active_tab() {
-            if let Some(path) = tab.file.path.as_ref() {
+            if let Some(path) = tab.buffer.read(cx).path.as_ref() {
                 let directory = path.parent().map(Path::to_path_buf).unwrap_or_else(|| {
                     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
                 });
@@ -127,14 +89,23 @@ impl Editor {
         )
     }
 
+    /// Marks the active buffer saved at `path` and refreshes every observer.
     pub fn apply_successful_save(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.path = Some(path.clone());
-            tab.file.dirty = false;
-            tab.file.pending_window_edited = false;
-            tab.file.pending_window_title_refresh = true;
-            tab.file.pending_close_after_save = false;
-            tab.file.close_dialog_restore_focus = None;
+            tab.pending.pending_close_after_save = false;
+            tab.pending.close_dialog_restore_focus = None;
+        }
+        if let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) {
+            let (id, old_path) = {
+                let buffer = buffer.read(cx);
+                (buffer.id, buffer.path.clone())
+            };
+            buffer.update(cx, |buffer, cx| buffer.mark_saved(path.clone(), cx));
+            cx.global_mut::<DocumentStore>().update_path_index(
+                id,
+                old_path.as_deref(),
+                Some(path.clone()),
+            );
         }
         if let Some(host) = self.host.clone() {
             host.record_recent_file(&path, cx);
@@ -143,21 +114,9 @@ impl Editor {
         cx.notify();
     }
 
-    pub fn update_tab_path(&mut self, from: &Path, to: &Path) {
-        for tab in self.session.tabs_mut() {
-            if let Some(path) = &tab.file.path {
-                if path == from {
-                    tab.file.path = Some(to.to_path_buf());
-                    tab.file.pending_window_title_refresh = true;
-                } else if path.starts_with(from) {
-                    if let Ok(rel) = path.strip_prefix(from) {
-                        let new_path = to.join(rel);
-                        tab.file.path = Some(new_path);
-                        tab.file.pending_window_title_refresh = true;
-                    }
-                }
-            }
-        }
+    /// Repoints every open buffer after a filesystem rename.
+    pub fn on_fs_path_renamed(&mut self, from: &Path, to: &Path, cx: &mut App) {
+        DocumentStore::rename_paths(from, to, cx);
     }
 
     pub fn save_to_existing_path(
@@ -191,8 +150,8 @@ impl Editor {
 
     pub fn save_document(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab() {
-            if let Some(path) = tab.file.path.clone() {
-                let should_close_after_save = tab.file.pending_close_after_save;
+            if let Some(path) = tab.buffer.read(cx).path.clone() {
+                let should_close_after_save = tab.pending.pending_close_after_save;
                 if self.save_to_existing_path(&path, window, cx) {
                     if should_close_after_save {
                         window.remove_window();
@@ -211,9 +170,9 @@ impl Editor {
         let should_close_after_save = self
             .session
             .active_tab()
-            .is_some_and(|t| t.file.pending_close_after_save);
+            .is_some_and(|t| t.pending.pending_close_after_save);
         let markdown = self.serialized_document_text(cx);
-        let (default_dir, suggested_name) = self.save_dialog_defaults();
+        let (default_dir, suggested_name) = self.save_dialog_defaults(cx);
         let prompt = cx.prompt_for_new_path(&default_dir, suggested_name.as_deref());
         let weak_editor = cx.entity().downgrade();
         let weak_editor_for_cancel = weak_editor.clone();
@@ -309,16 +268,20 @@ impl Editor {
         let Some(tab) = self.session.tab(index) else {
             return false;
         };
-        if !tab.file.dirty {
+        let buffer = tab.buffer.clone();
+        let (dirty, path) = {
+            let buffer = buffer.read(cx);
+            (buffer.dirty, buffer.path.clone())
+        };
+        if !dirty {
             return true;
         }
-        if let Some(path) = tab.file.path.clone() {
-            let text = tab.serialized_text(cx);
+        if let Some(path) = path {
+            let text = buffer.read(cx).text.clone();
             if std::fs::write(&path, text).is_ok() {
+                buffer.update(cx, |buffer, cx| buffer.mark_saved(path, cx));
                 if let Some(tab) = self.session.tab_mut(index) {
-                    tab.file.dirty = false;
-                    tab.file.pending_window_edited = false;
-                    tab.file.pending_window_title_refresh = true;
+                    tab.pending.window_title_refresh = true;
                 }
                 cx.notify();
                 return true;
@@ -332,7 +295,10 @@ impl Editor {
 
     pub fn save_all_dirty_tabs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         for i in 0..self.session.tab_count() {
-            if self.session.tab(i).is_some_and(|t| t.file.dirty) {
+            let Some(tab) = self.session.tab(i) else {
+                continue;
+            };
+            if tab.buffer.read(cx).dirty {
                 self.save_tab_at(i, window, cx);
             }
         }
@@ -344,36 +310,72 @@ impl Editor {
 
     pub fn abort_pending_close_after_save(&mut self, cx: &mut App) {
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.pending_close_after_save = false;
+            tab.pending.pending_close_after_save = false;
         }
         cx.notify(self.entity_id);
     }
 
     pub fn cancel_close_dialog(&mut self, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.show_unsaved_changes_dialog = false;
-            tab.file.pending_close_after_save = false;
-            tab.file.close_dialog_restore_focus = None;
+            tab.pending.show_unsaved_changes_dialog = false;
+            tab.pending.pending_close_after_save = false;
+            tab.pending.close_dialog_restore_focus = None;
         }
         cx.notify();
     }
 
     pub fn save_and_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.pending_close_after_save = true;
+            tab.pending.pending_close_after_save = true;
         }
         self.save_document(window, cx);
     }
 
     pub fn discard_and_close(&mut self, cx: &mut Context<Self>) {
-        if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.dirty = false;
-            tab.file.show_unsaved_changes_dialog = false;
-        }
+        self.discard_changes(cx);
         if let Some(host) = self.host.clone() {
             host.request_close_panel(self.panel_id, cx);
         }
         cx.notify();
+    }
+
+    /// Discards every tab of this panel: buffers owned entirely by this
+    /// panel are destroyed; shared buffers only lose this panel's view.
+    pub fn discard_changes(&mut self, cx: &mut App) {
+        for index in (0..self.session.tab_count()).rev() {
+            let Some(tab) = self.session.tab(index) else {
+                continue;
+            };
+            let buffer = tab.buffer.clone();
+            let (id, dirty) = {
+                let buffer = buffer.read(cx);
+                (buffer.id, buffer.dirty)
+            };
+            if dirty && cx.global::<DocumentStore>().view_count(id) == 1 {
+                buffer.update(cx, |buffer, cx| buffer.mark_discarded(cx));
+                cx.global_mut::<DocumentStore>().discard(id);
+            } else {
+                cx.global_mut::<DocumentStore>().release(id, false);
+            }
+        }
+        self.session.clear_tabs();
+        self.documents_released = true;
+        cx.notify(self.entity_id);
+    }
+
+    /// Releases every tab view without touching content, ahead of panel or
+    /// window teardown.
+    pub fn release_documents(&mut self, cx: &mut App) {
+        if self.documents_released {
+            return;
+        }
+        self.documents_released = true;
+        for tab in self.session.tabs() {
+            let buffer = tab.buffer.clone();
+            let id = buffer.read(cx).id;
+            cx.global_mut::<DocumentStore>().release(id, false);
+        }
+        self.session.clear_tabs();
     }
 
     pub fn on_external_paths_drop(
@@ -398,10 +400,10 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         if let Some(tab) = self.session.active_tab_mut() {
-            if tab.file.dirty {
-                tab.file.pending_drop_replace_path = Some(path);
-                if !tab.file.show_drop_replace_dialog {
-                    tab.file.show_drop_replace_dialog = true;
+            if tab.buffer.read(cx).dirty {
+                tab.pending.drop_replace_path = Some(path);
+                if !tab.pending.show_drop_replace_dialog {
+                    tab.pending.show_drop_replace_dialog = true;
                     window.blur();
                 }
                 cx.notify();
@@ -424,7 +426,7 @@ impl Editor {
         let Some(path) = self
             .session
             .active_tab_mut()
-            .and_then(|t| t.file.pending_drop_replace_path.take())
+            .and_then(|t| t.pending.drop_replace_path.take())
         else {
             self.clear_pending_drop_replace_state(cx);
             return;
@@ -442,15 +444,16 @@ impl Editor {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
-        if tab.file.pending_drop_replace_path.is_none() {
+        if tab.pending.drop_replace_path.is_none() {
             self.clear_pending_drop_replace_state(cx);
             return;
         }
 
-        tab.file.show_drop_replace_dialog = false;
-        tab.file.pending_drop_replace_after_save = true;
+        tab.pending.show_drop_replace_dialog = false;
+        tab.pending.drop_replace_after_save = true;
 
-        if let Some(path) = tab.file.path.clone() {
+        let path = tab.buffer.read(cx).path.clone();
+        if let Some(path) = path {
             if self.save_to_existing_path(&path, window, cx) {
                 self.replace_after_successful_save(window, cx);
             } else {
@@ -467,7 +470,7 @@ impl Editor {
         let Some(drop_path) = self
             .session
             .active_tab_mut()
-            .and_then(|t| t.file.pending_drop_replace_path.take())
+            .and_then(|t| t.pending.drop_replace_path.take())
         else {
             self.clear_pending_drop_replace_state(cx);
             return;
@@ -488,13 +491,13 @@ impl Editor {
         let Some(drop_path) = self
             .session
             .active_tab()
-            .and_then(|t| t.file.pending_drop_replace_path.clone())
+            .and_then(|t| t.pending.drop_replace_path.clone())
         else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
         let markdown = self.serialized_document_text(cx);
-        let (default_dir, suggested_name) = self.save_dialog_defaults();
+        let (default_dir, suggested_name) = self.save_dialog_defaults(cx);
         let prompt = cx.prompt_for_new_path(&default_dir, suggested_name.as_deref());
         let weak_editor = cx.entity().downgrade();
         let weak_editor_for_cancel = weak_editor.clone();
@@ -564,7 +567,7 @@ impl Editor {
             let replace_result = weak_editor.update(cx, move |this, cx| {
                 this.apply_successful_save(saved_path, cx);
                 if let Some(tab) = this.session.active_tab_mut() {
-                    tab.file.pending_drop_replace_path = Some(drop_path);
+                    tab.pending.drop_replace_path = Some(drop_path);
                 }
                 this.replace_after_successful_save_async(cx)
             });
@@ -594,7 +597,7 @@ impl Editor {
         let Some(drop_path) = self
             .session
             .active_tab_mut()
-            .and_then(|t| t.file.pending_drop_replace_path.take())
+            .and_then(|t| t.pending.drop_replace_path.take())
         else {
             self.clear_pending_drop_replace_state(cx);
             return Ok(());
@@ -606,22 +609,22 @@ impl Editor {
 
     pub fn abort_pending_drop_replace_after_save(&mut self, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.pending_drop_replace_after_save = false;
-            tab.file.show_drop_replace_dialog = false;
-            tab.file.pending_drop_replace_path = None;
+            tab.pending.drop_replace_after_save = false;
+            tab.pending.show_drop_replace_dialog = false;
+            tab.pending.drop_replace_path = None;
         }
         cx.notify();
     }
 
     pub fn clear_pending_drop_replace_state(&mut self, cx: &mut Context<Self>) {
         if let Some(tab) = self.session.active_tab_mut() {
-            let had_path = tab.file.pending_drop_replace_path.take().is_some();
-            let had_dialog = tab.file.show_drop_replace_dialog;
-            let had_after_save = tab.file.pending_drop_replace_after_save;
-            let had_restore_focus = tab.file.drop_replace_restore_focus.take().is_some();
+            let had_path = tab.pending.drop_replace_path.take().is_some();
+            let had_dialog = tab.pending.show_drop_replace_dialog;
+            let had_after_save = tab.pending.drop_replace_after_save;
+            let had_restore_focus = tab.pending.drop_replace_restore_focus.take().is_some();
             let had_state = had_path || had_dialog || had_after_save || had_restore_focus;
-            tab.file.show_drop_replace_dialog = false;
-            tab.file.pending_drop_replace_after_save = false;
+            tab.pending.show_drop_replace_dialog = false;
+            tab.pending.drop_replace_after_save = false;
             if had_state {
                 cx.notify();
             }
@@ -645,27 +648,50 @@ impl Editor {
         );
     }
 
+    /// Switches the active tab to the document at `path`, reusing the shared
+    /// buffer when the document is already open elsewhere.
     pub fn replace_document_from_path(
         &mut self,
         path: &Path,
         cx: &mut Context<Self>,
     ) -> Result<()> {
-        let content = std::fs::read_to_string(path)?;
-        if let Some(tab) = self.session.active_tab_mut() {
-            tab.text = content;
-            tab.file.path = Some(path.to_path_buf());
-            tab.file.dirty = false;
-            tab.file.pending_window_edited = false;
-            tab.file.pending_window_title_refresh = true;
-            tab.document_revision = tab.document_revision.wrapping_add(1);
-            tab.cached_word_count = None;
-        }
-        self.sync_panes_with_active_tab(cx);
+        let buffer = DocumentStore::open(path, cx).map_err(anyhow::Error::new)?;
+        self.switch_active_tab_buffer(buffer, cx);
         if let Some(host) = self.host.clone() {
             host.record_recent_file(path, cx);
             host.on_document_path_changed(cx);
         }
         cx.notify();
         Ok(())
+    }
+
+    /// Re-points the active tab at another buffer: releases the old view,
+    /// acquires the new one, and re-subscribes observers.
+    fn switch_active_tab_buffer(&mut self, buffer: Entity<DocumentBuffer>, cx: &mut Context<Self>) {
+        let old = {
+            let Some(tab) = self.session.active_tab_mut() else {
+                return;
+            };
+            if tab.buffer == buffer {
+                return;
+            }
+            let old = std::mem::replace(&mut tab.buffer, buffer.clone());
+            tab.pending.window_title_refresh = true;
+            old
+        };
+
+        let (old_id, keep) = {
+            let old_buffer = old.read(cx);
+            (old_buffer.id, old_buffer.dirty)
+        };
+        cx.global_mut::<DocumentStore>().release(old_id, keep);
+        let new_id = buffer.read(cx).id;
+        cx.global_mut::<DocumentStore>().acquire(new_id);
+
+        self.observe_buffer(buffer, cx);
+        if !self.session.tabs().any(|tab| tab.buffer == old) {
+            self.buffer_subscriptions.remove(&old_id);
+        }
+        self.sync_panes_with_active_tab(cx);
     }
 }

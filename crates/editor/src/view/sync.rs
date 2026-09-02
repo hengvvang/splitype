@@ -16,6 +16,15 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // A GPUI window holds exactly one focused element. With multiple
+        // editor panels in one window, every panel renders its panes each
+        // frame; an inactive panel grabbing focus here would steal it back
+        // from the panel the user is editing, making that panel uneditable.
+        // Only the window's active panel may apply pending pane focus.
+        if !self.is_active_panel {
+            return;
+        }
+
         if self.search.visible {
             if self.search.search_focus_handle.is_focused(window)
                 || self.search.replace_focus_handle.is_focused(window)
@@ -44,18 +53,18 @@ impl Editor {
     }
 
     pub fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.active_tab().is_some_and(|t| t.file.pending_save) {
+        if self.active_tab().is_some_and(|t| t.pending.pending_save) {
             if let Some(tab) = self.active_tab_mut() {
-                tab.file.pending_save = false;
+                tab.pending.pending_save = false;
             }
             self.save_document(window, cx);
         }
     }
 
     pub fn sync_pending_save_as(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.active_tab().is_some_and(|t| t.file.pending_save_as) {
+        if self.active_tab().is_some_and(|t| t.pending.pending_save_as) {
             if let Some(tab) = self.active_tab_mut() {
-                tab.file.pending_save_as = false;
+                tab.pending.pending_save_as = false;
             }
             self.save_document_as(window, cx);
         }
@@ -64,7 +73,7 @@ impl Editor {
     pub fn sync_pending_open_link(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(link) = self
             .active_tab_mut()
-            .and_then(|t| t.file.pending_open_link.take())
+            .and_then(|t| t.pending.pending_open_link.take())
         else {
             return;
         };
@@ -95,16 +104,19 @@ impl Editor {
         .detach();
     }
 
-    pub fn sync_window_edited_state(&mut self, window: &mut Window) {
-        if self
-            .active_tab()
-            .is_some_and(|t| t.file.pending_window_edited)
-        {
-            if let Some(tab) = self.active_tab_mut() {
-                tab.file.pending_window_edited = false;
-            }
-            window.set_window_edited(true);
+    pub fn sync_window_edited_state(&mut self, window: &mut Window, cx: &App) {
+        let Some(tab) = self.session.active_tab() else {
+            return;
+        };
+        if !tab.pending.window_edited {
+            return;
         }
+        let buffer = tab.buffer.clone();
+        let dirty = buffer.read(cx).dirty;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.pending.window_edited = false;
+        }
+        window.set_window_edited(dirty);
     }
 
     pub fn sync_scroll_viewport(
@@ -156,19 +168,20 @@ impl Editor {
         }
     }
 
-    pub fn sync_window_title(&mut self, window: &mut Window, strings: &I18nStrings) {
-        if self
-            .active_tab()
-            .is_some_and(|t| t.file.pending_window_title_refresh)
-        {
-            let (path, dirty) = if let Some(tab) = self.active_tab_mut() {
-                tab.file.pending_window_title_refresh = false;
-                (tab.file.path.clone(), tab.file.dirty)
-            } else {
-                (None, false)
-            };
-            let title = Self::window_title(path.as_deref(), dirty, strings);
-            window.set_window_title(&title);
+    pub fn sync_window_title(&mut self, window: &mut Window, strings: &I18nStrings, cx: &App) {
+        let Some(tab) = self.session.active_tab() else {
+            return;
+        };
+        if !tab.pending.window_title_refresh {
+            return;
         }
+        let buffer = tab.buffer.clone();
+        let path = buffer.read(cx).path.clone();
+        let dirty = buffer.read(cx).dirty;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.pending.window_title_refresh = false;
+        }
+        let title = Self::window_title(path.as_deref(), dirty, strings);
+        window.set_window_title(&title);
     }
 }

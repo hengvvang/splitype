@@ -180,13 +180,13 @@ impl Editor {
             let tab_infos: Vec<(String, bool, bool)> = list
                 .iter()
                 .map(|tab| {
-                    let name = tab
-                        .file
+                    let buffer = tab.buffer.read(cx);
+                    let name = buffer
                         .path
                         .as_ref()
                         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
                         .unwrap_or_else(|| "Untitled".to_string());
-                    (name, tab.is_transient(), tab.file.dirty)
+                    (name, tab.is_transient(), buffer.dirty)
                 })
                 .collect();
 

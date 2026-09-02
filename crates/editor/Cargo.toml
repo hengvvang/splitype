@@ -24,6 +24,7 @@ theme = { path = "../theme" }
 ui = { path = "../ui" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tracing = "0.1"
 
 [dev-dependencies]
 toml = "1"

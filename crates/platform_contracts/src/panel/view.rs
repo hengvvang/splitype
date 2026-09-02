@@ -118,6 +118,12 @@ pub trait PanelView: 'static {
     /// Discards unsaved changes in this panel.
     fn discard_changes(&mut self, _cx: &mut App) {}
 
+    /// Releases every document view of this panel without touching content,
+    /// ahead of panel or window teardown. Shared documents only lose this
+    /// panel's view; documents owned entirely by this panel are dropped
+    /// when their last view releases.
+    fn release_documents(&mut self, _cx: &mut App) {}
+
     /// Upcast to Any for reflection when necessary.
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;

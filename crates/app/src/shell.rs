@@ -213,6 +213,10 @@ impl Shell {
             active_leaf: self.panels.layout.active_leaf,
             activation_history: self.panels.layout.activation_history.clone(),
             panels,
+            documents: serde_json::to_value(editor::document::DocumentStore::persisted_snapshot(
+                cx,
+            ))
+            .unwrap_or(serde_json::Value::Null),
         };
         if let Err(err) = crate::window_state::save_window_state(&state) {
             tracing::warn!(error = %err, "failed to persist window state");

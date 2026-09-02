@@ -12,7 +12,7 @@ use splitter::tree::{NodeId, SplitTree};
 
 /// Current schema version of [`PersistedWindowState`]. Bump on breaking
 /// changes; loaders must reject versions they do not understand.
-pub const WINDOW_STATE_VERSION: u32 = 2;
+pub const WINDOW_STATE_VERSION: u32 = 3;
 
 /// Persisted state of one window panel tile.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,7 +24,8 @@ pub struct PersistedPanel {
     pub state: serde_json::Value,
 }
 
-/// Versioned snapshot of one window: layout topology and panel states.
+/// Versioned snapshot of one window: layout topology, panel states, and the
+/// process-level open documents referenced by the panel states.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PersistedWindowState {
     pub version: u32,
@@ -33,6 +34,11 @@ pub struct PersistedWindowState {
     pub active_leaf: Option<NodeId>,
     pub activation_history: Vec<NodeId>,
     pub panels: Vec<PersistedPanel>,
+    /// Open documents (buffers) captured with the snapshot. The shell
+    /// restores them before rebuilding panel states, so panel sessions can
+    /// resolve their buffer references.
+    #[serde(default)]
+    pub documents: serde_json::Value,
 }
 
 impl PersistedWindowState {
@@ -78,6 +84,7 @@ mod tests {
                 kind: PanelKind::from_static("splitype.panel.editor"),
                 state: serde_json::json!({ "text": "# hello" }),
             }],
+            documents: serde_json::Value::Null,
         };
 
         let json = serde_json::to_string(&state).expect("serialize");

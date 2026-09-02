@@ -133,6 +133,7 @@ pub fn run(args: Args) {
         SettingsStore::init(cx, settings.clone());
         I18nManager::init(cx);
         I18nManager::register_settings_sync_hook();
+        editor::document::DocumentStore::init(cx);
         ThemeManager::init(cx);
         ThemeManager::register_settings_sync_hook();
         theme::TypographyStore::init(cx);

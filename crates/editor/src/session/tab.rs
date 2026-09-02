@@ -1,29 +1,51 @@
 //! Document tab and pane view state models.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
-use gpui::{App, Pixels, ScrollHandle, Size};
+use gpui::{Entity, EntityId, Pixels, ScrollHandle, Size};
 
-use crate::session::file::FileState;
+use crate::document::DocumentBuffer;
 use crate::session::{PaneKind, TabKind};
-use editor_contracts::{DocumentId, DocumentSnapshot};
+use editor_contracts::DocumentId;
 
-/// One document tab: the authoritative raw text and all document-level metadata.
-#[derive(serde::Serialize, serde::Deserialize)]
+/// A link-navigation request deferred until a `Window` is available.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PendingOpenLink {
+    pub prompt_target: String,
+    pub open_target: String,
+}
+
+/// Transient per-tab view bookkeeping for save/close/drop flows.
+///
+/// Nothing here is durable: the authoritative document state lives in the
+/// tab's [`DocumentBuffer`]; these flags only drive in-flight dialogs and
+/// the next-frame window-chrome refresh.
+#[derive(Default)]
+pub struct TabPendingState {
+    pub pending_save: bool,
+    pub pending_save_as: bool,
+    pub pending_open_link: Option<PendingOpenLink>,
+    pub window_edited: bool,
+    pub window_title_refresh: bool,
+    pub show_unsaved_changes_dialog: bool,
+    pub pending_close_after_save: bool,
+    pub close_dialog_restore_focus: Option<EntityId>,
+    pub drop_replace_path: Option<PathBuf>,
+    pub show_drop_replace_dialog: bool,
+    pub drop_replace_after_save: bool,
+    pub drop_replace_restore_focus: Option<EntityId>,
+}
+
+/// One document tab: a shallow view reference to a shared buffer plus the
+/// pane projections and transient UI state of this editor view.
 pub struct DocumentTab {
-    /// Stable identity shared by every pane projection of this document.
-    pub id: DocumentId,
-    /// Authoritative Markdown text — the single raw source of truth.
-    pub text: String,
-    /// Bumped whenever the document text changes.
-    pub document_revision: u64,
-    pub file: FileState,
+    /// The shared document source of truth.
+    pub buffer: Entity<DocumentBuffer>,
     pub kind: TabKind,
     /// Per-pane view states, keyed by pane id (rebuilt from the text on restore).
-    #[serde(skip)]
     pub panes: HashMap<editor_contracts::PaneId, PaneState>,
-    /// Cached (revision, word_count) to avoid full recounting on every frame.
-    pub cached_word_count: Option<(u64, usize)>,
+    pub pending: TabPendingState,
 }
 
 /// The independent view state of one pane inside an editor area.
@@ -48,18 +70,13 @@ impl Default for ScrollState {
 }
 
 impl DocumentTab {
-    pub fn snapshot(&self) -> DocumentSnapshot {
-        DocumentSnapshot::new(
-            self.id,
-            self.document_revision,
-            self.text.clone(),
-            self.file.path.clone(),
-        )
-    }
-
-    #[inline]
-    pub fn serialized_text(&self, _cx: &App) -> String {
-        self.text.clone()
+    pub fn new(buffer: Entity<DocumentBuffer>, kind: TabKind) -> Self {
+        Self {
+            buffer,
+            kind,
+            panes: HashMap::new(),
+            pending: TabPendingState::default(),
+        }
     }
 
     #[inline]
@@ -97,4 +114,11 @@ pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn editor_contracts::PaneView> 
     editor_contracts::PaneRegistry::create_registered(kind.clone())
         .unwrap_or_else(|error| panic!("failed to access pane registry: {error}"))
         .unwrap_or_else(|| panic!("no pane descriptor registered for {kind}"))
+}
+
+/// Durable tab projection: a buffer identity plus the tab kind.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PersistedTab {
+    pub buffer: DocumentId,
+    pub kind: TabKind,
 }

@@ -6,7 +6,7 @@
 //! through it without knowing the concrete type. Any plugin can provide a
 //! document panel and take over the built-in editor's role.
 
-use crate::document::{DocumentHost, TabKind};
+use crate::document::{DocumentHost, DocumentId, TabKind};
 use crate::export::ExportFormat;
 use gpui::{App, Window};
 use platform_contracts::PanelView;
@@ -38,6 +38,12 @@ pub trait DocumentPanel: PanelView {
 
     /// Display name of the tab at `index`, if it exists.
     fn tab_display_name(&self, index: usize, cx: &App) -> Option<String>;
+
+    /// Buffer identities of every open document view in this panel
+    /// (deduplicated), for window-level close-guard aggregation.
+    fn document_buffer_ids(&self, _cx: &App) -> Vec<DocumentId> {
+        Vec::new()
+    }
 
     /// Save the tab at `index`.
     fn save_tab_at(&mut self, index: usize, window: &mut Window, cx: &mut App);

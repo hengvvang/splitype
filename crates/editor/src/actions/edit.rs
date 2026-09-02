@@ -308,17 +308,11 @@ impl Editor {
         cx.notify();
     }
 
-    /// Commits pane-produced document text once. The authoritative text is
-    /// replaced, the revision bumps, the tab becomes dirty, and the other
-    /// panes receive the next snapshot — all in one atomic step.
-    pub(crate) fn commit_pane_text(
-        &mut self,
-        pane_id: editor_contracts::PaneId,
-        text: Option<String>,
-        cx: &mut Context<Self>,
-    ) {
+    /// Commits pane-produced document text once. The shared buffer is
+    /// updated and observers broadcast the next snapshot to every pane.
+    pub(crate) fn commit_pane_text(&mut self, text: Option<String>, cx: &mut Context<Self>) {
         if let Some(text) = text {
-            self.update_raw_document_text(text, pane_id, cx);
+            self.commit_document_text(text, cx);
         }
     }
 
@@ -348,7 +342,7 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(pane_id, text, cx);
+        self.commit_pane_text(text, cx);
         cx.notify();
     }
 
@@ -368,7 +362,7 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(pane_id, text, cx);
+        self.commit_pane_text(text, cx);
         cx.notify();
     }
 
@@ -389,7 +383,7 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(pane_id, text, cx);
+        self.commit_pane_text(text, cx);
         cx.notify();
     }
 
@@ -404,7 +398,7 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(pane_id, text, cx);
+        self.commit_pane_text(text, cx);
         cx.notify();
     }
 }

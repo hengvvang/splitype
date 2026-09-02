@@ -1,30 +1,30 @@
 //! Top-level editor aggregate root.
 //!
-//! [`Editor`] aggregates the editor's own state: the raw text session tabs,
+//! [`Editor`] aggregates the editor's own view state: the document tab views,
 //! view mode, scroll state, focus management, and the editor's pane views
 //! (WYSIWYG, Source Code, Preview, and custom plugins).
 //!
-//! `Editor` holds the single authoritative raw text source of truth and does
-//! zero AST parsing or serialization itself. All syntax trees and viewport
-//! specifics live strictly inside each pane plugin implementation.
+//! The authoritative raw text lives in the process-level
+//! [`crate::document::DocumentBuffer`]; every editor tab is a shallow view
+//! reference to a shared buffer. `Editor` observes the buffers it shows and
+//! pushes fresh snapshots down to its panes. It does zero AST parsing or
+//! serialization itself — all syntax trees and viewport specifics live
+//! strictly inside each pane plugin implementation.
 
 pub mod export;
 pub mod host_bridge;
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui::*;
 
 use editor_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, TabKind};
 use platform_contracts::PanelId;
-use splitter::root::SplitterRoot;
 
+use crate::document::{DocumentBuffer, DocumentStore};
 use crate::editor::host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};
-use crate::session::{
-    DocumentTab, EditorSession, EditorTabList, FileState, PaneState, ScrollState,
-};
+use crate::session::{DocumentTab, EditorSession, EditorTabList, PaneState, ScrollState};
 
 /// The Editor aggregate root entity.
 pub struct Editor {
@@ -43,12 +43,17 @@ pub struct Editor {
     pub outline: OutlineHudState,
     pub focused_pane_id: Option<PaneId>,
     pub search: editor_contracts::SearchPanelState,
+    /// Observer subscriptions per shared buffer, keyed by buffer id.
+    pub buffer_subscriptions: HashMap<editor_contracts::DocumentId, Subscription>,
+    /// Set once this panel released all of its document views.
+    pub documents_released: bool,
 }
 
 impl Editor {
-    /// Creates an Editor initialized with an existing session (e.g. restored or cloned).
+    /// Creates an Editor initialized with an existing session (e.g. restored
+    /// or suspended), observing every buffer the session references.
     pub fn with_session(panel_id: PanelId, session: EditorSession, cx: &mut Context<Self>) -> Self {
-        Self {
+        let mut editor = Self {
             panel_id,
             entity_id: cx.entity().entity_id(),
             self_weak: cx.weak_entity(),
@@ -64,37 +69,106 @@ impl Editor {
             outline: OutlineHudState::default(),
             focused_pane_id: None,
             search: editor_contracts::SearchPanelState::new(cx),
+            buffer_subscriptions: HashMap::new(),
+            documents_released: false,
+        };
+        let buffers: Vec<Entity<DocumentBuffer>> = editor
+            .session
+            .tabs()
+            .map(|tab| tab.buffer.clone())
+            .collect();
+        for buffer in buffers {
+            editor.observe_buffer(buffer, cx);
+        }
+        editor
+    }
+
+    // ------------------------------------------------------------------
+    // Buffer observation and view registration
+    // ------------------------------------------------------------------
+
+    /// Subscribes to a buffer once; every change re-syncs this editor's
+    /// panes and refreshes its window chrome.
+    pub(crate) fn observe_buffer(
+        &mut self,
+        buffer: Entity<DocumentBuffer>,
+        cx: &mut Context<Self>,
+    ) {
+        let id = buffer.read(cx).id;
+        if self.buffer_subscriptions.contains_key(&id) {
+            return;
+        }
+        let subscription = cx.observe(&buffer, Self::on_buffer_changed);
+        self.buffer_subscriptions.insert(id, subscription);
+    }
+
+    /// Registers a new view of the buffer and subscribes to it.
+    fn acquire_and_observe(&mut self, buffer: Entity<DocumentBuffer>, cx: &mut Context<Self>) {
+        let id = buffer.read(cx).id;
+        cx.global_mut::<DocumentStore>().acquire(id);
+        self.observe_buffer(buffer, cx);
+    }
+
+    /// Pushes a new tab into the session, registering its buffer view.
+    pub(crate) fn attach_tab(&mut self, tab: DocumentTab, cx: &mut Context<Self>) {
+        let buffer = tab.buffer.clone();
+        self.acquire_and_observe(buffer, cx);
+        self.session.push_tab(tab);
+    }
+
+    /// Releases the view registration of a removed tab and drops its buffer
+    /// subscription when no other tab of this editor references it.
+    fn detach_tab(&mut self, tab: &DocumentTab, cx: &mut Context<Self>) {
+        let buffer = tab.buffer.clone();
+        let (id, keep) = {
+            let buffer = buffer.read(cx);
+            (buffer.id, buffer.dirty)
+        };
+        cx.global_mut::<DocumentStore>().release(id, keep);
+        if !self.session.tabs().any(|other| other.buffer == buffer) {
+            self.buffer_subscriptions.remove(&id);
         }
     }
 
-    /// Builds a document tab from raw Markdown and an optional file path.
-    pub fn new_tab_from_markdown(markdown: String, file_path: Option<PathBuf>) -> DocumentTab {
-        let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
-        DocumentTab {
-            id: editor_contracts::DocumentId::new(),
-            text: normalized,
-            document_revision: 1,
-            file: FileState {
-                path: file_path,
-                ..FileState::default()
-            },
-            kind: TabKind::Persistent,
-            panes: HashMap::new(),
-            cached_word_count: None,
+    /// Buffer change broadcast: syncs every pane of every tab referencing
+    /// the buffer and refreshes window chrome. Pane-level revision guards
+    /// make re-syncing the originating pane a harmless no-op.
+    fn on_buffer_changed(&mut self, buffer: Entity<DocumentBuffer>, cx: &mut Context<Self>) {
+        if buffer.read(cx).discarded {
+            let indices: Vec<usize> = self
+                .session
+                .tabs()
+                .enumerate()
+                .filter(|(_, tab)| tab.buffer == buffer)
+                .map(|(index, _)| index)
+                .collect();
+            for index in indices.into_iter().rev() {
+                self.close_tab(index, cx);
+            }
+            cx.notify();
+            return;
         }
+        let document = buffer.read(cx).snapshot();
+        for tab in self.session.tabs_mut() {
+            if tab.buffer == buffer {
+                tab.pending.window_title_refresh = true;
+                tab.pending.window_edited = true;
+                for state in tab.panes.values_mut() {
+                    state.pane.sync_document(&document, cx);
+                }
+            }
+        }
+        cx.notify();
     }
 
-    pub fn image_base_dir(&self) -> Option<PathBuf> {
-        self.session
-            .active_tab()
-            .and_then(|t| t.file.path.as_ref())
-            .and_then(|p| p.parent())
-            .map(|p| p.to_path_buf())
-    }
+    // ------------------------------------------------------------------
+    // Document text access and commits
+    // ------------------------------------------------------------------
 
-    /// Synchronizes all panes of the active tab with the current raw text.
+    /// Synchronizes all panes of the active tab with the current buffer.
     pub fn sync_panes_with_active_tab(&mut self, cx: &mut Context<Self>) {
-        if let Some(document) = self.session.active_tab().map(DocumentTab::snapshot) {
+        if let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) {
+            let document = buffer.read(cx).snapshot();
             if let Some(tab_mut) = self.session.active_tab_mut() {
                 for state in tab_mut.panes.values_mut() {
                     state.pane.sync_document(&document, cx);
@@ -108,38 +182,18 @@ impl Editor {
         }
     }
 
-    /// Rebuilds document text from a markdown string (e.g. from an editing pane).
-    pub fn rebuild_document_from_markdown(&mut self, text: &str, cx: &mut Context<Self>) {
-        let active_pane = self.active_pane_id();
-        self.update_raw_document_text(text.to_string(), active_pane, cx);
-    }
-
-    /// Updates raw text source of truth and syncs other panes.
-    pub fn update_raw_document_text(
-        &mut self,
-        new_text: String,
-        origin_pane: PaneId,
-        cx: &mut Context<Self>,
-    ) {
+    /// Commits a pane-produced text edit into the shared buffer; observers
+    /// (including this editor) broadcast the new snapshot to every pane.
+    pub fn commit_document_text(&mut self, text: String, cx: &mut Context<Self>) {
         if !self.session.has_tabs() {
             // No open tab: there is nothing to edit — ignore pane-driven
             // input instead of implicitly creating a tab.
             return;
         }
-        if let Some(tab) = self.session.active_tab_mut() {
-            tab.text = new_text;
-            tab.document_revision = tab.document_revision.wrapping_add(1);
-            tab.file.dirty = true;
-            tab.file.pending_window_edited = true;
-            tab.cached_word_count = None;
-
-            let document = tab.snapshot();
-            for (&pane_id, state) in tab.panes.iter_mut() {
-                if pane_id != origin_pane {
-                    state.pane.sync_document(&document, cx);
-                }
-            }
-        }
+        let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
+            return;
+        };
+        buffer.update(cx, |buffer, cx| buffer.set_text(text, cx));
         cx.notify();
     }
 
@@ -150,8 +204,8 @@ impl Editor {
         }
         self.session.set_active_tab(index);
         if let Some(tab) = self.session.tab_mut(index) {
-            tab.file.pending_window_title_refresh = true;
-            tab.file.pending_window_edited = true;
+            tab.pending.window_title_refresh = true;
+            tab.pending.window_edited = true;
         }
         self.sync_panes_with_active_tab(cx);
         if self.search.visible {
@@ -160,8 +214,9 @@ impl Editor {
         cx.notify();
     }
 
-    /// Opens a file in this editor's tab list: activates its tab if
-    /// already open, otherwise loads a new tab from disk.
+    /// Opens a file in this editor's tab list: activates its tab if the
+    /// shared buffer is already shown here, otherwise opens the document
+    /// through the store (reusing the in-memory buffer when it exists).
     pub fn open_file_in_panel(
         &mut self,
         path: &std::path::Path,
@@ -169,12 +224,23 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let already_open = self
+        let buffer = match DocumentStore::open(path, cx) {
+            Ok(buffer) => buffer,
+            Err(err) => {
+                self.show_drop_open_failed_prompt(
+                    format!("failed to read '{}': {err}", path.display()),
+                    window,
+                    cx,
+                );
+                return;
+            }
+        };
+        if let Some(index) = self
             .session
             .tab_list
             .iter()
-            .position(|t| t.file.path.as_deref() == Some(path));
-        if let Some(index) = already_open {
+            .position(|tab| tab.buffer == buffer)
+        {
             if kind == TabKind::Persistent {
                 if let Some(tab) = self.session.tab_mut(index) {
                     tab.persist();
@@ -184,37 +250,29 @@ impl Editor {
             return;
         }
 
-        let bytes = match std::fs::read(path) {
-            Ok(bytes) => bytes,
-            Err(_) => {
-                self.show_drop_open_failed_prompt(
-                    format!("failed to read '{}'", path.display()),
-                    window,
-                    cx,
-                );
-                return;
-            }
-        };
-        let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let mut tab = Self::new_tab_from_markdown(markdown, Some(path.to_path_buf()));
-        tab.kind = kind;
-
+        let tab = DocumentTab::new(buffer.clone(), kind);
         if kind == TabKind::Transient {
             let clean_transient_idx = self
                 .session
                 .tab_list
                 .iter()
-                .position(|t| t.is_transient() && !t.file.dirty);
-            if let Some(idx) = clean_transient_idx {
-                self.session.tab_list.replace(idx, tab);
-                self.activate_tab(idx, cx);
+                .position(|tab| tab.is_transient() && !tab.buffer.read(cx).dirty);
+            if let Some(index) = clean_transient_idx {
+                self.acquire_and_observe(buffer, cx);
+                let old = self
+                    .session
+                    .tab_list
+                    .replace(index, tab)
+                    .expect("just checked");
+                self.detach_tab(&old, cx);
+                self.activate_tab(index, cx);
                 self.record_recent_file(path, cx);
                 return;
             }
         }
 
-        let last = self.session.push_tab(tab);
-        self.activate_tab(last, cx);
+        self.attach_tab(tab, cx);
+        self.activate_tab(self.session.tab_count() - 1, cx);
         self.record_recent_file(path, cx);
     }
 
@@ -225,18 +283,21 @@ impl Editor {
     }
 
     pub fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {
-        let last = self
-            .session
-            .tab_list
-            .push(Self::new_tab_from_markdown(String::new(), None));
-        self.activate_tab(last, cx);
+        let buffer = DocumentStore::create(String::new(), None, cx);
+        self.attach_tab(DocumentTab::new(buffer, TabKind::Persistent), cx);
+        self.activate_tab(self.session.tab_count() - 1, cx);
     }
 
     pub fn request_close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
         let Some(tab) = self.session.tab(index) else {
             return;
         };
-        if tab.file.dirty {
+        let buffer = tab.buffer.clone();
+        let (id, dirty) = {
+            let buffer = buffer.read(cx);
+            (buffer.id, buffer.dirty)
+        };
+        if dirty && cx.global::<DocumentStore>().view_count(id) == 1 {
             let panel_id = self.panel_id;
             self.activate_tab(index, cx);
             self.defer_host_action(cx, move |host, cx| {
@@ -248,9 +309,10 @@ impl Editor {
     }
 
     pub fn close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self.session.close_tab(index).is_none() {
+        let Some(tab) = self.session.close_tab(index) else {
             return;
-        }
+        };
+        self.detach_tab(&tab, cx);
         if !self.session.has_tabs() {
             self.clear_search_highlights_from_document(cx);
             self.search.matches.clear();
@@ -259,13 +321,64 @@ impl Editor {
             return;
         }
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.file.pending_window_title_refresh = true;
-            tab.file.pending_window_edited = true;
+            tab.pending.window_title_refresh = true;
+            tab.pending.window_edited = true;
         }
         if self.search.visible {
             self.execute_search(cx);
         }
         cx.notify();
+    }
+
+    /// Closes every tab view, releasing each buffer registration.
+    pub fn clear_tabs(&mut self, cx: &mut Context<Self>) {
+        for tab in self.session.tabs() {
+            let buffer = tab.buffer.clone();
+            let (id, keep) = {
+                let buffer = buffer.read(cx);
+                (buffer.id, buffer.dirty)
+            };
+            cx.global_mut::<DocumentStore>().release(id, keep);
+        }
+        self.buffer_subscriptions.clear();
+        self.session.clear_tabs();
+        cx.notify();
+    }
+
+    /// Discards the tab at `index` and closes it. The shared buffer is
+    /// destroyed when this tab was its last view; otherwise only this
+    /// panel's view is released.
+    pub fn discard_tab_at(&mut self, index: usize, cx: &mut Context<Self>) {
+        if let Some(tab) = self.session.tab(index) {
+            let buffer = tab.buffer.clone();
+            let (id, dirty) = {
+                let buffer = buffer.read(cx);
+                (buffer.id, buffer.dirty)
+            };
+            if dirty && cx.global::<DocumentStore>().view_count(id) == 1 {
+                buffer.update(cx, |buffer, cx| buffer.mark_discarded(cx));
+                cx.global_mut::<DocumentStore>().discard(id);
+            }
+        }
+        self.close_tab(index, cx);
+    }
+
+    /// Display name of the first dirty buffer in this panel, if any.
+    pub fn first_dirty_title(&self, cx: &App) -> Option<String> {
+        self.session.tabs().find_map(|tab| {
+            let buffer = tab.buffer.read(cx);
+            if !buffer.dirty {
+                return None;
+            }
+            Some(
+                buffer
+                    .path
+                    .as_ref()
+                    .and_then(|path| path.file_name())
+                    .map(|name| name.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Untitled".to_string()),
+            )
+        })
     }
 
     pub fn active_pane_id(&self) -> PaneId {
@@ -421,44 +534,6 @@ impl Editor {
 
     pub fn tab_list_mut(&mut self) -> &mut EditorTabList<DocumentTab> {
         &mut self.session.tab_list
-    }
-
-    pub fn clone_session(&self, cx: &mut Context<Self>) -> EditorSession {
-        let default_kind = self
-            .session
-            .root
-            .tree
-            .first_leaf_id()
-            .and_then(|id| self.pane_kind(PaneId(id)))
-            .unwrap_or_else(|| self.default_pane_kind());
-        let mut root = SplitterRoot::single_leaf(1, default_kind);
-        let mut next_id = 1;
-        root.tree = self.session.root.tree.clone_with_new_ids(&mut next_id);
-        root.next_node_id = next_id;
-
-        let mut list = EditorTabList::new();
-        for tab in self.session.tabs() {
-            let text = tab.serialized_text(cx);
-            let mut copy = Self::new_tab_from_markdown(text, tab.file.path.clone());
-            copy.file.dirty = tab.file.dirty;
-            copy.kind = tab.kind;
-            list.push(copy);
-        }
-        list.set_active_tab(self.session.active_tab_index());
-        EditorSession {
-            tab_list: list,
-            root,
-            empty_panes: std::collections::HashMap::new(),
-        }
-    }
-
-    pub fn first_dirty_tab(&self) -> Option<(PanelId, usize)> {
-        for (index, tab) in self.session.tabs().enumerate() {
-            if tab.file.dirty {
-                return Some((self.panel_id, index));
-            }
-        }
-        None
     }
 
     #[inline]

@@ -284,10 +284,10 @@ impl editor_contracts::SearchIme for EditorSearchIme {
 }
 
 impl PaneHost for EditorPaneHost {
-    fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App) {
+    fn sync_source_text(&self, _pane_id: PaneId, text: String, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
-                editor.update_raw_document_text(text, pane_id, cx);
+                editor.commit_document_text(text, cx);
             });
         }
     }

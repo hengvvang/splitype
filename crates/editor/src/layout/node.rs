@@ -304,11 +304,7 @@ impl Editor {
     ) -> AnyElement {
         // With no open tab there is no document to edit: render a blank,
         // input-inert surface instead of an interactive pane.
-        let Some(document) = self
-            .session
-            .active_tab()
-            .map(crate::session::DocumentTab::snapshot)
-        else {
+        let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
             let theme = cx.global::<theme::ThemeManager>().current_arc();
             return div()
                 .id(("empty-pane", pane_id.0))
@@ -317,6 +313,7 @@ impl Editor {
                 .bg(theme.colors.editor_background)
                 .into_any_element();
         };
+        let document = buffer.read(cx).snapshot();
 
         if pane_id == self.active_pane_id() {
             self.apply_pending_focus(pane_id, window, cx);

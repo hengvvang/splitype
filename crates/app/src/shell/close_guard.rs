@@ -1,6 +1,7 @@
 //! Window close guard, dirty state aggregation, and action handlers.
 
 use gpui::*;
+use std::collections::HashMap;
 
 use super::{Shell, UnsavedDialogScope, UnsavedDialogState};
 use crate::actions::{
@@ -8,7 +9,8 @@ use crate::actions::{
     ToggleMaximizeArea, UninstallCliTool,
 };
 use crate::menus::request_quit_application;
-use platform_contracts::PanelId;
+use editor::document::{DocumentBuffer, DocumentStore};
+use platform_contracts::{DocumentId, PanelId};
 
 impl Shell {
     /// Dirty state of one panel, resolved through the generic panel contract
@@ -40,47 +42,55 @@ impl Shell {
         (dirty, first_name.unwrap_or_else(|| "Untitled".to_string()))
     }
 
-    pub(crate) fn first_dirty_panel(
-        &mut self,
-        cx: &mut Context<Self>,
-    ) -> Option<(PanelId, String)> {
-        for (panel_id, retained) in &self.retained_panel_states {
+    /// Per-buffer view counts across this window's live panels and retained
+    /// (suspended) panel states.
+    fn window_buffer_counts(&self, cx: &App) -> HashMap<DocumentId, usize> {
+        let mut counts = HashMap::new();
+        for view in self.panel_views.values() {
+            let Some(routing) = crate::routing::document_routing(&view.kind()) else {
+                continue;
+            };
+            let Some(panel) = (routing.as_document)(view.as_ref()) else {
+                continue;
+            };
+            for id in panel.document_buffer_ids(cx) {
+                *counts.entry(id).or_insert(0) += 1;
+            }
+        }
+        for retained in self.retained_panel_states.values() {
             let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone())
             else {
                 continue;
             };
-            let (dirty, first_name) = descriptor.retained_dirty_info(retained.state.as_ref(), cx);
-            if dirty {
-                return Some((
-                    *panel_id,
-                    first_name.unwrap_or_else(|| "Untitled".to_string()),
-                ));
+            for id in descriptor.retained_buffer_ids(retained.state.as_ref(), cx) {
+                *counts.entry(id).or_insert(0) += 1;
             }
         }
-        for (panel_id, view) in &self.panel_views {
-            if view.is_dirty(cx) {
-                return Some((
-                    *panel_id,
-                    view.first_dirty_title(cx)
-                        .unwrap_or_else(|| "Untitled".to_string()),
-                ));
-            }
-        }
-        None
+        counts
     }
 
+    /// Whether closing this window would lose unsaved content: some dirty
+    /// buffer has every one of its views inside this window.
     pub(crate) fn has_unsaved_changes(&self, cx: &App) -> bool {
-        self.panel_views.values().any(|panel| panel.is_dirty(cx))
+        let store = cx.global::<DocumentStore>();
+        let counts = self.window_buffer_counts(cx);
+        store
+            .dirty_buffer_ids(cx)
+            .into_iter()
+            .any(|id| store.view_count(id) == counts.get(&id).copied().unwrap_or(0))
     }
 
     pub(crate) fn prompt_close_window(&mut self, cx: &mut Context<Self>) {
-        let Some((_, first_dirty_name)) = self.first_dirty_panel(cx) else {
+        if !self.has_unsaved_changes(cx) {
             return;
-        };
-
+        }
+        let document_name = cx
+            .global::<DocumentStore>()
+            .first_dirty_name(cx)
+            .unwrap_or_else(|| "Untitled".to_string());
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Window,
-            document_name: first_dirty_name,
+            document_name,
         });
         cx.notify();
     }
@@ -164,7 +174,8 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if self.first_dirty_panel(cx).is_none() {
+        if !self.has_unsaved_changes(cx) {
+            self.release_all_documents(cx);
             self.snapshot_window_state(cx);
             return true;
         }
@@ -172,8 +183,42 @@ impl Shell {
         false
     }
 
+    /// Releases every document view of this window (live panels and
+    /// retained states) without touching content.
+    fn release_all_documents(&mut self, cx: &mut Context<Self>) {
+        for view in self.panel_views.values_mut() {
+            view.release_documents(cx);
+        }
+        for retained in self.retained_panel_states.values_mut() {
+            let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone())
+            else {
+                continue;
+            };
+            descriptor.release_retained(&mut retained.state, cx);
+        }
+    }
+
+    /// Destroys dirty buffers that no longer have any registered view.
+    pub(crate) fn sweep_orphaned_dirty_buffers(&mut self, cx: &mut Context<Self>) {
+        let orphans: Vec<Entity<DocumentBuffer>> = {
+            let store = cx.global::<DocumentStore>();
+            store
+                .dirty_buffer_ids(cx)
+                .into_iter()
+                .filter(|id| store.view_count(*id) == 0)
+                .filter_map(|id| store.get(id))
+                .collect()
+        };
+        for buffer in orphans {
+            let id = buffer.read(cx).id;
+            buffer.update(cx, |buffer, cx| buffer.mark_discarded(cx));
+            cx.global_mut::<DocumentStore>().discard(id);
+        }
+    }
+
     /// Snapshots the window state (when enabled) and removes the window.
     pub(crate) fn close_window_now(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.release_all_documents(cx);
         self.snapshot_window_state(cx);
         window.remove_window();
     }
@@ -183,7 +228,7 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.first_dirty_panel(cx).is_none() {
+        if !self.has_unsaved_changes(cx) {
             self.close_window_now(window, cx);
             return;
         }

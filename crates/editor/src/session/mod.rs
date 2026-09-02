@@ -1,14 +1,18 @@
 //! Editor session domain models — tabs, buffer/source-of-truth, and file state.
 
-pub mod file;
+pub mod flow;
 pub mod ops;
 pub mod tab;
 
 use editor_contracts::{PaneKind, TabKind};
-pub use file::{FileState, PendingOpenLink};
-pub use tab::{DocumentTab, PaneState, ScrollState};
+pub use tab::{
+    DocumentTab, PaneState, PendingOpenLink, PersistedTab, ScrollState, TabPendingState,
+};
 
+use gpui::App;
 use splitter::root::SplitterRoot;
+
+use crate::document::DocumentStore;
 
 /// The document tabs owned by one Editor area.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -173,12 +177,13 @@ impl<'a, T> IntoIterator for &'a mut EditorTabList<T> {
 }
 
 /// The complete per-area editor state: the document tabs plus the inner panel split container.
-#[derive(serde::Serialize, serde::Deserialize)]
+///
+/// Not serializable: tabs hold live buffer entities. Durable persistence goes
+/// through [`PersistedEditorSession`], which stores buffer identities only.
 pub struct EditorSession {
     pub tab_list: EditorTabList<DocumentTab>,
     pub root: SplitterRoot<PaneKind>,
-    /// Live pane entities (rebuilt from the tabs on restore).
-    #[serde(skip)]
+    /// Live pane entities used while no tab is open.
     pub empty_panes: std::collections::HashMap<editor_contracts::PaneId, PaneState>,
 }
 
@@ -192,6 +197,54 @@ impl EditorSession {
         Self {
             tab_list: EditorTabList::new(),
             root: SplitterRoot::single_leaf(1, default_kind),
+            empty_panes: std::collections::HashMap::new(),
+        }
+    }
+
+    /// Durable projection referencing the same buffers by identity.
+    pub fn to_persisted(&self, cx: &App) -> PersistedEditorSession {
+        let mut tab_list = EditorTabList::new();
+        for tab in self.tabs() {
+            tab_list.push(PersistedTab {
+                buffer: tab.buffer.read(cx).id,
+                kind: tab.kind,
+            });
+        }
+        tab_list.set_active_tab(self.active_tab_index());
+        let mut next_id = self.root.next_node_id;
+        let tree = self.root.tree.clone_with_new_ids(&mut next_id);
+        PersistedEditorSession {
+            tab_list,
+            tree,
+            next_node_id: next_id,
+        }
+    }
+
+    /// Rebuilds a live session from a persisted projection, resolving each
+    /// buffer from the store. Tabs whose buffer is missing are skipped.
+    pub fn from_persisted(persisted: PersistedEditorSession, cx: &App) -> Self {
+        let store = cx.global::<DocumentStore>();
+        let active_index = persisted.tab_list.active_index();
+        let mut tab_list = EditorTabList::new();
+        for tab in persisted.tab_list.into_iter() {
+            let Some(buffer) = store.get(tab.buffer) else {
+                tracing::warn!("persisted tab references a missing buffer; skipping");
+                continue;
+            };
+            tab_list.push(DocumentTab::new(buffer, tab.kind));
+        }
+        tab_list.set_active_tab(active_index);
+        let root = SplitterRoot {
+            tree: persisted.tree,
+            next_node_id: persisted.next_node_id,
+            active_splitter_drag: None,
+            active_border_menu: None,
+            active_leaf: None,
+            activation_history: Vec::new(),
+        };
+        Self {
+            tab_list,
+            root,
             empty_panes: std::collections::HashMap::new(),
         }
     }
@@ -261,10 +314,31 @@ impl EditorSession {
         self.tab_list.clear();
     }
 
-    #[inline]
-    pub fn has_dirty_tabs(&self) -> bool {
-        self.tabs().any(|tab| tab.file.dirty)
+    /// Whether this session has a dirty buffer whose every view lives in
+    /// this session — i.e. closing this panel would lose unsaved content.
+    pub fn has_unsaved_buffers(&self, cx: &App) -> bool {
+        let store = cx.global::<DocumentStore>();
+        self.tabs().any(|tab| {
+            let buffer = tab.buffer.read(cx);
+            if !buffer.dirty {
+                return false;
+            }
+            let own_views = self
+                .tabs()
+                .filter(|other| other.buffer == tab.buffer)
+                .count();
+            store.view_count(buffer.id) == own_views
+        })
     }
+}
+
+/// Durable projection of an [`EditorSession`]: buffer identities, tab kinds,
+/// and the inner pane split topology.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PersistedEditorSession {
+    pub tab_list: EditorTabList<PersistedTab>,
+    pub tree: splitter::tree::SplitTree<PaneKind>,
+    pub next_node_id: splitter::tree::NodeId,
 }
 
 #[cfg(test)]
@@ -272,18 +346,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn editor_session_round_trips_through_json() {
-        let mut session = EditorSession::empty();
-        let tab = crate::editor::Editor::new_tab_from_markdown("# hello".to_string(), None);
-        session.tab_list.push(tab);
+    fn editor_tab_list_close_reindexes_active_tab() {
+        let mut list = EditorTabList::<u32>::new();
+        list.push(10);
+        list.push(20);
+        list.push(30);
+        list.set_active_tab(2);
+        assert_eq!(list.close_tab(0), Some(10));
+        assert_eq!(list.active_index(), 1);
+        assert_eq!(list.close_tab(1), Some(30));
+        assert_eq!(list.active_index(), 0);
+    }
 
-        let json = serde_json::to_value(&session).expect("serialize");
-        let restored: EditorSession = serde_json::from_value(json).expect("deserialize");
+    #[test]
+    fn persisted_editor_session_round_trips_through_json() {
+        let kind = PaneKind::from_static("splitype.pane.wysiwyg");
+        let root = SplitterRoot::single_leaf(1, kind);
+        let mut tab_list = EditorTabList::new();
+        tab_list.push(PersistedTab {
+            buffer: editor_contracts::DocumentId::new(),
+            kind: TabKind::Persistent,
+        });
+        tab_list.set_active_tab(0);
+        let persisted = PersistedEditorSession {
+            tab_list,
+            tree: root.tree,
+            next_node_id: root.next_node_id,
+        };
+
+        let json = serde_json::to_value(&persisted).expect("serialize");
+        let restored: PersistedEditorSession = serde_json::from_value(json).expect("deserialize");
 
         assert_eq!(restored.tab_list.len(), 1);
-        let restored_tab = restored.tabs().next().expect("one tab");
-        assert_eq!(restored_tab.text, "# hello");
-        assert!(restored_tab.panes.is_empty());
-        assert!(restored.empty_panes.is_empty());
+        assert_eq!(restored.tab_list.active_index(), 0);
+        assert_eq!(restored.tree.count_leaves(), 1);
+        assert_eq!(restored.next_node_id, 2);
     }
 }

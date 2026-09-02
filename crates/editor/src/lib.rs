@@ -4,6 +4,7 @@
 //! resources, session/file state, tab lifecycles, and pane layout hosting.
 
 pub mod actions;
+pub mod document;
 pub mod editor;
 pub mod input;
 pub mod layout;

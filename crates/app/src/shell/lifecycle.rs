@@ -175,16 +175,32 @@ impl Shell {
         let panel_id = panel_id.into();
         if let Some(target_leaf_id) = self.panels.layout.resolve_leaf(panel_id.0) {
             self.panels.layout.close_leaf(target_leaf_id);
-            self.remove_panel_view(target_leaf_id);
-            self.retained_panel_states.remove(&PanelId(target_leaf_id));
+            if let Some(mut view) = self.remove_panel_view(target_leaf_id) {
+                view.release_documents(cx);
+            }
+            if let Some(retained) = self.retained_panel_states.remove(&PanelId(target_leaf_id)) {
+                if let Ok(Some(descriptor)) =
+                    window::PanelRegistry::registered(retained.kind.clone())
+                {
+                    let mut state = retained.state;
+                    descriptor.release_retained(&mut state, cx);
+                }
+            }
             self.push_active_document_context(cx);
         }
     }
 
     /// Clean up a joined panel's view and retained state.
     pub(crate) fn handle_joined_panel(&mut self, removed_id: NodeId, cx: &mut Context<Self>) {
-        self.remove_panel_view(removed_id);
-        self.retained_panel_states.remove(&PanelId(removed_id));
+        if let Some(mut view) = self.remove_panel_view(removed_id) {
+            view.release_documents(cx);
+        }
+        if let Some(retained) = self.retained_panel_states.remove(&PanelId(removed_id)) {
+            if let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone()) {
+                let mut state = retained.state;
+                descriptor.release_retained(&mut state, cx);
+            }
+        }
         self.push_active_document_context(cx);
     }
 

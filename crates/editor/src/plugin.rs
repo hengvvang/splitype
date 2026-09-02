@@ -1,6 +1,7 @@
+use crate::document::DocumentStore;
 use crate::editor::Editor;
-use crate::session::EditorSession;
-use editor_contracts::{DocumentHost, DocumentPanel, TabKind};
+use crate::session::{DocumentTab, EditorSession, PersistedEditorSession};
+use editor_contracts::{DocumentHost, DocumentId, DocumentPanel, TabKind};
 use gpui::*;
 use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
@@ -41,24 +42,16 @@ impl PanelView for EditorPanelView {
     }
 
     fn is_dirty(&self, cx: &App) -> bool {
-        self.editor.read(cx).session.has_dirty_tabs()
+        self.editor.read(cx).session.has_unsaved_buffers(cx)
     }
 
     fn first_dirty_title(&self, cx: &App) -> Option<String> {
-        let editor = self.editor.read(cx);
-        editor.session.tabs().find(|t| t.file.dirty).map(|t| {
-            t.file
-                .path
-                .as_ref()
-                .and_then(|p| p.file_name())
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Untitled".to_string())
-        })
+        self.editor.read(cx).first_dirty_title(cx)
     }
 
     fn on_fs_path_renamed(&mut self, from: &Path, to: &Path, cx: &mut App) {
-        self.editor.update(cx, |editor, _cx| {
-            editor.update_tab_path(from, to);
+        self.editor.update(cx, |editor, cx| {
+            editor.on_fs_path_renamed(from, to, cx);
         });
     }
 
@@ -86,6 +79,9 @@ impl PanelView for EditorPanelView {
             .update(cx, |editor, cx| editor.dismiss_transient_ui(cx))
     }
 
+    /// Parks the live session when this panel kind switches away. The
+    /// shared buffers stay registered in the store; restoring this kind
+    /// hands the same session (pane states included) back.
     fn suspend_state(&mut self, cx: &mut App) -> Option<Box<dyn Any>> {
         let editor = self.editor.clone();
         Some(Box::new(editor.update(cx, |editor, cx| {
@@ -96,10 +92,12 @@ impl PanelView for EditorPanelView {
         })))
     }
 
+    /// Clones the session as a durable projection referencing the same
+    /// buffers — split editors and cloned windows share one document source.
     fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
         let editor = self.editor.clone();
         Some(Box::new(
-            editor.update(cx, |editor, cx| editor.clone_session(cx)),
+            editor.update(cx, |editor, cx| editor.session.to_persisted(cx)),
         ))
     }
 
@@ -127,10 +125,13 @@ impl PanelView for EditorPanelView {
 
     fn discard_changes(&mut self, cx: &mut App) {
         self.editor.update(cx, |editor, cx| {
-            for tab in editor.session.tabs_mut() {
-                tab.file.dirty = false;
-            }
-            cx.notify();
+            editor.discard_changes(cx);
+        });
+    }
+
+    fn release_documents(&mut self, cx: &mut App) {
+        self.editor.update(cx, |editor, cx| {
+            editor.release_documents(cx);
         });
     }
 
@@ -164,10 +165,14 @@ impl DocumentPanel for EditorPanelView {
     fn load_initial_document(&mut self, text: String, path: Option<PathBuf>, cx: &mut App) {
         self.editor.update(cx, |editor, cx| {
             let has_content = !text.is_empty() || path.is_some();
-            if has_content {
-                let tab = Editor::new_tab_from_markdown(text, path);
-                editor.session.push_tab(tab);
+            if !has_content {
+                return;
             }
+            // A path already open elsewhere resolves to its shared buffer —
+            // in-memory content (possibly dirty) wins over the passed text.
+            let buffer = DocumentStore::create(text, path, cx);
+            editor.attach_tab(DocumentTab::new(buffer, TabKind::Persistent), cx);
+            editor.activate_tab(editor.session.tab_count() - 1, cx);
             cx.notify();
         });
     }
@@ -180,19 +185,33 @@ impl DocumentPanel for EditorPanelView {
 
     fn active_tab_path(&self, cx: &App) -> Option<PathBuf> {
         let editor = self.editor.read(cx);
-        editor.active_tab().and_then(|tab| tab.file.path.clone())
+        editor
+            .active_tab()
+            .and_then(|tab| tab.buffer.read(cx).path.clone())
     }
 
     fn tab_display_name(&self, index: usize, cx: &App) -> Option<String> {
         let editor = self.editor.read(cx);
         editor.session.tab(index).map(|tab| {
-            tab.file
+            tab.buffer
+                .read(cx)
                 .path
                 .as_ref()
                 .and_then(|path| path.file_name())
                 .map(|name| name.to_string_lossy().to_string())
                 .unwrap_or_else(|| "Untitled".to_string())
         })
+    }
+
+    fn document_buffer_ids(&self, cx: &App) -> Vec<DocumentId> {
+        let editor = self.editor.read(cx);
+        let mut ids: Vec<DocumentId> = editor
+            .session
+            .tabs()
+            .map(|tab| tab.buffer.read(cx).id)
+            .collect();
+        ids.dedup();
+        ids
     }
 
     fn save_tab_at(&mut self, index: usize, window: &mut Window, cx: &mut App) {
@@ -209,17 +228,13 @@ impl DocumentPanel for EditorPanelView {
 
     fn discard_tab_at(&mut self, index: usize, cx: &mut App) {
         self.editor.update(cx, |editor, cx| {
-            if let Some(tab) = editor.session.tab_mut(index) {
-                tab.file.dirty = false;
-            }
-            editor.close_tab(index, cx);
+            editor.discard_tab_at(index, cx);
         });
     }
 
     fn clear_tabs(&mut self, cx: &mut App) {
         self.editor.update(cx, |editor, cx| {
-            editor.session.clear_tabs();
-            cx.notify();
+            editor.clear_tabs(cx);
         });
     }
 
@@ -228,7 +243,7 @@ impl DocumentPanel for EditorPanelView {
         editor
             .session
             .tabs()
-            .any(|tab| tab.file.show_unsaved_changes_dialog)
+            .any(|tab| tab.pending.show_unsaved_changes_dialog)
     }
 
     fn cancel_close_dialog(&mut self, cx: &mut App) {
@@ -254,7 +269,7 @@ impl DocumentPanel for EditorPanelView {
         editor
             .session
             .tabs()
-            .any(|tab| tab.file.show_drop_replace_dialog)
+            .any(|tab| tab.pending.show_drop_replace_dialog)
     }
 
     fn cancel_drop_replace_dialog(&mut self, cx: &mut App) {
@@ -364,23 +379,48 @@ impl PanelDescriptor for EditorPanelDescriptor {
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
-        let session = state
-            .downcast::<crate::session::EditorSession>()
-            .ok()
-            .map(|boxed| *boxed)?;
+        // Two distinct sources converge on one live model: a suspended
+        // live session (panel kind switch) keeps its registered views, while
+        // a durable projection (clone / window restore) must register each
+        // resolved buffer as a new view.
+        let session = if state.is::<crate::session::EditorSession>() {
+            let live = state
+                .downcast::<crate::session::EditorSession>()
+                .expect("just checked");
+            *live
+        } else {
+            let persisted = state.downcast::<PersistedEditorSession>().ok()?;
+            let session = EditorSession::from_persisted(*persisted, cx);
+            for tab in session.tabs() {
+                let id = tab.buffer.read(cx).id;
+                cx.global_mut::<DocumentStore>().acquire(id);
+            }
+            session
+        };
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         Some(Box::new(EditorPanelView::new(editor)))
     }
 
-    fn retained_dirty_info(&self, state: &dyn Any, _cx: &App) -> (bool, Option<String>) {
+    fn retained_dirty_info(&self, state: &dyn Any, cx: &App) -> (bool, Option<String>) {
         let Some(session) = state.downcast_ref::<crate::session::EditorSession>() else {
             return (false, None);
         };
+        let store = cx.global::<DocumentStore>();
+        let mut owned_dirty = false;
         let mut first_name = None;
         for tab in session.tabs() {
-            if tab.file.dirty {
+            let buffer = tab.buffer.read(cx);
+            if !buffer.dirty {
+                continue;
+            }
+            let own_views = session
+                .tabs()
+                .filter(|other| other.buffer == tab.buffer)
+                .count();
+            if store.view_count(buffer.id) == own_views {
+                owned_dirty = true;
                 first_name.get_or_insert_with(|| {
-                    tab.file
+                    buffer
                         .path
                         .as_ref()
                         .and_then(|path| path.file_name())
@@ -389,25 +429,57 @@ impl PanelDescriptor for EditorPanelDescriptor {
                 });
             }
         }
-        (first_name.is_some(), first_name)
+        (owned_dirty, first_name)
     }
 
-    fn discard_retained(&self, state: &mut Box<dyn Any>, _cx: &mut App) {
+    fn discard_retained(&self, state: &mut Box<dyn Any>, cx: &mut App) {
         let Some(session) = state.downcast_mut::<crate::session::EditorSession>() else {
             return;
         };
-        for tab in session.tabs_mut() {
-            tab.file.dirty = false;
+        for tab in session.tabs() {
+            let buffer = tab.buffer.clone();
+            let (id, dirty) = {
+                let buffer = buffer.read(cx);
+                (buffer.id, buffer.dirty)
+            };
+            if dirty && cx.global::<DocumentStore>().view_count(id) == 1 {
+                buffer.update(cx, |buffer, cx| buffer.mark_discarded(cx));
+                cx.global_mut::<DocumentStore>().discard(id);
+            } else {
+                cx.global_mut::<DocumentStore>().release(id, false);
+            }
         }
+        session.clear_tabs();
+    }
+
+    fn release_retained(&self, state: &mut Box<dyn Any>, cx: &mut App) {
+        let Some(session) = state.downcast_mut::<crate::session::EditorSession>() else {
+            return;
+        };
+        for tab in session.tabs() {
+            let buffer = tab.buffer.clone();
+            let id = buffer.read(cx).id;
+            cx.global_mut::<DocumentStore>().release(id, false);
+        }
+        session.clear_tabs();
+    }
+
+    fn retained_buffer_ids(&self, state: &dyn Any, cx: &App) -> Vec<DocumentId> {
+        let Some(session) = state.downcast_ref::<crate::session::EditorSession>() else {
+            return Vec::new();
+        };
+        let mut ids: Vec<DocumentId> = session.tabs().map(|tab| tab.buffer.read(cx).id).collect();
+        ids.dedup();
+        ids
     }
 
     fn serialize_state(&self, state: &dyn Any) -> Option<serde_json::Value> {
-        let session = state.downcast_ref::<crate::session::EditorSession>()?;
+        let session = state.downcast_ref::<PersistedEditorSession>()?;
         serde_json::to_value(session).ok()
     }
 
     fn deserialize_state(&self, json: &serde_json::Value) -> Option<Box<dyn Any>> {
-        let session: crate::session::EditorSession = serde_json::from_value(json.clone()).ok()?;
+        let session: PersistedEditorSession = serde_json::from_value(json.clone()).ok()?;
         Some(Box::new(session))
     }
 }

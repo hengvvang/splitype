@@ -25,7 +25,7 @@ impl Editor {
         let is_untitled = self
             .session
             .active_tab()
-            .is_some_and(|t| t.file.path.is_none());
+            .is_some_and(|t| t.buffer.read(cx).path.is_none());
         if is_untitled {
             self.save_document_as(window, cx);
             return;

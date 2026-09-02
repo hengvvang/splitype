@@ -19,13 +19,13 @@ impl Render for Editor {
             self.sync_pending_save(window, cx);
             self.sync_pending_save_as(window, cx);
             self.sync_pending_open_link(window, cx);
-            self.sync_window_edited_state(window);
+            self.sync_window_edited_state(window, cx);
         }
 
         let theme = cx.global::<ThemeManager>().current_arc();
         let strings = cx.global::<I18nManager>().strings_arc();
         if self.has_tabs() {
-            self.sync_window_title(window, &strings);
+            self.sync_window_title(window, &strings, cx);
         }
 
         let follow_modifier_active = window.modifiers().secondary();
