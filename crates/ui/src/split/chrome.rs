@@ -334,27 +334,32 @@ pub fn border_menu_style(theme: &Theme) -> MenuStyle {
     }
 }
 
-/// One entry of a border context menu: label plus activation callback.
-pub struct BorderMenuItem<F> {
-    pub label: &'static str,
-    pub on_activate: F,
+/// Host-supplied behavior for the standard border-menu actions.
+pub struct BorderMenuActions {
+    pub split_horizontal: Box<dyn Fn(&mut App)>,
+    pub split_vertical: Box<dyn Fn(&mut App)>,
+    pub swap: Box<dyn Fn(&mut App)>,
+    pub close: Box<dyn Fn(&mut App)>,
 }
 
-/// Render the border context menu (right click on a splitter bar).
-///
-/// `items` appear in order, each separated by a divider line; `on_dismiss`
-/// runs when the user clicks the full-window overlay outside the menu. Each
-/// action is invoked exactly once, so callbacks are moved in without a
-/// `Clone` bound.
-pub fn render_border_menu<F>(
+/// Render the border context menu (right click on a splitter bar) with the
+/// standard actions: split horizontally/vertically, swap and close, with
+/// host-supplied behavior. `on_dismiss` runs when the user clicks the
+/// full-window overlay outside the menu.
+pub fn render_standard_border_menu(
     position: Point<Pixels>,
-    items: Vec<BorderMenuItem<F>>,
+    actions: BorderMenuActions,
     style: &MenuStyle,
-    on_dismiss: F,
-) -> AnyElement
-where
-    F: Fn(&mut App) + 'static,
-{
+    on_dismiss: Box<dyn Fn(&mut App)>,
+) -> AnyElement {
+    type MenuAction = Box<dyn Fn(&mut App)>;
+    let items: Vec<(&'static str, MenuAction)> = vec![
+        ("Split Horizontally", actions.split_horizontal),
+        ("Split Vertically", actions.split_vertical),
+        ("Swap Panels", actions.swap),
+        ("Close Panel", actions.close),
+    ];
+
     let panel = div()
         .id("tiled-border-context-menu")
         .absolute()
@@ -371,87 +376,50 @@ where
         .border_color(style.border)
         .rounded(px(style.radius))
         .shadow_lg()
-        .children(items.into_iter().enumerate().flat_map(|(idx, item)| {
-            let mut elements: Vec<AnyElement> = Vec::with_capacity(2);
-            if idx > 0 {
-                elements.push(
-                    div()
-                        .id(("tiled-border-menu-sep", idx))
-                        .mx(px(style.separator_margin_x))
-                        .my(px(style.separator_margin_y))
-                        .h(px(style.separator_height))
-                        .bg(style.border)
-                        .into_any_element(),
-                );
-            }
-            let on_activate = item.on_activate;
-            elements.push(
-                div()
-                    .id(("tiled-border-menu-item", idx))
-                    .h(px(style.item_height))
-                    .px(px(style.item_padding_x))
-                    .flex()
-                    .items_center()
-                    .rounded(px(style.item_radius))
-                    .bg(style.surface)
-                    .hover(|this| this.bg(style.item_hover))
-                    .cursor_pointer()
-                    .text_size(px(style.text_size))
-                    .font_weight(style.text_weight)
-                    .text_color(style.text)
-                    .child(item.label)
-                    .on_click(move |_event, _window, cx| on_activate(cx))
-                    .into_any_element(),
-            );
-            elements
-        }));
+        .children(
+            items
+                .into_iter()
+                .enumerate()
+                .flat_map(|(idx, (label, on_activate))| {
+                    let mut elements: Vec<AnyElement> = Vec::with_capacity(2);
+                    if idx > 0 {
+                        elements.push(
+                            div()
+                                .id(("tiled-border-menu-sep", idx))
+                                .mx(px(style.separator_margin_x))
+                                .my(px(style.separator_margin_y))
+                                .h(px(style.separator_height))
+                                .bg(style.border)
+                                .into_any_element(),
+                        );
+                    }
+                    elements.push(
+                        div()
+                            .id(("tiled-border-menu-item", idx))
+                            .h(px(style.item_height))
+                            .px(px(style.item_padding_x))
+                            .flex()
+                            .items_center()
+                            .rounded(px(style.item_radius))
+                            .bg(style.surface)
+                            .hover(|this| this.bg(style.item_hover))
+                            .cursor_pointer()
+                            .text_size(px(style.text_size))
+                            .font_weight(style.text_weight)
+                            .text_color(style.text)
+                            .child(label)
+                            .on_click(move |_event, _window, cx| on_activate(cx))
+                            .into_any_element(),
+                    );
+                    elements
+                }),
+        );
 
     overlay_container()
         .id("tiled-border-context-menu-wrapper")
         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| on_dismiss(cx))
         .child(panel)
         .into_any_element()
-}
-
-/// Host-supplied behavior for the standard border-menu actions.
-pub struct BorderMenuActions {
-    pub split_horizontal: Box<dyn Fn(&mut App)>,
-    pub split_vertical: Box<dyn Fn(&mut App)>,
-    pub swap: Box<dyn Fn(&mut App)>,
-    pub close: Box<dyn Fn(&mut App)>,
-}
-
-/// Render the standard border context menu: split horizontally/vertically,
-/// swap and close, with host-supplied behavior.
-pub fn render_standard_border_menu(
-    position: Point<Pixels>,
-    actions: BorderMenuActions,
-    style: &MenuStyle,
-    on_dismiss: impl Fn(&mut App) + 'static,
-) -> AnyElement {
-    render_border_menu(
-        position,
-        vec![
-            BorderMenuItem {
-                label: "Split Horizontally",
-                on_activate: actions.split_horizontal,
-            },
-            BorderMenuItem {
-                label: "Split Vertically",
-                on_activate: actions.split_vertical,
-            },
-            BorderMenuItem {
-                label: "Swap Panels",
-                on_activate: actions.swap,
-            },
-            BorderMenuItem {
-                label: "Close Panel",
-                on_activate: actions.close,
-            },
-        ],
-        style,
-        Box::new(on_dismiss),
-    )
 }
 
 /// Whether a corner-drag gesture may show a preview (and be applied) by

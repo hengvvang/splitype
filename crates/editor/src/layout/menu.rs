@@ -64,12 +64,12 @@ impl Editor {
             border_menu.position,
             actions,
             &menu_style,
-            move |app| {
+            Box::new(move |app| {
                 let _ = dismiss_ed.update(app, |ed, cx| {
                     ed.session_mut().root.active_border_menu = None;
                     cx.notify();
                 });
-            },
+            }),
         ))
     }
 }

@@ -85,7 +85,7 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
             let footnote_end = collect_footnote_definition_region(lines, index);
             if let Some(mut footnote_blocks) = build_native_footnote_definition_block(
                 &lines[index..footnote_end],
-                crate::parse::ParseMode::Wysiwyg,
+                crate::parse::ParseMode::Linewise,
             ) {
                 child_blocks.append(&mut footnote_blocks);
                 saw_child = true;
@@ -314,7 +314,7 @@ pub(crate) fn build_native_callout_block(
             let footnote_end = collect_footnote_definition_region(lines, index);
             if let Some(mut footnote_blocks) = build_native_footnote_definition_block(
                 &lines[index..footnote_end],
-                crate::parse::ParseMode::Wysiwyg,
+                crate::parse::ParseMode::Linewise,
             ) {
                 child_blocks.append(&mut footnote_blocks);
                 index = footnote_end;

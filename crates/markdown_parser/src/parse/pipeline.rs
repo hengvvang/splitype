@@ -20,19 +20,21 @@ use crate::parse::kind::BlockKind;
 /// Parsing mode for Markdown documents.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ParseMode {
-    /// WYSIWYG mode (editing-first): 1 source line maps 1:1 to 1 block, empty lines are independent empty blocks.
+    /// Linewise mode: 1 source line maps 1:1 to 1 block, empty lines are
+    /// independent empty blocks (editing-first).
     #[default]
-    Wysiwyg,
-    /// Preview mode (standard-first): merges consecutive lines into single <p> paragraphs adhering 100% to CommonMark.
-    Preview,
+    Linewise,
+    /// CommonMark mode: merges consecutive lines into single <p> paragraphs
+    /// adhering 100% to CommonMark.
+    CommonMark,
 }
 
 pub fn parse_wysiwyg_document(markdown: &str) -> Vec<BlockData> {
-    parse_document_with_mode(markdown, ParseMode::Wysiwyg)
+    parse_document_with_mode(markdown, ParseMode::Linewise)
 }
 
 pub fn parse_preview_document(markdown: &str) -> Vec<BlockData> {
-    parse_document_with_mode(markdown, ParseMode::Preview)
+    parse_document_with_mode(markdown, ParseMode::CommonMark)
 }
 
 pub fn parse_document_with_mode(markdown: &str, mode: ParseMode) -> Vec<BlockData> {
@@ -55,7 +57,7 @@ pub(crate) fn build_blocks_from_lines_internal(
     while index < lines.len() {
         let line = &lines[index];
         if line.trim().is_empty() {
-            if mode == ParseMode::Wysiwyg {
+            if mode == ParseMode::Linewise {
                 roots.push(native_block(BlockKind::Paragraph, ""));
             }
             index += 1;
@@ -189,11 +191,11 @@ pub(crate) fn build_blocks_from_lines_internal(
         }
 
         match mode {
-            ParseMode::Wysiwyg => {
+            ParseMode::Linewise => {
                 roots.push(native_block(BlockKind::Paragraph, line));
                 index += 1;
             }
-            ParseMode::Preview => {
+            ParseMode::CommonMark => {
                 let paragraph = collect_paragraph_block(lines, index);
                 roots.push(paragraph.0);
                 index = paragraph.1;

@@ -59,11 +59,16 @@ impl Shell {
             }),
         };
 
-        render_standard_border_menu(border_menu.position, actions, &menu_style, move |app| {
-            let _ = dismiss_shell.update(app, |shell, cx| {
-                shell.panels.layout.active_border_menu = None;
-                cx.notify();
-            });
-        })
+        render_standard_border_menu(
+            border_menu.position,
+            actions,
+            &menu_style,
+            Box::new(move |app| {
+                let _ = dismiss_shell.update(app, |shell, cx| {
+                    shell.panels.layout.active_border_menu = None;
+                    cx.notify();
+                });
+            }),
+        )
     }
 }

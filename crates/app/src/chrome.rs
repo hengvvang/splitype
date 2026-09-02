@@ -1,8 +1,7 @@
-//! Window-level chrome for Shell-rooted windows: the in-window fallback
-//! menu bar's open/hover state machine ([`MenuBarState`]) plus the chrome
-//! renderers — the custom system titlebar ([`titlebar`]), the inline menu
-//! bar buttons ([`menu_bar`]), and the menu dropdown panels
-//! ([`menu_dropdown`]).
+//! Window-level chrome for Shell-rooted windows: the in-window menu bar's
+//! open/hover state machine ([`MenuBarState`]) plus the chrome renderers —
+//! the custom system titlebar ([`titlebar`]), the inline menu bar buttons
+//! ([`menu_bar`]), and the menu dropdown panels ([`menu_dropdown`]).
 
 pub mod menu_bar;
 pub mod menu_dropdown;
@@ -16,10 +15,10 @@ use crate::shell::Shell;
 /// Open/hover state for the in-window titlebar menu bar.
 #[derive(Default)]
 pub(crate) struct MenuBarState {
-    /// Open top-level menu in the in-window fallback menu bar.
+    /// Open top-level menu in the in-window menu bar.
     pub(crate) open: Option<usize>,
     pub(crate) expanded: bool,
-    /// Open child submenu inside the in-window fallback menu panel.
+    /// Open child submenu inside the in-window menu panel.
     pub(crate) submenu_open: Option<usize>,
     pub(crate) panel_hovered: bool,
     pub(crate) submenu_panel_hovered: bool,

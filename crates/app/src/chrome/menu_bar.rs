@@ -9,9 +9,9 @@ use ui::button::menu_bar_button;
 use ui::menu_bar::{TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width};
 
 impl Shell {
-    /// Renders the in-window menu bar row (the fallback for platforms
-    /// without a native application menu): the app icon toggle button plus
-    /// one button per top-level menu.
+    /// Renders the in-window menu bar row (used on platforms without a
+    /// native application menu): the app icon toggle button plus one button
+    /// per top-level menu.
     pub(crate) fn render_inline_titlebar_menu(
         &self,
         theme: &Theme,

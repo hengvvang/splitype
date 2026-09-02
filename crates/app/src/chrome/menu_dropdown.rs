@@ -178,7 +178,7 @@ impl Shell {
         }
     }
 
-    /// Renders the currently open in-window fallback menu as a floating panel.
+    /// Renders the currently open in-window menu as a floating panel.
     pub(crate) fn render_in_window_menu_panel(
         &self,
         theme: &Theme,
