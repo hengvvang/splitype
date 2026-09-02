@@ -5,6 +5,7 @@
 //! lives in the reusable component layer (`crate::ui`): generic over the
 //! hosting view entity and free of editor/model imports.
 
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use config::SPLITYPE_APP_ID;
@@ -295,15 +296,17 @@ pub fn render_custom_titlebar<T: 'static>(
         .flex()
         .items_center()
         .window_control_area(WindowControlArea::Drag)
-        .child(
-            div()
-                .min_w(px(0.0))
-                .truncate()
-                .text_size(px(theme.dimensions.menu_text_size))
-                .font_weight(t.dialog_button_weight.to_font_weight())
-                .text_color(c.dialog_secondary_button_text)
-                .child(title),
-        );
+        .when(!title.is_empty(), |this| {
+            this.child(
+                div()
+                    .min_w(px(0.0))
+                    .truncate()
+                    .text_size(px(theme.dimensions.menu_text_size))
+                    .font_weight(t.dialog_button_weight.to_font_weight())
+                    .text_color(c.dialog_secondary_button_text)
+                    .child(title),
+            )
+        });
 
     let drag_title = match drag_strategy {
         TitlebarDragStrategy::PlatformHitTest => drag_title,

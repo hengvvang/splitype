@@ -30,20 +30,14 @@ impl Shell {
             .as_ref()
             .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
             .unwrap_or_default();
-        let window_title: SharedString = self
-            .active_document_tab_path(cx)
-            .and_then(|path| {
-                path.file_name()
-                    .map(|name| name.to_string_lossy().to_string())
-            })
-            .unwrap_or_default()
-            .into();
         let inline_menu =
             self.render_inline_titlebar_menu(theme, cx, menus.as_deref(), &menu_labels);
 
+        // The editor titlebar stays minimal: no document name, just the
+        // drag area, the menu, and the window controls.
         let titlebar = render_custom_titlebar(
             "editor-titlebar",
-            window_title,
+            SharedString::default(),
             inline_menu,
             theme,
             window,
