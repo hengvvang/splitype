@@ -136,41 +136,45 @@ impl Editor {
             let editor = cx.entity().downgrade();
             let btn_icon_size = toolbar_icon_size(d.bottombar_height);
 
-            let split_h_editor = editor.clone();
-            right_items.push(
-                icon_chip_button(c, d)
-                    .child(
-                        svg()
-                            .path("icons/editor/bottombar/split-h.svg")
-                            .size(px(btn_icon_size))
-                            .text_color(c.dialog_muted),
-                    )
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.split_pane(pane_id, SplitAxis::Horizontal);
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element(),
-            );
+            // Splitting is disabled while the pane is maximized (mirrors the
+            // window-level panels), so the split buttons are hidden.
+            if !is_pane_maximized {
+                let split_h_editor = editor.clone();
+                right_items.push(
+                    icon_chip_button(c, d)
+                        .child(
+                            svg()
+                                .path("icons/editor/bottombar/split-h.svg")
+                                .size(px(btn_icon_size))
+                                .text_color(c.dialog_muted),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                            let _ = split_h_editor.update(cx, |ed, cx| {
+                                ed.split_pane(pane_id, SplitAxis::Horizontal);
+                                cx.notify();
+                            });
+                        })
+                        .into_any_element(),
+                );
 
-            let split_v_editor = editor.clone();
-            right_items.push(
-                icon_chip_button(c, d)
-                    .child(
-                        svg()
-                            .path("icons/editor/bottombar/split-v.svg")
-                            .size(px(btn_icon_size))
-                            .text_color(c.dialog_muted),
-                    )
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.split_pane(pane_id, SplitAxis::Vertical);
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element(),
-            );
+                let split_v_editor = editor.clone();
+                right_items.push(
+                    icon_chip_button(c, d)
+                        .child(
+                            svg()
+                                .path("icons/editor/bottombar/split-v.svg")
+                                .size(px(btn_icon_size))
+                                .text_color(c.dialog_muted),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                            let _ = split_v_editor.update(cx, |ed, cx| {
+                                ed.split_pane(pane_id, SplitAxis::Vertical);
+                                cx.notify();
+                            });
+                        })
+                        .into_any_element(),
+                );
+            }
 
             if inner_leaf_count > 1 || is_pane_maximized {
                 let max_editor = editor.clone();

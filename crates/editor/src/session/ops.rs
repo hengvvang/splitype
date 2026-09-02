@@ -56,11 +56,12 @@ impl Editor {
         axis: SplitAxis,
         ratio: f32,
     ) {
-        let pane_id = pane_id.into();
-        if let Some(panel) = self.session.root.tree.find_leaf_mut(pane_id.0) {
-            panel.maximized = false;
+        // Splitting is disabled while a pane is maximized, mirroring the
+        // window shell's panel-level behavior.
+        if self.session.root.tree.find_maximized_leaf().is_some() {
+            return;
         }
-        self.session.root.split_leaf(pane_id.0, axis, ratio);
+        self.session.root.split_leaf(pane_id.into().0, axis, ratio);
     }
 
     pub fn swap_pane_split_sides(&mut self, split_id: NodeId) {

@@ -5,7 +5,6 @@ pub(crate) mod drag;
 pub(crate) mod menu;
 pub(crate) mod node;
 
-use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::editor::Editor;
@@ -40,7 +39,6 @@ impl Editor {
         }
 
         let maximized_pane = inner_tree.find_maximized_leaf();
-        let is_maximized = maximized_pane.is_some();
         let inner_rendered = if let Some(maximized_pane) = maximized_pane {
             let single =
                 splitter::tree::SplitTree::Leaf(splitter::container::SplitterContainer::new(
@@ -61,22 +59,6 @@ impl Editor {
             .relative()
             .bg(c.editor_background)
             .child(inner_rendered)
-            .when(is_maximized, |el| {
-                el.child(
-                    div()
-                        .id("editor-maximized-indicator")
-                        .absolute()
-                        .top_2()
-                        .right_2()
-                        .px_2()
-                        .py_1()
-                        .rounded_md()
-                        .bg(c.dialog_surface)
-                        .text_size(px(11.0))
-                        .text_color(c.dialog_muted)
-                        .child("Maximized (click button or shortcut to restore)"),
-                )
-            })
             .into_any_element()
     }
 }
