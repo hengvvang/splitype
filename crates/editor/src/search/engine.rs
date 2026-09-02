@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use gpui::{App, ClipboardItem, Context, KeyDownEvent, Window};
+use gpui::{App, ClipboardItem, Context, KeyDownEvent, Window, point, px};
 
 use crate::editor::Editor;
 use editor_contracts::SearchQuery;
@@ -194,11 +194,42 @@ impl Editor {
         cx.notify();
     }
 
-    /// Synchronizes search match highlights to the active pane.
-    pub fn sync_search_highlights_to_document(&mut self, _cx: &mut App) {}
+    /// Synchronizes search match highlights to the active pane. Matches that
+    /// belong to the active document (same file path, or the untitled buffer)
+    /// are passed to the pane with the active match index; the pane renders
+    /// them however it decorates its content.
+    pub fn sync_search_highlights_to_document(&mut self, cx: &mut App) {
+        let active_pane = self.active_pane_id();
+        let active_file_path = self.active_tab().and_then(|tab| tab.file.path.clone());
+        let mut highlights: Vec<SearchMatch> = Vec::new();
+        let mut active_index = None;
+        for (idx, item) in self.search.matches.iter().enumerate() {
+            if item.file_path != active_file_path {
+                continue;
+            }
+            if Some(idx) == self.search.active_match_index {
+                active_index = Some(highlights.len());
+            }
+            highlights.push(item.clone());
+        }
+        let Some(state) = self.pane_state_mut(active_pane) else {
+            return;
+        };
+        if state.pane.capabilities().searchable {
+            state
+                .pane
+                .set_search_highlights(&highlights, active_index, cx);
+        }
+    }
 
     /// Clears search highlights from the active pane.
-    pub fn clear_search_highlights_from_document(&mut self, _cx: &mut App) {}
+    pub fn clear_search_highlights_from_document(&mut self, cx: &mut App) {
+        if let Some(state) = self.pane_state_mut(self.active_pane_id()) {
+            if state.pane.capabilities().searchable {
+                state.pane.set_search_highlights(&[], None, cx);
+            }
+        }
+    }
 
     /// Handles keyboard events when typing in search / replace input fields.
     pub fn handle_search_key_down(
@@ -543,7 +574,12 @@ impl Editor {
         let active_pane = self.active_pane_id();
         if let Some(state) = self.pane_state_mut(active_pane) {
             if state.pane.capabilities().searchable {
-                state.pane.navigate_to_search_match(&match_item, cx);
+                if let Some(target_y) = state.pane.navigate_to_search_match(&match_item, cx) {
+                    state
+                        .scroll
+                        .handle
+                        .set_offset(point(px(0.0), px(-target_y.max(0.0))));
+                }
             }
             if let Some(handle) = state.pane.focus_handle(cx) {
                 handle.focus(window, cx);
@@ -551,16 +587,10 @@ impl Editor {
         }
 
         self.sync_search_highlights_to_document(cx);
-        self.request_autoscroll(
-            active_pane,
-            editor_contracts::AutoscrollStrategy::Center,
-            cx,
-        );
         window.refresh();
         cx.notify();
     }
 
-    /// Replaces the current search match in the document.
     /// Replaces the current search match in the document or source code.
     pub fn replace_current_search_match(
         &mut self,

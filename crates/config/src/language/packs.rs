@@ -147,43 +147,6 @@ fn is_valid_custom_language_id(language_id: &str) -> bool {
         && language_id.chars().any(|ch| ch.is_ascii_alphabetic())
 }
 
-/// Selects a built-in language id from preferred system locales.
-pub fn language_id_for_locale_settings<I, S>(locales: I) -> &'static str
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    locales
-        .into_iter()
-        .find_map(|locale| language_id_for_locale(locale.as_ref()))
-        .unwrap_or(BUILTIN_LANGUAGE_EN_US_ID)
-}
-
-fn language_id_for_locale(locale: &str) -> Option<&'static str> {
-    let locale = locale.trim();
-    if locale.is_empty() {
-        return None;
-    }
-
-    let no_encoding = locale
-        .split_once('.')
-        .map_or(locale, |(locale, _encoding)| locale);
-    let no_modifier = no_encoding
-        .split_once('@')
-        .map_or(no_encoding, |(locale, _modifier)| locale);
-    let locale = no_modifier.replace('_', "-");
-    let language = locale.split('-').next()?.to_ascii_lowercase();
-    if !language.chars().all(|ch| ch.is_ascii_alphabetic()) {
-        return None;
-    }
-
-    match language.as_str() {
-        "zh" => Some(BUILTIN_LANGUAGE_ZH_CN_ID),
-        "en" => Some(BUILTIN_LANGUAGE_EN_US_ID),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,7 +167,10 @@ mod tests {
         assert_eq!(resolved.author, "Tanaka");
         assert_eq!(resolved.strings.menu_file, "ファイル");
         // Omitted keys inherit from English.
-        assert_eq!(resolved.strings.menu_export, I18nStrings::en_us().menu_export);
+        assert_eq!(
+            resolved.strings.menu_export,
+            I18nStrings::en_us().menu_export
+        );
 
         // Custom packs based on a built-in base language inherit it.
         let zh = LanguagePackContent::from_jsonc(
@@ -218,7 +184,10 @@ mod tests {
         .expect("pack should parse");
         let resolved = zh.resolve();
         assert_eq!(resolved.strings.menu_file, "文件菜单");
-        assert_eq!(resolved.strings.menu_export, I18nStrings::zh_cn().menu_export);
+        assert_eq!(
+            resolved.strings.menu_export,
+            I18nStrings::zh_cn().menu_export
+        );
     }
 
     #[test]
@@ -242,10 +211,12 @@ mod tests {
             .is_err()
         );
         assert!(LanguagePackContent::from_jsonc(r#"{ "id": "ja-JP", "strings": {} }"#).is_err());
-        assert!(LanguagePackContent::from_jsonc(
-            r#"{ "id": "ja-JP", "name": "日本語", "base": "fr-FR", "strings": {} }"#
-        )
-        .is_err());
+        assert!(
+            LanguagePackContent::from_jsonc(
+                r#"{ "id": "ja-JP", "name": "日本語", "base": "fr-FR", "strings": {} }"#
+            )
+            .is_err()
+        );
     }
 
     #[test]

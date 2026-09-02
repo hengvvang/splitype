@@ -12,7 +12,7 @@ use crate::root::SplitterRoot;
 use crate::sessions::{
     AreaDockTarget, CornerDragModifier, CornerDragSession, past_shortcut_threshold,
 };
-use crate::tree::{NodeId, SplitAxis, SplitTree};
+use crate::tree::{NodeId, SplitTree};
 
 /// A whole container cloned for a Shift-drag "open clone window" gesture:
 /// the new tree, the id pool it was assigned from, and the mapping from
@@ -29,29 +29,20 @@ pub struct ClonedContainer<T: Clone + PartialEq> {
 #[derive(Clone, Debug, PartialEq)]
 pub enum CornerDragResult<T: Clone + PartialEq> {
     /// Same-area split performed, creating a new sibling leaf.
-    Split {
-        target_id: NodeId,
-        new_leaf_id: NodeId,
-        axis: SplitAxis,
-        ratio: f32,
-    },
-    /// Adjacent join performed: into_id absorbs removed_id.
-    Join { into_id: NodeId, removed_id: NodeId },
+    Split { new_leaf_id: NodeId },
+    /// Adjacent join performed: removed_id's leaf was absorbed.
+    Join { removed_id: NodeId },
     /// Move and dock performed: source_id moved and docked onto target_id.
     MoveAndDock {
         source_id: NodeId,
         target_id: NodeId,
         new_leaf_id: NodeId,
         dock_target: AreaDockTarget,
-        ratio: f32,
     },
     /// Area swap performed between a and b.
     Swap { a: NodeId, b: NodeId },
     /// Shift-drag new window clone created.
-    CloneWindow {
-        source_id: NodeId,
-        container: ClonedContainer<T>,
-    },
+    CloneWindow { container: ClonedContainer<T> },
     /// Gesture ended with no topology change.
     None,
 }
@@ -76,7 +67,6 @@ pub fn apply_corner_drag_session<T: Clone + PartialEq>(
             let mut id_map = HashMap::new();
             id_map.insert(facts.target_id, new_id);
             CornerDragResult::CloneWindow {
-                source_id: facts.target_id,
                 container: ClonedContainer {
                     tree: SplitTree::Leaf(SplitterContainer::new(new_id, kind)),
                     next_node_id: new_id + 1,
@@ -120,14 +110,12 @@ pub fn apply_corner_drag_session<T: Clone + PartialEq>(
                                 target_id: hover,
                                 new_leaf_id,
                                 dock_target: facts.dock_target,
-                                ratio: facts.dock_ratio,
                             }
                         } else {
                             CornerDragResult::None
                         }
                     } else if root.join_leaves(hover, facts.target_id) {
                         CornerDragResult::Join {
-                            into_id: hover,
                             removed_id: facts.target_id,
                         }
                     } else {
@@ -135,12 +123,7 @@ pub fn apply_corner_drag_session<T: Clone + PartialEq>(
                     }
                 } else if let Some((axis, ratio)) = root.corner_split_facts(facts, container_size) {
                     if let Some(new_leaf_id) = root.split_leaf(facts.target_id, axis, ratio) {
-                        CornerDragResult::Split {
-                            target_id: facts.target_id,
-                            new_leaf_id,
-                            axis,
-                            ratio,
-                        }
+                        CornerDragResult::Split { new_leaf_id }
                     } else {
                         CornerDragResult::None
                     }
@@ -149,12 +132,7 @@ pub fn apply_corner_drag_session<T: Clone + PartialEq>(
                 }
             } else if let Some((axis, ratio)) = root.corner_split_facts(facts, container_size) {
                 if let Some(new_leaf_id) = root.split_leaf(facts.target_id, axis, ratio) {
-                    CornerDragResult::Split {
-                        target_id: facts.target_id,
-                        new_leaf_id,
-                        axis,
-                        ratio,
-                    }
+                    CornerDragResult::Split { new_leaf_id }
                 } else {
                     CornerDragResult::None
                 }
@@ -162,6 +140,5 @@ pub fn apply_corner_drag_session<T: Clone + PartialEq>(
                 CornerDragResult::None
             }
         }
-        CornerDragModifier::Alt => CornerDragResult::None,
     }
 }

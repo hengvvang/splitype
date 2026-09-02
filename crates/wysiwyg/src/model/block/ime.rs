@@ -10,7 +10,6 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::model::block::Block;
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
 use crate::render::text_layout as element;
 use markdown_parser::inline::offsets::ImeConverter;
 
@@ -107,17 +106,6 @@ impl EntityInputHandler for Block {
             return;
         }
 
-        if self.editor_selection_range.is_some() {
-            cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
-                text: new_text.to_string(),
-                selected_range_relative: None,
-                mark_inserted_text: false,
-                undo_kind: UndoCaptureKind::CoalescibleText,
-            });
-            return;
-        }
-
-        self.prepare_undo_capture(UndoCaptureKind::CoalescibleText, cx);
         let display_range = range_utf16
             .as_ref()
             .map(|range| self.range_from_utf16(range))
@@ -180,21 +168,6 @@ impl EntityInputHandler for Block {
             return;
         }
 
-        if self.editor_selection_range.is_some() {
-            let selected_range_relative = new_selected_range_utf16
-                .as_ref()
-                .map(|range_utf16| ImeConverter::utf16_range_to_utf8_in(new_text, range_utf16))
-                .map(|relative| relative.start..relative.end);
-            cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
-                text: new_text.to_string(),
-                selected_range_relative,
-                mark_inserted_text: !new_text.is_empty(),
-                undo_kind: UndoCaptureKind::CoalescibleText,
-            });
-            return;
-        }
-
-        self.prepare_undo_capture(UndoCaptureKind::CoalescibleText, cx);
         let display_range = range_utf16
             .as_ref()
             .map(|range| self.range_from_utf16(range))

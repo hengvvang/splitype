@@ -16,7 +16,7 @@ use gpui::*;
 use serde_json::Value;
 
 use config::language::I18nManager;
-use config::settings::{CoreSettings, PluginSettings, SettingsStore};
+use config::settings::{CoreSettings, PluginSettings, PluginSettingsDefinition, SettingsStore};
 use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, SettingKind};
 use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
 use ui::section::section_card;
@@ -396,7 +396,6 @@ fn render_control(
             }),
             c,
             d,
-            |_cx, _value| {},
             cx,
         ),
         SettingKind::Font => {
@@ -527,9 +526,6 @@ fn render_control(
                 label,
                 c,
                 d,
-                // The settings write below triggers the theme sync hook,
-                // which resolves and applies the selected family live.
-                |_cx, _value| {},
                 cx,
             )
         }
@@ -560,9 +556,6 @@ fn render_control(
                 label,
                 c,
                 d,
-                // The settings write below triggers the language sync hook,
-                // which applies the selected language live.
-                |_cx, _value| {},
                 cx,
             )
         }
@@ -733,8 +726,8 @@ fn render_text_control(
         .into_any_element()
 }
 
-/// Renders a dropdown picker over the given options; `on_select` runs the
-/// kind-specific live apply (theme/language) before the value is persisted.
+/// Renders a dropdown picker over the given options. The selected value is
+/// written back through the settings store, whose sync hooks apply it live.
 #[allow(clippy::too_many_arguments)]
 fn render_picker(
     id_namespace: &str,
@@ -746,7 +739,6 @@ fn render_picker(
     current_label: Option<String>,
     c: &theme::ThemeColors,
     d: &theme::ThemeDimensions,
-    on_select: impl Fn(&mut App, String) + 'static,
     cx: &mut App,
 ) -> AnyElement {
     let key = declaration.key.clone();
@@ -783,7 +775,6 @@ fn render_picker(
 
     let mut wrap = div().relative().child(trigger);
     if is_open {
-        let apply = Arc::new(on_select);
         let mut items = Vec::new();
         for option in &options {
             let is_selected = option.value == current_value;
@@ -792,7 +783,6 @@ fn render_picker(
             let close_state = state.clone();
             let close_key = key.clone();
             let select_plugin = plugin_id.to_string();
-            let apply = apply.clone();
             items.push(
                 select_option(
                     ElementId::Name(
@@ -820,7 +810,6 @@ fn render_picker(
                 })
                 .on_click(Box::new(
                     move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
-                        apply(cx, option_value.clone());
                         let _ = SettingsStore::set_plugin_value(
                             cx,
                             &select_plugin,
@@ -1869,7 +1858,7 @@ fn remove_installed_theme(cx: &mut App, family_id: &str) {
     if is_current {
         let _ = SettingsStore::set_plugin_value(
             cx,
-            "splitype.core",
+            CoreSettings::PLUGIN_ID,
             "theme.family",
             Value::String(config::settings::DEFAULT_THEME_FAMILY.into()),
         );

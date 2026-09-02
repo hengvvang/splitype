@@ -1,9 +1,8 @@
+use crate::bottombar::render_explorer_bottombar;
 use crate::persist::PersistedExplorerState;
+use crate::render::{render_explorer_body, render_explorer_file_context_menu};
 use crate::state::ExplorerState;
-use crate::{
-    render_explorer_body, render_explorer_bottombar, render_explorer_file_context_menu,
-    render_explorer_topbar,
-};
+use crate::topbar::render_explorer_topbar;
 use gpui::*;
 use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;

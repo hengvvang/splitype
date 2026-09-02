@@ -18,7 +18,7 @@ use gpui::*;
 #[cfg(not(test))]
 use notify::Watcher as _;
 
-use crate::ExplorerState;
+use crate::state::ExplorerState;
 
 // ── Identifiers ─────────────────────────────────────────────────────────
 

@@ -79,14 +79,13 @@ fn skeleton_items(
                 .available_themes()
                 .iter()
                 .map(|entry| {
-                    let label =
-                        if entry.family == config::settings::DEFAULT_THEME_FAMILY {
-                            entry.name.clone()
-                        } else if entry.author.is_empty() {
-                            format!("{} · {}", entry.family_name, entry.name)
-                        } else {
-                            format!("{} · {}", entry.name, entry.author)
-                        };
+                    let label = if entry.family == config::settings::DEFAULT_THEME_FAMILY {
+                        entry.name.clone()
+                    } else if entry.author.is_empty() {
+                        format!("{} · {}", entry.family_name, entry.name)
+                    } else {
+                        format!("{} · {}", entry.name, entry.author)
+                    };
                     MenuItem::action(
                         label,
                         SelectTheme {

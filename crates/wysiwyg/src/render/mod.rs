@@ -8,7 +8,6 @@
 pub mod blocks;
 pub mod inline;
 pub mod layout;
-pub mod presentation;
 pub mod text_layout;
 
 pub use blocks::*;
@@ -247,14 +246,11 @@ impl Render for Block {
                     runtime,
                     Length::Definite(relative(1.0)),
                     px(d.image_cell_max_height),
-                    px(d.image_cell_placeholder_height),
                     &theme,
-                    &strings,
                 )
             } else if !focused
                 && let Some(inline_images) = self.render_table_cell_inline_images(
                     &theme,
-                    &strings,
                     if style_as_header {
                         FontWeight::MEDIUM
                     } else {
@@ -362,9 +358,7 @@ impl Render for Block {
                     runtime,
                     max_width.into(),
                     px(d.image_root_max_height),
-                    px(d.image_root_placeholder_height),
                     &theme,
-                    &strings,
                 );
 
                 if !focused {
@@ -400,7 +394,10 @@ impl Render for Block {
                                 .rounded(px(d.code_block_radius))
                                 .child(editor_section),
                         )
-                        .child(render_graphic_preview_box(image_preview, &theme));
+                        .child(syntax_highlighter::graphics::render_graphic_preview_box(
+                            image_preview,
+                            &theme,
+                        ));
 
                     return focused_base
                         .relative()

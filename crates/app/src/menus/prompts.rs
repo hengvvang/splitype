@@ -10,11 +10,6 @@ use config::language::{I18nManager, import_language_config_and_select};
 use config::recent::{read_recent_files, remove_recent_file};
 use theme::import_theme_config_and_select;
 
-pub(super) fn open_recent_file(cx: &mut App, path: PathBuf) {
-    let error_window = cx.active_window();
-    open_recent_file_with_error_window(cx, path, error_window);
-}
-
 pub(super) fn open_recent_file_with_error_window(
     cx: &mut App,
     path: PathBuf,
@@ -40,11 +35,6 @@ pub(super) fn open_recent_file_with_error_window(
     }
 
     open_file_in_editor_or_new_window(cx, &path);
-}
-
-pub(super) fn prompt_and_open_files(cx: &mut App) {
-    let error_window = cx.active_window();
-    prompt_and_open_files_with_error_window(cx, error_window);
 }
 
 pub(super) fn prompt_and_open_files_with_error_window(
@@ -113,11 +103,6 @@ pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     record_recent_file_and_refresh(path, cx);
 }
 
-pub(super) fn prompt_and_import_language_config(cx: &mut App) {
-    let error_window = cx.active_window();
-    prompt_and_import_language_config_with_error_window(cx, error_window);
-}
-
 pub(super) fn prompt_and_import_language_config_with_error_window(
     cx: &mut App,
     error_window: Option<AnyWindowHandle>,
@@ -171,11 +156,6 @@ pub(super) fn prompt_and_import_language_config_with_error_window(
         Ok(Ok(None)) | Err(_) => {}
     })
     .detach();
-}
-
-pub(super) fn prompt_and_import_theme_config(cx: &mut App) {
-    let error_window = cx.active_window();
-    prompt_and_import_theme_config_with_error_window(cx, error_window);
 }
 
 pub(super) fn prompt_and_import_theme_config_with_error_window(

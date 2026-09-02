@@ -3,7 +3,6 @@
 pub mod code_language;
 pub mod edit_mode;
 pub mod events;
-pub mod footnotes;
 pub mod image;
 pub mod ime;
 pub mod metadata;
@@ -15,7 +14,6 @@ pub mod state;
 pub mod table_cell;
 
 pub use edit_mode::BlockEditMode;
-pub use footnotes::FootnoteMap;
 pub use navigation::normalize_code_language_input;
 pub use state::*;
 
@@ -23,6 +21,9 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
+
+use markdown_parser::block::image::ImageHandle;
+use markdown_parser::footnotes::FootnoteMap;
 
 use gpui::*;
 
@@ -59,7 +60,6 @@ pub struct Block {
     pub code_toolbar: CodeToolbarState,
     pub selected_range: Range<usize>,
     pub selection_reversed: bool,
-    pub editor_selection_range: Option<Range<usize>>,
     pub marked_range: Option<Range<usize>>,
     /// Geometry and layout of the last frame's paints, one entry per pane
     /// that rendered this block. The same block entity renders in every
@@ -150,7 +150,6 @@ impl Block {
             code_toolbar: CodeToolbarState::default(),
             selected_range: 0..0,
             selection_reversed: false,
-            editor_selection_range: None,
             marked_range: None,
             last_paints: Vec::new(),
             render_depth: 0,

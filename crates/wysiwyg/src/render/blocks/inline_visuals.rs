@@ -2,14 +2,14 @@
 
 use gpui::*;
 
-use crate::model::block::{Block, ImageHandle};
+use crate::model::block::Block;
 use crate::render::LinkFollowCursor;
 use crate::render::html_document::html_css_color_to_hsla;
 use crate::render::inline::text_element::BlockTextElement;
 use crate::render::inline_word_chunks;
 use crate::render::render_image_placeholder;
 use crate::render::render_loading_placeholder;
-use config::language::I18nStrings;
+use markdown_parser::block::image::ImageHandle;
 use markdown_parser::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
@@ -31,11 +31,7 @@ impl Block {
         // Mixed inline visuals are display-only. Once focused, the text element
         // takes over so caret movement, projection markers, and IME ranges stay
         // anchored to editable text rather than rendered SVG/script offsets.
-        if focused
-            || is_placeholder
-            || self.editor_selection_range.is_some()
-            || !self.has_mixed_inline_visuals()
-        {
+        if focused || is_placeholder || !self.has_mixed_inline_visuals() {
             return BlockTextElement::new(cx.entity(), is_placeholder).into_any_element();
         }
 
@@ -392,12 +388,7 @@ impl Block {
         }
     }
 
-    pub fn render_inline_image_content(
-        &self,
-        runtime: &ImageHandle,
-        theme: &Theme,
-        strings: &I18nStrings,
-    ) -> AnyElement {
+    pub fn render_inline_image_content(&self, runtime: &ImageHandle, theme: &Theme) -> AnyElement {
         let d = &theme.dimensions;
         let source = runtime.resolved_source.clone();
         let max_height = px(d.image_cell_placeholder_height);
@@ -405,8 +396,6 @@ impl Block {
             Length::Definite(px((d.image_cell_placeholder_height * 1.6).max(48.0)).into());
         let placeholder_theme = theme.clone();
         let loading_theme = theme.clone();
-        let placeholder_strings = strings.clone();
-        let loading_strings = strings.clone();
         let runtime_for_fallback = runtime.clone();
         let runtime_for_loading = runtime.clone();
 
@@ -418,22 +407,10 @@ impl Block {
         .max_h(max_height)
         .object_fit(ObjectFit::Contain)
         .with_fallback(move || {
-            render_image_placeholder(
-                &runtime_for_fallback,
-                max_width,
-                max_height,
-                &placeholder_theme,
-                &placeholder_strings,
-            )
+            render_image_placeholder(&runtime_for_fallback, max_width, &placeholder_theme)
         })
         .with_loading(move || {
-            render_loading_placeholder(
-                &runtime_for_loading,
-                max_width,
-                max_height,
-                &loading_theme,
-                &loading_strings,
-            )
+            render_loading_placeholder(&runtime_for_loading, max_width, &loading_theme)
         });
 
         div()
@@ -448,7 +425,6 @@ impl Block {
     pub fn render_table_cell_inline_images(
         &self,
         theme: &Theme,
-        strings: &I18nStrings,
         font_weight: FontWeight,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
@@ -479,7 +455,7 @@ impl Block {
                 }
                 TableCellInlineImageSegment::Image { markdown, syntax } => {
                     if let Some(runtime) = self.image_handle_for_syntax(syntax) {
-                        children.push(self.render_inline_image_content(&runtime, theme, strings));
+                        children.push(self.render_inline_image_content(&runtime, theme));
                     } else {
                         let tree = markdown_parser::inline::text::BlockText::plain(markdown);
                         children.extend(self.render_inline_tree_children(

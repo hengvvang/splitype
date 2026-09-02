@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::input::paste::plain::should_split_plain_multiline_paste;
 use crate::model::block::Block;
-use crate::model::protocol::{BlockEvent, PastedImageSource, UndoCaptureKind};
+use crate::model::protocol::{BlockEvent, PastedImageSource};
 use markdown_parser::inline::text::BlockText;
 use platform_contracts::actions::{Copy, Cut, Paste};
 impl Block {
@@ -82,7 +82,6 @@ impl Block {
 
     pub fn on_cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
         if !self.selected_range.is_empty() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             cx.write_to_clipboard(ClipboardItem::new_string(
                 self.display_text()[self.selected_range.clone()].to_string(),
             ));
@@ -122,25 +121,14 @@ impl Block {
             // Only rendered rich-text blocks apply paste correction. Raw/code
             // contexts preserve bytes, and table cells flatten newlines so the
             // surrounding table structure is not accidentally split.
-            if self.editor_selection_range.is_some() {
-                cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
-                    text,
-                    selected_range_relative: None,
-                    mark_inserted_text: false,
-                    undo_kind: UndoCaptureKind::NonCoalescible,
-                });
-                return;
-            }
 
             if self.is_table_cell() {
                 let flattened = text.replace("\r\n", " ").replace(['\r', '\n'], " ");
-                self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_range(None, &flattened, window, cx);
                 return;
             }
 
             if self.edits_verbatim_text() {
-                self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_range(None, &text, window, cx);
                 return;
             }
@@ -148,7 +136,6 @@ impl Block {
             if text.contains('\n') || text.contains('\r') {
                 let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
                 if self.quote_depth > 0 {
-                    self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                     self.replace_text_in_range(None, &normalized, window, cx);
                     return;
                 }
@@ -170,7 +157,6 @@ impl Block {
                 return;
             }
 
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             self.replace_text_in_range(None, &text, window, cx);
         }
     }

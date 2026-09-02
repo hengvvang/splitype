@@ -8,7 +8,7 @@ use theme::ThemeManager;
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        self.last_viewport = Some(window.viewport_size());
+        self.has_rendered = true;
         self.push_active_document_context(cx);
         self.install_close_guard(window, cx);
 

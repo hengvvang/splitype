@@ -1,6 +1,6 @@
 //! Button style builders — dialog action buttons and toolbar icon buttons.
 //!
-//! Two size families exist to preserve existing visuals:
+//! Two size families cover the two dialog scales:
 //! - standard (`primary_button`, `secondary_button`): 36px height, large
 //!   radius, used by the table-insert dialog and info dialogs;
 //! - compact (`compact_*`): 32px height, small radius, used by the

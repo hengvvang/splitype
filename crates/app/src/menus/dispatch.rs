@@ -74,18 +74,6 @@ pub(crate) fn with_primary_document_panel<R>(
     result.ok().flatten()
 }
 
-pub(crate) fn show_info_dialog_on_active_window(cx: &mut App, kind: InfoDialogKind) {
-    let _ = with_shell_window(cx, move |shell, _window, cx| {
-        shell.show_info_dialog(kind, cx);
-    });
-}
-
-pub(crate) fn request_update_check_on_active_window(cx: &mut App) {
-    let _ = with_shell_window(cx, |shell, window, cx| {
-        shell.request_check_updates(window, cx);
-    });
-}
-
 pub(crate) fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
     let mut candidates = Vec::new();
     let mut push_unique = |window: AnyWindowHandle| {
@@ -166,34 +154,64 @@ pub(crate) fn request_quit_application(cx: &mut App) {
     });
 }
 
-/// Executes one of the app-menu actions against the current application state.
-pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
+/// Target context of an in-window menu dispatch: the originating shell,
+/// the panel the menu was rendered for, and the window itself (needed for
+/// per-window document operations and dialogs).
+pub(crate) struct MenuDispatchTarget<'a> {
+    pub shell: &'a WeakEntity<Shell>,
+    pub panel_id: Option<PanelId>,
+    pub window: &'a mut Window,
+}
+
+impl MenuDispatchTarget<'_> {
+    fn window_handle(&self) -> AnyWindowHandle {
+        self.window.window_handle()
+    }
+}
+
+/// The single menu-action dispatcher. `target` is `Some` when the action was
+/// invoked from an in-window menu (giving it a shell, panel, and window);
+/// native menu actions dispatch with `None` and resolve their window through
+/// the active window / primary document panel instead.
+pub(crate) fn dispatch_menu_action(
+    action: &dyn Action,
+    mut target: Option<MenuDispatchTarget<'_>>,
+    cx: &mut App,
+) {
+    if let Some(target) = target.as_mut() {
+        target.window.activate_window();
+    }
+    let error_window = target.as_ref().map(|target| target.window_handle());
+
     if action.as_any().is::<NewWindow>() {
         open_editor_window(cx, String::new(), None);
     } else if action.as_any().is::<OpenFile>() {
-        prompts::prompt_and_open_files(cx);
+        prompts::prompt_and_open_files_with_error_window(cx, error_window);
     } else if action.as_any().is::<OpenSettings>() {
         open_settings_window(cx);
     } else if let Some(action) = action.as_any().downcast_ref::<OpenRecentFile>() {
-        prompts::open_recent_file(cx, PathBuf::from(&action.path));
+        prompts::open_recent_file_with_error_window(cx, PathBuf::from(&action.path), error_window);
     } else if action.as_any().is::<NoRecentFiles>() {
+        // Disabled item.
     } else if action.as_any().is::<AddLanguageConfig>() {
-        prompts::prompt_and_import_language_config(cx);
+        prompts::prompt_and_import_language_config_with_error_window(cx, error_window);
     } else if action.as_any().is::<AddThemeConfig>() {
-        prompts::prompt_and_import_theme_config(cx);
+        prompts::prompt_and_import_theme_config_with_error_window(cx, error_window);
     } else if action.as_any().is::<SaveDocument>() {
-        let _ =
-            with_primary_document_panel(cx, |panel, window, cx| panel.save_document(window, cx));
+        run_document_action(target, cx, |panel, _window, cx| {
+            panel.request_save_document(cx);
+        });
     } else if action.as_any().is::<SaveDocumentAs>() {
-        let _ =
-            with_primary_document_panel(cx, |panel, window, cx| panel.save_document_as(window, cx));
+        run_document_action(target, cx, |panel, _window, cx| {
+            panel.request_save_document_as(cx);
+        });
     } else if action.as_any().is::<ExportHtml>() {
-        let _ = with_primary_document_panel(cx, |panel, window, cx| {
-            panel.export_document(ExportFormat::Html, window, cx)
+        run_document_action(target, cx, |panel, window, cx| {
+            panel.export_document(ExportFormat::Html, window, cx);
         });
     } else if action.as_any().is::<ExportPdf>() {
-        let _ = with_primary_document_panel(cx, |panel, window, cx| {
-            panel.export_document(ExportFormat::Pdf, window, cx)
+        run_document_action(target, cx, |panel, window, cx| {
+            panel.export_document(ExportFormat::Pdf, window, cx);
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
         match apply_theme_selection(cx, &action.theme_id) {
@@ -207,7 +225,7 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
                     .strings()
                     .settings_save_failed_title
                     .clone();
-                show_window_prompt(cx.active_window(), &title, &err.to_string(), cx);
+                show_window_prompt(error_window, &title, &err.to_string(), cx);
             }
         }
     } else if let Some(action) = action.as_any().downcast_ref::<SelectLanguage>() {
@@ -222,13 +240,17 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
                     .strings()
                     .settings_save_failed_title
                     .clone();
-                show_window_prompt(cx.active_window(), &title, &err.to_string(), cx);
+                show_window_prompt(error_window, &title, &err.to_string(), cx);
             }
         }
     } else if action.as_any().is::<CheckForUpdates>() {
-        request_update_check_on_active_window(cx);
+        run_shell_action(target, cx, |shell, window, cx| {
+            shell.request_check_updates(window, cx);
+        });
     } else if action.as_any().is::<ShowAbout>() {
-        show_info_dialog_on_active_window(cx, InfoDialogKind::About);
+        run_shell_action(target, cx, |shell, _window, cx| {
+            shell.show_info_dialog(InfoDialogKind::About, cx);
+        });
     } else if action.as_any().is::<InstallCliTool>() {
         install_cli_tool(cx);
         install_menus(cx);
@@ -236,17 +258,23 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        let _ = with_shell_window(cx, |shell, window, cx| {
+        run_shell_action(target, cx, |shell, window, cx| {
             shell.toggle_explorer_tree(window, cx);
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        let _ = with_shell_window(cx, |shell, _window, cx| {
+        run_shell_action(target, cx, |shell, _window, cx| {
             shell.close_explorer_folder_scope(cx);
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
-        request_close_current_editor_window(cx);
+        if let Some(MenuDispatchTarget { shell, window, .. }) = target {
+            let _ = shell.update(cx, |shell, cx| {
+                shell.request_close_current_window(window, cx);
+            });
+        } else {
+            request_close_current_editor_window(cx);
+        }
     } else if action.as_any().is::<OpenSplitypeRepository>() {
         crate::links::open_repository(cx);
     } else if action.as_any().is::<OpenBugReport>() {
@@ -258,139 +286,41 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     }
 }
 
-/// Executes a menu action with access to the originating shell window and
-/// its document panel, identified by the panel id the menu was rendered for.
-pub(crate) fn dispatch_menu_action_for_panel(
-    action: &dyn Action,
-    target_shell: &WeakEntity<Shell>,
-    panel_id: Option<PanelId>,
-    window: &mut Window,
+/// Runs a document-panel operation against the menu's target panel, falling
+/// back to the active window's primary document panel for native menus.
+fn run_document_action(
+    target: Option<MenuDispatchTarget<'_>>,
     cx: &mut App,
+    op: impl FnOnce(&mut dyn DocumentPanel, &mut Window, &mut App),
 ) {
-    window.activate_window();
-    let current_window = Some(window.window_handle());
-
-    if action.as_any().is::<NewWindow>() {
-        open_editor_window(cx, String::new(), None);
-    } else if action.as_any().is::<OpenFile>() {
-        prompts::prompt_and_open_files_with_error_window(cx, current_window);
-    } else if action.as_any().is::<OpenSettings>() {
-        open_settings_window(cx);
-    } else if let Some(action) = action.as_any().downcast_ref::<OpenRecentFile>() {
-        prompts::open_recent_file_with_error_window(
-            cx,
-            PathBuf::from(&action.path),
-            current_window,
-        );
-    } else if action.as_any().is::<NoRecentFiles>() {
-        // Disabled item, do nothing
-    } else if action.as_any().is::<AddLanguageConfig>() {
-        prompts::prompt_and_import_language_config_with_error_window(cx, current_window);
-    } else if action.as_any().is::<AddThemeConfig>() {
-        prompts::prompt_and_import_theme_config_with_error_window(cx, current_window);
-    } else if action.as_any().is::<SaveDocument>() {
-        let _ = target_shell.update(cx, |shell, cx| {
+    if let Some(MenuDispatchTarget {
+        shell,
+        panel_id,
+        window,
+    }) = target
+    {
+        let _ = shell.update(cx, |shell, cx| {
             if let Some(panel_id) = panel_id {
                 if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                    panel.request_save_document(cx);
+                    op(panel, window, cx);
                 }
             }
         });
-    } else if action.as_any().is::<SaveDocumentAs>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel_id) = panel_id {
-                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                    panel.request_save_document_as(cx);
-                }
-            }
-        });
-    } else if action.as_any().is::<ExportHtml>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel_id) = panel_id {
-                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                    panel.export_document(ExportFormat::Html, window, cx);
-                }
-            }
-        });
-    } else if action.as_any().is::<ExportPdf>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            if let Some(panel_id) = panel_id {
-                if let Some(panel) = shell.document_panel_mut_for(panel_id) {
-                    panel.export_document(ExportFormat::Pdf, window, cx);
-                }
-            }
-        });
-    } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
-        match apply_theme_selection(cx, &action.theme_id) {
-            Ok(()) => {
-                install_menus(cx);
-                cx.refresh_windows();
-            }
-            Err(err) => {
-                let title = cx
-                    .global::<I18nManager>()
-                    .strings()
-                    .settings_save_failed_title
-                    .clone();
-                show_window_prompt(current_window, &title, &err.to_string(), cx);
-            }
-        }
-    } else if let Some(action) = action.as_any().downcast_ref::<SelectLanguage>() {
-        match apply_language_selection(cx, &action.language_id) {
-            Ok(()) => {
-                install_menus(cx);
-                cx.refresh_windows();
-            }
-            Err(err) => {
-                let title = cx
-                    .global::<I18nManager>()
-                    .strings()
-                    .settings_save_failed_title
-                    .clone();
-                show_window_prompt(current_window, &title, &err.to_string(), cx);
-            }
-        }
-    } else if action.as_any().is::<CheckForUpdates>() {
-    } else if action.as_any().is::<QuitApplication>() {
-        request_quit_application(cx);
-    } else if action.as_any().is::<CloseWindow>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            shell.request_close_current_window(window, cx);
-        });
-    } else if action.as_any().is::<CheckForUpdates>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            shell.request_check_updates(window, cx);
-        });
-    } else if action.as_any().is::<ShowAbout>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            shell.show_info_dialog(InfoDialogKind::About, cx);
-        });
-    } else if action.as_any().is::<InstallCliTool>() {
-        install_cli_tool(cx);
-        install_menus(cx);
-    } else if action.as_any().is::<UninstallCliTool>() {
-        uninstall_cli_tool(cx);
-        install_menus(cx);
-    } else if action.as_any().is::<ToggleExplorer>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            shell.toggle_explorer_tree(window, cx);
-        });
-    } else if action.as_any().is::<CloseExplorerFolder>() {
-        let _ = target_shell.update(cx, |shell, cx| {
-            shell.close_explorer_folder_scope(cx);
-        });
-    } else if action.as_any().is::<OpenSplitypeRepository>() {
-        crate::links::open_repository(cx);
-    } else if action.as_any().is::<OpenBugReport>() {
-        crate::links::open_bug_report(cx);
-    } else if action.as_any().is::<OpenFeatureRequest>() {
-        crate::links::open_feature_request(cx);
-    } else if action.as_any().is::<OpenDiscussions>() {
-        crate::links::open_discussions(cx);
     } else {
-        let deferred_action = action.boxed_clone();
-        cx.defer(move |cx| {
-            dispatch_menu_action(deferred_action.as_ref(), cx);
-        });
+        let _ = with_primary_document_panel(cx, op);
+    }
+}
+
+/// Runs a shell operation against the menu's target shell, falling back to
+/// the first available shell window for native menus.
+fn run_shell_action(
+    target: Option<MenuDispatchTarget<'_>>,
+    cx: &mut App,
+    op: impl Fn(&mut Shell, &mut Window, &mut Context<Shell>),
+) {
+    if let Some(MenuDispatchTarget { shell, window, .. }) = target {
+        let _ = shell.update(cx, |shell, cx| op(shell, window, cx));
+    } else {
+        let _ = with_shell_window(cx, op);
     }
 }

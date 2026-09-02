@@ -43,14 +43,6 @@ pub fn parse_document_with_mode(markdown: &str, mode: ParseMode) -> Vec<BlockDat
     build_blocks_from_lines_internal(&lines, mode, true)
 }
 
-pub fn build_wysiwyg_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
-    build_blocks_from_lines_internal(lines, ParseMode::Wysiwyg, true)
-}
-
-pub fn build_preview_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
-    build_blocks_from_lines_internal(lines, ParseMode::Preview, true)
-}
-
 /// Internal dispatch: walk every line and emit native blocks or raw fallbacks.
 pub(crate) fn build_blocks_from_lines_internal(
     lines: &[String],

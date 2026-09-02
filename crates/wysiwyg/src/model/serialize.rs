@@ -8,7 +8,6 @@ use markdown_parser::block::CalloutKind;
 use markdown_parser::block::image::parse_standalone_image;
 use markdown_parser::block::table::serialize_table_markdown_lines;
 use markdown_parser::parse::BlockKind;
-pub use markdown_parser::parse::fence::safe_code_fence_with_info;
 
 impl Document {
     pub fn serialize_markdown(&self, cx: &App) -> String {
@@ -57,7 +56,7 @@ impl Document {
             BlockKind::CodeBlock { language } => {
                 let indentation = "  ".repeat(list_depth);
                 let lang_str = language.as_ref().map(|s| s.as_ref()).unwrap_or("");
-                let fence = crate::model::serialize::safe_code_fence_with_info(
+                let fence = markdown_parser::parse::safe_code_fence_with_info(
                     &block_ref.data.text.plain_text(),
                     language.as_ref().map(|language| language.as_ref()),
                 );

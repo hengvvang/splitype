@@ -1,6 +1,6 @@
-//! Preview-tree reference context: footnote registries, image/link
+//! Preview-tree reference context: footnote registries, image
 //! registries and base-directory resolution pushed onto every snapshot
-//! block so ordinals, back-references, links, and image sources resolve
+//! block so ordinals, back-references, and image sources resolve
 //! exactly like the editable blocks.
 
 use std::collections::HashMap;
@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use markdown_parser::block::footnote::split_footnote_definition_text;
 use markdown_parser::block::image::ImageReferenceDefinitions;
-use markdown_parser::block::link::LinkReferenceDefinitions;
 use markdown_parser::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
@@ -99,28 +98,25 @@ fn walk_preview_blocks(
     }
 }
 
-/// Pushes the editor's reference context (images, links, footnotes) onto
-/// every preview snapshot block so ordinals, back-references, links, and
-/// image sources resolve exactly like the editable blocks.
+/// Pushes the editor's reference context (images, footnotes) onto every
+/// preview snapshot block so ordinals, back-references, and image sources
+/// resolve exactly like the editable blocks.
 pub fn sync_preview_block_context(
     roots: &mut [PreviewBlock],
     base_dir: Option<&Path>,
     image_registry: &Arc<ImageReferenceDefinitions>,
-    link_registry: &Arc<LinkReferenceDefinitions>,
     footnote_registry: &Arc<FootnoteMap>,
 ) {
     for block in roots {
         block.set_reference_context(
             base_dir.map(Path::to_path_buf),
             image_registry.clone(),
-            link_registry.clone(),
             footnote_registry.clone(),
         );
         sync_preview_block_context(
             &mut block.children,
             base_dir,
             image_registry,
-            link_registry,
             footnote_registry,
         );
     }

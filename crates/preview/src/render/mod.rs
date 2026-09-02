@@ -25,8 +25,6 @@ pub(crate) mod paragraph;
 pub(crate) mod table_block;
 pub(crate) mod thematic_break;
 
-use std::ops::Range;
-
 use gpui::*;
 
 use config::language::I18nStrings;
@@ -55,18 +53,12 @@ pub fn render_preview_pane(
     let d = &theme.dimensions;
     let settings = PluginSettings::<PreviewSettings>::get(cx);
 
-    let preview_selection = state.selection;
-
     let mut block_elements: Vec<AnyElement> = state
         .blocks
         .iter()
         .enumerate()
         .filter(|(_, block)| !matches!(block.kind(), BlockKind::FootnoteDefinition))
-        .map(|(block_index, block)| {
-            let selection_range = preview_selection
-                .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
-            render_preview_block(block, selection_range, 0, 0, settings, theme, window)
-        })
+        .map(|(_, block)| render_preview_block(block, 0, 0, settings, theme, window))
         .collect();
     // Footnote definitions are collected out of the body flow and
     // rendered as one GitHub-style section at the bottom, behind a
@@ -124,7 +116,6 @@ pub fn render_preview_pane(
 /// the quote guide lines. Container blocks recurse into their children.
 pub(crate) fn render_preview_block(
     block: &PreviewBlock,
-    selection_range: Option<Range<usize>>,
     depth: usize,
     quote_depth: usize,
     settings: PreviewSettings,
@@ -151,46 +142,18 @@ pub(crate) fn render_preview_block(
 
     let content = match block.kind() {
         BlockKind::ThematicBreak => thematic_break::render_preview_thematic_break(theme),
-        BlockKind::Heading { level } => {
-            heading::render_preview_heading(block, level, selection_range.clone(), base, theme)
+        BlockKind::Heading { level } => heading::render_preview_heading(block, level, base, theme),
+        BlockKind::BulletListItem => {
+            list_item::render_preview_bulleted_list_item(block, depth, base, theme)
         }
-        BlockKind::BulletListItem => list_item::render_preview_bulleted_list_item(
-            block,
-            depth,
-            selection_range.clone(),
-            base,
-            theme,
-        ),
-        BlockKind::TaskListItem { checked } => list_item::render_preview_task_list_item(
-            block,
-            checked,
-            depth,
-            selection_range.clone(),
-            base,
-            theme,
-        ),
-        BlockKind::NumberedListItem => list_item::render_preview_numbered_list_item(
-            block,
-            depth,
-            selection_range.clone(),
-            base,
-            theme,
-        ),
-        BlockKind::Blockquote => blockquote::render_preview_blockquote(
-            block,
-            depth,
-            selection_range.clone(),
-            base,
-            theme,
-        ),
-        BlockKind::Callout(variant) => callout::render_preview_callout(
-            block,
-            variant,
-            depth,
-            selection_range.clone(),
-            base,
-            theme,
-        ),
+        BlockKind::TaskListItem { checked } => {
+            list_item::render_preview_task_list_item(block, checked, base, theme)
+        }
+        BlockKind::NumberedListItem => {
+            list_item::render_preview_numbered_list_item(block, depth, base, theme)
+        }
+        BlockKind::Blockquote => blockquote::render_preview_blockquote(block, base, theme),
+        BlockKind::Callout(variant) => callout::render_preview_callout(block, variant, base, theme),
         BlockKind::FootnoteDefinition => {
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
@@ -215,24 +178,22 @@ pub(crate) fn render_preview_block(
             if settings.render_math {
                 latex_math::render_preview_latex_math(block, base, theme)
             } else {
-                paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
+                paragraph::render_preview_raw_markdown(block, base, theme)
             }
         }
         BlockKind::MermaidBlock => {
             if settings.render_diagrams {
                 mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
             } else {
-                paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
+                paragraph::render_preview_raw_markdown(block, base, theme)
             }
         }
-        BlockKind::RawMarkdown => {
-            paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
-        }
+        BlockKind::RawMarkdown => paragraph::render_preview_raw_markdown(block, base, theme),
         BlockKind::Paragraph | BlockKind::HtmlComment => {
             if block.is_standalone_image() {
                 image::render_preview_image(block, base, theme, window)
             } else {
-                paragraph::render_preview_paragraph(block, selection_range.clone(), base, theme)
+                paragraph::render_preview_paragraph(block, base, theme)
             }
         }
     };
@@ -248,7 +209,6 @@ pub(crate) fn render_preview_block(
         .map(|child| {
             render_preview_block(
                 child,
-                selection_range.clone(),
                 depth + 1,
                 effective_quote_depth,
                 settings,

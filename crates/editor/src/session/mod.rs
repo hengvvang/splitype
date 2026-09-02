@@ -6,7 +6,7 @@ pub mod tab;
 
 use editor_contracts::{PaneKind, TabKind};
 pub use file::{FileState, PendingOpenLink};
-pub use tab::{DocumentTab, PaneState, ScrollState, ScrollbarDragSession};
+pub use tab::{DocumentTab, PaneState, ScrollState};
 
 use splitter::root::SplitterRoot;
 

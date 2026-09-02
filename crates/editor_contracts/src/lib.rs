@@ -22,8 +22,8 @@ pub use document::{
 pub use export::ExportFormat;
 pub use outline::{OutlineHost, OutlineHudState, OutlineNode};
 pub use pane::{
-    AutoscrollStrategy, PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind,
-    PaneOutlineHost, PaneRegistry, PaneRegistryError, PaneRenderContext, PaneView,
+    PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost, PaneRegistry,
+    PaneRegistryError, PaneRenderContext, PaneView,
 };
 pub use panel::DocumentPanel;
 pub use search::{

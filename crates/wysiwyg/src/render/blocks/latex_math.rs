@@ -3,8 +3,8 @@
 use gpui::*;
 
 use crate::model::block::Block;
-use crate::render::embedded_preview::render_graphic_preview_box;
 use config::language::I18nStrings;
+use syntax_highlighter::graphics::render_graphic_preview_box;
 use theme::Theme;
 
 /// Render a LaTeX math block.

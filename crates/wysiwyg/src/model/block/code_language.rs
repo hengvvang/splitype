@@ -8,7 +8,7 @@ use unicode_segmentation::*;
 
 use crate::model::block::Block;
 use crate::model::block::normalize_code_language_input;
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::BlockEvent;
 use markdown_parser::inline::offsets::ImeConverter;
 use markdown_parser::parse::BlockKind;
 use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
@@ -148,8 +148,6 @@ impl Block {
             return;
         }
 
-        self.prepare_undo_capture(UndoCaptureKind::CoalescibleText, cx);
-
         let current = self.code_language_text().to_string();
         let range = range.start.min(current.len())..range.end.min(current.len());
         let inserted = new_text.replace("\r\n", " ").replace(['\r', '\n'], " ");
@@ -230,7 +228,6 @@ impl Block {
 
         let old_language = self.code_language_text().to_string();
         if old_language != value {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             if value.eq_ignore_ascii_case("math") || value.eq_ignore_ascii_case("latex") {
                 self.data.kind = BlockKind::MathBlock;
             } else if value.eq_ignore_ascii_case("mermaid") {

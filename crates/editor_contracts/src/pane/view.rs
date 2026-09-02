@@ -144,8 +144,29 @@ pub trait PaneView: Any + 'static {
         Vec::new()
     }
 
-    /// Gate: `searchable`.
-    fn navigate_to_search_match(&mut self, _match_item: &SearchMatch, _cx: &mut App) {}
+    /// Gate: `searchable`. Brings the match into view inside the pane and
+    /// returns the target scroll Y offset in content coordinates, or `None`
+    /// when the pane cannot locate the match. The host applies the offset to
+    /// the pane's scroll handle — the same convention as
+    /// [`PaneView::navigate_to_outline`].
+    fn navigate_to_search_match(
+        &mut self,
+        _match_item: &SearchMatch,
+        _cx: &mut App,
+    ) -> Option<f32> {
+        None
+    }
+
+    /// Gate: `searchable`. Replaces the pane's rendered search-match
+    /// decorations. `matches` holds the matches belonging to this pane's
+    /// document; `active_index` marks the currently selected one.
+    fn set_search_highlights(
+        &mut self,
+        _matches: &[SearchMatch],
+        _active_index: Option<usize>,
+        _cx: &mut App,
+    ) {
+    }
 
     /// Gate: `replaceable`. Returns the new authoritative text, or `None`
     /// when the pane does not support replacement.

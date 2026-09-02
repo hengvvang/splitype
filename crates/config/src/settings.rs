@@ -14,7 +14,6 @@ pub type SubsystemSyncHook = fn(&mut App, &AppSettings);
 static SYNC_HOOKS: std::sync::RwLock<Vec<SubsystemSyncHook>> = std::sync::RwLock::new(Vec::new());
 
 pub const DEFAULT_THEME_FAMILY: &str = "splitype";
-pub const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
 /// Light/dark appearance of a theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,34 +27,6 @@ pub enum Appearance {
     Auto,
 }
 
-impl Appearance {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Dark => "dark",
-            Self::Light => "light",
-            Self::Auto => "auto",
-        }
-    }
-}
-
-impl std::fmt::Display for Appearance {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl std::str::FromStr for Appearance {
-    type Err = std::convert::Infallible;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "light" => Ok(Self::Light),
-            "auto" => Ok(Self::Auto),
-            _ => Ok(Self::Dark),
-        }
-    }
-}
-
 /// Document selection behavior when launching the application.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -63,47 +34,6 @@ pub enum StartupOpenSetting {
     #[default]
     NewFile,
     LastOpenedFile,
-    Empty,
-}
-
-impl StartupOpenSetting {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::NewFile => "new_file",
-            Self::LastOpenedFile => "last_opened_file",
-            Self::Empty => "empty",
-        }
-    }
-
-    pub fn display_name(self) -> &'static str {
-        match self {
-            Self::NewFile => "Open New Document",
-            Self::LastOpenedFile => "Open Last Active Document",
-            Self::Empty => "Open Empty Workspace",
-        }
-    }
-
-    pub fn all() -> &'static [Self] {
-        &[Self::NewFile, Self::LastOpenedFile, Self::Empty]
-    }
-}
-
-impl std::fmt::Display for StartupOpenSetting {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl std::str::FromStr for StartupOpenSetting {
-    type Err = std::convert::Infallible;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "last_opened_file" => Ok(Self::LastOpenedFile),
-            "empty" => Ok(Self::Empty),
-            _ => Ok(Self::NewFile),
-        }
-    }
 }
 
 /// Startup and general lifecycle configuration.
@@ -134,13 +64,13 @@ pub struct InterfaceSettings {
 impl Default for InterfaceSettings {
     fn default() -> Self {
         Self {
-            language_id: DEFAULT_LANGUAGE_ID.to_string(),
+            language_id: crate::language::packs::BUILTIN_LANGUAGE_EN_US_ID.to_string(),
         }
     }
 }
 
 fn default_language_id_string() -> String {
-    DEFAULT_LANGUAGE_ID.to_string()
+    crate::language::packs::BUILTIN_LANGUAGE_EN_US_ID.to_string()
 }
 
 /// Theme selection and per-user overrides.
@@ -186,11 +116,12 @@ fn default_theme_family_string() -> String {
     DEFAULT_THEME_FAMILY.to_string()
 }
 
-/// Typography preferences (UI, Prose, and Code fonts, sizes, and line heights).
+/// Typography settings (UI, Prose, and Code font families).
 ///
 /// Font families are plain strings; the empty string means "use the
-/// platform default family for the scope".
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+/// platform default family for the scope". Sizes and line heights live in
+/// theme typography, not here.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TypographySettings {
     #[serde(default)]
     pub ui_font_family: String,
@@ -198,30 +129,6 @@ pub struct TypographySettings {
     pub prose_font_family: String,
     #[serde(default)]
     pub code_font_family: String,
-    #[serde(default = "default_font_size")]
-    pub font_size: u32,
-    #[serde(default = "default_line_height")]
-    pub line_height: f32,
-}
-
-fn default_font_size() -> u32 {
-    16
-}
-
-fn default_line_height() -> f32 {
-    1.6
-}
-
-impl Default for TypographySettings {
-    fn default() -> Self {
-        Self {
-            ui_font_family: String::new(),
-            prose_font_family: String::new(),
-            code_font_family: String::new(),
-            font_size: default_font_size(),
-            line_height: default_line_height(),
-        }
-    }
 }
 
 fn default_true() -> bool {
@@ -310,11 +217,7 @@ pub struct PluginSettings<T: PluginSettingsDefinition>(std::marker::PhantomData<
 impl<T: PluginSettingsDefinition> PluginSettings<T> {
     /// Reads the plugin's current settings.
     pub fn get(cx: &App) -> T {
-        SettingsStore::get(cx)
-            .plugins
-            .get(T::PLUGIN_ID)
-            .and_then(|value| serde_json::from_value(value.clone()).ok())
-            .unwrap_or_default()
+        SettingsStore::get(cx).plugin_settings::<T>()
     }
 
     /// Mutates the plugin's settings, persisting the result and refreshing
@@ -350,11 +253,6 @@ impl SettingsStore {
         cx.set_global(Self { settings });
     }
 
-    /// Initialize default settings store in test environments.
-    pub fn init_default(cx: &mut App) {
-        Self::init(cx, AppSettings::default());
-    }
-
     /// Read the active global settings by reference.
     pub fn get(cx: &App) -> &AppSettings {
         cx.try_global::<Self>()
@@ -364,11 +262,6 @@ impl SettingsStore {
                 static DEFAULT: std::sync::OnceLock<AppSettings> = std::sync::OnceLock::new();
                 DEFAULT.get_or_init(AppSettings::default)
             })
-    }
-
-    /// Read a cloned copy of the active global settings.
-    pub fn settings(cx: &App) -> AppSettings {
-        Self::get(cx).clone()
     }
 
     /// Mutate settings in-place, persist to disk, sync subsystems, and refresh windows.
@@ -435,22 +328,6 @@ impl SettingsStore {
             }
         }
     }
-}
-
-/// Read configuration from disk using the specified configuration directories.
-pub fn read_app_settings_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<AppSettings> {
-    let path = dirs.app_config_file();
-    let text = match std::fs::read_to_string(&path) {
-        Ok(text) => text,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(AppSettings::default());
-        }
-        Err(err) => {
-            return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
-        }
-    };
-    let settings: AppSettings = toml::from_str(&text).unwrap_or_default();
-    Ok(settings)
 }
 
 /// Load configuration or create initial settings file with locale detection.
@@ -563,7 +440,27 @@ fn set_value_at_path(blob: &mut serde_json::Value, key: &str, value: serde_json:
 
 #[cfg(test)]
 mod tests {
-    use super::CoreSettings;
+    use super::{CoreSettings, detected_language_id_from_locales};
+
+    #[test]
+    fn locale_settings_map_to_builtin_languages() {
+        assert_eq!(detected_language_id_from_locales(["zh-CN"]), "zh-CN");
+        assert_eq!(detected_language_id_from_locales(["zh-HK"]), "zh-CN");
+        assert_eq!(detected_language_id_from_locales(["zh-Hant-TW"]), "zh-CN");
+        assert_eq!(detected_language_id_from_locales(["zh_SG.UTF-8"]), "zh-CN");
+        assert_eq!(detected_language_id_from_locales(["en-US"]), "en-US");
+        assert_eq!(detected_language_id_from_locales(["en_GB.UTF-8"]), "en-US");
+        assert_eq!(
+            detected_language_id_from_locales(["fr-FR", "zh-CN"]),
+            "zh-CN"
+        );
+        assert_eq!(
+            detected_language_id_from_locales(Vec::<&str>::new()),
+            "en-US"
+        );
+        assert_eq!(detected_language_id_from_locales(["fr-FR"]), "en-US");
+        assert_eq!(detected_language_id_from_locales(["!!!"]), "en-US");
+    }
 
     #[test]
     fn core_manifest_declarations_cover_core_settings() {

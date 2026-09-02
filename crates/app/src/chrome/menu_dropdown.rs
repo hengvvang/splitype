@@ -4,9 +4,10 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::actions::{NoRecentFiles, SelectLanguage, SelectTheme};
-use crate::menus::dispatch_menu_action_for_panel;
+use crate::menus::{MenuDispatchTarget, dispatch_menu_action};
 use crate::shell::Shell;
 use config::language::I18nManager;
+use config::settings::Appearance;
 use platform_contracts::PanelId;
 use theme::{Theme, ThemeManager};
 use ui::menu_bar::{
@@ -50,13 +51,12 @@ impl Shell {
                 if let Some(act) = action.as_ref().as_any().downcast_ref::<SelectTheme>() {
                     let theme_manager = cx.global::<ThemeManager>();
                     is_selected = act.theme_id == theme_manager.current_theme_id();
-                    let item_icon = if theme_manager.appearance_of(&act.theme_id)
-                        == Some(theme::Appearance::Light)
-                    {
-                        "icons/titlebar/app_menu/sun.svg"
-                    } else {
-                        "icons/titlebar/app_menu/moon.svg"
-                    };
+                    let item_icon =
+                        if theme_manager.appearance_of(&act.theme_id) == Some(Appearance::Light) {
+                            "icons/titlebar/app_menu/sun.svg"
+                        } else {
+                            "icons/titlebar/app_menu/moon.svg"
+                        };
                     left_elem = Some(
                         div()
                             .flex()
@@ -128,11 +128,13 @@ impl Shell {
                         .cursor_pointer()
                         .on_click(move |_event, window, cx| {
                             let _ = click_shell.update(cx, |shell, cx| shell.close_menu_bar(cx));
-                            dispatch_menu_action_for_panel(
+                            dispatch_menu_action(
                                 action.as_ref(),
-                                &shell,
-                                panel_id,
-                                window,
+                                Some(MenuDispatchTarget {
+                                    shell: &shell,
+                                    panel_id,
+                                    window,
+                                }),
                                 cx,
                             );
                         })

@@ -20,8 +20,6 @@ pub enum CornerDragModifier {
     /// Shift + drag — the host decides (default: open the dragged panel
     /// in a new window).
     Shift,
-    /// Alt + drag — the host decides (default: no-op).
-    Alt,
 }
 
 /// Target edge or region within a hovered area during a move/dock/join/swap drag.
@@ -271,9 +269,9 @@ pub fn past_shortcut_threshold(facts: &CornerDragSession) -> bool {
     (dx * dx + dy * dy).sqrt() >= MODIFIER_THRESHOLD_PX
 }
 
-/// Return the id of the element that contains `pos`, given pixel-space rects.
-/// Generic over layout level: the id is an `NodeId` when called with outer
-/// rects and a `NodeId` when called with inner rects.
+/// Returns the id of the leaf whose rect contains `pos`.
+/// Generic over layout level: outer (window) rects and inner (pane) rects
+/// both map their leaves to [`NodeId`].
 pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<NodeId> {
     let px = f32::from(pos.x);
     let py = f32::from(pos.y);

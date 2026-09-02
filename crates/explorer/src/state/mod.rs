@@ -19,7 +19,7 @@ pub mod undo;
 pub mod utils;
 pub mod worktree;
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -91,11 +91,6 @@ impl ExplorerEntryKind {
     pub fn is_dir(&self) -> bool {
         matches!(self, Self::Directory)
     }
-
-    #[inline]
-    pub fn is_file(&self) -> bool {
-        !self.is_dir()
-    }
 }
 
 impl From<WorktreeEntryKind> for ExplorerEntryKind {
@@ -103,44 +98,6 @@ impl From<WorktreeEntryKind> for ExplorerEntryKind {
         match kind {
             WorktreeEntryKind::Directory => Self::Directory,
             WorktreeEntryKind::File => Self::File,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct FoldedAncestors {
-    pub current_ancestor_depth: usize,
-    pub ancestors: Vec<ExplorerEntryId>,
-}
-
-impl FoldedAncestors {
-    pub fn max_ancestor_depth(&self) -> usize {
-        self.ancestors.len()
-    }
-
-    pub fn active_ancestor(&self) -> Option<ExplorerEntryId> {
-        if self.current_ancestor_depth == 0 {
-            return None;
-        }
-        self.ancestors.get(self.current_ancestor_depth).copied()
-    }
-
-    pub fn active_index(&self) -> usize {
-        self.max_ancestor_depth()
-            .saturating_sub(1)
-            .saturating_sub(self.current_ancestor_depth)
-    }
-
-    pub fn set_active_index(&mut self, index: usize) -> bool {
-        let new_depth = self
-            .max_ancestor_depth()
-            .saturating_sub(1)
-            .saturating_sub(index);
-        if self.current_ancestor_depth != new_depth {
-            self.current_ancestor_depth = new_depth;
-            true
-        } else {
-            false
         }
     }
 }
@@ -158,7 +115,6 @@ pub struct VisibleExplorerEntry {
     pub kind: ExplorerEntryKind,
     pub is_expanded: bool,
     pub has_children: bool,
-    pub ancestors: Option<FoldedAncestors>,
 }
 
 // ── Selection ───────────────────────────────────────────────────────────
@@ -308,10 +264,6 @@ pub struct ExplorerState {
     pub next_entry_id: Arc<AtomicU64>,
     /// Expanded directory ids per worktree (Zed's `expanded_dir_ids`).
     pub expanded: HashMap<WorktreeId, BTreeSet<ExplorerEntryId>>,
-    /// Unfolded directory ids (explicitly unfolded compact directories, mirrors Zed).
-    pub unfolded_dir_ids: HashSet<ExplorerEntryId>,
-    /// Maps from leaf entry id to its compact folded ancestors (Zed's `ancestors`).
-    pub ancestors: HashMap<ExplorerEntryId, FoldedAncestors>,
     pub file_error: Option<String>,
     /// Flat visible rows — the virtualized list's data source.
     pub entries: Vec<ExplorerRow>,
@@ -373,8 +325,6 @@ impl Default for ExplorerState {
             snapshots: Vec::new(),
             next_entry_id: Arc::new(AtomicU64::new(1)),
             expanded: HashMap::new(),
-            unfolded_dir_ids: HashSet::new(),
-            ancestors: HashMap::new(),
             file_error: None,
             entries: Vec::new(),
             selected: None,
@@ -513,7 +463,6 @@ pub fn build_explorer_rows(
                 kind,
                 is_expanded,
                 has_children,
-                ancestors: None,
             });
 
             // If this directory is collapsed, skip all its children

@@ -80,13 +80,6 @@ impl ThemeRegistry {
         registry
     }
 
-    /// Inserts a built-in family, overwriting any previous one with its id.
-    pub fn insert_builtin(&mut self, family: ThemeFamilyContent) -> anyhow::Result<()> {
-        validate_family(&family)?;
-        self.builtin.insert(family.id(), family);
-        Ok(())
-    }
-
     /// Replaces one plugin's contributed families (validated all-or-nothing).
     pub fn insert_plugin(
         &mut self,

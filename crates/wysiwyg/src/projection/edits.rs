@@ -1,4 +1,4 @@
-//! Projected inline edits: headings, links, text replacement, and undo.
+//! Projected inline edits: headings, links, and text replacement.
 
 use std::ops::Range;
 
@@ -6,21 +6,13 @@ use gpui::*;
 
 use crate::model::block::Block;
 use crate::model::block::CollapsedCaretAffinity;
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::BlockEvent;
 use crate::projection::{ExpandedInlineSegmentKind, ExpandedLinkSpan};
 use markdown_parser::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use markdown_parser::parse::BlockKind;
 use std::time::Instant;
 
 impl Block {
-    pub fn prepare_undo_capture(&self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
-        cx.emit(BlockEvent::PrepareUndo {
-            kind,
-            target_block_id: Some(self.data.id),
-            initial_text: Some(self.data.text.clone()),
-        });
-    }
-
     /// Detect Markdown shortcut prefixes in the edited text and convert the
     /// block's kind accordingly (e.g. `"- " -> BulletedListItem`).
     ///

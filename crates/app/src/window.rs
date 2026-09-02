@@ -9,9 +9,9 @@ use gpui::*;
 use crate::chrome::MenuBarState;
 use crate::layout::WindowPanels;
 use crate::menus::install_menus;
-use crate::shell::{Shell, ShellDocumentHost};
+use crate::shell::Shell;
 use config::recent::record_recent_file;
-use platform_contracts::{PanelId, PanelKind, PanelView};
+use platform_contracts::{PanelId, PanelKind};
 use splitter::NodeId;
 use splitter::tree::SplitTree;
 use ui::custom_titlebar::splitype_window_options;
@@ -67,7 +67,7 @@ pub fn open_editor_window(
                     retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
-                    last_viewport: None,
+                    has_rendered: false,
                     info_dialog: None,
                     focus_handle: cx.focus_handle(),
                     unsaved_dialog: None,
@@ -187,7 +187,7 @@ fn open_window_with_retained(
                     retained_panel_states: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
-                    last_viewport: None,
+                    has_rendered: false,
                     info_dialog: None,
                     focus_handle: cx.focus_handle(),
                     unsaved_dialog: None,
@@ -195,70 +195,13 @@ fn open_window_with_retained(
                     close_guard_installed: false,
                     about_bg_emojis: Vec::new(),
                 });
-                let shell_weak = shell.downgrade();
-
-                let mut panel_views: HashMap<PanelId, Box<dyn PanelView>> = HashMap::new();
-                for (panel_id, parked) in retained {
-                    match window::PanelRegistry::restore_registered_panel(
-                        parked.kind.clone(),
-                        panel_id,
-                        parked.state,
-                        cx,
-                    ) {
-                        Ok(Some(view)) => {
-                            panel_views.insert(panel_id, view);
-                        }
-                        Ok(None) => {
-                            tracing::error!(kind = %parked.kind, "panel descriptor could not restore its state");
-                        }
-                        Err(error) => {
-                            tracing::error!(kind = %parked.kind, %error, "failed to restore registered panel");
-                        }
-                    }
-                }
-
-                for (leaf_id, kind) in leaf_kinds {
-                    let panel_id = PanelId(leaf_id);
-                    if let std::collections::hash_map::Entry::Vacant(entry) =
-                        panel_views.entry(panel_id)
-                    {
-                        match window::PanelRegistry::create_registered_panel(
-                            kind.clone(),
-                            panel_id,
-                            cx,
-                        ) {
-                            Ok(Some(view)) => {
-                                entry.insert(view);
-                            }
-                            Ok(None) => {
-                                tracing::warn!(
-                                    %kind,
-                                    "no panel descriptor is registered; showing placeholder"
-                                );
-                                entry.insert(Box::new(window::MissingPanelView::new(
-                                    panel_id,
-                                    kind.clone(),
-                                )));
-                            }
-                            Err(error) => {
-                                tracing::error!(%kind, %error, "failed to create registered panel");
-                            }
-                        }
-                    }
-                }
 
                 shell.update(cx, |shell, cx| {
-                    shell.panel_views = panel_views;
-                    for view in shell.panel_views.values_mut() {
-                        // Wire document hosts for restored document panels.
-                        if let Some(routing) = crate::routing::document_routing(&view.kind()) {
-                            if let Some(panel) = (routing.as_document_mut)(view.as_mut()) {
-                                panel.attach_document_host(
-                                    std::sync::Arc::new(ShellDocumentHost::new(shell_weak.clone())),
-                                    cx,
-                                );
-                            }
-                        }
+                    for (panel_id, parked) in retained {
+                        shell.restore_retained_view(panel_id, parked.kind, parked.state, cx);
+                    }
+                    for (leaf_id, kind) in leaf_kinds {
+                        shell.ensure_registered_panel_view(PanelId(leaf_id), kind, cx);
                     }
                 });
                 shell

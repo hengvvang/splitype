@@ -142,8 +142,6 @@ impl ExplorerState {
         let explorer = &mut *self;
         explorer.worktrees.clear();
         explorer.expanded.clear();
-        explorer.unfolded_dir_ids.clear();
-        explorer.ancestors.clear();
         explorer.selected = None;
         explorer.marked.clear();
         explorer.snapshots.clear();
@@ -297,49 +295,6 @@ impl ExplorerState {
         }
         self.sync_explorer_models(cx);
         cx.refresh_windows();
-    }
-
-    /// Replace the worktree at `index` with a folder picked by the user
-    /// (the root row's folder button): the old root is removed and the new
-    /// one is added in its place.
-    #[allow(dead_code)]
-    pub(crate) fn replace_explorer_worktree(
-        &mut self,
-        index: usize,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        let prompt = cx.prompt_for_paths(PathPromptOptions {
-            files: true,
-            directories: true,
-            multiple: false,
-            prompt: None,
-        });
-        let window_handle = window.window_handle();
-        let weak = self.self_weak.clone();
-        cx.spawn(async move |cx: &mut AsyncApp| {
-            let paths = match prompt.await {
-                Ok(Ok(Some(paths))) => paths,
-                Ok(Ok(None)) | Err(_) => return,
-                Ok(Err(err)) => {
-                    tracing::error!(error = %err, "[explorer] replace folder dialog error");
-                    return;
-                }
-            };
-            let Some(path) = paths.into_iter().next() else {
-                return;
-            };
-            let _ = window_handle.update(cx, |_view, _window, cx| {
-                let _ = weak.update(cx, |state, cx| {
-                    if index < state.worktrees.len() {
-                        state.remove_explorer_worktree(index, cx);
-                    }
-                    state.add_explorer_worktree(path, _window, cx);
-                    cx.refresh_windows();
-                });
-            });
-        })
-        .detach();
     }
 
     pub(crate) fn reveal_in_file_explorer(&self, path: &Path) {

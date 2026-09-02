@@ -1,14 +1,10 @@
-//! Source code pane outline extraction and heading navigation.
+//! Source code pane outline extraction from the raw Markdown source text.
 
-use crate::state::SourceCodeState;
 use editor_contracts::OutlineNode;
+use markdown_parser::parse::BlockKind;
 
-/// Extracts all heading nodes from the raw Markdown source text.
-pub fn extract_source_headings(markdown: &str) -> Vec<OutlineNode> {
-    extract_outline_headings(markdown)
-}
-
-/// Extracts all heading nodes from the raw Markdown source text.
+/// Extracts all heading nodes from the raw Markdown source text. Heading
+/// line recognition is delegated to the canonical Markdown parser helpers.
 pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
     let mut list = Vec::new();
     let lines: Vec<&str> = markdown.lines().collect();
@@ -39,8 +35,8 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
         }
 
         // ATX heading: `# Heading`
-        if let Some((level, raw_text)) = parse_atx_heading_line(line) {
-            let label = raw_text.trim().to_string();
+        if let Some((level, content)) = BlockKind::parse_atx_heading_line(line) {
+            let label = content.trim().to_string();
             list.push(OutlineNode {
                 id: format!("outline:line:{line_idx}"),
                 label: if label.is_empty() {
@@ -58,8 +54,8 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
 
         // Setext heading: `Heading Line\n===` or `Heading Line\n---`
         if line_idx + 1 < lines.len() && !trimmed.is_empty() {
-            let next_line = lines[line_idx + 1].trim_start();
-            if let Some(level) = parse_setext_underline(next_line) {
+            let next_line = lines[line_idx + 1];
+            if let Some(level) = BlockKind::parse_setext_underline(next_line) {
                 let label = trimmed.to_string();
                 list.push(OutlineNode {
                     id: format!("outline:line:{line_idx}"),
@@ -80,41 +76,6 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
         line_idx += 1;
     }
     list
-}
-
-/// Navigates the source code buffer to the line specified in the outline node.
-pub fn navigate_to_node(state: &mut SourceCodeState, node: &OutlineNode) {
-    let line_start = state.line_start_offset(node.block_index);
-    state.selections.set_single_point(line_start);
-}
-
-fn parse_atx_heading_line(line: &str) -> Option<(u8, &str)> {
-    let trimmed = line.trim_start();
-    if !trimmed.starts_with('#') {
-        return None;
-    }
-    let level = trimmed.chars().take_while(|&c| c == '#').count();
-    if (1..=6).contains(&level) {
-        let rest = &trimmed[level..];
-        if rest.starts_with(' ') || rest.starts_with('\t') || rest.is_empty() {
-            return Some((level as u8, rest.trim()));
-        }
-    }
-    None
-}
-
-fn parse_setext_underline(line: &str) -> Option<u8> {
-    let trimmed = line.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    if trimmed.chars().all(|c| c == '=') && trimmed.len() >= 3 {
-        Some(1)
-    } else if trimmed.chars().all(|c| c == '-') && trimmed.len() >= 3 {
-        Some(2)
-    } else {
-        None
-    }
 }
 
 #[cfg(test)]

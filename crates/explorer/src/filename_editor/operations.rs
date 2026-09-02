@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::ExplorerState;
+use crate::state::ExplorerState;
 
 use crate::filename_editor::ExplorerFilenameImeHost;
 use crate::state::undo::ExplorerChange;

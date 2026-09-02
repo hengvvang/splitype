@@ -100,7 +100,6 @@ pub(crate) fn render_preview_mermaid_diagram(
                 syntax_highlighter::graphics::render_graphic_error_card(
                     syntax_highlighter::graphics::GraphicKind::Mermaid,
                     &err.to_string(),
-                    raw,
                     theme,
                 ),
                 theme,

@@ -9,7 +9,7 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::section::{section_card, section_header, settings_row};
+use crate::section::settings_row;
 use crate::select::{select_option, select_panel, select_trigger};
 use crate::stepper::{stepper_container, stepper_divider, stepper_step_button};
 use theme::{ThemeColors, ThemeDimensions};
@@ -90,60 +90,6 @@ pub fn make_row_with_reset(
         .child(label_column)
         .child(control)
         .into_any_element()
-}
-
-/// A collapsible settings section card with a header and body rows.
-pub fn make_section(
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-    id: impl Into<ElementId>,
-    title: impl Into<SharedString>,
-    expanded: bool,
-    toggle_fn: SettingsClickHandler,
-    items: Vec<AnyElement>,
-) -> AnyElement {
-    let title = title.into();
-    let base_id = id.into();
-    let header_id = ElementId::from((base_id.clone(), "header"));
-    let card_id = ElementId::from((base_id, "card"));
-    let header = section_header()
-        .id(header_id)
-        .child(
-            svg()
-                .path(if expanded {
-                    "icons/settings/chevron-down.svg"
-                } else {
-                    "icons/settings/chevron-right.svg"
-                })
-                .size(px(16.0))
-                .text_color(c.text_default),
-        )
-        .child(
-            div()
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(c.text_default)
-                .child(title),
-        )
-        .on_click(move |event, window, cx| toggle_fn(event, window, cx));
-
-    let mut card = section_card(c, d).id(card_id).child(header);
-
-    if expanded && !items.is_empty() {
-        let body = div()
-            .w_full()
-            .px(px(10.0))
-            .pb(px(10.0))
-            .pt(px(2.0))
-            .flex()
-            .flex_col()
-            .gap(px(8.0))
-            .children(items);
-
-        card = card.child(body);
-    }
-
-    card.into_any_element()
 }
 
 /// Inline numeric field with steppers and keyboard editing.

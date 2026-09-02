@@ -2,9 +2,7 @@
 //! Implements Zed-style sub-pixel text shaping, viewport virtualization,
 //! Tree-sitter syntax highlighting, indent guides, and multi-cursor rendering.
 
-use std::sync::Arc;
-
-use editor_contracts::{PaneHost, PaneId};
+use editor_contracts::PaneId;
 use gpui::*;
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
@@ -17,24 +15,14 @@ pub struct EditorElement {
     state: SourceCodeState,
     pane_id: PaneId,
     is_focused: bool,
-    _scroll: ScrollHandle,
-    _host: Arc<dyn PaneHost>,
 }
 
 impl EditorElement {
-    pub fn new(
-        state: SourceCodeState,
-        pane_id: PaneId,
-        is_focused: bool,
-        scroll: ScrollHandle,
-        host: Arc<dyn PaneHost>,
-    ) -> Self {
+    pub fn new(state: SourceCodeState, pane_id: PaneId, is_focused: bool) -> Self {
         Self {
             state,
             pane_id,
             is_focused,
-            _scroll: scroll,
-            _host: host,
         }
     }
 }

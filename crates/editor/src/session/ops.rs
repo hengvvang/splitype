@@ -152,9 +152,6 @@ impl Editor {
         self.change_pane_kind(pane_id, kind);
         {
             let state = self.pane_state(pane_id);
-            state.scroll.pending_autoscroll = Some(editor_contracts::AutoscrollStrategy::Fit {
-                margin: gpui::px(20.0),
-            });
             state.scroll.last_viewport_size = None;
         }
         if let Some(tab) = self.session.active_tab_mut() {

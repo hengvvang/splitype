@@ -1,6 +1,5 @@
 //! PreviewPane state — read-only block tree, selection and sync markers.
 
-use std::ops::Range;
 use std::sync::Arc;
 
 use editor_contracts::OutlineNode;
@@ -10,15 +9,11 @@ use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use theme::Theme;
 
 use crate::node::PreviewBlock;
-use crate::selection::{PreviewEndpoint, PreviewSelectionRange};
 
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]
 pub struct PreviewState {
     pub blocks: Vec<PreviewBlock>,
-    pub selection: Option<PreviewSelectionRange>,
-    pub drag_anchor: Option<PreviewEndpoint>,
-    pub search_matches: Vec<(Range<usize>, bool)>,
     pub source_hash: u64,
     /// Document revision the preview tree was last synced at; `None` until
     /// the first build.
@@ -65,7 +60,6 @@ impl PaneView for PreviewState {
             &mut roots,
             document.base_dir.as_deref(),
             &Default::default(),
-            &Default::default(),
             &footnote_registry,
         );
         self.blocks = roots;
@@ -110,6 +104,24 @@ impl PaneView for PreviewState {
             .collect::<Vec<_>>()
             .join("\n\n");
         crate::search::search_in_preview(&text, query)
+    }
+
+    fn navigate_to_search_match(&mut self, match_item: &SearchMatch, cx: &mut App) -> Option<f32> {
+        let theme = cx.global::<theme::ThemeManager>().current_arc();
+        let font_size = theme.typography.text_size.max(14.0);
+        let line_height = (font_size * theme.typography.text_line_height)
+            .round()
+            .max(22.0);
+        crate::search::calculate_scroll_offset_for_match(self, match_item, line_height)
+    }
+
+    fn set_search_highlights(
+        &mut self,
+        matches: &[SearchMatch],
+        active_index: Option<usize>,
+        _cx: &mut App,
+    ) {
+        crate::search::distribute_search_highlights(&mut self.blocks, matches, active_index);
     }
 
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement {

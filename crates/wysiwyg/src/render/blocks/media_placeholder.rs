@@ -2,21 +2,14 @@
 
 use gpui::*;
 
-use crate::model::block::{Block, ImageHandle};
+use crate::model::block::Block;
 use crate::render::layout::centered_column_width;
 use crate::render::visible_quote_guides;
-use config::language::I18nStrings;
-use markdown_parser::block::image::ImageResolvedSource;
+use markdown_parser::block::image::{ImageHandle, ImageResolvedSource};
 use markdown_parser::parse::BlockKind;
 use theme::{Theme, ThemeDimensions};
 
-pub fn render_image_placeholder(
-    runtime: &ImageHandle,
-    width: Length,
-    _height: Pixels,
-    theme: &Theme,
-    _strings: &I18nStrings,
-) -> AnyElement {
+pub fn render_image_placeholder(runtime: &ImageHandle, width: Length, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -64,9 +57,7 @@ pub fn render_image_placeholder(
 pub fn render_loading_placeholder(
     runtime: &ImageHandle,
     width: Length,
-    _height: Pixels,
     theme: &Theme,
-    _strings: &I18nStrings,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
@@ -168,9 +159,7 @@ impl Block {
         runtime: &ImageHandle,
         max_width: Length,
         max_height: Pixels,
-        placeholder_height: Pixels,
         theme: &Theme,
-        strings: &I18nStrings,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -178,8 +167,6 @@ impl Block {
         let source = runtime.resolved_source.clone();
         let placeholder_theme = theme.clone();
         let loading_theme = theme.clone();
-        let placeholder_strings = strings.clone();
-        let loading_strings = strings.clone();
         let runtime_for_fallback = runtime.clone();
         let runtime_for_loading = runtime.clone();
 
@@ -191,22 +178,10 @@ impl Block {
         .max_h(max_height)
         .object_fit(ObjectFit::Contain)
         .with_fallback(move || {
-            render_image_placeholder(
-                &runtime_for_fallback,
-                max_width,
-                placeholder_height,
-                &placeholder_theme,
-                &placeholder_strings,
-            )
+            render_image_placeholder(&runtime_for_fallback, max_width, &placeholder_theme)
         })
         .with_loading(move || {
-            render_loading_placeholder(
-                &runtime_for_loading,
-                max_width,
-                placeholder_height,
-                &loading_theme,
-                &loading_strings,
-            )
+            render_loading_placeholder(&runtime_for_loading, max_width, &loading_theme)
         });
 
         let mut container = div()

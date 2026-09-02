@@ -2,7 +2,8 @@
 
 use std::path::Path;
 
-use crate::model::block::{Block, ImageHandle};
+use crate::model::block::Block;
+use markdown_parser::block::image::ImageHandle;
 use markdown_parser::block::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
 use markdown_parser::parse::BlockKind;
 

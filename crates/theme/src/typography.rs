@@ -41,13 +41,6 @@ impl From<FontWeightDef> for FontWeight {
     }
 }
 
-impl From<&FontWeightDef> for FontWeight {
-    #[inline]
-    fn from(def: &FontWeightDef) -> Self {
-        FontWeight::from(*def)
-    }
-}
-
 impl FontWeightDef {
     /// Converts the serialized theme value into GPUI's runtime font weight.
     #[inline]
@@ -150,28 +143,6 @@ pub enum TypographyScope {
     Code,
 }
 
-impl TypographyScope {
-    pub const ALL: [Self; 3] = [Self::Ui, Self::Prose, Self::Code];
-
-    pub fn display_label(&self) -> &'static str {
-        match self {
-            Self::Ui => "Interface Font",
-            Self::Prose => "Prose Text Font",
-            Self::Code => "Code Block Font",
-        }
-    }
-
-    pub fn display_description(&self) -> &'static str {
-        match self {
-            Self::Ui => "Font used for menus, file navigation panel, and application chrome",
-            Self::Prose => {
-                "Font used for Markdown prose, headings, and tables (both Editor and Preview)"
-            }
-            Self::Code => "Monospace font used for code blocks and inline code",
-        }
-    }
-}
-
 /// Global typography store managing active font instances for Ui, Prose, and Code scopes.
 pub struct TypographyStore {
     settings: config::settings::TypographySettings,
@@ -244,11 +215,6 @@ impl TypographyStore {
     #[inline]
     pub fn prose_font(cx: &gpui::App) -> gpui::Font {
         Self::font(cx, TypographyScope::Prose)
-    }
-
-    #[inline]
-    pub fn code_font(cx: &gpui::App) -> gpui::Font {
-        Self::font(cx, TypographyScope::Code)
     }
 
     pub fn default_font(scope: TypographyScope) -> gpui::Font {

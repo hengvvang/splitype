@@ -39,22 +39,48 @@ impl Shell {
         let panel_id = panel_id.into();
         let target_leaf_id = self.panels.layout.resolve_leaf(panel_id.0)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
-        let Some(kind) = self.panels.layout.tree.find_leaf_kind(new_id) else {
-            return Some(PanelId(new_id));
-        };
-        let mut inserted = false;
-        if copy_content && let Some(state) = self.clone_panel_state_for_kind(kind.clone(), cx) {
-            inserted = self.restore_retained_view(PanelId(new_id), kind.clone(), state, cx);
-        }
-        if !inserted {
-            self.ensure_registered_panel_view(PanelId(new_id), kind, cx);
+        if self.panels.layout.tree.find_leaf_kind(new_id).is_some() {
+            self.materialize_panel_view(PanelId(new_id), copy_content, cx);
         }
         self.push_active_document_context(cx);
         Some(PanelId(new_id))
     }
 
+    /// Materialize the fresh sibling leaf of a plain-drag split (always
+    /// cloning the source panel's durable state).
+    pub(crate) fn seed_split_panel(&mut self, new_id: impl Into<PanelId>, cx: &mut Context<Self>) {
+        let panel_id = new_id.into();
+        self.materialize_panel_view(panel_id, true, cx);
+        self.push_active_document_context(cx);
+    }
+
+    /// Materializes the view for a fresh leaf: a cloned state when requested
+    /// (falling back to a blank registered panel), otherwise a blank panel.
+    fn materialize_panel_view(
+        &mut self,
+        panel_id: PanelId,
+        copy_content: bool,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if self.panel_views.contains_key(&panel_id) {
+            return true;
+        }
+        let Some(kind) = self.panels.layout.tree.find_leaf_kind(panel_id.0) else {
+            return false;
+        };
+        let mut inserted = false;
+        if copy_content && let Some(state) = self.clone_panel_state_for_kind(kind.clone(), cx) {
+            inserted = self.restore_retained_view(panel_id, kind.clone(), state, cx);
+        }
+        if inserted {
+            true
+        } else {
+            self.ensure_registered_panel_view(panel_id, kind, cx)
+        }
+    }
+
     /// Clones the first live view of `kind` that offers durable state.
-    fn clone_panel_state_for_kind(
+    pub(crate) fn clone_panel_state_for_kind(
         &self,
         kind: PanelKind,
         cx: &mut Context<Self>,
@@ -83,7 +109,7 @@ impl Shell {
     }
 
     /// Restores a suspended state blob into a live view through its descriptor.
-    fn restore_retained_view(
+    pub(crate) fn restore_retained_view(
         &mut self,
         panel_id: PanelId,
         kind: PanelKind,
@@ -142,22 +168,6 @@ impl Shell {
         panel_id: impl Into<PanelId>,
     ) -> Option<Box<dyn PanelView>> {
         self.panel_views.remove(&panel_id.into())
-    }
-
-    /// Materialize the fresh sibling leaf of a plain-drag split.
-    pub(crate) fn seed_split_panel(&mut self, new_id: impl Into<PanelId>, cx: &mut Context<Self>) {
-        let new_id = new_id.into();
-        let Some(kind) = self.panels.layout.tree.find_leaf_kind(new_id.0) else {
-            return;
-        };
-        let mut inserted = false;
-        if let Some(state) = self.clone_panel_state_for_kind(kind.clone(), cx) {
-            inserted = self.restore_retained_view(new_id, kind.clone(), state, cx);
-        }
-        if !inserted {
-            self.ensure_registered_panel_view(new_id, kind, cx);
-        }
-        self.push_active_document_context(cx);
     }
 
     /// Close an area and drop its view and retained state.

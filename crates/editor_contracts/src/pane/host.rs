@@ -2,14 +2,6 @@ use crate::pane::PaneId;
 use gpui::{App, ScrollHandle, Window};
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum AutoscrollStrategy {
-    Fit { margin: gpui::Pixels },
-    Center,
-    Top { margin: gpui::Pixels },
-    Bottom { margin: gpui::Pixels },
-}
-
 pub struct PaneRenderContext<'a> {
     pub pane_id: PaneId,
     pub is_focused: bool,
@@ -21,8 +13,7 @@ pub struct PaneRenderContext<'a> {
 /// Host seam a pane uses to reach back into the coordinating editor.
 ///
 /// Only operations that panes actually invoke are exposed; everything the
-/// editor does on its own schedule (focus, autoscroll, refresh) stays
-/// editor-internal.
+/// editor does on its own schedule (focus, refresh) stays editor-internal.
 pub trait PaneHost: Send + Sync + 'static {
     /// Atomically replaces the authoritative document text. The editor bumps
     /// the revision, marks the document dirty, invalidates caches, and

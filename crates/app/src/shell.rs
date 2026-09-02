@@ -12,7 +12,6 @@ pub mod view;
 use gpui::*;
 use std::collections::HashMap;
 
-pub(crate) use self::host_bridge::ShellDocumentHost;
 use crate::chrome::MenuBarState;
 use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
@@ -61,8 +60,9 @@ pub struct Shell {
     pub(crate) menu_bar: MenuBarState,
     /// Window panel state: the outer area layout tree and its chrome state.
     pub(crate) panels: WindowPanels,
-    /// The last rendered viewport size.
-    pub(crate) last_viewport: Option<Size<Pixels>>,
+    /// Whether the shell has rendered at least once; guards the initial
+    /// active-document context push before any panel exists.
+    pub(crate) has_rendered: bool,
     /// Informational dialog shown from the Help menu (About / update check).
     pub(crate) info_dialog: Option<InfoDialogKind>,
     /// Window-level root focus handle for bubbling and global action dispatch.
@@ -222,7 +222,7 @@ impl Shell {
     /// Pushes the active document context into every panel whose plugin
     /// registered a context hook (currently the explorer).
     pub(crate) fn push_active_document_context(&mut self, cx: &mut Context<Self>) {
-        let Some(_viewport) = self.last_viewport else {
+        if !self.has_rendered {
             return;
         };
         let active_tab_path = self.active_document_tab_path(cx);

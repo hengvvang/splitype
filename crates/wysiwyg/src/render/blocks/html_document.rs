@@ -2,11 +2,11 @@
 
 use gpui::*;
 
-use crate::model::block::{Block, ImageHandle};
-use config::language::I18nManager;
+use crate::model::block::Block;
 use markdown_parser::block::html::{
     HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
 };
+use markdown_parser::block::image::ImageHandle;
 use markdown_parser::block::image::resolve_image_source;
 use markdown_parser::inline::html::HtmlCssColor;
 use theme::Theme;
@@ -420,7 +420,7 @@ impl Block {
         node: &HtmlNode,
         theme: &Theme,
         node_style: HtmlNodeVisualStyle,
-        cx: &mut Context<Self>,
+        _cx: &mut Context<Self>,
     ) -> AnyElement {
         let parsed_image = parse_html_image_block(&node.raw_source);
         let src = parsed_image
@@ -452,14 +452,11 @@ impl Block {
             title: None,
             resolved_source: resolve_image_source(src, self.image_base_dir()),
         };
-        let strings = cx.global::<I18nManager>().strings_arc();
         let content = self.render_image_content(
             &runtime,
             Length::Definite(relative(zoom)),
             px(theme.dimensions.image_root_max_height * zoom),
-            px(theme.dimensions.image_root_placeholder_height * zoom),
             theme,
-            &strings,
         );
         if let Some(bg) = node_style.background {
             div().w_full().bg(bg).child(content).into_any_element()

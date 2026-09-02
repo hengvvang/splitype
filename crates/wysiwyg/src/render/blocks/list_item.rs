@@ -52,9 +52,7 @@ pub fn render_bulleted_list_item(
                         runtime,
                         max_width.into(),
                         px(d.image_root_max_height),
-                        px(d.image_root_placeholder_height),
                         theme,
-                        &strings_from_context(cx),
                     ))
                 } else {
                     div().min_w(px(0.0)).flex_grow(1.0).child(
@@ -159,9 +157,7 @@ pub fn render_task_list_item(
                         runtime,
                         max_width.into(),
                         px(d.image_root_max_height),
-                        px(d.image_root_placeholder_height),
                         theme,
-                        &strings_from_context(cx),
                     ))
                 } else {
                     div().min_w(px(0.0)).flex_grow(1.0).child(
@@ -232,9 +228,7 @@ pub fn render_numbered_list_item(
                         runtime,
                         max_width.into(),
                         px(d.image_root_max_height),
-                        px(d.image_root_placeholder_height),
                         theme,
-                        &strings_from_context(cx),
                     ))
                 } else {
                     div().min_w(px(0.0)).flex_grow(1.0).child(
@@ -264,12 +258,4 @@ pub fn render_numbered_list_item(
             },
         ])
         .into_any_element()
-}
-
-/// Helper to get I18n strings from the global context.
-fn strings_from_context(cx: &mut Context<Block>) -> config::language::I18nStrings {
-    cx.global::<config::language::I18nManager>()
-        .strings_arc()
-        .as_ref()
-        .clone()
 }

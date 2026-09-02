@@ -1,7 +1,6 @@
-//! Editor view components — UI rendering, topbar, bottombar, scrollbar, and frame synchronization.
+//! Editor view components — UI rendering, topbar, bottombar, and frame synchronization.
 
 pub mod bottombar;
-pub mod scrollbar;
 pub mod sync;
 pub mod topbar;
 pub mod words;
@@ -17,7 +16,6 @@ impl Render for Editor {
         if self.has_tabs() {
             let active_pane = self.active_pane_id();
             self.apply_pending_focus(active_pane, window, cx);
-            self.apply_pending_autoscroll(active_pane, window, cx);
             self.sync_pending_save(window, cx);
             self.sync_pending_save_as(window, cx);
             self.sync_pending_open_link(window, cx);

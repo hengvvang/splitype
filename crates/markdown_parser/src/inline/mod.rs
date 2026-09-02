@@ -12,4 +12,4 @@ pub mod serialize;
 pub mod style;
 pub mod text;
 
-pub use offsets::{DisplayOffset, ImeConverter, PlainOffset, SourceOffset, Utf16Offset};
+pub use offsets::ImeConverter;

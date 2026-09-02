@@ -74,7 +74,7 @@ pub(crate) fn render_preview_footnotes_section(
 
     let rows: Vec<AnyElement> = footnotes
         .iter()
-        .map(|block| super::render_preview_block(block, None, 0, 0, settings, theme, window))
+        .map(|block| super::render_preview_block(block, 0, 0, settings, theme, window))
         .collect();
 
     div()

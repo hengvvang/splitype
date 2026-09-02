@@ -21,7 +21,7 @@ use crate::routing::{DocumentRouting, ExplorerHooks};
 /// registration.
 struct PluginRegistration {
     pane_descriptors: Vec<(Arc<dyn PaneDescriptor>, bool)>,
-    panel_descriptors: Vec<(Arc<dyn PanelDescriptor>, bool)>,
+    panel_descriptors: Vec<Arc<dyn PanelDescriptor>>,
     /// Document-role adapter plus its kind and whether it is the preferred
     /// document panel of the default window layout.
     document_routing: Option<(PanelKind, DocumentRouting, bool)>,
@@ -51,7 +51,7 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
         },
         "editor" => PluginRegistration {
             pane_descriptors: Vec::new(),
-            panel_descriptors: vec![(Arc::new(editor::EditorPanelDescriptor::new()), true)],
+            panel_descriptors: vec![Arc::new(editor::EditorPanelDescriptor::new())],
             document_routing: Some((
                 PanelKind::from_static(editor::PANEL_KIND),
                 DocumentRouting {
@@ -64,7 +64,7 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
         },
         "explorer" => PluginRegistration {
             pane_descriptors: Vec::new(),
-            panel_descriptors: vec![(Arc::new(explorer::ExplorerPanelDescriptor::new()), false)],
+            panel_descriptors: vec![Arc::new(explorer::ExplorerPanelDescriptor::new())],
             document_routing: None,
             explorer_hooks: Some(ExplorerHooks {
                 kind: PanelKind::from_static(explorer::PANEL_KIND),
@@ -76,7 +76,7 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
         },
         "settings" => PluginRegistration {
             pane_descriptors: Vec::new(),
-            panel_descriptors: vec![(Arc::new(settings::SettingsPanelDescriptor::new()), false)],
+            panel_descriptors: vec![Arc::new(settings::SettingsPanelDescriptor::new())],
             document_routing: None,
             explorer_hooks: None,
         },
@@ -138,13 +138,13 @@ pub(crate) fn init_plugins() {
             editor_contracts::PaneRegistry::register_global(descriptor.clone(), *is_default)
                 .expect("bundled pane kinds must be unique");
         }
-        for (descriptor, is_default) in &factory.panel_descriptors {
+        for descriptor in &factory.panel_descriptors {
             assert!(
                 capabilities.panels.contains(&descriptor.kind()),
                 "panel kind '{}' registered by '{plugin}' is not declared in its manifest",
                 descriptor.kind()
             );
-            window::PanelRegistry::register_global(descriptor.clone(), *is_default)
+            window::PanelRegistry::register_global(descriptor.clone())
                 .expect("bundled panel kinds must be unique");
         }
         if let Some((kind, routing, is_primary)) = &factory.document_routing {

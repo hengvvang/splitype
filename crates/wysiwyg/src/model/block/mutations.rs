@@ -7,7 +7,7 @@ use gpui::*;
 
 use super::Block;
 use super::state::{CollapsedCaretAffinity, InlineFormat};
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::BlockEvent;
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::BlockKind;
 
@@ -110,7 +110,6 @@ impl Block {
     }
 
     pub fn convert_to_paragraph(&mut self, cx: &mut Context<Self>) {
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.data.kind = BlockKind::Paragraph;
         self.data.raw_source = None;
         self.quote_reparse_requested = false;
@@ -118,7 +117,6 @@ impl Block {
     }
 
     pub fn convert_to_separator(&mut self, cx: &mut Context<Self>) {
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.make_separator();
         cx.emit(BlockEvent::Changed);
         cx.notify();
@@ -148,7 +146,6 @@ impl Block {
     }
 
     pub fn enter_code_block(&mut self, language: Option<String>, cx: &mut Context<Self>) {
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
         self.data.kind = BlockKind::CodeBlock { language };
         self.data.raw_source = None;
@@ -165,7 +162,6 @@ impl Block {
     }
 
     pub fn enter_math_block(&mut self, body: &str, cx: &mut Context<Self>) {
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
         self.data.kind = BlockKind::MathBlock;
         self.data.set_text(BlockText::plain(body.to_string()));
@@ -202,7 +198,6 @@ impl Block {
             return;
         }
 
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.apply_text_edit(
             next_text,
             selection.end,

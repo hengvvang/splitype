@@ -179,8 +179,6 @@ fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
         CornerDragModifier::Ctrl
     } else if event.modifiers.shift {
         CornerDragModifier::Shift
-    } else if event.modifiers.alt {
-        CornerDragModifier::Alt
     } else {
         CornerDragModifier::None
     }
@@ -458,12 +456,10 @@ pub fn render_standard_border_menu(
 
 /// Whether a corner-drag gesture may show a preview (and be applied) by
 /// hosts: plain and Ctrl drags always; Shift (duplicate into a new window)
-/// requires a minimum movement so a plain click doesn't clone; Alt drags
-/// are reserved.
+/// requires a minimum movement so a plain click doesn't clone.
 pub fn preview_allowed(drag: &CornerDragSession) -> bool {
     match drag.modifier {
         CornerDragModifier::None | CornerDragModifier::Ctrl => true,
         CornerDragModifier::Shift => past_shortcut_threshold(drag),
-        CornerDragModifier::Alt => false,
     }
 }

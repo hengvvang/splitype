@@ -13,13 +13,13 @@ use gpui::{App, Entity, EntityId};
 
 use crate::model::Document;
 use crate::model::block::Block;
-use crate::model::block::footnotes::{
-    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
-};
 use crate::pane::state::TableGrids;
 use markdown_parser::block::footnote::split_footnote_definition_text;
 use markdown_parser::block::image::ImageReferenceDefinitions;
 use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::footnotes::{
+    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
+};
 use markdown_parser::parse::{BlockId, BlockKind};
 
 /// Rebuild the document-wide footnote registry (definitions bound to
@@ -56,10 +56,14 @@ pub fn rebuild_footnote_registry(doc: &Document, cx: &App) -> FootnoteMap {
 
     let mut bindings = HashMap::<String, FootnoteDefinitionBinding>::new();
     for (id, entity_id) in definitions {
+        let block_id = doc
+            .block_entity_by_id(entity_id)
+            .map(|entity| entity.read(cx).data.id)
+            .unwrap_or_default();
         bindings.insert(
             id,
             FootnoteDefinitionBinding {
-                definition_entity_id: entity_id,
+                definition_block_id: block_id,
                 first_reference: None,
             },
         );
@@ -78,7 +82,7 @@ pub fn rebuild_footnote_registry(doc: &Document, cx: &App) -> FootnoteMap {
                 && binding.first_reference.is_none()
             {
                 binding.first_reference = Some(FootnoteReferenceLocation {
-                    entity_id: entry.entity.entity_id(),
+                    block_id,
                     occurrence_index,
                 });
             }

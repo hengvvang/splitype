@@ -320,7 +320,6 @@ impl Editor {
 
         if pane_id == self.active_pane_id() {
             self.apply_pending_focus(pane_id, window, cx);
-            self.apply_pending_autoscroll(pane_id, window, cx);
         }
 
         let is_focused = self.focused_pane_id == Some(pane_id);

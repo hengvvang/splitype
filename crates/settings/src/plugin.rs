@@ -1,13 +1,13 @@
 //! The Settings panel plugin — a thin host over the schema-driven settings
 //! UI.
 //!
-//! The panel is a minimal shell: topbar chrome, the shared settings body
-//! rendered from manifest-declared settings schemas ([`host`]), and an empty
-//! bottombar. It imports no other plugin.
+//! The panel is a minimal shell: topbar chrome plus the shared settings body
+//! rendered from manifest-declared settings schemas ([`host`]). It imports
+//! no other plugin.
 
 use crate::host::render_settings_body;
+use crate::render_settings_topbar;
 use crate::state::{PersistedSettingsState, SettingsUiState};
-use crate::{render_settings_bottombar, render_settings_topbar};
 use gpui::*;
 use platform_contracts::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 use std::any::Any;
@@ -73,7 +73,6 @@ impl PanelView for SettingsPanelView {
             cx,
         );
         let body = render_settings_body(&format!("panel-{}", ctx.panel_id.0), state, theme, cx);
-        let bottombar = render_settings_bottombar(ctx.panel_id, theme, cx);
 
         div()
             .w_full()
@@ -90,7 +89,6 @@ impl PanelView for SettingsPanelView {
                     .overflow_hidden()
                     .child(body),
             )
-            .child(bottombar)
             .into_any_element()
     }
 

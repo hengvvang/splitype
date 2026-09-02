@@ -58,12 +58,7 @@ pub fn render_empty_graphic_placeholder(kind: GraphicKind, theme: &Theme) -> Any
         .into_any_element()
 }
 
-pub fn render_graphic_error_card(
-    kind: GraphicKind,
-    error: &str,
-    _raw_source: &str,
-    theme: &Theme,
-) -> AnyElement {
+pub fn render_graphic_error_card(kind: GraphicKind, error: &str, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;

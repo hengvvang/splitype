@@ -10,11 +10,12 @@ use gpui::{
     IntoElement, ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
 };
 use theme::Theme;
+use theme::ThemeManager;
 
 use crate::model::Document;
 use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::model::protocol::BlockEvent;
-use crate::pane::state::{FocusState, ReferenceRegistries, TableGrids};
+use crate::pane::state::{ReferenceRegistries, TableGrids};
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::{BlockData, BlockKind};
 
@@ -26,7 +27,6 @@ pub struct WysiwygDocumentController {
     pub synced_revision: Option<u64>,
     pub text_stale: bool,
     pub active_entity: Option<Entity<Block>>,
-    pub focus: FocusState,
     pub tables: TableGrids,
     pub references: ReferenceRegistries,
 }
@@ -40,7 +40,6 @@ impl WysiwygDocumentController {
             synced_revision: None,
             text_stale: false,
             active_entity: None,
-            focus: FocusState::default(),
             tables: TableGrids::default(),
             references: ReferenceRegistries {
                 base_dir: document
@@ -110,9 +109,6 @@ impl WysiwygDocumentController {
         let mut doc = Document::new(roots);
         doc.rebuild_metadata_and_snapshot(cx);
         self.active_entity = doc.blocks().first().map(|b| b.entity.clone());
-        if let Some(active) = &self.active_entity {
-            self.focus.active_entity = Some(active.entity_id());
-        }
         self.document = Some(doc);
         self.synced_revision = Some(revision);
         self.text_stale = false;
@@ -154,7 +150,6 @@ impl WysiwygDocumentController {
             }
             BlockEvent::RequestFocus => {
                 self.active_entity = Some(block.clone());
-                self.focus.active_entity = Some(block.entity_id());
                 cx.notify();
             }
             BlockEvent::RequestNewline {
@@ -177,7 +172,6 @@ impl WysiwygDocumentController {
                         cx,
                     );
                     self.active_entity = Some(new_block.clone());
-                    self.focus.active_entity = Some(new_block.entity_id());
                     new_block.update(cx, |b, cx| {
                         b.start_cursor_blink(cx);
                         cx.notify();
@@ -207,7 +201,6 @@ impl WysiwygDocumentController {
                         cx,
                     );
                     self.active_entity = Some(new_block.clone());
-                    self.focus.active_entity = Some(new_block.entity_id());
                     new_block.update(cx, |b, cx| {
                         b.start_cursor_blink(cx);
                         cx.notify();
@@ -244,7 +237,6 @@ impl WysiwygDocumentController {
                         });
                         doc.remove_block(block.entity_id(), cx);
                         self.active_entity = Some(prev.clone());
-                        self.focus.active_entity = Some(prev.entity_id());
                         self.text_stale = true;
                         if let Some(host) = &self.host {
                             if let Some(text) = self.serialize_text(cx) {
@@ -265,7 +257,6 @@ impl WysiwygDocumentController {
                         let target = blocks[target_idx].entity.clone();
                         doc.remove_block(block.entity_id(), cx);
                         self.active_entity = Some(target.clone());
-                        self.focus.active_entity = Some(target.entity_id());
                         target.update(cx, |t, cx| {
                             t.start_cursor_blink(cx);
                             cx.notify();
@@ -300,7 +291,6 @@ impl WysiwygDocumentController {
                             cx.notify();
                         });
                         self.active_entity = Some(prev.clone());
-                        self.focus.active_entity = Some(prev.entity_id());
                         cx.notify();
                     }
                 }
@@ -319,7 +309,6 @@ impl WysiwygDocumentController {
                             cx.notify();
                         });
                         self.active_entity = Some(next.clone());
-                        self.focus.active_entity = Some(next.entity_id());
                         cx.notify();
                     }
                 }
@@ -343,7 +332,6 @@ impl WysiwygDocumentController {
                                     cx,
                                 );
                                 self.active_entity = Some(block.clone());
-                                self.focus.active_entity = Some(block.entity_id());
                                 self.text_stale = true;
                                 if let Some(host) = &self.host {
                                     if let Some(text) = self.serialize_text(cx) {
@@ -371,7 +359,6 @@ impl WysiwygDocumentController {
                                     cx,
                                 );
                                 self.active_entity = Some(block.clone());
-                                self.focus.active_entity = Some(block.entity_id());
                             }
                         } else {
                             block.update(cx, |b, cx| b.convert_to_paragraph(cx));
@@ -526,7 +513,6 @@ impl WysiwygDocumentController {
         let headings = self.outline_headings(cx);
         if let Some(node) = headings.get(index) {
             if let Some(entity_id) = node.block_id {
-                self.focus.active_entity = Some(entity_id);
                 if let Some(doc) = &self.document {
                     if let Some(block) = doc.block_entity_by_id(entity_id) {
                         self.active_entity = Some(block.clone());
@@ -580,10 +566,14 @@ impl WysiwygDocumentController {
         None
     }
 
-    pub fn navigate_to_search_match(&mut self, match_item: &SearchMatch, cx: &mut Context<Self>) {
+    pub fn navigate_to_search_match(
+        &mut self,
+        match_item: &SearchMatch,
+        cx: &mut Context<Self>,
+    ) -> Option<f32> {
+        let mut target_y = None;
         if let Some(doc) = &self.document {
             if let Some(entity_id) = match_item.entity_id {
-                self.focus.active_entity = Some(entity_id);
                 if let Some(block) = doc.block_entity_by_id(entity_id) {
                     self.active_entity = Some(block.clone());
                     block.update(cx, |b, cx| {
@@ -593,8 +583,13 @@ impl WysiwygDocumentController {
                         cx.notify();
                     });
                 }
+                if let Some(block_index) = doc.index_for_entity_id(entity_id) {
+                    let theme = cx.global::<ThemeManager>().current_arc();
+                    target_y = Some(self.calculate_block_scroll_offset(block_index, &theme, cx));
+                }
             }
         }
+        target_y
     }
 
     pub fn apply_line_prefix(&mut self, prefix: &str, cx: &mut Context<Self>) -> Option<String> {

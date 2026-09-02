@@ -125,8 +125,6 @@ pub fn menu_item_visual_height(item: &OwnedMenuItem, dimensions: &ThemeDimension
     }
 }
 
-pub const SCROLLABLE_IMPORT_MENU_VISIBLE_ITEMS: usize = 12;
-
 pub fn menu_items_visual_height_with_gaps(
     items: &[OwnedMenuItem],
     dimensions: &ThemeDimensions,
@@ -140,38 +138,6 @@ pub fn menu_items_visual_height_with_gaps(
         .map(|item| menu_item_visual_height(item, dimensions))
         .sum();
     items_height + dimensions.menu_panel_gap * items.len().saturating_sub(1) as f32
-}
-
-pub fn scrollable_import_menu_scroll_height(
-    scroll_items: &[OwnedMenuItem],
-    footer_items: &[OwnedMenuItem],
-    viewport_height: f32,
-    top_offset: f32,
-    dimensions: &ThemeDimensions,
-) -> f32 {
-    let visible_count = scroll_items.len().min(SCROLLABLE_IMPORT_MENU_VISIBLE_ITEMS);
-    if visible_count == 0 {
-        return 0.0;
-    }
-
-    let default_height =
-        menu_items_visual_height_with_gaps(&scroll_items[..visible_count], dimensions);
-    let footer_height = menu_items_visual_height_with_gaps(footer_items, dimensions);
-    let footer_gap = if footer_items.is_empty() {
-        0.0
-    } else {
-        dimensions.menu_panel_gap
-    };
-    let available_height = viewport_height
-        - top_offset
-        - dimensions.menu_panel_top
-        - dimensions.menu_panel_padding * 2.0
-        - footer_height
-        - footer_gap
-        - 8.0;
-    let min_height = dimensions.menu_item_height.min(default_height).max(1.0);
-
-    default_height.min(available_height.max(min_height))
 }
 
 // ── Sub-menu bridging geometry ────────────────────────────────────────────
@@ -188,37 +154,6 @@ pub fn submenu_panel_top(
         .sum();
     let prior_gaps = dimensions.menu_panel_gap * item_index as f32;
     dimensions.menu_panel_top + dimensions.menu_panel_padding + prior_items_height + prior_gaps
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct MenuSubmenuBridgeGeometry {
-    pub left: f32,
-    pub top: f32,
-    pub width: f32,
-    pub height: f32,
-}
-
-pub fn submenu_bridge_geometry<S: AsRef<str>, T: AsRef<str>>(
-    open_index: usize,
-    menu_labels: &[S],
-    items: &[OwnedMenuItem],
-    item_index: usize,
-    submenu_labels: &[T],
-    dimensions: &ThemeDimensions,
-) -> Option<MenuSubmenuBridgeGeometry> {
-    let item = items.get(item_index)?;
-    let main_panel_left = menu_panel_left(open_index, menu_labels, dimensions);
-    let main_panel_width = menu_panel_width_for_labels(&owned_menu_item_labels(items), dimensions);
-    let submenu_width = menu_panel_width_for_labels(submenu_labels, dimensions);
-    let vertical_tolerance = dimensions.menu_panel_padding + dimensions.menu_panel_gap;
-    let item_top = submenu_panel_top(items, item_index, dimensions);
-    let top = (item_top - vertical_tolerance).max(dimensions.menu_panel_top);
-    Some(MenuSubmenuBridgeGeometry {
-        left: main_panel_left + main_panel_width,
-        top,
-        width: dimensions.menu_panel_gap + submenu_width,
-        height: menu_item_visual_height(item, dimensions) + vertical_tolerance * 2.0,
-    })
 }
 
 // ── Shared chrome ─────────────────────────────────────────────────────────

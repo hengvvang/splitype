@@ -146,14 +146,13 @@ pub mod theme;
 pub mod typography;
 
 pub use colors::{ThemeColors, ThemeColorsPatch};
-pub use config::settings::Appearance;
 pub use content::{ThemeContent, ThemeFamilyContent, ThemeStyleContent, validate_family};
 pub use dimensions::{ThemeDimensions, ThemeDimensionsPatch};
 pub use manager::{
     ImportedTheme, ThemeManager, apply_theme_selection, import_theme_config_and_select,
 };
 pub use registry::{ThemeCatalogEntry, ThemeRegistry, TokenDeclaration};
-pub use resolve::{ResolvedTheme, resolve_theme};
+pub use resolve::resolve_theme;
 pub use theme::{CalloutStyle, HeadingStyle, Placeholders, PlaceholdersPatch, Theme};
 pub use typography::{
     FontWeightDef, TYPOGRAPHY_SIZE_FIELDS, TYPOGRAPHY_WEIGHT_FIELDS, ThemeTypography,

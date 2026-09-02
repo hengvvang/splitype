@@ -6,8 +6,8 @@ use gpui::*;
 
 use super::Block;
 use super::state::CollapsedCaretAffinity;
-use crate::model::block::footnotes::FootnoteMap;
 use markdown_parser::block::link::LinkReferenceDefinitions;
+use markdown_parser::footnotes::FootnoteMap;
 use markdown_parser::inline::render_cache::{InlineRenderCache, InlineSpan};
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::BlockKind;

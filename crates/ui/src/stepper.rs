@@ -44,16 +44,3 @@ pub fn stepper_divider(c: &ThemeColors) -> Div {
         .flex_shrink_0()
         .bg(c.dialog_border)
 }
-
-/// Stepper value display (editing background stays at call sites).
-pub fn stepper_value() -> Div {
-    div()
-        .h_full()
-        .flex_1()
-        .min_w(px(0.0))
-        .px(px(6.0))
-        .flex()
-        .items_center()
-        .justify_center()
-        .gap(px(3.0))
-}

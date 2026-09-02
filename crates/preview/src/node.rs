@@ -8,7 +8,6 @@ use std::sync::Arc;
 use markdown_parser::block::image::{
     ImageHandle, ImageReferenceDefinitions, ImageSyntax, resolve_image_source,
 };
-use markdown_parser::block::link::LinkReferenceDefinitions;
 use markdown_parser::footnotes::FootnoteMap;
 use markdown_parser::parse::{BlockData, BlockId, BlockKind};
 
@@ -22,7 +21,6 @@ pub struct PreviewBlock {
     pub list_ordinal: Option<usize>,
     pub base_dir: Option<PathBuf>,
     pub image_registry: Arc<ImageReferenceDefinitions>,
-    pub link_registry: Arc<LinkReferenceDefinitions>,
     pub footnote_registry: Arc<FootnoteMap>,
 }
 
@@ -35,7 +33,6 @@ impl PreviewBlock {
             list_ordinal: None,
             base_dir: None,
             image_registry: Arc::new(ImageReferenceDefinitions::default()),
-            link_registry: Arc::new(LinkReferenceDefinitions::default()),
             footnote_registry: Arc::new(FootnoteMap::default()),
         }
     }
@@ -92,12 +89,10 @@ impl PreviewBlock {
         &mut self,
         base_dir: Option<PathBuf>,
         image_registry: Arc<ImageReferenceDefinitions>,
-        link_registry: Arc<LinkReferenceDefinitions>,
         footnote_registry: Arc<FootnoteMap>,
     ) {
         self.base_dir = base_dir;
         self.image_registry = image_registry;
-        self.link_registry = link_registry;
         self.footnote_registry = footnote_registry;
     }
 

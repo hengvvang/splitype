@@ -22,8 +22,6 @@ pub struct SettingsUiState {
     pub edit_buffers: BTreeMap<String, String>,
     /// Declaration key → search query of its searchable picker.
     pub search_queries: BTreeMap<String, String>,
-    /// `"<plugin>:<group>"` → whether the settings card is expanded.
-    pub expanded_cards: BTreeMap<String, bool>,
     /// Declaration key → focus handle for its inline editor.
     focus_handles: BTreeMap<String, FocusHandle>,
 }
@@ -50,7 +48,6 @@ impl SettingsUiState {
             open_picker: None,
             edit_buffers: BTreeMap::new(),
             search_queries: BTreeMap::new(),
-            expanded_cards: BTreeMap::new(),
             focus_handles: BTreeMap::new(),
         }
     }

@@ -16,4 +16,3 @@ pub mod settings;
 pub mod view;
 
 pub use plugin::*;
-pub use settings::EditorSettings;

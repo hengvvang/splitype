@@ -132,10 +132,6 @@ label = "Open New Document"
 value = "last_opened_file"
 label = "Open Last Active Document"
 
-[[settings.options]]
-value = "empty"
-label = "Open Empty Workspace"
-
 [[settings]]
 key = "startup.restore_window_state"
 kind = "bool"
@@ -196,22 +192,3 @@ kind = "font"
 default = ""
 title = "Code Block Font"
 description = "Monospace font used for code blocks and inline code"
-
-[[settings]]
-key = "typography.font_size"
-kind = "number"
-default = 16
-min = 8
-max = 72
-title = "Document Font Size"
-description = "Baseline font size in pixels for document prose content"
-
-[[settings]]
-key = "typography.line_height"
-kind = "number"
-default = 1.6
-min = 0.8
-max = 3.0
-step = 0.1
-title = "Line Spacing Multiplier"
-description = "Proportional line height for comfortable reading"

@@ -83,11 +83,9 @@ impl PaneView for WysiwygPaneState {
         controller.update(cx, |c, cx| c.replace_match(match_item, replace_with, cx))
     }
 
-    fn navigate_to_search_match(&mut self, match_item: &SearchMatch, cx: &mut App) {
+    fn navigate_to_search_match(&mut self, match_item: &SearchMatch, cx: &mut App) -> Option<f32> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.navigate_to_search_match(match_item, cx);
-        });
+        controller.update(cx, |c, cx| c.navigate_to_search_match(match_item, cx))
     }
 
     fn apply_line_prefix(&mut self, prefix: &str, cx: &mut App) -> Option<String> {

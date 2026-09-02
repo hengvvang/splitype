@@ -200,13 +200,10 @@ impl Shell {
 
         if let Some(result) = self.panels.layout.finish_drag_gesture(body_size) {
             match result {
-                CornerDragResult::Split { new_leaf_id, .. } => {
+                CornerDragResult::Split { new_leaf_id } => {
                     self.seed_split_panel(new_leaf_id, cx);
                 }
-                CornerDragResult::Join {
-                    into_id: _,
-                    removed_id,
-                } => {
+                CornerDragResult::Join { removed_id } => {
                     self.handle_joined_panel(removed_id, cx);
                 }
                 CornerDragResult::MoveAndDock {

@@ -3,8 +3,8 @@
 //! block itself and emit [`BlockEvent`]s for the editor to resolve.
 //!
 //! These implement [`Block`] (orphan rule: they must live in this crate);
-//! the editor-side resolution of the emitted events stays in the
-//! coordinating crate until the `Editor` entity converges.
+//! the editor-side resolution of the emitted events lives in
+//! [`crate::pane::controller`].
 
 pub mod clipboard;
 pub mod code_language;

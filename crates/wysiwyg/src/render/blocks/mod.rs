@@ -6,7 +6,6 @@ pub mod code_ui;
 pub mod embedded_preview;
 pub mod fenced_code;
 pub mod footnote;
-pub mod graphic_state;
 pub mod heading;
 pub mod html_block;
 pub mod html_document;
@@ -25,10 +24,8 @@ pub mod viewport;
 
 pub use blockquote::*;
 pub use callout::*;
-pub use embedded_preview::*;
 pub use fenced_code::*;
 pub use footnote::*;
-pub use graphic_state::*;
 pub use heading::*;
 pub use html_block::*;
 pub use html_document::*;

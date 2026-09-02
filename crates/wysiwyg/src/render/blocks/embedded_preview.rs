@@ -6,6 +6,9 @@ use crate::model::block::Block;
 use crate::render::media_placeholder::effective_image_width;
 use markdown_parser::block::math::parse_display_math_source;
 use markdown_parser::block::mermaid::parse_mermaid_fence_source;
+use syntax_highlighter::graphics::{
+    GraphicKind, render_empty_graphic_placeholder, render_graphic_error_card,
+};
 use syntax_highlighter::latex::{display_math_font_size, render_display_math_svg};
 use syntax_highlighter::mermaid::{mermaid_content_fingerprint, render_mermaid_svg_for_display};
 use theme::{Theme, ThemeDimensions};
@@ -38,10 +41,7 @@ impl Block {
 
         if source.body.is_empty() {
             return (
-                crate::render::graphic_state::render_empty_graphic_placeholder(
-                    crate::render::graphic_state::GraphicKind::LatexMath,
-                    theme,
-                ),
+                render_empty_graphic_placeholder(GraphicKind::LatexMath, theme),
                 false,
             );
         }
@@ -64,12 +64,7 @@ impl Block {
                 true,
             ),
             Err(err) => (
-                crate::render::graphic_state::render_graphic_error_card(
-                    crate::render::graphic_state::GraphicKind::LatexMath,
-                    &err.to_string(),
-                    raw,
-                    theme,
-                ),
+                render_graphic_error_card(GraphicKind::LatexMath, &err.to_string(), theme),
                 false,
             ),
         }
@@ -102,10 +97,7 @@ impl Block {
 
         if source.body.is_empty() {
             return (
-                crate::render::graphic_state::render_empty_graphic_placeholder(
-                    crate::render::graphic_state::GraphicKind::Mermaid,
-                    theme,
-                ),
+                render_empty_graphic_placeholder(GraphicKind::Mermaid, theme),
                 false,
             );
         }
@@ -142,12 +134,7 @@ impl Block {
                         )
                     }
                     Err(err) => (
-                        crate::render::graphic_state::render_graphic_error_card(
-                            crate::render::graphic_state::GraphicKind::Mermaid,
-                            &err.to_string(),
-                            raw,
-                            theme,
-                        ),
+                        render_graphic_error_card(GraphicKind::Mermaid, &err.to_string(), theme),
                         false,
                     ),
                 }
@@ -194,34 +181,4 @@ impl Block {
             .child(content)
             .into_any_element()
     }
-}
-
-/// Renders the bottom preview card for interactive graphic blocks (Mermaid, LaTeX, Image)
-/// when clicked/focused in WYSIWYG mode.
-///
-/// Features:
-/// - Container border using `c.code_bg` (matching the top source code background color).
-/// - Clean, minimalist layout with centered graphic content.
-pub fn render_graphic_preview_box(preview_content: AnyElement, theme: &Theme) -> Div {
-    let c = &theme.colors;
-    let d = &theme.dimensions;
-
-    div()
-        .w_full()
-        .rounded(px(d.code_block_radius))
-        .border(px(1.0))
-        .border_color(c.code_bg)
-        .p(px(8.0))
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(
-            div()
-                .w_full()
-                .p(relative(0.005))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(preview_content),
-        )
 }

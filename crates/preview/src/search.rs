@@ -1,5 +1,7 @@
-//! Preview pane search matching and highlight navigation.
+//! Preview pane search matching, highlight distribution, and navigation.
 
+use crate::node::PreviewBlock;
+use crate::outline::calculate_scroll_offset_for_block_index;
 use crate::state::PreviewState;
 use editor_contracts::{SearchMatch, SearchQuery};
 
@@ -26,16 +28,70 @@ pub fn search_in_preview(markdown: &str, query: &SearchQuery) -> Vec<SearchMatch
     results
 }
 
-/// Calculates scroll Y offset to center the matched line/block in Preview.
+/// The separator used when joining block texts into the searchable document
+/// text; must match [`PreviewState::search_matches`] joining.
+const BLOCK_JOIN_SEPARATOR_LEN: usize = 2;
+
+/// Locates the root block containing a document-text byte offset using the
+/// same cumulative offsets as the joined search text.
+fn block_index_for_offset(blocks: &[PreviewBlock], offset: usize) -> Option<usize> {
+    let mut cumulative = 0usize;
+    for (index, block) in blocks.iter().enumerate() {
+        let len = block.display_len();
+        if offset < cumulative + len {
+            return Some(index);
+        }
+        cumulative += len + BLOCK_JOIN_SEPARATOR_LEN;
+    }
+    None
+}
+
+/// Distributes document-text match ranges onto the per-block local ranges the
+/// preview renderer decorates.
+pub fn distribute_search_highlights(
+    blocks: &mut [PreviewBlock],
+    matches: &[SearchMatch],
+    active_index: Option<usize>,
+) {
+    for block in blocks.iter_mut() {
+        block.search_matches.clear();
+    }
+    let mut cumulative = 0usize;
+    for block in blocks.iter_mut() {
+        let len = block.display_len();
+        for (index, match_item) in matches.iter().enumerate() {
+            let start = match_item
+                .byte_range
+                .start
+                .max(cumulative)
+                .saturating_sub(cumulative);
+            let end = match_item
+                .byte_range
+                .end
+                .min(cumulative + len)
+                .saturating_sub(cumulative);
+            if start < end {
+                block
+                    .search_matches
+                    .push((start..end, Some(index) == active_index));
+            }
+        }
+        cumulative += len + BLOCK_JOIN_SEPARATOR_LEN;
+    }
+}
+
+/// Calculates the scroll Y offset of the block containing the match.
 pub fn calculate_scroll_offset_for_match(
     state: &PreviewState,
     match_item: &SearchMatch,
     line_height: f32,
-) -> f32 {
-    let line_number = match_item.line_number.saturating_sub(1);
-    let block_count = state.blocks.len().max(1);
-    let target_idx = line_number.min(block_count.saturating_sub(1));
-    (target_idx as f32 * line_height * 2.0).max(0.0)
+) -> Option<f32> {
+    let block_index = block_index_for_offset(&state.blocks, match_item.byte_range.start)?;
+    Some(calculate_scroll_offset_for_block_index(
+        state,
+        block_index,
+        line_height,
+    ))
 }
 
 #[cfg(test)]

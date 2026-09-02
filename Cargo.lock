@@ -5865,6 +5865,7 @@ dependencies = [
  "config",
  "editor_contracts",
  "gpui",
+ "markdown_parser",
  "platform_contracts",
  "serde",
  "serde_json",

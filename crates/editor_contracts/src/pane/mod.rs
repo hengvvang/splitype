@@ -6,7 +6,7 @@ pub mod registry;
 pub mod view;
 
 pub use descriptor::PaneDescriptor;
-pub use host::{AutoscrollStrategy, PaneHost, PaneOutlineHost, PaneRenderContext};
+pub use host::{PaneHost, PaneOutlineHost, PaneRenderContext};
 pub use id::PaneId;
 pub use kind::PaneKind;
 pub use registry::{PaneRegistry, PaneRegistryError};

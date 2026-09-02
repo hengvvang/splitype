@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::editor::Editor;
 use config::language::{I18nManager, I18nStrings};
-use editor_contracts::{AutoscrollStrategy, PaneId};
+use editor_contracts::PaneId;
 
 impl Editor {
     /// Apply the pane's pending focus to the window keyboard focus.
@@ -33,84 +33,14 @@ impl Editor {
         }
     }
 
-    pub fn apply_pending_autoscroll(&mut self, pane_id: PaneId, window: &Window, cx: &App) {
-        if self
-            .pane_state_ref(pane_id)
-            .is_none_or(|state| state.scroll.scrollbar_drag.is_some())
-        {
-            return;
+    /// Applies a pane-computed content Y offset to the pane scroll handle.
+    pub fn scroll_pane_to(&mut self, pane_id: PaneId, target_y: f32, _window: &Window, _cx: &App) {
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state
+                .scroll
+                .handle
+                .set_offset(point(px(0.0), px(-target_y.max(0.0))));
         }
-
-        let strategy = self
-            .pane_state_mut(pane_id)
-            .and_then(|state| state.scroll.pending_autoscroll.take());
-        let Some(strategy) = strategy else {
-            return;
-        };
-
-        self.execute_autoscroll(pane_id, strategy, window, cx);
-    }
-
-    pub fn execute_autoscroll(
-        &mut self,
-        pane_id: PaneId,
-        strategy: AutoscrollStrategy,
-        _window: &Window,
-        _cx: &App,
-    ) -> bool {
-        let active_bounds: Option<Bounds<Pixels>> = None;
-
-        let Some(active_bounds) = active_bounds else {
-            return false;
-        };
-
-        let scroll = &self
-            .pane_state_ref(pane_id)
-            .expect("pane state exists")
-            .scroll;
-        let viewport = scroll.handle.bounds();
-        let mut offset = scroll.handle.offset();
-        let mut changed = false;
-
-        match strategy {
-            AutoscrollStrategy::Fit { margin } => {
-                let top_limit = viewport.top() + margin;
-                let bottom_limit = viewport.bottom() - margin;
-                if active_bounds.top() < top_limit {
-                    offset.y += top_limit - active_bounds.top();
-                    changed = true;
-                } else if active_bounds.bottom() > bottom_limit {
-                    offset.y -= active_bounds.bottom() - bottom_limit;
-                    changed = true;
-                }
-            }
-            AutoscrollStrategy::Center => {
-                let target_center = (active_bounds.top() + active_bounds.bottom()) / 2.0;
-                let viewport_center = (viewport.top() + viewport.bottom()) / 2.0;
-                offset.y += viewport_center - target_center;
-                changed = true;
-            }
-            AutoscrollStrategy::Top { margin } => {
-                let top_limit = viewport.top() + margin;
-                offset.y += top_limit - active_bounds.top();
-                changed = true;
-            }
-            AutoscrollStrategy::Bottom { margin } => {
-                let bottom_limit = viewport.bottom() - margin;
-                offset.y -= active_bounds.bottom() - bottom_limit;
-                changed = true;
-            }
-        }
-
-        if changed {
-            let max_offset_y = scroll.handle.max_offset().y.max(px(0.0));
-            offset.y = offset.y.min(px(0.0)).max(-max_offset_y);
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                state.scroll.handle.set_offset(offset);
-            }
-        }
-
-        true
     }
 
     pub fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -199,6 +129,13 @@ impl Editor {
                 }
             }
         }
+    }
+
+    fn viewport_size_changed(previous: Size<Pixels>, current: Size<Pixels>) -> bool {
+        const EPSILON: f32 = 0.5;
+
+        (f32::from(previous.width) - f32::from(current.width)).abs() > EPSILON
+            || (f32::from(previous.height) - f32::from(current.height)).abs() > EPSILON
     }
 
     /// Builds the OS window title, including the dirty marker when the

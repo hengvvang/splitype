@@ -8,14 +8,10 @@ use crate::render::inline;
 use markdown_parser::block::CalloutKind;
 use theme::Theme;
 
-use std::ops::Range;
-
 /// Renders a callout (admonition) block read-only.
 pub(crate) fn render_preview_callout(
     block: &PreviewBlock,
     variant: CalloutKind,
-    _depth: usize,
-    selection_range: Option<Range<usize>>,
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
@@ -38,14 +34,13 @@ pub(crate) fn render_preview_callout(
             .text_size(px(theme.typography.text_size))
             .font_weight(FontWeight::NORMAL)
             .text_color(accent)
-            .child(inline::render_preview_inline_with_selection(
+            .child(inline::render_preview_inline(
                 &block.data.text,
                 accent,
                 theme.typography.text_size,
                 FontWeight::NORMAL,
                 theme,
                 &block.search_matches,
-                selection_range,
             ))
             .into_any_element()
     };

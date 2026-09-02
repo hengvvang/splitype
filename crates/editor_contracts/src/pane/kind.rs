@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Owned and hashable so it can come from plugin manifests and persisted
 /// layouts, not only from compile-time literals. Built-in kinds use the
-/// `splitype.pane.*` namespace going forward; legacy single-word names are
-/// transitional.
+/// `splitype.pane.*` namespace.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PaneKind(Arc<str>);

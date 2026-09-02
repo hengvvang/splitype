@@ -8,7 +8,7 @@
 use gpui::*;
 
 use crate::model::block::{Block, CollapsedCaretAffinity};
-use crate::model::protocol::{BlockEvent, UndoCaptureKind};
+use crate::model::protocol::BlockEvent;
 use crate::pane::actions::{
     Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward,
     WordDeleteForward,
@@ -80,16 +80,6 @@ impl Block {
             return;
         }
 
-        if self.editor_selection_range.is_some() {
-            cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
-                text: "\n".to_string(),
-                selected_range_relative: None,
-                mark_inserted_text: false,
-                undo_kind: UndoCaptureKind::NonCoalescible,
-            });
-            return;
-        }
-
         if self.is_verbatim_mode() {
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
@@ -156,7 +146,6 @@ impl Block {
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
             }
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             self.replace_text_in_range(None, "\n", window, cx);
             return;
         }
@@ -181,7 +170,6 @@ impl Block {
                 && let Some(fence_start) = self.trailing_code_fence_line_start()
             {
                 let fence_end = self.display_len();
-                self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_display_range(fence_start..fence_end, "", None, false, cx);
                 cx.emit(BlockEvent::RequestNewline {
                     trailing: BlockText::plain(String::new()),
@@ -192,13 +180,11 @@ impl Block {
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
             }
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             self.replace_text_in_range(None, "\n", window, cx);
             return;
         }
 
         if self.collapsed_caret_inherits_inline_code_style() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             self.replace_text_in_range(None, "\n", window, cx);
             return;
         }
@@ -214,7 +200,6 @@ impl Block {
         }
 
         let (leading, trailing) = self.split_text(cursor);
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.data.set_text(leading);
         self.mark_changed(cx);
         let cursor = self.display_len();

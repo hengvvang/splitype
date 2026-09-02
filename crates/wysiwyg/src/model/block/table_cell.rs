@@ -1,8 +1,8 @@
 //! Native-table cell state helpers on [`Block`].
 //!
 //! Pure block methods (cell position/alignment, text alignment, grid
-//! binding); the table manipulation flows that orchestrate them stay
-//! editor-side until the `Editor` entity converges.
+//! binding); the table manipulation flows that orchestrate them live in
+//! [`crate::model::block::events::table_grow`].
 
 use gpui::TextAlign;
 

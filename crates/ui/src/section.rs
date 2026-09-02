@@ -1,20 +1,8 @@
-//! Section style builders — collapsible settings cards.
+//! Section style builders — settings cards and rows.
 
 use gpui::*;
 
 use theme::{ThemeColors, ThemeDimensions};
-
-/// Collapsible section header row (chevron + title stay at call sites).
-pub fn section_header() -> Div {
-    div()
-        .w_full()
-        .px(px(14.0))
-        .py(px(10.0))
-        .cursor_pointer()
-        .flex()
-        .items_center()
-        .gap(px(8.0))
-}
 
 /// Card container holding a section header and its body.
 pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {

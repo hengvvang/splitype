@@ -1,13 +1,12 @@
 //! Document tab and pane view state models.
 
 use std::collections::HashMap;
-use std::time::Instant;
 
-use gpui::{App, Pixels, ScrollHandle, Size, Task};
+use gpui::{App, Pixels, ScrollHandle, Size};
 
 use crate::session::file::FileState;
 use crate::session::{PaneKind, TabKind};
-use editor_contracts::{AutoscrollStrategy, DocumentId, DocumentSnapshot};
+use editor_contracts::{DocumentId, DocumentSnapshot};
 
 /// One document tab: the authoritative raw text and all document-level metadata.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -33,38 +32,19 @@ pub struct PaneState {
     pub pane: Box<dyn editor_contracts::PaneView>,
 }
 
-/// Scroll handle, layout anchoring, and autoscroll interaction state.
+/// Scroll handle, layout anchoring, and viewport tracking state.
 pub struct ScrollState {
     pub handle: ScrollHandle,
-    pub pending_autoscroll: Option<AutoscrollStrategy>,
     pub last_viewport_size: Option<Size<Pixels>>,
-    pub scrollbar_hovered: bool,
-    pub scrollbar_visible_until: Instant,
-    pub scrollbar_fade_task: Option<Task<()>>,
-    pub scrollbar_drag: Option<ScrollbarDragSession>,
 }
 
 impl Default for ScrollState {
     fn default() -> Self {
         Self {
             handle: ScrollHandle::new(),
-            pending_autoscroll: None,
             last_viewport_size: None,
-            scrollbar_hovered: false,
-            scrollbar_visible_until: Instant::now(),
-            scrollbar_fade_task: None,
-            scrollbar_drag: None,
         }
     }
-}
-
-/// Scrollbar drag session tracking.
-#[derive(Clone, Copy, Debug)]
-pub struct ScrollbarDragSession {
-    pub pointer_offset_y: f32,
-    pub track_height: f32,
-    pub thumb_height: f32,
-    pub max_scroll_y: f32,
 }
 
 impl DocumentTab {

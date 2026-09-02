@@ -15,18 +15,6 @@ use theme::Theme;
 
 use std::ops::Range;
 
-/// Renders the inline content of `text` with `base_color` and `font_size`,
-/// mirroring the WYSIWYG inline segment styling without any editing state.
-pub(crate) fn render_preview_inline(
-    text: &BlockText,
-    base_color: Hsla,
-    font_size: f32,
-    font_weight: FontWeight,
-    theme: &Theme,
-) -> AnyElement {
-    render_preview_inline_with_selection(text, base_color, font_size, font_weight, theme, &[], None)
-}
-
 #[inline]
 fn safe_str_slice(s: &str, start: usize, end: usize) -> &str {
     if start >= end || start >= s.len() {
@@ -47,15 +35,15 @@ fn safe_str_slice(s: &str, start: usize, end: usize) -> &str {
     &s[s_idx..e_idx]
 }
 
-/// Renders preview inline content with search matches and selection range applied.
-pub(crate) fn render_preview_inline_with_selection(
+/// Renders the inline content of `text` with `base_color` and `font_size`,
+/// mirroring the WYSIWYG inline segment styling without any editing state.
+pub(crate) fn render_preview_inline(
     text: &BlockText,
     base_color: Hsla,
     font_size: f32,
     font_weight: FontWeight,
     theme: &Theme,
     search_matches: &[(Range<usize>, bool)],
-    selection_range: Option<Range<usize>>,
 ) -> AnyElement {
     let cache = text.render_cache();
     let plain = cache.text();
@@ -69,14 +57,6 @@ pub(crate) fn render_preview_inline_with_selection(
         }
 
         let mut relevant_highlights: Vec<(Range<usize>, Hsla, Option<Hsla>)> = Vec::new();
-
-        if let Some(sel) = &selection_range {
-            let s_start = sel.start.max(span_start);
-            let s_end = sel.end.min(span_end);
-            if s_start < s_end {
-                relevant_highlights.push((s_start..s_end, theme.colors.selection, None));
-            }
-        }
 
         for (m_range, is_active) in search_matches {
             let overlap_start = m_range.start.max(span_start);

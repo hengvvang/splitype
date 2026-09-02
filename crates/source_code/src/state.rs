@@ -30,12 +30,9 @@ pub struct SourceCodeState {
     pub tab_map: TabMap,
     pub fold_map: FoldMap,
     pub wrap_map: WrapMap,
-    pub marked_range: Option<Range<usize>>,
     pub last_bounds: RefCell<Option<Bounds<Pixels>>>,
     pub search_matches: Vec<(Range<usize>, bool)>,
-    pub synced_doc_hash: u64,
     pub synced_revision: Option<u64>,
-    pub synced_tab_index: Option<usize>,
     pub is_dragging: bool,
     pub drag_anchor: Option<usize>,
     pub focus_handle: RefCell<Option<FocusHandle>>,
@@ -53,12 +50,9 @@ impl Default for SourceCodeState {
             tab_map: TabMap::default(),
             fold_map: FoldMap::default(),
             wrap_map: WrapMap::default(),
-            marked_range: None,
             last_bounds: RefCell::new(None),
             search_matches: Vec::new(),
-            synced_doc_hash: 0,
             synced_revision: None,
-            synced_tab_index: None,
             is_dragging: false,
             drag_anchor: None,
             focus_handle: RefCell::new(None),
@@ -189,7 +183,6 @@ impl SourceCodeState {
         self.text = text.into();
         self.rebuild_lines();
         self.selections.clamp_to_len(self.text.len());
-        self.marked_range = None;
         self.highlight_cache = None;
     }
 
@@ -842,16 +835,9 @@ impl editor_contracts::PaneView for SourceCodeState {
         if self.synced_revision == Some(revision) && self.text == text {
             return;
         }
-        let hash = {
-            use std::hash::{Hash, Hasher};
-            let mut h = std::collections::hash_map::DefaultHasher::new();
-            text.hash(&mut h);
-            h.finish()
-        };
         if self.text != text {
             self.set_text(text);
         }
-        self.synced_doc_hash = hash;
         self.synced_revision = Some(revision);
     }
 
@@ -860,7 +846,7 @@ impl editor_contracts::PaneView for SourceCodeState {
     }
 
     fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
-        crate::outline::extract_source_headings(&self.text)
+        crate::outline::extract_outline_headings(&self.text)
     }
 
     fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut App) -> Option<f32> {
@@ -880,10 +866,28 @@ impl editor_contracts::PaneView for SourceCodeState {
         crate::search::search_in_source(&self.text, query)
     }
 
-    fn navigate_to_search_match(&mut self, match_item: &SearchMatch, _cx: &mut App) {
+    fn navigate_to_search_match(&mut self, match_item: &SearchMatch, cx: &mut App) -> Option<f32> {
         let start = match_item.byte_range.start.min(self.text.len());
         let end = match_item.byte_range.end.min(self.text.len());
         self.selections.set_single_range(start, end);
+        let (row, _) = self.line_and_column(start);
+        let theme = cx.global::<theme::ThemeManager>().current_arc();
+        let font_size = theme.typography.code_size.max(12.0);
+        let line_height = (font_size * theme.typography.text_line_height).round();
+        Some(row as f32 * line_height)
+    }
+
+    fn set_search_highlights(
+        &mut self,
+        matches: &[SearchMatch],
+        active_index: Option<usize>,
+        _cx: &mut App,
+    ) {
+        self.search_matches = matches
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (m.byte_range.clone(), Some(i) == active_index))
+            .collect();
     }
 
     fn replace_match(
@@ -1015,13 +1019,7 @@ impl editor_contracts::PaneView for SourceCodeState {
             self.highlight_hash = code_hash;
         }
 
-        let element = crate::element::EditorElement::new(
-            self.clone(),
-            ctx.pane_id,
-            ctx.is_focused,
-            ctx.scroll.clone(),
-            ctx.host.clone(),
-        );
+        let element = crate::element::EditorElement::new(self.clone(), ctx.pane_id, ctx.is_focused);
 
         let headings = self.outline_headings(cx);
         let font_size = theme.typography.code_size.max(12.0);

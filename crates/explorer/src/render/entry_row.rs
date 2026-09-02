@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::ExplorerState;
+use crate::state::ExplorerState;
 
 use crate::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::state::{

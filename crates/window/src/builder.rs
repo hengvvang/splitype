@@ -23,11 +23,6 @@ impl WindowLayoutBuilder {
         Self { layout: None }
     }
 
-    pub fn with_layout(mut self, layout: WindowLayout) -> Self {
-        self.layout = Some(layout);
-        self
-    }
-
     pub fn with_single_panel(mut self, panel_id: PanelId, kind: PanelKind) -> Self {
         self.layout = Some(SplitterRoot::single_leaf(panel_id.0, kind));
         self

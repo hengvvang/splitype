@@ -22,7 +22,7 @@ pub(crate) fn render_preview_image(
 
     let plain = block.data.text.plain_text();
     let Some(syntax) = parse_standalone_image(&plain) else {
-        return paragraph::render_preview_paragraph(block, None, base, theme);
+        return paragraph::render_preview_paragraph(block, base, theme);
     };
     let alt = syntax.alt.clone();
     let Some(handle) = block.image_handle_for_syntax(syntax) else {

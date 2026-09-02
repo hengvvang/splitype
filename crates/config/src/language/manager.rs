@@ -278,7 +278,6 @@ pub fn import_language_config_and_select(
 mod tests {
     use super::{I18nManager, I18nStrings};
     use crate::dirs::SplitypeConfigDirs;
-    use crate::language::packs::language_id_for_locale_settings;
 
     #[test]
     fn built_in_chinese_strings_are_utf8() {
@@ -365,20 +364,6 @@ mod tests {
     }
 
     #[test]
-    fn locale_settings_map_to_builtin_languages() {
-        assert_eq!(language_id_for_locale_settings(["zh-CN"]), "zh-CN");
-        assert_eq!(language_id_for_locale_settings(["zh-HK"]), "zh-CN");
-        assert_eq!(language_id_for_locale_settings(["zh-Hant-TW"]), "zh-CN");
-        assert_eq!(language_id_for_locale_settings(["zh_SG.UTF-8"]), "zh-CN");
-        assert_eq!(language_id_for_locale_settings(["en-US"]), "en-US");
-        assert_eq!(language_id_for_locale_settings(["en_GB.UTF-8"]), "en-US");
-        assert_eq!(language_id_for_locale_settings(["fr-FR", "zh-CN"]), "zh-CN");
-        assert_eq!(language_id_for_locale_settings(Vec::<&str>::new()), "en-US");
-        assert_eq!(language_id_for_locale_settings(["fr-FR"]), "en-US");
-        assert_eq!(language_id_for_locale_settings(["!!!"]), "en-US");
-    }
-
-    #[test]
     fn imports_jsonc_language_pack_and_persists_normalized_json() {
         let root = std::env::temp_dir().join(format!("splitype-i18n-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("temp root should be created");
@@ -415,7 +400,9 @@ mod tests {
             manager
                 .available_languages()
                 .iter()
-                .any(|entry| entry.id == "ja-JP" && entry.name == "日本語" && entry.author == "Tanaka")
+                .any(|entry| entry.id == "ja-JP"
+                    && entry.name == "日本語"
+                    && entry.author == "Tanaka")
         );
 
         // The persisted copy is the partial patch, not the merged result.

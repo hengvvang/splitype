@@ -16,7 +16,7 @@ pub mod builder;
 pub mod dispatch;
 pub mod prompts;
 
-pub(crate) use dispatch::{dispatch_menu_action_for_panel, request_quit_application};
+pub(crate) use dispatch::{MenuDispatchTarget, dispatch_menu_action, request_quit_application};
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]
@@ -49,73 +49,73 @@ pub fn init(cx: &mut App) {
     cx.global_mut::<AppMenuState>().window_closed_subscription = Some(subscription);
 
     cx.on_action(|_: &NewWindow, cx| {
-        dispatch::dispatch_menu_action(&NewWindow, cx);
+        dispatch::dispatch_menu_action(&NewWindow, None, cx);
     });
     cx.on_action(|_: &OpenFile, cx| {
-        dispatch::dispatch_menu_action(&OpenFile, cx);
+        dispatch::dispatch_menu_action(&OpenFile, None, cx);
     });
     cx.on_action(|_: &OpenSettings, cx| {
-        dispatch::dispatch_menu_action(&OpenSettings, cx);
+        dispatch::dispatch_menu_action(&OpenSettings, None, cx);
     });
     cx.on_action(|action: &OpenRecentFile, cx| {
-        dispatch::dispatch_menu_action(action, cx);
+        dispatch::dispatch_menu_action(action, None, cx);
     });
     cx.on_action(|_: &NoRecentFiles, cx| {
-        dispatch::dispatch_menu_action(&NoRecentFiles, cx);
+        dispatch::dispatch_menu_action(&NoRecentFiles, None, cx);
     });
     cx.on_action(|_: &AddLanguageConfig, cx| {
-        dispatch::dispatch_menu_action(&AddLanguageConfig, cx);
+        dispatch::dispatch_menu_action(&AddLanguageConfig, None, cx);
     });
     cx.on_action(|_: &AddThemeConfig, cx| {
-        dispatch::dispatch_menu_action(&AddThemeConfig, cx);
+        dispatch::dispatch_menu_action(&AddThemeConfig, None, cx);
     });
     cx.on_action(|_: &SaveDocument, cx| {
-        dispatch::dispatch_menu_action(&SaveDocument, cx);
+        dispatch::dispatch_menu_action(&SaveDocument, None, cx);
     });
     cx.on_action(|_: &SaveDocumentAs, cx| {
-        dispatch::dispatch_menu_action(&SaveDocumentAs, cx);
+        dispatch::dispatch_menu_action(&SaveDocumentAs, None, cx);
     });
     cx.on_action(|_: &ExportHtml, cx| {
-        dispatch::dispatch_menu_action(&ExportHtml, cx);
+        dispatch::dispatch_menu_action(&ExportHtml, None, cx);
     });
     cx.on_action(|_: &ExportPdf, cx| {
-        dispatch::dispatch_menu_action(&ExportPdf, cx);
+        dispatch::dispatch_menu_action(&ExportPdf, None, cx);
     });
     cx.on_action(|action: &SelectTheme, cx| {
-        dispatch::dispatch_menu_action(action, cx);
+        dispatch::dispatch_menu_action(action, None, cx);
     });
     cx.on_action(|action: &SelectLanguage, cx| {
-        dispatch::dispatch_menu_action(action, cx);
+        dispatch::dispatch_menu_action(action, None, cx);
     });
     cx.on_action(|_: &CheckForUpdates, cx| {
-        dispatch::dispatch_menu_action(&CheckForUpdates, cx);
+        dispatch::dispatch_menu_action(&CheckForUpdates, None, cx);
     });
     cx.on_action(|_: &ShowAbout, cx| {
-        dispatch::dispatch_menu_action(&ShowAbout, cx);
+        dispatch::dispatch_menu_action(&ShowAbout, None, cx);
     });
     cx.on_action(|_: &ToggleExplorer, cx| {
-        dispatch::dispatch_menu_action(&ToggleExplorer, cx);
+        dispatch::dispatch_menu_action(&ToggleExplorer, None, cx);
     });
     cx.on_action(|_: &CloseExplorerFolder, cx| {
-        dispatch::dispatch_menu_action(&CloseExplorerFolder, cx);
+        dispatch::dispatch_menu_action(&CloseExplorerFolder, None, cx);
     });
     cx.on_action(|_: &QuitApplication, cx| {
-        dispatch::dispatch_menu_action(&QuitApplication, cx);
+        dispatch::dispatch_menu_action(&QuitApplication, None, cx);
     });
     cx.on_action(|_: &CloseWindow, cx| {
-        dispatch::dispatch_menu_action(&CloseWindow, cx);
+        dispatch::dispatch_menu_action(&CloseWindow, None, cx);
     });
     cx.on_action(|_: &OpenSplitypeRepository, cx| {
-        dispatch::dispatch_menu_action(&OpenSplitypeRepository, cx);
+        dispatch::dispatch_menu_action(&OpenSplitypeRepository, None, cx);
     });
     cx.on_action(|_: &OpenBugReport, cx| {
-        dispatch::dispatch_menu_action(&OpenBugReport, cx);
+        dispatch::dispatch_menu_action(&OpenBugReport, None, cx);
     });
     cx.on_action(|_: &OpenFeatureRequest, cx| {
-        dispatch::dispatch_menu_action(&OpenFeatureRequest, cx);
+        dispatch::dispatch_menu_action(&OpenFeatureRequest, None, cx);
     });
     cx.on_action(|_: &OpenDiscussions, cx| {
-        dispatch::dispatch_menu_action(&OpenDiscussions, cx);
+        dispatch::dispatch_menu_action(&OpenDiscussions, None, cx);
     });
 
     install_menus(cx);

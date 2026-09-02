@@ -25,6 +25,5 @@ pub use fence::{safe_code_fence, safe_code_fence_with_info};
 pub use id::BlockId;
 pub use kind::BlockKind;
 pub use pipeline::{
-    ParseMode, build_preview_blocks_from_lines, build_wysiwyg_blocks_from_lines,
-    parse_document_with_mode, parse_preview_document, parse_wysiwyg_document,
+    ParseMode, parse_document_with_mode, parse_preview_document, parse_wysiwyg_document,
 };

@@ -7,7 +7,6 @@ use gpui::*;
 
 use crate::editor::Editor;
 use config::language::I18nManager;
-use editor_contracts::AutoscrollStrategy;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -418,8 +417,6 @@ impl Editor {
 
     pub fn cancel_drop_replace_dialog(&mut self, cx: &mut Context<Self>) {
         self.clear_pending_drop_replace_state(cx);
-        let pane = self.active_pane_state();
-        pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit { margin: px(20.0) });
         cx.notify();
     }
 
@@ -613,8 +610,6 @@ impl Editor {
             tab.file.show_drop_replace_dialog = false;
             tab.file.pending_drop_replace_path = None;
         }
-        let pane = self.active_pane_state();
-        pane.scroll.pending_autoscroll = Some(AutoscrollStrategy::Fit { margin: px(20.0) });
         cx.notify();
     }
 

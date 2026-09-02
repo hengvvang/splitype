@@ -1,7 +1,8 @@
 //! The recursive binary split tree and its operations.
 //!
-//! Generic over the kind type `T` so that the outer layout uses `PanelKindId`
-//! while inner (Edit pane) layouts use `PaneKind`.
+//! Generic over the kind type `T` so that the outer layout uses
+//! `platform_contracts::PanelKind` while inner (edit pane) layouts use
+//! `editor_contracts::PaneKind`.
 
 use crate::container::SplitterContainer;
 

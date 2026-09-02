@@ -73,7 +73,6 @@ pub(crate) fn render_preview_latex_math(
                 syntax_highlighter::graphics::render_graphic_error_card(
                     syntax_highlighter::graphics::GraphicKind::LatexMath,
                     &err.to_string(),
-                    raw,
                     theme,
                 ),
                 theme,

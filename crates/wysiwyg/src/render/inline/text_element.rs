@@ -185,14 +185,7 @@ impl Element for BlockTextElement {
     ) -> Self::PrepaintState {
         let theme = cx.global::<ThemeManager>().current_arc();
         let input = self.input.read(cx);
-        let editor_selection_range = input
-            .editor_selection_range
-            .as_ref()
-            .filter(|range| !range.is_empty())
-            .cloned();
-        let selected_range = editor_selection_range
-            .clone()
-            .unwrap_or_else(|| input.selected_range.clone());
+        let selected_range = input.selected_range.clone();
         let cursor = input.cursor_offset();
         let line_height = unrounded_line_height(window);
         let focused = input.focus_handle.is_focused(window);
@@ -241,59 +234,58 @@ impl Element for BlockTextElement {
         let selection_color = theme.colors.selection;
         let text_align = input.text_align();
 
-        let (selection_quads, cursor_quad) =
-            if (focused || editor_selection_range.is_some()) && !lines.is_empty() {
-                if self.is_placeholder {
-                    // Placeholder: cursor after the placeholder text
-                    let layout = &lines[0];
-                    let origin_x = aligned_line_left(layout, text_bounds, text_align);
-                    let cursor_pos = layout
-                        .position_for_index(0, line_height)
-                        .unwrap_or_default();
-                    (
-                        vec![],
-                        Some(fill(
-                            Bounds::new(
-                                point(origin_x + cursor_pos.x, text_bounds.top() + cursor_pos.y),
-                                size(px(cursor_width), line_height),
-                            ),
-                            cursor_color,
-                        )),
-                    )
-                } else if selected_range.is_empty() {
-                    // No selection: just draw the cursor
-                    let text = input.display_text();
-                    (
-                        vec![],
-                        cursor_bounds_for_offset(
-                            &lines,
-                            text_bounds,
-                            line_height,
-                            text,
-                            cursor,
-                            text_align,
-                            px(cursor_width),
-                        )
-                        .map(|bounds| fill(bounds, cursor_color)),
-                    )
-                } else {
-                    let text = input.display_text();
-                    let quads = range_segment_bounds(
+        let (selection_quads, cursor_quad) = if focused && !lines.is_empty() {
+            if self.is_placeholder {
+                // Placeholder: cursor after the placeholder text
+                let layout = &lines[0];
+                let origin_x = aligned_line_left(layout, text_bounds, text_align);
+                let cursor_pos = layout
+                    .position_for_index(0, line_height)
+                    .unwrap_or_default();
+                (
+                    vec![],
+                    Some(fill(
+                        Bounds::new(
+                            point(origin_x + cursor_pos.x, text_bounds.top() + cursor_pos.y),
+                            size(px(cursor_width), line_height),
+                        ),
+                        cursor_color,
+                    )),
+                )
+            } else if selected_range.is_empty() {
+                // No selection: just draw the cursor
+                let text = input.display_text();
+                (
+                    vec![],
+                    cursor_bounds_for_offset(
                         &lines,
                         text_bounds,
                         line_height,
                         text,
-                        selected_range,
+                        cursor,
                         text_align,
+                        px(cursor_width),
                     )
-                    .into_iter()
-                    .map(|bounds| fill(bounds, selection_color))
-                    .collect();
-                    (quads, None)
-                }
+                    .map(|bounds| fill(bounds, cursor_color)),
+                )
             } else {
-                (vec![], None)
-            };
+                let text = input.display_text();
+                let quads = range_segment_bounds(
+                    &lines,
+                    text_bounds,
+                    line_height,
+                    text,
+                    selected_range,
+                    text_align,
+                )
+                .into_iter()
+                .map(|bounds| fill(bounds, selection_color))
+                .collect();
+                (quads, None)
+            }
+        } else {
+            (vec![], None)
+        };
 
         // Compute code-span and highlight background quads with rounded corners and padding.
         let mut code_quads = Vec::new();

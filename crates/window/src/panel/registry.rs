@@ -32,8 +32,6 @@ impl std::error::Error for PanelRegistryError {}
 pub struct PanelRegistry {
     descriptors: HashMap<PanelKind, Arc<dyn PanelDescriptor>>,
     order: Vec<PanelKind>,
-    default_kind: Option<PanelKind>,
-    primary_kind: Option<PanelKind>,
 }
 
 impl PanelRegistry {
@@ -50,7 +48,6 @@ impl PanelRegistry {
     pub fn register(
         &mut self,
         descriptor: Arc<dyn PanelDescriptor>,
-        is_primary: bool,
     ) -> Result<(), PanelRegistryError> {
         let kind = descriptor.kind();
         if self.descriptors.contains_key(&kind) {
@@ -58,24 +55,15 @@ impl PanelRegistry {
         }
 
         self.order.push(kind.clone());
-        if is_primary || self.primary_kind.is_none() {
-            self.primary_kind = Some(kind.clone());
-        }
-        if self.default_kind.is_none() {
-            self.default_kind = Some(kind.clone());
-        }
         self.descriptors.insert(kind, descriptor);
         Ok(())
     }
 
-    pub fn register_global(
-        descriptor: Arc<dyn PanelDescriptor>,
-        is_primary: bool,
-    ) -> Result<(), PanelRegistryError> {
+    pub fn register_global(descriptor: Arc<dyn PanelDescriptor>) -> Result<(), PanelRegistryError> {
         Self::global()
             .lock()
             .map_err(|_| PanelRegistryError::Poisoned)?
-            .register(descriptor, is_primary)
+            .register(descriptor)
     }
 
     pub fn get(&self, kind: PanelKind) -> Option<Arc<dyn PanelDescriptor>> {
@@ -110,34 +98,6 @@ impl PanelRegistry {
     ) -> Result<Option<Box<dyn PanelView>>, PanelRegistryError> {
         let descriptor = Self::registered(kind)?;
         Ok(descriptor.and_then(|descriptor| descriptor.restore_panel(panel_id, state, cx)))
-    }
-
-    pub fn default_kind(&self) -> Option<PanelKind> {
-        self.default_kind
-            .clone()
-            .or_else(|| self.order.first().cloned())
-    }
-
-    pub fn registered_default_kind() -> Result<Option<PanelKind>, PanelRegistryError> {
-        Ok(Self::global()
-            .lock()
-            .map_err(|_| PanelRegistryError::Poisoned)?
-            .default_kind())
-    }
-
-    pub fn primary_kind(&self) -> Option<PanelKind> {
-        self.primary_kind.clone().or_else(|| self.default_kind())
-    }
-
-    pub fn registered_primary_kind() -> Result<Option<PanelKind>, PanelRegistryError> {
-        Ok(Self::global()
-            .lock()
-            .map_err(|_| PanelRegistryError::Poisoned)?
-            .primary_kind())
-    }
-
-    pub fn all_kinds(&self) -> &[PanelKind] {
-        &self.order
     }
 
     pub fn all_descriptors(&self) -> Vec<Arc<dyn PanelDescriptor>> {
@@ -182,14 +142,13 @@ mod tests {
         let mut registry = PanelRegistry::new();
         let kind = PanelKind::new("test.panel");
         registry
-            .register(Arc::new(TestDescriptor(kind.clone())), true)
+            .register(Arc::new(TestDescriptor(kind.clone())))
             .unwrap();
 
         assert_eq!(
-            registry.register(Arc::new(TestDescriptor(kind.clone())), false),
+            registry.register(Arc::new(TestDescriptor(kind.clone()))),
             Err(PanelRegistryError::DuplicateKind(kind.clone()))
         );
-        assert_eq!(registry.primary_kind(), Some(kind));
         assert_eq!(registry.all_descriptors().len(), 1);
     }
 }

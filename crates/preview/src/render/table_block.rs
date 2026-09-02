@@ -35,6 +35,7 @@ pub(crate) fn render_preview_table(
                 t.text_size,
                 FontWeight::NORMAL,
                 theme,
+                &[],
             ))
             .into_any_element();
     };
@@ -136,6 +137,7 @@ fn render_preview_table_cell(
                 FontWeight::NORMAL
             },
             theme,
+            &[],
         ))
         .into_any_element()
 }

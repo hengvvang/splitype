@@ -5,7 +5,6 @@ use std::ops::Range;
 use gpui::*;
 
 use markdown_parser::block::CalloutKind;
-use markdown_parser::block::image::ImageResolvedSource;
 use markdown_parser::parse::BlockId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -15,15 +14,6 @@ pub enum InlineFormat {
     Underline,
     Code,
     Strikethrough,
-}
-
-/// Cached standalone image presentation state for a block.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ImageHandle {
-    pub alt: String,
-    pub src: String,
-    pub title: Option<String>,
-    pub resolved_source: ImageResolvedSource,
 }
 
 /// How a collapsed caret at an inline projection boundary inherits style.

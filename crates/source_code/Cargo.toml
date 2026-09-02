@@ -18,6 +18,7 @@ serde_json = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
 ui = { path = "../ui" }
 syntax_highlighter = { path = "../syntax_highlighter" }
+markdown_parser = { path = "../markdown_parser" }
 theme = { path = "../theme" }
 
 [dev-dependencies]
