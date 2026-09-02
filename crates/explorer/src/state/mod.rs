@@ -344,6 +344,8 @@ pub struct ExplorerState {
     pub recent_files_cache: Vec<PathBuf>,
     /// Open row right-click menu (window-level overlay state).
     pub file_menu: Option<ExplorerFileMenuState>,
+    /// Bottom bar three-dots action menu open state.
+    pub bottombar_menu_open: bool,
     /// Path of the file open in the active editor tab (pushed by the shell
     /// every frame; used to keep the tree selection in sync).
     pub active_file: Option<PathBuf>,
@@ -392,6 +394,7 @@ impl Default for ExplorerState {
             recent_folders_cache: Vec::new(),
             recent_files_cache: Vec::new(),
             file_menu: None,
+            bottombar_menu_open: false,
             active_file: None,
             self_weak: WeakEntity::new_invalid(),
         };

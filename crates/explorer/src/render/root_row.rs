@@ -11,13 +11,9 @@ use crate::state::{
 };
 use platform_contracts::PanelId;
 use theme::Theme;
-use ui::button::icon_chip_button;
 
 impl ExplorerState {
-    /// Render the root row: the folder name plus the title buttons (new
-    /// file / new folder / refresh / collapse all / toggle hidden). The
-    /// buttons are shown only while the root is expanded (VSCode-style
-    /// title row); collapsing the root hides them. Root rows are draggable
+    /// Render the root row: the folder name and chevron. Root rows are draggable
     /// to reorder worktrees (mirrors Zed).
     pub(crate) fn render_explorer_root_row(
         &self,
@@ -25,7 +21,7 @@ impl ExplorerState {
         panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        cx: &mut App,
+        _cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
@@ -100,114 +96,6 @@ impl ExplorerState {
                 });
         }
 
-        let worktree_id = entry.worktree_id;
-        let hide_hidden =
-            config::settings::PluginSettings::<crate::settings::ExplorerSettings>::get(cx)
-                .hide_hidden;
-
-        // Title buttons: visible only while the root row is expanded. The
-        // set mirrors the panel toolbar: replace folder, toggle hidden
-        // files, refresh, collapse all.
-        let buttons = if is_expanded {
-            div()
-                .flex()
-                .items_center()
-                .gap(px(2.0))
-                .child(
-                    icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-replace", panel_id.0))
-                        .child(
-                            svg()
-                                .path("icons/explorer/worktree/replace_folder.svg")
-                                .size(px(14.0))
-                                .text_color(c.text_default),
-                        )
-                        .on_click({
-                            let weak = weak.clone();
-                            move |_event, window, cx| {
-                                let _ = weak.update(cx, |state, cx| {
-                                    if let Some(idx) = state
-                                        .worktrees
-                                        .iter()
-                                        .position(|wt| wt.read(cx).id() == worktree_id)
-                                    {
-                                        state.replace_explorer_worktree(idx, window, cx);
-                                    }
-                                });
-                                cx.stop_propagation();
-                            }
-                        }),
-                )
-                .child(
-                    icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-hidden", panel_id.0))
-                        .child(
-                            svg()
-                                .path(if hide_hidden {
-                                    "icons/explorer/worktree/hide.svg"
-                                } else {
-                                    "icons/explorer/worktree/view.svg"
-                                })
-                                .size(px(14.0))
-                                .text_color(if hide_hidden {
-                                    c.text_default
-                                } else {
-                                    c.dialog_muted
-                                }),
-                        )
-                        .on_click({
-                            let weak = weak.clone();
-                            move |_event, _window, cx| {
-                                let _ = weak.update(cx, |state, cx| {
-                                    state.toggle_explorer_hidden(cx);
-                                });
-                                cx.stop_propagation();
-                            }
-                        }),
-                )
-                .child(
-                    icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-refresh", panel_id.0))
-                        .child(
-                            svg()
-                                .path("icons/explorer/worktree/sync_folder.svg")
-                                .size(px(14.0))
-                                .text_color(c.text_default),
-                        )
-                        .on_click({
-                            let weak = weak.clone();
-                            move |_event, _window, cx| {
-                                let _ = weak.update(cx, |state, cx| {
-                                    state.rescan_and_sync_explorer(cx);
-                                });
-                                cx.stop_propagation();
-                            }
-                        }),
-                )
-                .child(
-                    icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-collapse", panel_id.0))
-                        .child(
-                            svg()
-                                .path("icons/explorer/worktree/collapse-all.svg")
-                                .size(px(14.0))
-                                .text_color(c.text_default),
-                        )
-                        .on_click({
-                            let weak = weak.clone();
-                            move |_event, _window, cx| {
-                                let _ = weak.update(cx, |state, cx| {
-                                    state.collapse_all_explorer_nodes(cx);
-                                });
-                                cx.stop_propagation();
-                            }
-                        }),
-                )
-                .into_any_element()
-        } else {
-            div().into_any_element()
-        };
-
         div()
             .id(ElementId::Name(
                 format!("explorer-root-row-{panel_id}-{}", entry.worktree_id.0).into(),
@@ -268,7 +156,6 @@ impl ExplorerState {
                     })
                     .child(entry.label.clone()),
             )
-            .child(buttons)
             .on_mouse_down(MouseButton::Right, {
                 let right_click_selection = mark_selection;
                 let weak = weak.clone();

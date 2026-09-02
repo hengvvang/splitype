@@ -47,8 +47,11 @@ impl PanelView for ExplorerPanelView {
     }
 
     fn dismiss_overlays(&mut self, cx: &mut App) -> bool {
-        self.state
-            .update(cx, |state, _cx| state.file_menu.take().is_some())
+        self.state.update(cx, |state, _cx| {
+            let menu = state.file_menu.take().is_some();
+            let bb = std::mem::take(&mut state.bottombar_menu_open);
+            menu || bb
+        })
     }
 
     fn display_name(&self) -> SharedString {

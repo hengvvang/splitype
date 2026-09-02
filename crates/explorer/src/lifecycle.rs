@@ -137,6 +137,22 @@ impl ExplorerState {
         cx.refresh_windows();
     }
 
+    /// Closes all open worktree folders in the explorer.
+    pub(crate) fn close_all_explorer_worktrees(&mut self, cx: &mut App) {
+        let explorer = &mut *self;
+        explorer.worktrees.clear();
+        explorer.expanded.clear();
+        explorer.unfolded_dir_ids.clear();
+        explorer.ancestors.clear();
+        explorer.selected = None;
+        explorer.marked.clear();
+        explorer.snapshots.clear();
+        explorer.edit = None;
+        explorer.pending_select = None;
+        self.rebuild_explorer_entries();
+        cx.refresh_windows();
+    }
+
     /// Reorder worktrees by dragging a root row onto another root
     /// (mirrors Zed's `Project::move_worktree`): the dragged root ends up
     /// directly before the drop-target root.
@@ -286,6 +302,7 @@ impl ExplorerState {
     /// Replace the worktree at `index` with a folder picked by the user
     /// (the root row's folder button): the old root is removed and the new
     /// one is added in its place.
+    #[allow(dead_code)]
     pub(crate) fn replace_explorer_worktree(
         &mut self,
         index: usize,

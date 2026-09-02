@@ -81,6 +81,9 @@ pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "icons/explorer/bottombar/new_folder.svg" => Some(Cow::Borrowed(include_bytes!(
             "../../../../assets/icons/explorer/bottombar/new_folder.svg"
         ))),
+        "icons/explorer/bottombar/v_three_points.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../../../../assets/icons/explorer/bottombar/v_three_points.svg"
+        ))),
 
         // ── Titlebar: app menu buttons ────────────────────────────────
         "icons/titlebar/app_menu/app_menu.svg" => Some(Cow::Borrowed(include_bytes!(
