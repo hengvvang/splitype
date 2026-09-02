@@ -1,22 +1,10 @@
-//! Implementation of pane and search host proxy seams.
+//! Search host proxies: the seams the search panel uses to reach the editor.
 
 use std::sync::Arc;
 
-use editor_contracts::{PaneHost, PaneId};
-use gpui::{App, Bounds, KeyDownEvent, Pixels, WeakEntity, Window};
+use gpui::{App, Bounds, Pixels, WeakEntity, Window};
 
 use crate::editor::Editor;
-
-/// Thin proxy implementing [`PaneHost`] on behalf of an `Editor` entity.
-pub struct EditorPaneHost {
-    editor: WeakEntity<Editor>,
-}
-
-impl EditorPaneHost {
-    pub fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
-        Arc::new(Self { editor })
-    }
-}
 
 /// Search panel host: every coordination action re-enters the editor entity.
 pub struct EditorSearchHost {
@@ -30,16 +18,6 @@ impl EditorSearchHost {
 }
 
 impl editor_contracts::SearchHost for EditorSearchHost {
-    fn execute_search(&self, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| editor.execute_search(cx));
-        }
-    }
-
-    fn notify(&self, cx: &mut App) {
-        cx.notify(self.editor.entity_id());
-    }
-
     fn toggle_show_replace(&self, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
@@ -119,7 +97,7 @@ impl editor_contracts::SearchHost for EditorSearchHost {
         }
     }
 
-    fn handle_key_down(&self, event: &KeyDownEvent, window: &mut Window, cx: &mut App) {
+    fn handle_key_down(&self, event: &gpui::KeyDownEvent, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
                 editor.handle_search_key_down(event, window, cx);
@@ -280,96 +258,5 @@ impl editor_contracts::SearchIme for EditorSearchIme {
             gpui::ElementInputHandler::new(bounds, entity),
             cx,
         );
-    }
-}
-
-impl PaneHost for EditorPaneHost {
-    fn sync_source_text(&self, _pane_id: PaneId, text: String, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.commit_document_text(text, cx);
-            });
-        }
-    }
-
-    fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                let theme = cx.global::<theme::ThemeManager>().current_arc();
-                editor.navigate_to_outline_index(pane_id, index, &theme, cx);
-            });
-        }
-    }
-
-    fn set_outline_hovered(
-        &self,
-        _pane_id: PaneId,
-        hovered: bool,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.set_outline_hovered(hovered, window, cx);
-            });
-        }
-    }
-
-    fn handle_pane_key_down(
-        &self,
-        pane_id: PaneId,
-        event: &gpui::KeyDownEvent,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> bool {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.handle_pane_key_down(pane_id, event, window, cx)
-            })
-        } else {
-            false
-        }
-    }
-
-    fn handle_pane_mouse_down(
-        &self,
-        pane_id: PaneId,
-        event: &gpui::MouseDownEvent,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.handle_pane_mouse_down(pane_id, event, window, cx);
-            });
-        }
-    }
-
-    fn handle_pane_mouse_move(
-        &self,
-        pane_id: PaneId,
-        event: &gpui::MouseMoveEvent,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.handle_pane_mouse_move(pane_id, event, window, cx);
-            });
-        }
-    }
-
-    fn handle_pane_mouse_up(
-        &self,
-        pane_id: PaneId,
-        event: &gpui::MouseUpEvent,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        if let Some(editor) = self.editor.upgrade() {
-            editor.update(cx, |editor, cx| {
-                editor.handle_pane_mouse_up(pane_id, event, window, cx);
-            });
-        }
     }
 }

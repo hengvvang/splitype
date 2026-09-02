@@ -8,7 +8,6 @@ use gpui::*;
 
 use crate::document::{DocumentBuffer, DocumentStore};
 use crate::editor::Editor;
-use crate::session::PendingOpenLink;
 use config::language::I18nManager;
 
 impl Editor {
@@ -34,41 +33,12 @@ impl Editor {
         }
     }
 
-    /// Queues an external-link open prompt for the active tab.
-    pub fn request_open_link_prompt(
-        &mut self,
-        prompt_target: String,
-        open_target: String,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(tab) = self.session.active_tab_mut() {
-            tab.pending.pending_open_link = Some(PendingOpenLink {
-                prompt_target,
-                open_target,
-            });
-            cx.notify();
-        }
-    }
-
-    /// The active tab's current authoritative raw text.
-    pub fn serialized_document_text(&self, cx: &App) -> String {
-        if let Some(tab) = self.session.active_tab() {
-            tab.buffer.read(cx).text.clone()
-        } else if let Some(pane_id) = self.focused_pane_id.or_else(|| {
-            self.session
-                .root
-                .tree
-                .first_leaf_id()
-                .map(editor_contracts::PaneId)
-        }) {
-            if let Some(state) = self.session.empty_panes.get(&pane_id) {
-                state.pane.serialize_text(cx).unwrap_or_default()
-            } else {
-                String::new()
-            }
-        } else {
-            String::new()
-        }
+    /// The active tab's current raw document text; empty when no tab is open.
+    pub fn active_document_text(&self, cx: &App) -> String {
+        self.session
+            .active_tab()
+            .map(|tab| tab.buffer.read(cx).text.clone())
+            .unwrap_or_default()
     }
 
     pub fn save_dialog_defaults(&self, cx: &App) -> (PathBuf, Option<String>) {
@@ -125,7 +95,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let markdown = self.serialized_document_text(cx);
+        let markdown = self.active_document_text(cx);
         match std::fs::write(path, markdown) {
             Ok(_) => {
                 self.apply_successful_save(path.to_path_buf(), cx);
@@ -171,7 +141,7 @@ impl Editor {
             .session
             .active_tab()
             .is_some_and(|t| t.pending.pending_close_after_save);
-        let markdown = self.serialized_document_text(cx);
+        let markdown = self.active_document_text(cx);
         let (default_dir, suggested_name) = self.save_dialog_defaults(cx);
         let prompt = cx.prompt_for_new_path(&default_dir, suggested_name.as_deref());
         let weak_editor = cx.entity().downgrade();
@@ -496,7 +466,7 @@ impl Editor {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
-        let markdown = self.serialized_document_text(cx);
+        let markdown = self.active_document_text(cx);
         let (default_dir, suggested_name) = self.save_dialog_defaults(cx);
         let prompt = cx.prompt_for_new_path(&default_dir, suggested_name.as_deref());
         let weak_editor = cx.entity().downgrade();

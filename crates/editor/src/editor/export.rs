@@ -105,7 +105,7 @@ impl Editor {
         if !self.has_tabs() {
             return;
         }
-        let markdown = self.serialized_document_text(cx);
+        let markdown = self.active_document_text(cx);
         let title = self.export_title(cx);
         let (default_dir, suggested_name) = self.export_dialog_defaults(format, cx);
         let prompt = cx.prompt_for_new_path(&default_dir, Some(&suggested_name));

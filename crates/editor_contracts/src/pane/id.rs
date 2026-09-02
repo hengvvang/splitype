@@ -15,13 +15,6 @@ impl From<PaneId> for splitter::tree::NodeId {
     }
 }
 
-impl From<PaneId> for gpui::ElementId {
-    #[inline]
-    fn from(id: PaneId) -> Self {
-        id.0.into()
-    }
-}
-
 impl std::fmt::Display for PaneId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

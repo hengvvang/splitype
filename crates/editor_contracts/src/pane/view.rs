@@ -24,8 +24,6 @@ pub struct PaneCapabilities {
     pub replaceable: bool,
     /// The pane can produce `outline_headings` and navigate to them.
     pub outline: bool,
-    /// The pane can resolve document navigation targets.
-    pub navigable: bool,
 }
 
 /// A pane instance runs on the GPUI UI thread only; it must not be shared
@@ -42,14 +40,15 @@ pub trait PaneView: Any + 'static {
         PaneCapabilities::default()
     }
 
-    /// Rebuilds the pane from the authoritative document snapshot. Called on
-    /// creation and on every document commit for all panes except the one
-    /// that originated the edit.
+    /// Converges the pane to the given snapshot of its document. Called on
+    /// creation and whenever the shared buffer notifies a change; the pane
+    /// must no-op when it is already at this revision (the originating pane
+    /// re-receives its own edit this way and simply records the revision).
     fn sync_document(&mut self, document: &DocumentSnapshot, cx: &mut App);
 
-    /// The pane's current serialization of the document, used by the editor
-    /// to rebuild the authoritative text after pane-driven edits.
-    fn serialize_text(&self, cx: &App) -> Option<String>;
+    /// The pane's current text of the document. The host commits it into the
+    /// shared buffer after pane-driven edits; read-only panes return `None`.
+    fn document_text(&self, cx: &App) -> Option<String>;
 
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement;
 
@@ -106,7 +105,7 @@ pub trait PaneView: Any + 'static {
 
     // ── Optional behaviors, gated by [`PaneView::capabilities`] ─────────────
 
-    /// Gate: `editable`. Returns the new authoritative text, or `None` when
+    /// Gate: `editable`. Returns the new document text, or `None` when
     /// the pane does not support the operation.
     fn apply_line_prefix(&mut self, _prefix: &str, _cx: &mut App) -> Option<String> {
         None
@@ -168,7 +167,7 @@ pub trait PaneView: Any + 'static {
     ) {
     }
 
-    /// Gate: `replaceable`. Returns the new authoritative text, or `None`
+    /// Gate: `replaceable`. Returns the new document text, or `None`
     /// when the pane does not support replacement.
     fn replace_match(
         &mut self,
@@ -196,16 +195,6 @@ pub trait PaneView: Any + 'static {
 
     /// Gate: `outline`.
     fn navigate_to_outline(&mut self, _index: usize, _theme: &Theme, _cx: &mut App) -> Option<f32> {
-        None
-    }
-
-    /// Gate: `navigable`.
-    fn handle_navigation(
-        &mut self,
-        _target: &crate::document::NavigationTarget,
-        _modifiers: gpui::Modifiers,
-        _cx: &mut App,
-    ) -> Option<crate::document::NavigationExecutionPlan> {
         None
     }
 

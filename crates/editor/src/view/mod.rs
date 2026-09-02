@@ -18,7 +18,6 @@ impl Render for Editor {
             self.apply_pending_focus(active_pane, window, cx);
             self.sync_pending_save(window, cx);
             self.sync_pending_save_as(window, cx);
-            self.sync_pending_open_link(window, cx);
             self.sync_window_edited_state(window, cx);
         }
 

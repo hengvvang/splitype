@@ -308,14 +308,6 @@ impl Editor {
         cx.notify();
     }
 
-    /// Commits pane-produced document text once. The shared buffer is
-    /// updated and observers broadcast the next snapshot to every pane.
-    pub(crate) fn commit_pane_text(&mut self, text: Option<String>, cx: &mut Context<Self>) {
-        if let Some(text) = text {
-            self.commit_document_text(text, cx);
-        }
-    }
-
     pub fn apply_inline_markup(
         &mut self,
         _target_entity: Option<EntityId>,
@@ -342,7 +334,9 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(text, cx);
+        if let Some(text) = text {
+            self.commit_document_text(text, cx);
+        }
         cx.notify();
     }
 
@@ -362,7 +356,9 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(text, cx);
+        if let Some(text) = text {
+            self.commit_document_text(text, cx);
+        }
         cx.notify();
     }
 
@@ -383,7 +379,9 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(text, cx);
+        if let Some(text) = text {
+            self.commit_document_text(text, cx);
+        }
         cx.notify();
     }
 
@@ -398,7 +396,9 @@ impl Editor {
         } else {
             None
         };
-        self.commit_pane_text(text, cx);
+        if let Some(text) = text {
+            self.commit_document_text(text, cx);
+        }
         cx.notify();
     }
 }

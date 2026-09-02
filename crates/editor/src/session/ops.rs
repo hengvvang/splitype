@@ -83,29 +83,25 @@ impl Editor {
     // Pane-state reconciliation after layout gestures
     // ------------------------------------------------------------------
 
-    /// The active pane-state map (the active tab's panes when a tab is
-    /// open, the shared empty-pane map otherwise).
-    fn panes_mut(&mut self) -> &mut std::collections::HashMap<PaneId, PaneState> {
-        if self.session.has_tabs() {
-            &mut self
-                .session
-                .active_tab_mut()
-                .expect("session has tabs")
-                .panes
-        } else {
-            &mut self.session.empty_panes
-        }
+    /// The active tab's pane-state map. Panes exist only while a tab is
+    /// open, so reconciliation below no-ops without tabs.
+    fn panes_mut(&mut self) -> Option<&mut std::collections::HashMap<PaneId, PaneState>> {
+        self.session.active_tab_mut().map(|tab| &mut tab.panes)
     }
 
     /// Drop a pane's state after its leaf was removed from the tree.
     pub(crate) fn forget_pane_state(&mut self, pane_id: usize) {
-        self.panes_mut().remove(&PaneId(pane_id));
+        if let Some(panes) = self.panes_mut() {
+            panes.remove(&PaneId(pane_id));
+        }
     }
 
     /// Swap two leaves' pane states after a kind swap (scroll and focus
     /// belong to the leaf position, not the kind).
     pub(crate) fn swap_pane_states(&mut self, a: usize, b: usize) {
-        let panes = self.panes_mut();
+        let Some(panes) = self.panes_mut() else {
+            return;
+        };
         let state_a = panes.remove(&PaneId(a));
         let state_b = panes.remove(&PaneId(b));
         if let Some(state) = state_a {
@@ -125,7 +121,9 @@ impl Editor {
         new_leaf_id: usize,
         dock_target: AreaDockTarget,
     ) {
-        let panes = self.panes_mut();
+        let Some(panes) = self.panes_mut() else {
+            return;
+        };
         let source = panes.remove(&PaneId(source_id));
         let target = panes.remove(&PaneId(target_id));
         let source_first = matches!(dock_target, AreaDockTarget::Left | AreaDockTarget::Top);
@@ -150,6 +148,10 @@ impl Editor {
     /// freshly created pane with the active document.
     pub fn select_pane_kind(&mut self, pane_id: PaneId, kind: PaneKind, cx: &mut Context<Self>) {
         self.change_pane_kind(pane_id, kind);
+        if !self.has_tabs() {
+            cx.notify();
+            return;
+        }
         {
             let state = self.pane_state(pane_id);
             state.scroll.last_viewport_size = None;
@@ -193,7 +195,7 @@ impl Editor {
         }
         let prev_text = self
             .pane_state_ref(pane_id)
-            .and_then(|p| p.pane.serialize_text(cx));
+            .and_then(|p| p.pane.document_text(cx));
         let host = self.pane_host.clone();
         let handled = if let Some(pane_state) = self.pane_state_mut(pane_id) {
             pane_state
@@ -205,7 +207,7 @@ impl Editor {
         if handled {
             let next_text = self
                 .pane_state_ref(pane_id)
-                .and_then(|p| p.pane.serialize_text(cx));
+                .and_then(|p| p.pane.document_text(cx));
             if let Some(next_text) = next_text {
                 if prev_text.as_ref() != Some(&next_text) {
                     self.commit_document_text(next_text, cx);
@@ -258,5 +260,42 @@ impl Editor {
             pane_state.pane.handle_mouse_up(pane_id, event, window, cx);
             cx.notify();
         }
+    }
+
+    /// Scrolls `pane_id`'s viewport vertically by `delta` pixels.
+    pub(crate) fn scroll_viewport_by(
+        &mut self,
+        pane_id: PaneId,
+        delta: gpui::Pixels,
+        _window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let target = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.offset().y + delta)
+            .unwrap_or_default();
+        self.set_vertical_scroll_offset(pane_id, target, _window, cx);
+    }
+
+    /// Clamps and applies a vertical scroll offset to `pane_id`'s viewport.
+    pub(crate) fn set_vertical_scroll_offset(
+        &mut self,
+        pane_id: PaneId,
+        target_y: gpui::Pixels,
+        _window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let max_offset_y = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.max_offset().y.max(gpui::px(0.0)))
+            .unwrap_or_default();
+        let mut offset = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.offset())
+            .unwrap_or_default();
+        offset.y = target_y.min(gpui::px(0.0)).max(-max_offset_y);
+        let pane = self.pane_state(pane_id);
+        pane.scroll.handle.set_offset(offset);
+        cx.notify();
     }
 }

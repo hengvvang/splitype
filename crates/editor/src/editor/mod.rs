@@ -12,7 +12,8 @@
 //! strictly inside each pane plugin implementation.
 
 pub mod export;
-pub mod host_bridge;
+pub mod pane_host;
+pub mod search_host;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -23,14 +24,14 @@ use editor_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, TabKind}
 use platform_contracts::PanelId;
 
 use crate::document::{DocumentBuffer, DocumentStore};
-use crate::editor::host_bridge::{EditorPaneHost, EditorSearchIme, EditorSearchView};
+use crate::editor::pane_host::EditorPaneHost;
+use crate::editor::search_host::{EditorSearchIme, EditorSearchView};
 use crate::session::{DocumentTab, EditorSession, EditorTabList, PaneState, ScrollState};
 
 /// The Editor aggregate root entity.
 pub struct Editor {
     pub panel_id: PanelId,
     pub entity_id: EntityId,
-    pub self_weak: WeakEntity<Self>,
     pub host: Option<Arc<dyn DocumentHost>>,
     pub pane_host: Arc<dyn editor_contracts::PaneHost>,
     pub search_view: Arc<dyn editor_contracts::SearchStateView>,
@@ -56,7 +57,6 @@ impl Editor {
         let mut editor = Self {
             panel_id,
             entity_id: cx.entity().entity_id(),
-            self_weak: cx.weak_entity(),
             host: None,
             pane_host: EditorPaneHost::new(cx.weak_entity()),
             search_view: EditorSearchView::new(cx.weak_entity()),
@@ -167,16 +167,12 @@ impl Editor {
 
     /// Synchronizes all panes of the active tab with the current buffer.
     pub fn sync_panes_with_active_tab(&mut self, cx: &mut Context<Self>) {
-        if let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) {
-            let document = buffer.read(cx).snapshot();
-            if let Some(tab_mut) = self.session.active_tab_mut() {
-                for state in tab_mut.panes.values_mut() {
-                    state.pane.sync_document(&document, cx);
-                }
-            }
-        } else {
-            let document = editor_contracts::DocumentSnapshot::empty();
-            for state in self.session.empty_panes.values_mut() {
+        let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
+            return;
+        };
+        let document = buffer.read(cx).snapshot();
+        if let Some(tab_mut) = self.session.active_tab_mut() {
+            for state in tab_mut.panes.values_mut() {
                 state.pane.sync_document(&document, cx);
             }
         }
@@ -388,9 +384,9 @@ impl Editor {
         PaneId(self.session.root.tree.first_leaf_id().unwrap_or(0))
     }
 
-    pub fn active_pane_state(&mut self) -> &mut PaneState {
-        let pane_id = self.active_pane_id();
-        self.pane_state(pane_id)
+    pub fn active_pane_scroll(&mut self) -> &ScrollState {
+        let active_id = self.active_pane_id();
+        &self.pane_state(active_id).scroll
     }
 
     #[inline]
@@ -405,60 +401,34 @@ impl Editor {
         let kind = self
             .pane_kind(pane_id)
             .unwrap_or_else(|| self.default_pane_kind());
-        if self.session.has_tabs() {
-            let tab = self.session.active_tab_mut().unwrap();
-            let state = tab
-                .panes
-                .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind.clone()));
-            state.ensure_kind(kind);
-            state
-        } else {
-            let state = self
-                .session
-                .empty_panes
-                .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind.clone()));
-            state.ensure_kind(kind);
-            state
-        }
+        let tab = self
+            .session
+            .active_tab_mut()
+            .expect("pane state requires an open tab");
+        let state = tab
+            .panes
+            .entry(pane_id)
+            .or_insert_with(|| PaneState::new(kind.clone()));
+        state.ensure_kind(kind);
+        state
     }
 
     pub fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
         let kind = self
             .pane_kind(pane_id)
             .unwrap_or_else(|| self.default_pane_kind());
-        if self.session.has_tabs() {
-            let tab = self.session.active_tab_mut()?;
-            let state = tab
-                .panes
-                .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind.clone()));
-            state.ensure_kind(kind);
-            Some(state)
-        } else {
-            let state = self
-                .session
-                .empty_panes
-                .entry(pane_id)
-                .or_insert_with(|| PaneState::new(kind.clone()));
-            state.ensure_kind(kind);
-            Some(state)
-        }
+        let tab = self.session.active_tab_mut()?;
+        let state = tab
+            .panes
+            .entry(pane_id)
+            .or_insert_with(|| PaneState::new(kind.clone()));
+        state.ensure_kind(kind);
+        Some(state)
     }
 
     pub fn pane_state_ref(&self, pane_id: PaneId) -> Option<&PaneState> {
-        if self.session.has_tabs() {
-            let tab = self.active_tab()?;
-            tab.panes.get(&pane_id)
-        } else {
-            self.session.empty_panes.get(&pane_id)
-        }
-    }
-
-    pub fn active_pane_scroll(&mut self) -> &ScrollState {
-        let active_id = self.active_pane_id();
-        &self.pane_state(active_id).scroll
+        let tab = self.active_tab()?;
+        tab.panes.get(&pane_id)
     }
 
     pub fn defer_host_action(
@@ -510,11 +480,6 @@ impl Editor {
     pub fn active_pane_kind(&self) -> PaneKind {
         self.pane_kind(self.active_pane_id())
             .unwrap_or_else(|| self.default_pane_kind())
-    }
-
-    #[inline]
-    pub fn is_pane_kind(&self, kind: PaneKind) -> bool {
-        self.active_pane_kind() == kind
     }
 
     #[inline]

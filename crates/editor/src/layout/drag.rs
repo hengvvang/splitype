@@ -35,11 +35,9 @@ impl Editor {
             return;
         };
         match result {
-            CornerDragResult::Split { new_leaf_id, .. } => {
-                // Pane states are created lazily on the next render with the
-                // new leaf's kind; nothing to move.
-                let _ = new_leaf_id;
-            }
+            // Pane states are created lazily on the next render with the
+            // new leaf's kind; nothing to move.
+            CornerDragResult::Split { .. } => {}
             CornerDragResult::Join { removed_id, .. } => {
                 self.forget_pane_state(removed_id);
             }

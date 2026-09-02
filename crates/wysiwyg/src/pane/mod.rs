@@ -26,7 +26,6 @@ impl PaneView for WysiwygPaneState {
             searchable: true,
             replaceable: true,
             outline: true,
-            navigable: true,
         }
     }
 
@@ -39,13 +38,13 @@ impl PaneView for WysiwygPaneState {
             let document = document.clone();
             self.controller = Some(cx.new(|cx| WysiwygDocumentController::new(&document, cx)));
         }
-        self.pending_document = Some(document.clone());
+        self.latest_snapshot = Some(document.clone());
     }
 
-    fn serialize_text(&self, cx: &App) -> Option<String> {
+    fn document_text(&self, cx: &App) -> Option<String> {
         self.controller
             .as_ref()
-            .and_then(|c| c.read(cx).serialize_text(cx))
+            .and_then(|c| c.read(cx).document_text(cx))
     }
 
     fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {

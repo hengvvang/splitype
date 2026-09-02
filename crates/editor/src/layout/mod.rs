@@ -26,10 +26,6 @@ impl Editor {
 
         if let Some(tab) = self.session.active_tab_mut() {
             tab.panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
-        } else {
-            self.session
-                .empty_panes
-                .retain(|pane, _| inner_tree.contains_leaf(pane.0));
         }
 
         if self.focused_pane_id.is_none() {

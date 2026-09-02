@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use editor_contracts::OutlineNode;
-use editor_contracts::{PaneId, PaneOutlineHost, PaneRenderContext};
+use editor_contracts::{PaneOutlineHost, PaneRenderContext};
 use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, FocusHandle, InteractiveElement,
@@ -21,11 +21,12 @@ use markdown_parser::parse::{BlockData, BlockKind};
 
 /// Autonomous controller for a WYSIWYG editor pane.
 pub struct WysiwygDocumentController {
-    pub pane_id: PaneId,
     pub host: Option<Arc<dyn editor_contracts::PaneHost>>,
     pub document: Option<Document>,
     pub synced_revision: Option<u64>,
-    pub text_stale: bool,
+    /// Local edits exist that the host's next snapshot has not acknowledged
+    /// yet; `sync_document` consumes this instead of rebuilding.
+    pub pending_edit: bool,
     pub active_entity: Option<Entity<Block>>,
     pub tables: TableGrids,
     pub references: ReferenceRegistries,
@@ -34,11 +35,10 @@ pub struct WysiwygDocumentController {
 impl WysiwygDocumentController {
     pub fn new(document: &editor_contracts::DocumentSnapshot, cx: &mut Context<Self>) -> Self {
         let mut controller = Self {
-            pane_id: PaneId(0),
             host: None,
             document: None,
             synced_revision: None,
-            text_stale: false,
+            pending_edit: false,
             active_entity: None,
             tables: TableGrids::default(),
             references: ReferenceRegistries {
@@ -111,7 +111,7 @@ impl WysiwygDocumentController {
         self.active_entity = doc.blocks().first().map(|b| b.entity.clone());
         self.document = Some(doc);
         self.synced_revision = Some(revision);
-        self.text_stale = false;
+        self.pending_edit = false;
         self.sync_reference_context(cx);
     }
 
@@ -140,10 +140,10 @@ impl WysiwygDocumentController {
     ) {
         match event {
             BlockEvent::Changed => {
-                self.text_stale = true;
+                self.pending_edit = true;
                 if let Some(host) = &self.host {
-                    if let Some(text) = self.serialize_text(cx) {
-                        host.sync_source_text(self.pane_id, text, cx);
+                    if let Some(text) = self.document_text(cx) {
+                        host.commit_text(text, cx);
                     }
                 }
                 cx.notify();
@@ -176,10 +176,10 @@ impl WysiwygDocumentController {
                         b.start_cursor_blink(cx);
                         cx.notify();
                     });
-                    self.text_stale = true;
+                    self.pending_edit = true;
                     if let Some(host) = &self.host {
-                        if let Some(text) = self.serialize_text(cx) {
-                            host.sync_source_text(self.pane_id, text, cx);
+                        if let Some(text) = self.document_text(cx) {
+                            host.commit_text(text, cx);
                         }
                     }
                     cx.notify();
@@ -205,10 +205,10 @@ impl WysiwygDocumentController {
                         b.start_cursor_blink(cx);
                         cx.notify();
                     });
-                    self.text_stale = true;
+                    self.pending_edit = true;
                     if let Some(host) = &self.host {
-                        if let Some(text) = self.serialize_text(cx) {
-                            host.sync_source_text(self.pane_id, text, cx);
+                        if let Some(text) = self.document_text(cx) {
+                            host.commit_text(text, cx);
                         }
                     }
                     cx.notify();
@@ -237,10 +237,10 @@ impl WysiwygDocumentController {
                         });
                         doc.remove_block(block.entity_id(), cx);
                         self.active_entity = Some(prev.clone());
-                        self.text_stale = true;
+                        self.pending_edit = true;
                         if let Some(host) = &self.host {
-                            if let Some(text) = self.serialize_text(cx) {
-                                host.sync_source_text(self.pane_id, text, cx);
+                            if let Some(text) = self.document_text(cx) {
+                                host.commit_text(text, cx);
                             }
                         }
                         cx.notify();
@@ -268,10 +268,10 @@ impl WysiwygDocumentController {
                             cx.notify();
                         });
                     }
-                    self.text_stale = true;
+                    self.pending_edit = true;
                     if let Some(host) = &self.host {
-                        if let Some(text) = self.serialize_text(cx) {
-                            host.sync_source_text(self.pane_id, text, cx);
+                        if let Some(text) = self.document_text(cx) {
+                            host.commit_text(text, cx);
                         }
                     }
                     cx.notify();
@@ -332,10 +332,10 @@ impl WysiwygDocumentController {
                                     cx,
                                 );
                                 self.active_entity = Some(block.clone());
-                                self.text_stale = true;
+                                self.pending_edit = true;
                                 if let Some(host) = &self.host {
-                                    if let Some(text) = self.serialize_text(cx) {
-                                        host.sync_source_text(self.pane_id, text, cx);
+                                    if let Some(text) = self.document_text(cx) {
+                                        host.commit_text(text, cx);
                                     }
                                 }
                                 cx.notify();
@@ -363,10 +363,10 @@ impl WysiwygDocumentController {
                         } else {
                             block.update(cx, |b, cx| b.convert_to_paragraph(cx));
                         }
-                        self.text_stale = true;
+                        self.pending_edit = true;
                         if let Some(host) = &self.host {
-                            if let Some(text) = self.serialize_text(cx) {
-                                host.sync_source_text(self.pane_id, text, cx);
+                            if let Some(text) = self.document_text(cx) {
+                                host.commit_text(text, cx);
                             }
                         }
                         cx.notify();
@@ -385,10 +385,10 @@ impl WysiwygDocumentController {
                     b.cursor_blink_epoch = std::time::Instant::now();
                     cx.notify();
                 });
-                self.text_stale = true;
+                self.pending_edit = true;
                 if let Some(host) = &self.host {
-                    if let Some(text) = self.serialize_text(cx) {
-                        host.sync_source_text(self.pane_id, text, cx);
+                    if let Some(text) = self.document_text(cx) {
+                        host.commit_text(text, cx);
                     }
                 }
                 cx.notify();
@@ -415,9 +415,9 @@ impl WysiwygDocumentController {
             }
             return;
         }
-        if self.text_stale {
+        if self.pending_edit {
             self.synced_revision = Some(document.revision);
-            self.text_stale = false;
+            self.pending_edit = false;
             if base_dir_changed {
                 self.sync_reference_context(cx);
             }
@@ -426,15 +426,15 @@ impl WysiwygDocumentController {
         self.rebuild_from_markdown(&document.text, document.revision, cx);
     }
 
-    pub fn serialize_text(&self, cx: &App) -> Option<String> {
+    pub fn document_text(&self, cx: &App) -> Option<String> {
         self.document.as_ref().map(|d| d.serialize_markdown(cx))
     }
 
     pub fn notify_document_changed(&mut self, cx: &mut App) {
-        self.text_stale = true;
+        self.pending_edit = true;
         if let Some(host) = &self.host {
-            if let Some(text) = self.serialize_text(cx) {
-                host.sync_source_text(self.pane_id, text, cx);
+            if let Some(text) = self.document_text(cx) {
+                host.commit_text(text, cx);
             }
         }
     }
@@ -558,9 +558,9 @@ impl WysiwygDocumentController {
                     replace_with,
                     cx,
                 );
-                self.text_stale = true;
+                self.pending_edit = true;
                 cx.notify();
-                return self.serialize_text(cx);
+                return self.document_text(cx);
             }
         }
         None
@@ -628,9 +628,9 @@ impl WysiwygDocumentController {
                     cx,
                 );
             });
-            self.text_stale = true;
+            self.pending_edit = true;
             cx.notify();
-            self.serialize_text(cx)
+            self.document_text(cx)
         } else {
             None
         }
@@ -679,9 +679,9 @@ impl WysiwygDocumentController {
                     );
                 }
             });
-            self.text_stale = true;
+            self.pending_edit = true;
             cx.notify();
-            self.serialize_text(cx)
+            self.document_text(cx)
         } else {
             None
         }
@@ -721,9 +721,9 @@ impl WysiwygDocumentController {
                     );
                 }
             });
-            self.text_stale = true;
+            self.pending_edit = true;
             cx.notify();
-            self.serialize_text(cx)
+            self.document_text(cx)
         } else {
             None
         }
@@ -756,9 +756,9 @@ impl WysiwygDocumentController {
                     );
                 }
             });
-            self.text_stale = true;
+            self.pending_edit = true;
             cx.notify();
-            self.serialize_text(cx)
+            self.document_text(cx)
         } else {
             None
         }
@@ -770,7 +770,6 @@ impl WysiwygDocumentController {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        self.pane_id = ctx.pane_id;
         self.host = Some(ctx.host.clone());
 
         let theme = cx.global::<theme::ThemeManager>().current_arc();

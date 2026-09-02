@@ -5,7 +5,7 @@ use gpui::*;
 use std::path::Path;
 
 use crate::editor::Editor;
-use config::language::{I18nManager, I18nStrings};
+use config::language::I18nStrings;
 use editor_contracts::PaneId;
 
 impl Editor {
@@ -68,40 +68,6 @@ impl Editor {
             }
             self.save_document_as(window, cx);
         }
-    }
-
-    pub fn sync_pending_open_link(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(link) = self
-            .active_tab_mut()
-            .and_then(|t| t.pending.pending_open_link.take())
-        else {
-            return;
-        };
-
-        let strings = cx.global::<I18nManager>().strings_arc();
-        let buttons = [
-            strings.open_link_open.as_str(),
-            strings.open_link_cancel.as_str(),
-        ];
-        let prompt = window.prompt(
-            PromptLevel::Info,
-            &strings.open_link_title,
-            Some(&link.prompt_target),
-            &buttons,
-            cx,
-        );
-        let window_handle = window.window_handle();
-        cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
-            let Ok(choice) = prompt.await else {
-                return;
-            };
-            if choice == 0 {
-                let _ = cx.update_window(window_handle, |_view: AnyView, _window, cx| {
-                    cx.open_url(&link.open_target);
-                });
-            }
-        })
-        .detach();
     }
 
     pub fn sync_window_edited_state(&mut self, window: &mut Window, cx: &App) {

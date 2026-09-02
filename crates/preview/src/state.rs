@@ -31,7 +31,6 @@ impl PaneView for PreviewState {
             searchable: true,
             replaceable: false,
             outline: true,
-            navigable: true,
         }
     }
 
@@ -67,14 +66,10 @@ impl PaneView for PreviewState {
         self.synced_revision = Some(revision);
     }
 
-    fn serialize_text(&self, _cx: &App) -> Option<String> {
-        let text = self
-            .blocks
-            .iter()
-            .map(|b| b.display_text().to_string())
-            .collect::<Vec<_>>()
-            .join("\n\n");
-        Some(text)
+    fn document_text(&self, _cx: &App) -> Option<String> {
+        // The preview is read-only: it never produces document text for the
+        // host to commit.
+        None
     }
 
     fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
@@ -163,25 +158,6 @@ impl PaneView for PreviewState {
             .child(preview_body)
             .child(outline_hud)
             .into_any_element()
-    }
-
-    fn handle_navigation(
-        &mut self,
-        target: &editor_contracts::NavigationTarget,
-        _modifiers: gpui::Modifiers,
-        _cx: &mut gpui::App,
-    ) -> Option<editor_contracts::NavigationExecutionPlan> {
-        match target {
-            editor_contracts::NavigationTarget::External { resolved, .. } => Some(
-                editor_contracts::NavigationExecutionPlan::OpenExternalUrl(resolved.clone()),
-            ),
-            editor_contracts::NavigationTarget::FootnoteDefinition { id } => Some(
-                editor_contracts::NavigationExecutionPlan::ScrollToFootnote(id.clone()),
-            ),
-            editor_contracts::NavigationTarget::FootnoteReference { id } => {
-                Some(editor_contracts::NavigationExecutionPlan::ScrollToFootnoteRef(id.clone()))
-            }
-        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

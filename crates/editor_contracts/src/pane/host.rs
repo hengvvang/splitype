@@ -15,10 +15,10 @@ pub struct PaneRenderContext<'a> {
 /// Only operations that panes actually invoke are exposed; everything the
 /// editor does on its own schedule (focus, refresh) stays editor-internal.
 pub trait PaneHost: Send + Sync + 'static {
-    /// Atomically replaces the authoritative document text. The editor bumps
-    /// the revision, marks the document dirty, invalidates caches, and
-    /// broadcasts the next snapshot to the other panes in one commit.
-    fn sync_source_text(&self, pane_id: PaneId, text: String, cx: &mut App);
+    /// Commits pane-produced document text into the shared document buffer.
+    /// The buffer bumps its revision and notifies every observing editor,
+    /// which re-syncs all of its panes with the new snapshot.
+    fn commit_text(&self, text: String, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
     fn set_outline_hovered(
         &self,

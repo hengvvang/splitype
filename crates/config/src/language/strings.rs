@@ -214,12 +214,6 @@ pub struct I18nStrings {
     pub explorer_open_in_terminal: String,
     /// Explorer context menu: open in split pane.
     pub explorer_open_in_split: String,
-    /// Title of the link-opening confirmation prompt.
-    pub open_link_title: String,
-    /// Confirm button for the link-opening prompt.
-    pub open_link_open: String,
-    /// Cancel button for the link-opening prompt.
-    pub open_link_cancel: String,
     /// Hover label shown when rendered mode can switch to source mode.
     pub pane_mode_switch_to_source: String,
     /// Root context-menu insert label.
@@ -350,9 +344,6 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "explorer_remove_folder",
     "explorer_open_in_terminal",
     "explorer_open_in_split",
-    "open_link_title",
-    "open_link_open",
-    "open_link_cancel",
     "pane_mode_switch_to_source",
     "context_menu_insert",
     "table_insert_title",
@@ -472,9 +463,6 @@ impl I18nStrings {
             explorer_remove_folder: "从资源管理器移除".into(),
             explorer_open_in_terminal: "在终端中打开".into(),
             explorer_open_in_split: "在侧边分屏打开".into(),
-            open_link_title: "打开链接？".into(),
-            open_link_open: "打开".into(),
-            open_link_cancel: "取消".into(),
             pane_mode_switch_to_source: "切换到源码".into(),
             context_menu_insert: "插入".into(),
             table_insert_title: "插入表格".into(),
@@ -624,9 +612,6 @@ impl I18nStrings {
             explorer_remove_folder: "Remove from Explorer".into(),
             explorer_open_in_terminal: "Open in Terminal".into(),
             explorer_open_in_split: "Open in Split".into(),
-            open_link_title: "Open link?".into(),
-            open_link_open: "Open".into(),
-            open_link_cancel: "Cancel".into(),
             pane_mode_switch_to_source: "Switch to Source".into(),
             context_menu_insert: "Insert".into(),
             table_insert_title: "Insert Table".into(),

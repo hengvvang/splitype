@@ -3,8 +3,6 @@ use gpui::{App, Bounds, FocusHandle, KeyDownEvent, Pixels, Window};
 use std::ops::Range;
 
 pub trait SearchHost: Send + Sync + 'static {
-    fn execute_search(&self, cx: &mut App);
-    fn notify(&self, cx: &mut App);
     fn toggle_show_replace(&self, cx: &mut App);
     fn toggle_match_case(&self, cx: &mut App);
     fn toggle_whole_word(&self, cx: &mut App);

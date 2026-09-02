@@ -622,7 +622,9 @@ impl Editor {
             let text = state
                 .pane
                 .replace_match(&match_item, &final_replace_str, cx);
-            self.commit_pane_text(text, cx);
+            if let Some(text) = text {
+                self.commit_document_text(text, cx);
+            }
         } else if let Some(ref file_path) = match_item.file_path {
             if let Ok(content) = fs::read_to_string(file_path) {
                 if range.start <= content.len() && range.end <= content.len() {
@@ -657,7 +659,9 @@ impl Editor {
                 return;
             }
             let text = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
-            self.commit_pane_text(text, cx);
+            if let Some(text) = text {
+                self.commit_document_text(text, cx);
+            }
         }
 
         self.execute_search(cx);

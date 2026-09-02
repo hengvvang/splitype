@@ -344,3 +344,40 @@ keeping plugin UI in lock step with the active theme until a theme file or
 settings override pins the token. Contributions are pure data, so they
 activate even for user-installed plugins without a code transport; every
 registration or removal re-resolves the active theme.
+
+## ADR-024: One document buffer per document, process-wide
+
+**Status:** Accepted
+
+The document is a process-level singleton — there is exactly one in-memory
+source of truth per document, and every view of it is a shallow reference:
+
+- **One buffer.** `DocumentBuffer` (a gpui entity) owns the authoritative
+  `id` / `text` / `revision` / `path` / `dirty` state plus the cached word
+  count. `DocumentStore` (a process global) registers buffers, indexes them
+  by path, and counts views (`acquire` / `release`). No tab, panel, or window
+  ever holds a private text copy.
+- **One commit path.** Panes edit locally and commit through
+  `PaneHost::commit_text(text)`; the buffer normalizes line endings, bumps
+  the revision, marks dirty, and notifies observers. Every editor observes
+  the buffers it shows and re-syncs its panes from a fresh
+  `DocumentSnapshot`; pane-level revision guards make the originating pane's
+  re-sync a no-op. `apply_*` / `replace_*` commands return the new document
+  text and ride the same commit.
+- **One lifecycle.** Opening a path resolves its existing buffer — dirty
+  in-memory content wins over disk. Clean buffers die with their last view;
+  dirty buffers persist in the store until saved or explicitly discarded.
+  Close guards aggregate per-buffer view counts per scope (tab, panel,
+  window) so a shared document is prompted exactly when the closing scope
+  holds its last views, and discards destroy only fully owned buffers.
+- **One persistence projection.** Panel sessions persist buffer references
+  (`PersistedEditorSession`: `buffer_id` + tab kind + pane split topology),
+  and the window snapshot carries a separate `documents` array
+  (`PersistedDocument`: id, text, path, dirty) restored into the store before
+  panels resolve their references. Panel kind switches park the live session
+  (`suspend_state`) — pane states, scroll anchors, and selections survive
+  intact, and buffers stay registered while parked.
+
+Cross-process conflicts (external editors) are deliberately out of scope:
+the user resolves them; within the process the shared buffer makes split
+editors and cloned windows self-consistent by construction.

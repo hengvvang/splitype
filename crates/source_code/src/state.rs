@@ -812,7 +812,6 @@ impl editor_contracts::PaneView for SourceCodeState {
             searchable: true,
             replaceable: true,
             outline: true,
-            navigable: true,
         }
     }
 
@@ -841,7 +840,7 @@ impl editor_contracts::PaneView for SourceCodeState {
         self.synced_revision = Some(revision);
     }
 
-    fn serialize_text(&self, _cx: &App) -> Option<String> {
+    fn document_text(&self, _cx: &App) -> Option<String> {
         Some(self.text.clone())
     }
 

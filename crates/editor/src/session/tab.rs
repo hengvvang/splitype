@@ -1,20 +1,13 @@
-//! Document tab and pane view state models.
+//! Document tab model: a shallow view reference to a shared buffer.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use gpui::{Entity, EntityId, Pixels, ScrollHandle, Size};
+use gpui::{Entity, EntityId};
 
 use crate::document::DocumentBuffer;
-use crate::session::{PaneKind, TabKind};
+use crate::session::{PaneState, TabKind};
 use editor_contracts::DocumentId;
-
-/// A link-navigation request deferred until a `Window` is available.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct PendingOpenLink {
-    pub prompt_target: String,
-    pub open_target: String,
-}
 
 /// Transient per-tab view bookkeeping for save/close/drop flows.
 ///
@@ -25,7 +18,6 @@ pub struct PendingOpenLink {
 pub struct TabPendingState {
     pub pending_save: bool,
     pub pending_save_as: bool,
-    pub pending_open_link: Option<PendingOpenLink>,
     pub window_edited: bool,
     pub window_title_refresh: bool,
     pub show_unsaved_changes_dialog: bool,
@@ -43,30 +35,9 @@ pub struct DocumentTab {
     /// The shared document source of truth.
     pub buffer: Entity<DocumentBuffer>,
     pub kind: TabKind,
-    /// Per-pane view states, keyed by pane id (rebuilt from the text on restore).
+    /// Per-pane view states, keyed by pane id.
     pub panes: HashMap<editor_contracts::PaneId, PaneState>,
     pub pending: TabPendingState,
-}
-
-/// The independent view state of one pane inside an editor area.
-pub struct PaneState {
-    pub scroll: ScrollState,
-    pub pane: Box<dyn editor_contracts::PaneView>,
-}
-
-/// Scroll handle, layout anchoring, and viewport tracking state.
-pub struct ScrollState {
-    pub handle: ScrollHandle,
-    pub last_viewport_size: Option<Size<Pixels>>,
-}
-
-impl Default for ScrollState {
-    fn default() -> Self {
-        Self {
-            handle: ScrollHandle::new(),
-            last_viewport_size: None,
-        }
-    }
 }
 
 impl DocumentTab {
@@ -88,32 +59,6 @@ impl DocumentTab {
     pub fn persist(&mut self) {
         self.kind = TabKind::Persistent;
     }
-}
-
-impl PaneState {
-    pub fn new(kind: PaneKind) -> Self {
-        Self {
-            scroll: ScrollState::default(),
-            pane: new_pane_for_kind(kind),
-        }
-    }
-
-    pub fn kind(&self) -> PaneKind {
-        self.pane.kind()
-    }
-
-    pub fn ensure_kind(&mut self, kind: PaneKind) {
-        if self.kind() == kind {
-            return;
-        }
-        self.pane = new_pane_for_kind(kind);
-    }
-}
-
-pub fn new_pane_for_kind(kind: PaneKind) -> Box<dyn editor_contracts::PaneView> {
-    editor_contracts::PaneRegistry::create_registered(kind.clone())
-        .unwrap_or_else(|error| panic!("failed to access pane registry: {error}"))
-        .unwrap_or_else(|| panic!("no pane descriptor registered for {kind}"))
 }
 
 /// Durable tab projection: a buffer identity plus the tab kind.

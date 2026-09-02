@@ -87,11 +87,17 @@ global singleton.
 
 ### Editor/document scope
 
-The editor owns tabs and the authoritative document state. A document is exposed
-to panes as an immutable `DocumentSnapshot` containing identity, revision, text,
-path, and base directory. A future `DocumentResourceProvider` will provide
-controlled access to relative resources. Panes submit edits; they do not mutate a
-second authoritative copy.
+The document is a process-level singleton: `DocumentBuffer` owns the
+authoritative identity, text, revision, path, and dirty state, and
+`DocumentStore` is the process-global registry mapping buffers to identities
+and paths, with per-buffer view reference counts. Every editor tab is a
+shallow view of a shared buffer — never a private text copy — so split
+editors, cloned windows, and any panel opening the same path observe one
+source of truth. The editor observes the buffers it shows and pushes
+immutable `DocumentSnapshot`s (identity, revision, text, path, base
+directory) down to its panes. A pane submits edits; it never mutates a
+second authoritative copy, and it never infers document resources from
+globals.
 
 ### Pane instance scope
 
@@ -128,21 +134,25 @@ They must not panic the process.
 
 ## Pane contract direction
 
-`DocumentSnapshot` is the input boundary. The mutation boundary should converge
-on one operation:
+`DocumentSnapshot` is the input boundary; `PaneHost::commit_text` is the
+mutation boundary:
 
 ```text
-commit_document_edit(base_revision, edit) -> CommitOutcome
+pane edits locally -> commit_text(text) -> buffer bumps revision,
+marks dirty, notifies observers -> every observing editor re-syncs all
+of its panes with the new snapshot (revision-guarded no-ops for the
+originating pane)
 ```
 
-The editor alone increments revision, updates dirty state, invalidates caches,
-and broadcasts the next snapshot. Calling `sync_source_text` followed by a
-separate `mark_dirty` is transitional and must be removed.
+The shared buffer alone increments the revision, updates dirty state, and
+invalidates caches. Panes converge to a snapshot through
+`PaneView::sync_document` and expose their current text through
+`PaneView::document_text`; there is no separate dirty flagging step.
 
 Optional behavior must be explicit. Default no-op methods are not capability
 negotiation. The target API exposes capabilities or typed providers for editing,
-search, outline, navigation, export, and serialization. Unsupported operations
-must not mark a document dirty.
+search, outline, and export. Unsupported operations must not mark a document
+dirty.
 
 Export is a document contribution, not an editor implementation detail and not
 implicitly owned by whichever pane happens to be visible. Exporters register by
@@ -189,11 +199,15 @@ PersistedWindow
   split tree
   active panel
   panels[] { instance_id, kind, plugin_version, opaque_state }
+  documents[] { buffer_id, text, path, dirty }
 ```
 
-A descriptor owns migration of its opaque state. Unknown state is retained
-verbatim so reinstalling a plugin can recover it. Transient drag, menu, focus,
-and viewport data is never persisted.
+Panel sessions persist buffer references (`buffer_id` + tab kind + pane
+split topology) through `PersistedEditorSession`, while the open documents
+(buffers) persist as a process-level snapshot restored into `DocumentStore`
+before panels resolve their references. A descriptor owns migration of its
+opaque state. Unknown state is retained verbatim so reinstalling a plugin can
+recover it. Transient drag, menu, focus, and viewport data is never persisted.
 
 ## Resource and security boundary
 
@@ -244,8 +258,18 @@ transitional hardcoding listed below is removed.
 - Panel moves now notify every view through `PanelView::set_panel_id`.
 - All panes now receive a shared `DocumentSnapshot`; Preview and WYSIWYG receive
   the authoritative document base directory.
+- Documents are process-level shared buffers: `DocumentBuffer` holds the
+  authoritative text/revision/path/dirty state and `DocumentStore` registers
+  buffers with a path index and view reference counts. Editor tabs are
+  shallow views that observe their buffer and broadcast snapshots to panes,
+  so split editors and cloned windows always edit the same content. Dirty
+  buffers persist until saved or discarded; clean buffers die with their
+  last view; close guards aggregate view counts per scope (tab, panel,
+  window) so shared documents are never double-discarded or lost.
 - Window and panel close protection resolves dirty state through
-  `PanelView::is_dirty`/`first_dirty_title`; the editor-specific retained
+  `PanelView::is_dirty`/`first_dirty_title` plus per-buffer view counting
+  (`DocumentPanel::document_buffer_ids`,
+  `PanelDescriptor::retained_buffer_ids`); the editor-specific retained
   session check only covers suspended editor documents.
 - Panel geometry, activation, maximized, and leaf counts reach panels through
   `PanelRenderContext`; the shell no longer downcasts to push editor layout
@@ -257,11 +281,13 @@ transitional hardcoding listed below is removed.
   and `Shell::retained_panel_states`. Editor document sessions participate
   as ordinary plugin state; the shell no longer owns an editor-specific
   session retention mechanism.
-- Host-driven pane commands (`replace`, `apply_*`) return the new authoritative
-  text and the editor commits it once; spontaneous pane edits commit through
-  `PaneHost::sync_source_text`, which bumps the revision and marks the document
-  dirty in a single atomic step. `PaneHost::mark_dirty` is gone, and read-only
-  panes no longer produce phantom dirty state.
+- Host-driven pane commands (`replace`, `apply_*`) return the new document
+  text and the editor commits it into the shared buffer once; spontaneous
+  pane edits commit through `PaneHost::commit_text`. The buffer bumps the
+  revision and notifies observers, which re-sync all panes — the pane-level
+  revision guards make the originating pane's re-sync a no-op. Read-only
+  panes return `None` from `document_text` and never produce phantom dirty
+  state.
 - The Settings panel owns its `SettingsUiState` as a per-panel entity created
   by its descriptor; splitting the settings panel now yields independent
   instances, and the app bootstrap no longer installs a settings global.
@@ -281,15 +307,17 @@ transitional hardcoding listed below is removed.
   vocabulary.
 - Window state is persisted through the `restore_window_state` setting:
   the shell snapshots the layout topology (a serde projection of the split
-  tree with transient interaction sessions skipped) plus per-panel plugin
-  state on close, writing a versioned `window_state.json`. Panels opt into
-  state persistence via `PanelDescriptor::serialize_state`/
-  `deserialize_state`; the editor persists its full session (tabs, text,
-  dirty flags, pane layout kinds), while non-opting panels restore fresh.
-  Startup restores the snapshot when enabled and the schema version matches.
-  Explorer and Settings panels opt in too: the explorer persists its tree
-  visibility and open folder paths (worktrees re-scan from disk on restore),
-  and settings persists its active plugin page.
+  tree with transient interaction sessions skipped), the process-level open
+  documents (`DocumentStore::persisted_snapshot`: buffer id, text, path,
+  dirty), and per-panel plugin state on close, writing a versioned
+  `window_state.json`. Panels opt into state persistence via
+  `PanelDescriptor::serialize_state`/`deserialize_state`; the editor
+  persists its session as buffer references plus the pane layout kinds,
+  while non-opting panels restore fresh. Startup restores the document
+  buffers first, then rebuilds panel sessions against them. Explorer and
+  Settings panels opt in too: the explorer persists its tree visibility and
+  open folder paths (worktrees re-scan from disk on restore), and settings
+  persists its active plugin page.
 - Plugins are declared through versioned TOML manifests
   (`PluginManifest`: reverse-domain `PluginId`, entry point, declared pane
   and panel capabilities, resource roots) and recorded in a global
@@ -339,20 +367,21 @@ transitional hardcoding listed below is removed.
 - The pane capability model is the single gate for optional behavior: every
   optional `PaneView` method documents the capability that gates it and
   hosts check that flag before calling, `PaneHost` exposes only the
-  operations panes actually invoke (`sync_source_text`, outline
+  operations panes actually invoke (`commit_text`, outline
   navigation/hover, key/mouse event routing), and `PanelView` carries no
   dead lifecycle hooks — panels reach the shell through `DocumentHost`,
   plugin hook tables, or shell-owned actions, not a generic unused host.
 - `platform_contracts` carries zero knowledge of any panel's role: panel
   contracts (`PanelView`, `PanelDescriptor`, `PanelKind`, `PanelId`,
-  `PanelRenderContext`), the shared shell actions
-  (`platform_contracts::actions`), the plugin manifest/registry, and the
-  command registry. `editor_contracts` owns the document family vocabulary
-  (`DocumentPanel`, pane SPI, document/search/outline contracts) and does
-  not re-export platform types. The two contract crates are mutually
-  independent. `window` hosts the panel registry without re-exporting
-  contract types — every consumer imports them from the owning contract
-  crate directly. Window-chrome presentation helpers
+  `PanelRenderContext`), the cross-cutting `DocumentId`, the shared shell
+  actions (`platform_contracts::actions`), the plugin manifest/registry, and
+  the command registry. `editor_contracts` owns the document family
+  vocabulary (`DocumentPanel`, pane SPI, document/search/outline contracts),
+  re-exporting `DocumentId`, and does not re-export platform types beyond
+  it. The two contract crates are mutually independent in dependencies
+  (`editor_contracts` → `platform_contracts` only). `window` hosts the panel
+  registry without re-exporting contract types — every consumer imports them
+  from the owning contract crate directly. Window-chrome presentation helpers
   (`panel_topbar_icon`, `border_menu_style`) live in `ui::chrome`.
   Built-in kinds are namespaced
   (`splitype.pane.wysiwyg|source_code|preview`,
@@ -378,11 +407,12 @@ transitional hardcoding listed below is removed.
    today.
 2. Per-pane view state (cursor, scroll, selections) is not persisted, and the
    explorer restores folder roots without their expansion state.
-3. Preview pane selection rendering exists but no input is routed to it, and
-   the editor's autoscroll execution is still a stub.
+3. The editor's autoscroll execution is still a stub.
 4. `markdown_parser` still carries consumer-specific parse modes
    (`ParseMode::Wysiwyg`/`Preview`); replace them with a recursive parse
    policy owned by the domain.
+5. Global undo/redo is not implemented yet: `on_undo`/`on_redo` are
+   no-ops, and panes manage their own local edit state.
 
 ## Migration plan and acceptance criteria
 

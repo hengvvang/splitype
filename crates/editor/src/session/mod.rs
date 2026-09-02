@@ -1,13 +1,15 @@
-//! Editor session domain models — tabs, buffer/source-of-truth, and file state.
+//! Editor session view models — tabs, pane view state, and the inner pane
+//! split topology. The authoritative document state lives in
+//! [`crate::document::DocumentBuffer`].
 
 pub mod flow;
 pub mod ops;
+pub mod pane_state;
 pub mod tab;
 
 use editor_contracts::{PaneKind, TabKind};
-pub use tab::{
-    DocumentTab, PaneState, PendingOpenLink, PersistedTab, ScrollState, TabPendingState,
-};
+pub use pane_state::{PaneState, ScrollState};
+pub use tab::{DocumentTab, PersistedTab, TabPendingState};
 
 use gpui::App;
 use splitter::root::SplitterRoot;
@@ -116,22 +118,6 @@ impl<T> EditorTabList<T> {
     }
 
     #[inline]
-    pub fn as_slice(&self) -> &[T] {
-        &self.tabs
-    }
-
-    pub fn swap(&mut self, a: usize, b: usize) {
-        if a < self.tabs.len() && b < self.tabs.len() {
-            self.tabs.swap(a, b);
-            if self.active_tab == a {
-                self.active_tab = b;
-            } else if self.active_tab == b {
-                self.active_tab = a;
-            }
-        }
-    }
-
-    #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.tabs.iter()
     }
@@ -139,22 +125,6 @@ impl<T> EditorTabList<T> {
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.tabs.iter_mut()
-    }
-}
-
-impl<T> std::ops::Index<usize> for EditorTabList<T> {
-    type Output = T;
-
-    #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.tabs[index]
-    }
-}
-
-impl<T> std::ops::IndexMut<usize> for EditorTabList<T> {
-    #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.tabs[index]
     }
 }
 
@@ -167,15 +137,6 @@ impl<'a, T> IntoIterator for &'a EditorTabList<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut EditorTabList<T> {
-    type Item = &'a mut T;
-    type IntoIter = std::slice::IterMut<'a, T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
-    }
-}
-
 /// The complete per-area editor state: the document tabs plus the inner panel split container.
 ///
 /// Not serializable: tabs hold live buffer entities. Durable persistence goes
@@ -183,8 +144,6 @@ impl<'a, T> IntoIterator for &'a mut EditorTabList<T> {
 pub struct EditorSession {
     pub tab_list: EditorTabList<DocumentTab>,
     pub root: SplitterRoot<PaneKind>,
-    /// Live pane entities used while no tab is open.
-    pub empty_panes: std::collections::HashMap<editor_contracts::PaneId, PaneState>,
 }
 
 impl EditorSession {
@@ -197,7 +156,6 @@ impl EditorSession {
         Self {
             tab_list: EditorTabList::new(),
             root: SplitterRoot::single_leaf(1, default_kind),
-            empty_panes: std::collections::HashMap::new(),
         }
     }
 
@@ -242,11 +200,7 @@ impl EditorSession {
             active_leaf: None,
             activation_history: Vec::new(),
         };
-        Self {
-            tab_list,
-            root,
-            empty_panes: std::collections::HashMap::new(),
-        }
+        Self { tab_list, root }
     }
 
     #[inline]
