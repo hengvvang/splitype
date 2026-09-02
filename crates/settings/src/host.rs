@@ -20,7 +20,7 @@ use theme::{Theme, ThemeManager};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::settings_form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsKeyHandler,
-    make_row_with_reset, make_section, render_number_field, render_searchable_font_picker,
+    make_row_with_reset, render_number_field, render_searchable_font_picker,
 };
 use ui::switch::Switch;
 use ui::tab::nav_tab;
@@ -154,8 +154,7 @@ pub fn render_settings_body(
         .into_any_element()
 }
 
-/// Renders one plugin's settings page: a page header plus one collapsible
-/// card per declaration group.
+/// Renders one plugin's settings page: a page header plus standalone setting cards.
 fn render_plugin_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
@@ -164,44 +163,35 @@ fn render_plugin_page(
     cx: &mut App,
 ) -> AnyElement {
     let c = &theme.colors;
-    let d = &theme.dimensions;
     let plugin_id = manifest.plugin.as_str();
 
-    let mut cards = Vec::new();
-    for (group, declarations) in settings_groups(manifest) {
-        let card_key = format!("{plugin_id}:{group}");
-        let expanded = state
-            .read(cx)
-            .expanded_cards
-            .get(&card_key)
-            .copied()
-            .unwrap_or(true);
+    let groups = settings_groups(manifest);
+    let has_multiple_groups = groups.len() > 1
+        || groups.first().is_some_and(|(g, _)| g != &manifest.name);
 
-        let rows = declarations
+    let mut section_elements = Vec::new();
+    for (group, declarations) in groups {
+        let rows: Vec<AnyElement> = declarations
             .iter()
             .map(|declaration| {
                 render_setting_row(id_namespace, state, plugin_id, declaration, theme, cx)
             })
             .collect();
 
-        let toggle_state = state.clone();
-        let card_id = format!("{id_namespace}-card-{plugin_id}-{group}");
-        cards.push(make_section(
-            c,
-            d,
-            (SharedString::from(card_id), 0_usize),
-            group.clone(),
-            expanded,
-            Box::new(move |_event, _window, cx| {
-                toggle_state.update(cx, |ui, _| {
-                    let key = card_key.clone();
-                    let was_expanded = ui.expanded_cards.get(&key).copied().unwrap_or(true);
-                    ui.expanded_cards.insert(key, !was_expanded);
-                });
-                cx.refresh_windows();
-            }),
-            rows,
-        ));
+        let mut group_div = div().flex().flex_col().gap(px(4.0));
+        if has_multiple_groups {
+            group_div = group_div.child(
+                div()
+                    .pt(px(6.0))
+                    .pb(px(2.0))
+                    .text_size(px(13.5))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(c.text_default)
+                    .child(group),
+            );
+        }
+        group_div = group_div.children(rows);
+        section_elements.push(group_div.into_any_element());
     }
 
     let description = manifest.description.clone().map(|text| {
@@ -229,7 +219,7 @@ fn render_plugin_page(
                 )
                 .children(description),
         )
-        .children(cards)
+        .children(section_elements)
         .into_any_element()
 }
 
@@ -274,8 +264,7 @@ fn render_setting_row(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    let mut inner_border_color = c.dialog_border;
-    inner_border_color.a *= 0.4;
+    let border_color = c.dialog_border;
 
     let current = current_value(plugin_id, declaration, cx);
     let control = render_control(
@@ -303,7 +292,7 @@ fn render_setting_row(
     );
 
     make_row_with_reset(
-        inner_border_color,
+        border_color,
         c,
         d,
         declaration.title.clone(),

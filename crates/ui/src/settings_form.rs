@@ -49,8 +49,8 @@ pub fn make_row_with_reset(
     let desc = desc.into();
     let mut title_row = div().flex().items_center().gap(px(6.0)).child(
         div()
-            .text_size(px(12.5))
-            .font_weight(FontWeight::MEDIUM)
+            .text_size(px(13.0))
+            .font_weight(FontWeight::NORMAL)
             .text_color(c.text_default)
             .child(title.clone()),
     );
@@ -75,15 +75,25 @@ pub fn make_row_with_reset(
         );
     }
 
-    settings_row(inner_border_color, c, d)
-        .child(
-            div().flex().flex_col().gap(px(2.0)).child(title_row).child(
+    let has_desc = !desc.as_ref().is_empty();
+    let label_column = if has_desc {
+        div()
+            .flex()
+            .flex_col()
+            .gap(px(2.0))
+            .child(title_row)
+            .child(
                 div()
-                    .text_size(px(11.0))
+                    .text_size(px(11.5))
                     .text_color(c.dialog_muted)
                     .child(desc),
-            ),
-        )
+            )
+    } else {
+        div().flex().flex_col().child(title_row)
+    };
+
+    settings_row(inner_border_color, c, d)
+        .child(label_column)
         .child(control)
         .into_any_element()
 }

@@ -34,7 +34,8 @@ pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
 pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
         .w_full()
-        .h(px(56.0))
+        .min_h(px(56.0))
+        .py(px(10.0))
         .px(px(16.0))
         .rounded(px(d.settings_row_radius))
         .bg(c.dialog_surface)
