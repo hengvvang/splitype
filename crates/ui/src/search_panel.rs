@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use gpui::*;
 use gpui::prelude::FluentBuilder;
+use gpui::*;
 
 use crate::search_input::SearchInputElement;
 use editor_contracts::{
@@ -241,10 +241,9 @@ pub fn render_search_panel_overlay(
         .items_center()
         .justify_center()
         .rounded(px(d.icon_button_radius))
-        .when(
-            scope == SearchScope::Worktree,
-            |this| this.bg(c.panel_row_hover),
-        )
+        .when(scope == SearchScope::Worktree, |this| {
+            this.bg(c.panel_row_hover)
+        })
         .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
         .child(

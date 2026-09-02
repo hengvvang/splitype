@@ -158,6 +158,10 @@ label = "Dark"
 value = "light"
 label = "Light"
 
+[[settings.options]]
+value = "auto"
+label = "Follow System"
+
 [[settings]]
 key = "theme.family"
 kind = "theme"

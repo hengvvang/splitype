@@ -1,7 +1,7 @@
 //! In-window inline titlebar menu button row rendering.
 
-use gpui::*;
 use gpui::prelude::FluentBuilder;
+use gpui::*;
 
 use crate::shell::Shell;
 use theme::Theme;

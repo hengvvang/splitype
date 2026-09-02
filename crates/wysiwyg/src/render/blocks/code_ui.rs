@@ -2,8 +2,8 @@
 
 use ui::menu_item::menu_item;
 
-use gpui::*;
 use gpui::prelude::FluentBuilder;
+use gpui::*;
 
 use crate::render::BLOCK_EDITOR_CONTEXT;
 

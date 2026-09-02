@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use gpui::*;
 use gpui::prelude::FluentBuilder;
+use gpui::*;
 
 use editor_contracts::{OutlineHost, OutlineNode};
 use theme::Theme;

@@ -23,7 +23,7 @@ use ui::section::section_card;
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::settings_form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsKeyHandler,
-    make_row_with_reset, render_number_field, render_searchable_font_picker,
+    make_row, make_row_with_reset, render_number_field, render_searchable_font_picker,
 };
 use ui::switch::Switch;
 use ui::tab::nav_tab;
@@ -193,12 +193,13 @@ fn render_plugin_page(
         section_elements.push(group_div.into_any_element());
 
         // The group declaring the theme family picker also hosts the
-        // per-user color override panel.
+        // per-user color override panel and the installed-theme manager.
         if declarations
             .iter()
             .any(|declaration| declaration.kind == SettingKind::Theme)
         {
             section_elements.push(render_theme_overrides_panel(id_namespace, state, theme, cx));
+            section_elements.push(render_installed_themes_panel(id_namespace, theme, cx));
         }
     }
 
@@ -1156,7 +1157,7 @@ fn render_theme_overrides_panel(
         ));
     }
 
-    section_card(c, d)
+    let colors_card = section_card(c, d)
         .child(
             div()
                 .text_size(px(13.0))
@@ -1164,9 +1165,492 @@ fn render_theme_overrides_panel(
                 .text_color(c.text_default)
                 .child("Color Overrides"),
         )
+        .children(rows);
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(10.0))
         .child(search_input)
+        .child(colors_card)
+        .child(render_dimension_overrides_card(
+            id_namespace,
+            state,
+            theme,
+            &query,
+            cx,
+        ))
+        .child(render_typography_overrides_card(
+            id_namespace,
+            state,
+            theme,
+            &query,
+            cx,
+        ))
+        .into_any_element()
+}
+
+/// Renders the dimension-override card: one inline numeric row per
+/// dimension field. Values write `theme.dimension_overrides` and the theme
+/// sync hook applies them live.
+fn render_dimension_overrides_card(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    theme: &Theme,
+    query: &str,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+    let overrides = PluginSettings::<CoreSettings>::get(cx)
+        .theme
+        .dimension_overrides
+        .clone();
+    let resolved = serde_json::to_value(&theme.dimensions).unwrap_or_default();
+
+    let mut rows: Vec<AnyElement> = Vec::new();
+    for field in theme::ThemeDimensions::TOKEN_FIELD_NAMES {
+        if !query.is_empty() && !field.to_lowercase().contains(query) {
+            continue;
+        }
+        let effective = resolved
+            .get(*field)
+            .and_then(Value::as_f64)
+            .unwrap_or_default();
+        let overridden = overrides.contains_key(*field);
+        let reset: Option<SettingsClickHandler> = if overridden {
+            let reset_field = (*field).to_string();
+            Some(Box::new(
+                move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                    write_dimension_override(cx, &reset_field, None);
+                },
+            ))
+        } else {
+            None
+        };
+        let control =
+            render_dimension_control(id_namespace, state, field, effective, overridden, c, d, cx);
+        rows.push(make_row_with_reset(
+            c.dialog_border,
+            c,
+            d,
+            *field,
+            format!(
+                "{} · {}",
+                if overridden {
+                    "Overridden"
+                } else {
+                    "Inherited"
+                },
+                format_number(effective, 0.01),
+            ),
+            reset,
+            control,
+        ));
+    }
+
+    section_card(c, d)
+        .child(
+            div()
+                .text_size(px(13.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(c.text_default)
+                .child("Dimension Overrides"),
+        )
         .children(rows)
         .into_any_element()
+}
+
+/// Renders the typography-override card: inline numeric rows for size
+/// fields and weight pickers for the font-weight fields.
+fn render_typography_overrides_card(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    theme: &Theme,
+    query: &str,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+    let overrides = PluginSettings::<CoreSettings>::get(cx)
+        .theme
+        .typography_overrides
+        .clone();
+    let resolved = serde_json::to_value(&theme.typography).unwrap_or_default();
+
+    let mut rows: Vec<AnyElement> = Vec::new();
+    for field in theme::TYPOGRAPHY_SIZE_FIELDS {
+        if !query.is_empty() && !field.to_lowercase().contains(query) {
+            continue;
+        }
+        let effective = resolved
+            .get(*field)
+            .and_then(Value::as_f64)
+            .unwrap_or_default();
+        let overridden = overrides.contains_key(*field);
+        let reset: Option<SettingsClickHandler> = if overridden {
+            let reset_field = (*field).to_string();
+            Some(Box::new(
+                move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                    write_typography_override(cx, &reset_field, None);
+                },
+            ))
+        } else {
+            None
+        };
+        let commit_field = (*field).to_string();
+        let control = render_editable_number_control(
+            id_namespace,
+            state,
+            &format!("typography:{field}"),
+            effective,
+            overridden,
+            c,
+            d,
+            move |cx, text| {
+                let Ok(value) = text.trim().parse::<f64>() else {
+                    return;
+                };
+                let number = serde_json::Number::from_f64(value)
+                    .map(Value::Number)
+                    .unwrap_or(Value::Null);
+                write_typography_override(cx, &commit_field, Some(number));
+            },
+            cx,
+        );
+        rows.push(make_row_with_reset(
+            c.dialog_border,
+            c,
+            d,
+            *field,
+            format!(
+                "{} · {}",
+                if overridden {
+                    "Overridden"
+                } else {
+                    "Inherited"
+                },
+                format_number(effective, 0.01),
+            ),
+            reset,
+            control,
+        ));
+    }
+    for field in theme::TYPOGRAPHY_WEIGHT_FIELDS {
+        if !query.is_empty() && !field.to_lowercase().contains(query) {
+            continue;
+        }
+        let effective = resolved
+            .get(*field)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        let overridden = overrides.contains_key(*field);
+        let reset: Option<SettingsClickHandler> = if overridden {
+            let reset_field = (*field).to_string();
+            Some(Box::new(
+                move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                    write_typography_override(cx, &reset_field, None);
+                },
+            ))
+        } else {
+            None
+        };
+        let control =
+            render_weight_control(id_namespace, state, field, &effective, overridden, c, d, cx);
+        rows.push(make_row_with_reset(
+            c.dialog_border,
+            c,
+            d,
+            *field,
+            format!(
+                "{} · {}",
+                if overridden {
+                    "Overridden"
+                } else {
+                    "Inherited"
+                },
+                effective,
+            ),
+            reset,
+            control,
+        ));
+    }
+
+    section_card(c, d)
+        .child(
+            div()
+                .text_size(px(13.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(c.text_default)
+                .child("Typography Overrides"),
+        )
+        .children(rows)
+        .into_any_element()
+}
+
+/// Inline numeric input committing `theme.dimension_overrides` values.
+#[allow(clippy::too_many_arguments)]
+fn render_dimension_control(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    field: &str,
+    effective: f64,
+    overridden: bool,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    cx: &mut App,
+) -> AnyElement {
+    let commit_field = field.to_string();
+    render_editable_number_control(
+        id_namespace,
+        state,
+        &format!("dimension:{field}"),
+        effective,
+        overridden,
+        c,
+        d,
+        move |cx, text| {
+            let Ok(value) = text.trim().parse::<f64>() else {
+                return;
+            };
+            write_dimension_override(cx, &commit_field, Some(value));
+        },
+        cx,
+    )
+}
+
+/// Generic inline numeric editor: click to edit, Enter commits, Escape
+/// cancels.
+#[allow(clippy::too_many_arguments)]
+fn render_editable_number_control(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    edit_key: &str,
+    effective: f64,
+    overridden: bool,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    commit: impl Fn(&mut App, String) + 'static,
+    cx: &mut App,
+) -> AnyElement {
+    let is_editing = state.read(cx).edit_buffers.contains_key(edit_key);
+    let display = state
+        .read(cx)
+        .edit_buffers
+        .get(edit_key)
+        .cloned()
+        .unwrap_or_else(|| format_number(effective, 0.01));
+    let focus_handle = state.update(cx, |ui, cx| ui.focus_handle(edit_key, cx));
+    let commit = Arc::new(commit);
+    let commit_key = edit_key.to_string();
+    let on_key_down = editable_key_handler(state.clone(), commit_key, true, move |cx, text| {
+        commit(cx, text);
+    });
+
+    div()
+        .id(ElementId::Name(
+            format!("{id_namespace}-number-{edit_key}").into(),
+        ))
+        .key_context("SettingsInput")
+        .track_focus(&focus_handle)
+        .relative()
+        .overflow_hidden()
+        .cursor_text()
+        .w(px(150.0))
+        .h(px(28.0))
+        .px(px(8.0))
+        .rounded(px(d.select_trigger_radius))
+        .bg(if is_editing {
+            c.dialog_surface
+        } else {
+            c.dialog_secondary_button_bg
+        })
+        .border_1()
+        .border_color(if overridden {
+            c.focus_accent
+        } else {
+            c.dialog_border
+        })
+        .flex()
+        .items_center()
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.0))
+                .truncate()
+                .text_size(px(12.0))
+                .text_color(if overridden {
+                    c.text_default
+                } else {
+                    c.dialog_muted
+                })
+                .child(display),
+        )
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(px(2.0))
+                .rounded_b(px(d.select_trigger_radius))
+                .bg(if is_editing {
+                    c.focus_accent
+                } else {
+                    c.dialog_border
+                }),
+        )
+        .on_click(start_edit(
+            state.clone(),
+            edit_key.to_string(),
+            format_number(effective, 0.01),
+            focus_handle.clone(),
+        ))
+        .on_key_down(on_key_down)
+        .into_any_element()
+}
+
+/// Weight picker committing `theme.typography_overrides` weight names.
+#[allow(clippy::too_many_arguments)]
+fn render_weight_control(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    field: &str,
+    effective: &str,
+    overridden: bool,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    cx: &mut App,
+) -> AnyElement {
+    const WEIGHTS: &[&str] = &[
+        "thin",
+        "light",
+        "normal",
+        "medium",
+        "semibold",
+        "bold",
+        "extrabold",
+        "black",
+    ];
+    let key = format!("typography-weight:{field}");
+    let is_open = state.read(cx).open_picker.as_deref() == Some(key.as_str());
+
+    let toggle_state = state.clone();
+    let toggle_key = key.clone();
+    let trigger = select_trigger(format!("{id_namespace}-weight-{field}"), c, d)
+        .text_size(px(12.0))
+        .text_color(if overridden {
+            c.text_default
+        } else {
+            c.dialog_muted
+        })
+        .child(
+            div()
+                .flex_1()
+                .min_w(px(0.0))
+                .truncate()
+                .child(effective.to_string()),
+        )
+        .child(
+            div().flex_shrink_0().pl(px(4.0)).child(
+                svg()
+                    .path("icons/settings/select-chevron.svg")
+                    .size(px(16.0))
+                    .text_color(c.dialog_muted),
+            ),
+        )
+        .on_click(Box::new(
+            move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                toggle_state.update(cx, |ui, _| {
+                    ui.open_picker = if ui.open_picker.as_deref() == Some(toggle_key.as_str()) {
+                        None
+                    } else {
+                        Some(toggle_key.clone())
+                    };
+                });
+                cx.refresh_windows();
+            },
+        ));
+
+    let mut wrap = div().relative().child(trigger);
+    if is_open {
+        let mut items = Vec::new();
+        for &weight in WEIGHTS {
+            let select_field = field.to_string();
+            let select_weight = weight.to_string();
+            let close_state = state.clone();
+            items.push(
+                select_option(
+                    ElementId::Name(format!("{id_namespace}-weight-{field}-opt-{weight}").into()),
+                    c,
+                    d,
+                )
+                .bg(c.dialog_surface)
+                .text_size(px(12.0))
+                .text_color(if weight == effective {
+                    c.dialog_primary_button_bg
+                } else {
+                    c.text_default
+                })
+                .child(weight)
+                .child(if weight == effective {
+                    svg()
+                        .path("icons/settings/checkmark.svg")
+                        .size(px(15.0))
+                        .text_color(c.dialog_primary_button_bg)
+                        .into_any_element()
+                } else {
+                    div().w(px(13.0)).into_any_element()
+                })
+                .on_click(Box::new(
+                    move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                        write_typography_override(
+                            cx,
+                            &select_field,
+                            Some(Value::String(select_weight.clone())),
+                        );
+                        close_state.update(cx, |ui, _| ui.open_picker = None);
+                    },
+                ))
+                .into_any_element(),
+            );
+        }
+        wrap = wrap.child(gpui::deferred(select_panel(c, d).children(items)));
+    }
+    wrap.into_any_element()
+}
+
+/// Writes (or, with `None`, removes) one dimension override through the
+/// settings store; the theme sync hook applies it live.
+fn write_dimension_override(cx: &mut App, field: &str, value: Option<f64>) {
+    let _ = PluginSettings::<CoreSettings>::update(cx, |settings| match value {
+        Some(value) => {
+            settings
+                .theme
+                .dimension_overrides
+                .insert(field.to_string(), value as f32);
+        }
+        None => {
+            settings.theme.dimension_overrides.remove(field);
+        }
+    });
+}
+
+/// Writes (or, with `None`, removes) one typography override through the
+/// settings store; the theme sync hook applies it live.
+fn write_typography_override(cx: &mut App, field: &str, value: Option<serde_json::Value>) {
+    let _ = PluginSettings::<CoreSettings>::update(cx, |settings| match value {
+        Some(value) => {
+            settings
+                .theme
+                .typography_overrides
+                .insert(field.to_string(), value);
+        }
+        None => {
+            settings.theme.typography_overrides.remove(field);
+        }
+    });
 }
 
 /// Inline hex color input with a swatch, committing `#rrggbb[aa]` colors.
@@ -1295,4 +1779,104 @@ fn write_color_override(cx: &mut App, key: &str, hex: Option<String>) {
 /// Formats an Hsla color as its `#rrggbbaa` hex string.
 fn hsla_to_hex(hsla: Hsla) -> String {
     format!("#{:08x}", u32::from(gpui::Rgba::from(hsla)))
+}
+
+/// Renders the installed-theme manager: one row per imported user theme
+/// family with a remove action. Appended to the group that declares the
+/// theme family picker.
+fn render_installed_themes_panel(id_namespace: &str, theme: &Theme, cx: &mut App) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+
+    let families: Vec<(String, String)> = cx
+        .global::<ThemeManager>()
+        .registry()
+        .user_families()
+        .into_iter()
+        .map(|(id, family)| {
+            let label = if family.author.is_empty() {
+                family.name.clone()
+            } else {
+                format!("{} · {}", family.name, family.author)
+            };
+            (id, label)
+        })
+        .collect();
+    if families.is_empty() {
+        return div().into_any_element();
+    }
+
+    let current_family = PluginSettings::<CoreSettings>::get(cx).theme.family.clone();
+    let mut rows: Vec<AnyElement> = Vec::new();
+    for (family_id, label) in families {
+        let is_current = family_id == current_family;
+        let remove_family = family_id.clone();
+        let remove: SettingsClickHandler = Box::new(
+            move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
+                remove_installed_theme(cx, &remove_family);
+            },
+        );
+        let control = div()
+            .id(ElementId::Name(
+                format!("{id_namespace}-remove-{family_id}").into(),
+            ))
+            .cursor_pointer()
+            .px(px(8.0))
+            .py(px(4.0))
+            .rounded(px(d.button_radius))
+            .border_1()
+            .border_color(c.dialog_border)
+            .hover(|this| this.bg(c.panel_row_hover))
+            .text_size(px(11.5))
+            .text_color(if is_current {
+                c.dialog_muted
+            } else {
+                c.text_default
+            })
+            .child(if is_current { "Active" } else { "Remove" })
+            .on_click(remove)
+            .into_any_element();
+        rows.push(make_row(
+            c.dialog_border,
+            c,
+            d,
+            label.clone(),
+            if is_current {
+                "Currently selected"
+            } else {
+                "Imported theme"
+            },
+            control,
+        ));
+    }
+
+    section_card(c, d)
+        .child(
+            div()
+                .text_size(px(13.0))
+                .font_weight(FontWeight::BOLD)
+                .text_color(c.text_default)
+                .child("Installed Themes"),
+        )
+        .children(rows)
+        .into_any_element()
+}
+
+/// Removes an imported theme: settings first (so the sync hook re-resolves
+/// onto a valid family), then the registry and the persisted file.
+fn remove_installed_theme(cx: &mut App, family_id: &str) {
+    let is_current = PluginSettings::<CoreSettings>::get(cx).theme.family == family_id;
+    if is_current {
+        let _ = SettingsStore::set_plugin_value(
+            cx,
+            "splitype.core",
+            "theme.family",
+            Value::String("splitype".into()),
+        );
+    }
+    let removed =
+        cx.update_global::<ThemeManager, _>(|manager, _cx| manager.remove_user_theme(family_id));
+    if let Err(err) = removed {
+        tracing::warn!(family_id, error = %err, "failed to remove user theme");
+    }
 }

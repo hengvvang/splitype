@@ -117,6 +117,15 @@ impl ThemeRegistry {
         self.user.remove(family_id);
     }
 
+    /// The user-tier families with their ids — the themes a user imported
+    /// and may remove.
+    pub fn user_families(&self) -> Vec<(String, &ThemeFamilyContent)> {
+        self.user
+            .iter()
+            .map(|(id, family)| (id.clone(), family))
+            .collect()
+    }
+
     /// Registers one plugin's extension tokens, overwriting any previous
     /// declaration (and ownership) with the same key.
     pub fn register_tokens(
@@ -224,6 +233,7 @@ impl ThemeRegistry {
             .filter(|path| path.is_file() && config::jsonc::is_supported_config_file(path))
             .collect();
         paths.sort();
+        self.user.clear();
         for path in paths {
             match read_json_or_jsonc(&path)
                 .and_then(|value| {

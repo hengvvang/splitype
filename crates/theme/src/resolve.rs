@@ -5,12 +5,15 @@ use std::sync::Arc;
 
 use anyhow::{Context as _, bail};
 use gpui::Hsla;
+use serde_json::Map;
 
-use config::settings::Appearance;
+use config::settings::{Appearance, ThemeSettingsContent};
 
 use super::content::{ThemeContent, ThemeStyleContent};
+use super::dimensions::ThemeDimensionsPatch;
 use super::registry::{ThemeRegistry, TokenDeclaration};
 use super::theme::Theme;
+use super::typography::ThemeTypographyPatch;
 
 /// A fully resolved theme plus its concrete id.
 #[derive(Debug)]
@@ -24,14 +27,16 @@ pub struct ResolvedTheme {
 /// against the registry and merges it into the runtime [`Theme`].
 ///
 /// Merge order (later wins): built-in default theme → base chain (root
-/// first, cycle-checked) → the target variant's own patch → settings color
-/// overrides. Extension tokens start from the registry's token schema
-/// defaults and are then overridden by the chain and the settings overrides.
+/// first, cycle-checked) → the target variant's own patch → settings
+/// overrides (colors, dimensions, typography). Extension tokens start from
+/// the registry's token schema defaults and are then overridden by the
+/// chain and the settings overrides. `appearance` must already be resolved
+/// (the caller maps `Auto` onto the system appearance).
 pub fn resolve_theme(
     registry: &ThemeRegistry,
     theme_ref: &str,
     appearance: Appearance,
-    overrides: &BTreeMap<String, Hsla>,
+    settings: &ThemeSettingsContent,
 ) -> anyhow::Result<ResolvedTheme> {
     // Ids are lowercased slugs; refs are matched case-insensitively.
     let (family_id, variant) = locate(registry, theme_ref, appearance)?;
@@ -77,7 +82,7 @@ pub fn resolve_theme(
     }
 
     // Settings color overrides sit above every theme file.
-    for (key, value) in overrides {
+    for (key, value) in &settings.overrides {
         apply_override(
             &mut theme,
             &mut extension,
@@ -85,6 +90,25 @@ pub fn resolve_theme(
             key,
             *value,
         )?;
+    }
+
+    // Dimension overrides: one field per patch, validated by the patch
+    // schema's deny-unknown-fields.
+    for (field, value) in &settings.dimension_overrides {
+        let mut object = Map::new();
+        object.insert(field.clone(), serde_json::Value::from(*value));
+        let patch: ThemeDimensionsPatch = serde_json::from_value(serde_json::Value::Object(object))
+            .with_context(|| format!("unknown dimension override '{field}'"))?;
+        patch.apply_to(&mut theme.dimensions);
+    }
+
+    // Typography overrides: sizes are numbers, weights are lowercase names.
+    for (field, value) in &settings.typography_overrides {
+        let mut object = Map::new();
+        object.insert(field.clone(), value.clone());
+        let patch: ThemeTypographyPatch = serde_json::from_value(serde_json::Value::Object(object))
+            .with_context(|| format!("unknown typography override '{field}'"))?;
+        patch.apply_to(&mut theme.typography);
     }
     theme.extension = extension;
 

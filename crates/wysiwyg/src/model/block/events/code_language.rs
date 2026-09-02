@@ -427,7 +427,8 @@ impl Block {
         if ctrl && !keystroke.modifiers.alt {
             match keystroke.key.as_str() {
                 "a" | "A" => {
-                    self.code_toolbar.picker.selected_range = 0..self.code_toolbar.picker.query.len();
+                    self.code_toolbar.picker.selected_range =
+                        0..self.code_toolbar.picker.query.len();
                     self.code_toolbar.picker.selection_reversed = false;
                     cx.notify();
                     cx.stop_propagation();
@@ -463,13 +464,7 @@ impl Block {
                     if !range.is_empty() && range.end <= self.code_toolbar.picker.query.len() {
                         let text = self.code_toolbar.picker.query[range.clone()].to_string();
                         cx.write_to_clipboard(ClipboardItem::new_string(text));
-                        self.replace_code_language_text_in_range(
-                            range,
-                            "",
-                            None,
-                            true,
-                            cx,
-                        );
+                        self.replace_code_language_text_in_range(range, "", None, true, cx);
                     }
                     cx.stop_propagation();
                     return;
@@ -502,7 +497,8 @@ impl Block {
             }
             "backspace" => {
                 if self.code_toolbar.picker.selected_range.is_empty() {
-                    let previous = self.previous_code_language_boundary(self.code_toolbar.picker.cursor_offset());
+                    let previous = self
+                        .previous_code_language_boundary(self.code_toolbar.picker.cursor_offset());
                     self.select_code_language_to(previous, cx);
                 }
                 self.replace_code_language_text_in_range(
@@ -516,7 +512,8 @@ impl Block {
             }
             "delete" => {
                 if self.code_toolbar.picker.selected_range.is_empty() {
-                    let next = self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset());
+                    let next =
+                        self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset());
                     self.select_code_language_to(next, cx);
                 }
                 self.replace_code_language_text_in_range(

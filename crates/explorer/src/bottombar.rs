@@ -100,16 +100,12 @@ impl ExplorerState {
             .items_center()
             .justify_between()
             .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(6.0))
-                    .child(
-                        div()
-                            .text_size(px(10.5))
-                            .text_color(c.dialog_muted)
-                            .child(folder_label),
-                    ),
+                div().flex().items_center().gap(px(6.0)).child(
+                    div()
+                        .text_size(px(10.5))
+                        .text_color(c.dialog_muted)
+                        .child(folder_label),
+                ),
             )
             .child(menu_btn);
 

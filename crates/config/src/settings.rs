@@ -23,6 +23,9 @@ pub enum Appearance {
     #[default]
     Dark,
     Light,
+    /// Follow the operating system's appearance. Resolved to `Dark` or
+    /// `Light` whenever theme settings are applied.
+    Auto,
 }
 
 impl Appearance {
@@ -30,6 +33,7 @@ impl Appearance {
         match self {
             Self::Dark => "dark",
             Self::Light => "light",
+            Self::Auto => "auto",
         }
     }
 }
@@ -46,6 +50,7 @@ impl std::str::FromStr for Appearance {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "light" => Ok(Self::Light),
+            "auto" => Ok(Self::Auto),
             _ => Ok(Self::Dark),
         }
     }
@@ -138,11 +143,12 @@ fn default_language_id_string() -> String {
     DEFAULT_LANGUAGE_ID.to_string()
 }
 
-/// Theme selection and per-user color overrides.
+/// Theme selection and per-user overrides.
 ///
 /// The theme manager resolves the active theme from this snapshot — settings
 /// are the single source of truth for the active theme. Override keys are
-/// `colors.<field>` token paths or plugin extension token keys.
+/// `colors.<field>` token paths or plugin extension token keys; dimension
+/// and typography overrides use their plain field names.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ThemeSettingsContent {
@@ -155,6 +161,13 @@ pub struct ThemeSettingsContent {
     /// User color overrides applied above every theme file.
     #[serde(default)]
     pub overrides: BTreeMap<String, gpui::Hsla>,
+    /// User dimension overrides keyed by field name (e.g. `block_gap`).
+    #[serde(default)]
+    pub dimension_overrides: BTreeMap<String, f32>,
+    /// User typography overrides keyed by field name (e.g. `text_size`,
+    /// `h1_weight`); sizes are numbers, weights are lowercase weight names.
+    #[serde(default)]
+    pub typography_overrides: BTreeMap<String, serde_json::Value>,
 }
 
 impl Default for ThemeSettingsContent {
@@ -163,6 +176,8 @@ impl Default for ThemeSettingsContent {
             appearance: Appearance::default(),
             family: DEFAULT_THEME_FAMILY.to_string(),
             overrides: BTreeMap::new(),
+            dimension_overrides: BTreeMap::new(),
+            typography_overrides: BTreeMap::new(),
         }
     }
 }
@@ -567,11 +582,16 @@ mod tests {
         let manifest: platform_contracts::PluginManifest =
             toml::from_str(include_str!("../../../assets/plugins/splitype.core.toml"))
                 .expect("bundled core manifest must be valid TOML");
-        // Keybinding overrides and theme color overrides are config-only
-        // channels with no settings UI rows.
+        // Keybinding overrides and theme overrides are config-only
+        // channels with custom settings UI rather than declaration rows.
         let problems = platform_contracts::verify_setting_declarations::<CoreSettings>(
             &manifest.settings,
-            &["keybindings", "theme.overrides"],
+            &[
+                "keybindings",
+                "theme.overrides",
+                "theme.dimension_overrides",
+                "theme.typography_overrides",
+            ],
         );
         assert!(problems.is_empty(), "declaration mismatches: {problems:#?}");
     }

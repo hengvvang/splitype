@@ -138,6 +138,7 @@ pub fn run(args: Args) {
         theme::TypographyStore::init(cx);
         theme::TypographyStore::register_settings_sync_hook();
         install_http_client(cx);
+        crate::theme_watcher::watch_user_theme_directory(cx);
         crate::plugins::init_plugins();
         crate::plugins::discover_user_plugins();
         crate::plugins::register_plugin_theme_contributions(cx);

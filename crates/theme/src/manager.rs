@@ -24,6 +24,14 @@ use super::theme::Theme;
 /// The built-in family id.
 pub const BUILTIN_THEME_FAMILY_ID: &str = "splitype";
 
+/// Maps the OS window appearance onto the theme appearance vocabulary.
+fn system_appearance(cx: &App) -> Appearance {
+    match cx.window_appearance() {
+        gpui::WindowAppearance::Light | gpui::WindowAppearance::VibrantLight => Appearance::Light,
+        _ => Appearance::Dark,
+    }
+}
+
 /// A theme family file imported into the user's theme library.
 pub struct ImportedTheme {
     pub family_id: String,
@@ -40,6 +48,7 @@ pub struct ThemeManager {
     current: Arc<Theme>,
     current_theme_id: String,
     settings_snapshot: ThemeSettingsContent,
+    system_appearance: Appearance,
 }
 
 impl Global for ThemeManager {}
@@ -51,6 +60,7 @@ impl Default for ThemeManager {
             current: Arc::new(Theme::default_theme()),
             current_theme_id: format!("{BUILTIN_THEME_FAMILY_ID}.dark"),
             settings_snapshot: ThemeSettingsContent::default(),
+            system_appearance: Appearance::Dark,
         }
     }
 }
@@ -67,7 +77,8 @@ impl ThemeManager {
             tracing::warn!(error = %err, "failed to load user theme families");
         }
         let settings = PluginSettings::<CoreSettings>::get(cx).theme;
-        let _ = manager.apply_settings(&settings);
+        let system = system_appearance(cx);
+        let _ = manager.apply_settings(&settings, system);
         cx.set_global(manager);
     }
 
@@ -76,8 +87,9 @@ impl ThemeManager {
     pub fn register_settings_sync_hook() {
         config::settings::SettingsStore::register_sync_hook(|cx, settings| {
             let theme_settings = settings.plugin_settings::<CoreSettings>().theme;
+            let system = system_appearance(cx);
             cx.update_global::<ThemeManager, _>(|manager, _cx| {
-                manager.apply_settings(&theme_settings);
+                manager.apply_settings(&theme_settings, system);
             });
         });
     }
@@ -119,9 +131,11 @@ impl ThemeManager {
     }
 
     /// Re-resolves the active theme from the given settings snapshot,
-    /// returning whether the snapshot changed. On resolution failure the
-    /// previous theme is kept and the error is logged.
-    pub fn apply_settings(&mut self, settings: &ThemeSettingsContent) -> bool {
+    /// returning whether the snapshot changed. `system` is the current OS
+    /// appearance, used to resolve [`Appearance::Auto`]. On resolution
+    /// failure the previous theme is kept and the error is logged.
+    pub fn apply_settings(&mut self, settings: &ThemeSettingsContent, system: Appearance) -> bool {
+        self.system_appearance = system;
         if settings == &self.settings_snapshot {
             return false;
         }
@@ -169,12 +183,11 @@ impl ThemeManager {
     /// regardless of whether it changed (used after registry mutations).
     fn resolve_current(&mut self) {
         let settings = self.settings_snapshot.clone();
-        match resolve_theme(
-            &self.registry,
-            &settings.family,
-            settings.appearance,
-            &settings.overrides,
-        ) {
+        let appearance = match settings.appearance {
+            Appearance::Auto => self.system_appearance,
+            other => other,
+        };
+        match resolve_theme(&self.registry, &settings.family, appearance, &settings) {
             Ok(resolved) => {
                 self.current = resolved.theme;
                 self.current_theme_id = resolved.id;
@@ -209,10 +222,14 @@ impl ThemeManager {
         validate_family(&family)?;
 
         let family_id = family.id();
+        let selected_appearance = match self.settings_snapshot.appearance {
+            Appearance::Auto => self.system_appearance,
+            other => other,
+        };
         let variant = family
             .themes
             .iter()
-            .find(|theme| theme.appearance == self.settings_snapshot.appearance)
+            .find(|theme| theme.appearance == selected_appearance)
             .or_else(|| family.themes.first())
             .expect("family validated to have at least one theme");
         let theme_id = format!("{family_id}.{}", variant.id());
@@ -223,7 +240,7 @@ impl ThemeManager {
             &self.registry,
             &theme_id,
             appearance,
-            &self.settings_snapshot.overrides,
+            &self.settings_snapshot,
         ) {
             self.registry.remove_user(&family_id);
             return Err(err).with_context(|| {
@@ -243,6 +260,30 @@ impl ThemeManager {
             theme_id,
             appearance,
         })
+    }
+
+    /// Removes an imported user theme family: deletes its persisted file,
+    /// unregisters it, and re-resolves the active theme. Callers that remove
+    /// the currently selected family should update the settings first.
+    pub fn remove_user_theme(&mut self, family_id: &str) -> anyhow::Result<()> {
+        let dirs = SplitypeConfigDirs::from_system()?;
+        let path = dirs.themes_dir().join(format!("{family_id}.json"));
+        if path.exists() {
+            std::fs::remove_file(&path)
+                .with_context(|| format!("failed to remove '{}'", path.display()))?;
+        }
+        self.registry.remove_user(family_id);
+        self.resolve_current();
+        Ok(())
+    }
+
+    /// Re-scans the user themes directory and re-resolves the active theme.
+    /// Used by the directory watcher to pick up external file changes.
+    pub fn reload_user_themes(&mut self) -> anyhow::Result<()> {
+        let dirs = SplitypeConfigDirs::from_system()?;
+        self.registry.load_user_themes(&dirs)?;
+        self.resolve_current();
+        Ok(())
     }
 }
 
@@ -292,6 +333,54 @@ mod tests {
     use gpui::rgba;
 
     #[test]
+    fn applies_dimension_and_typography_overrides() {
+        let registry = ThemeRegistry::with_builtins();
+        let settings = ThemeSettingsContent {
+            dimension_overrides: BTreeMap::from([("block_gap".into(), 24.0)]),
+            typography_overrides: BTreeMap::from([
+                ("text_size".into(), serde_json::json!(19.5)),
+                ("h1_weight".into(), serde_json::json!("bold")),
+            ]),
+            ..Default::default()
+        };
+        let resolved = resolve_theme(&registry, "splitype.dark", Appearance::Dark, &settings)
+            .expect("overrides should resolve");
+        assert_eq!(resolved.theme.dimensions.block_gap, 24.0);
+        assert_eq!(resolved.theme.typography.text_size, 19.5);
+        assert_eq!(
+            resolved.theme.typography.h1_weight,
+            crate::FontWeightDef::Bold
+        );
+
+        // Unknown fields are hard errors.
+        let bad = ThemeSettingsContent {
+            dimension_overrides: BTreeMap::from([("nope".into(), 1.0)]),
+            ..Default::default()
+        };
+        assert!(resolve_theme(&registry, "splitype.dark", Appearance::Dark, &bad).is_err());
+    }
+
+    #[test]
+    fn auto_appearance_follows_the_system() {
+        let mut manager = ThemeManager::default();
+        let settings = ThemeSettingsContent {
+            appearance: Appearance::Auto,
+            ..Default::default()
+        };
+        assert!(manager.apply_settings(&settings, Appearance::Dark));
+        assert_eq!(manager.current_theme_id(), "splitype.dark");
+        // System light resolves the light variant when settings change again.
+        let mut next = ThemeSettingsContent {
+            appearance: Appearance::Auto,
+            ..Default::default()
+        };
+        next.overrides
+            .insert("colors.focus_accent".into(), rgba(0x112233ff).into());
+        assert!(manager.apply_settings(&next, Appearance::Light));
+        assert_eq!(manager.current_theme_id(), "splitype.light");
+    }
+
+    #[test]
     fn switches_builtin_themes_via_settings() {
         let mut manager = ThemeManager::default();
         assert_eq!(manager.current_theme_id(), "splitype.dark");
@@ -302,7 +391,7 @@ mod tests {
             appearance: Appearance::Light,
             ..Default::default()
         };
-        assert!(manager.apply_settings(&settings));
+        assert!(manager.apply_settings(&settings, Appearance::Dark));
         assert_eq!(manager.current_theme_id(), "splitype.light");
         assert_eq!(manager.current().name, "Light");
         assert_eq!(
@@ -311,14 +400,14 @@ mod tests {
         );
 
         // The same snapshot re-applies without re-resolving.
-        assert!(!manager.apply_settings(&settings));
+        assert!(!manager.apply_settings(&settings, Appearance::Dark));
 
         // An unknown family keeps the current theme.
         let broken = ThemeSettingsContent {
             family: "missing".into(),
             ..Default::default()
         };
-        assert!(manager.apply_settings(&broken));
+        assert!(manager.apply_settings(&broken, Appearance::Dark));
         assert_eq!(manager.current_theme_id(), "splitype.light");
     }
 
@@ -367,7 +456,7 @@ mod tests {
             &manager.registry,
             "night_writer.dark",
             Appearance::Dark,
-            &BTreeMap::new(),
+            &ThemeSettingsContent::default(),
         )
         .expect("imported theme should resolve");
         assert_eq!(resolved.theme.name, "Dark");
@@ -404,7 +493,7 @@ mod tests {
         settings
             .overrides
             .insert("colors.editor_background".into(), rgba(0x123456ff).into());
-        assert!(manager.apply_settings(&settings));
+        assert!(manager.apply_settings(&settings, Appearance::Dark));
         assert_eq!(
             manager.current().colors.editor_background,
             rgba(0x123456ff).into()
@@ -415,7 +504,7 @@ mod tests {
         broken
             .overrides
             .insert("colors.nope".into(), rgba(0xffffffff).into());
-        assert!(manager.apply_settings(&broken));
+        assert!(manager.apply_settings(&broken, Appearance::Dark));
         assert_eq!(
             manager.current().colors.editor_background,
             rgba(0x123456ff).into()
@@ -450,8 +539,13 @@ mod tests {
         registry
             .insert_user(family)
             .expect("family should validate");
-        let err = resolve_theme(&registry, "cycle.a", Appearance::Dark, &BTreeMap::new())
-            .expect_err("base cycle must fail resolution");
+        let err = resolve_theme(
+            &registry,
+            "cycle.a",
+            Appearance::Dark,
+            &ThemeSettingsContent::default(),
+        )
+        .expect_err("base cycle must fail resolution");
         assert!(err.to_string().contains("cycle"), "error was: {err}");
 
         // Unknown keys in theme files are hard errors.
@@ -520,7 +614,7 @@ mod tests {
             family: "acme".into(),
             ..Default::default()
         };
-        assert!(manager.apply_settings(&settings));
+        assert!(manager.apply_settings(&settings, Appearance::Dark));
         assert_eq!(manager.current_theme_id(), "acme.dark");
         assert_eq!(
             manager.current().colors.focus_accent,
@@ -535,7 +629,7 @@ mod tests {
         overridden
             .overrides
             .insert("com.acme.brand".into(), rgba(0x112233ff).into());
-        assert!(manager.apply_settings(&overridden));
+        assert!(manager.apply_settings(&overridden, Appearance::Dark));
         assert_eq!(
             manager.current().token("com.acme.brand"),
             Some(rgba(0x112233ff).into())
@@ -557,7 +651,7 @@ mod tests {
                 &manager.registry,
                 "acme.dark",
                 Appearance::Dark,
-                &BTreeMap::new()
+                &ThemeSettingsContent::default()
             )
             .is_err()
         );
@@ -586,7 +680,7 @@ mod tests {
         settings
             .overrides
             .insert("com.acme.accent".into(), rgba(0xaabbccff).into());
-        assert!(manager.apply_settings(&settings));
+        assert!(manager.apply_settings(&settings, Appearance::Dark));
         assert_eq!(
             manager.current().token("com.acme.accent"),
             Some(rgba(0xaabbccff).into())
@@ -616,7 +710,7 @@ mod tests {
                 &manager.registry,
                 "bad.dark",
                 Appearance::Dark,
-                &BTreeMap::new()
+                &ThemeSettingsContent::default()
             )
             .is_err()
         );

@@ -76,17 +76,12 @@ pub fn make_row_with_reset(
 
     let has_desc = !desc.as_ref().is_empty();
     let label_column = if has_desc {
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(2.0))
-            .child(title_row)
-            .child(
-                div()
-                    .text_size(px(11.5))
-                    .text_color(c.dialog_muted)
-                    .child(desc),
-            )
+        div().flex().flex_col().gap(px(2.0)).child(title_row).child(
+            div()
+                .text_size(px(11.5))
+                .text_color(c.dialog_muted)
+                .child(desc),
+        )
     } else {
         div().flex().flex_col().child(title_row)
     };
@@ -219,13 +214,7 @@ pub fn render_number_field(
                         .child(text_to_show),
                 )
                 .when(is_editing, |this| {
-                    this.child(
-                        div()
-                            .w(px(1.5))
-                            .h(px(13.0))
-                            .ml(px(1.0))
-                            .bg(c.focus_accent),
-                    )
+                    this.child(div().w(px(1.5)).h(px(13.0)).ml(px(1.0)).bg(c.focus_accent))
                 }),
         );
 
@@ -444,7 +433,8 @@ pub fn render_searchable_font_picker(
             .on_key_down(Box::new(
                 move |event: &KeyDownEvent, _window: &mut Window, cx: &mut App| {
                     let mut query = search_query.clone();
-                    let ctrl = event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
+                    let ctrl =
+                        event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
                     match event.keystroke.key.as_str() {
                         "backspace" => {
                             query.pop();

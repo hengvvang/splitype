@@ -141,9 +141,7 @@ impl Shell {
                                         .font_weight(t.dialog_button_weight.to_font_weight())
                                         .text_color(c.dialog_secondary_button_text)
                                         .child(strings.drop_replace_discard_and_replace.clone())
-                                        .on_click(
-                                            cx.listener(Self::on_discard_and_replace_drop),
-                                        ),
+                                        .on_click(cx.listener(Self::on_discard_and_replace_drop)),
                                     )
                                     .child(
                                         compact_secondary_button(

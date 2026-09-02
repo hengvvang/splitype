@@ -62,6 +62,13 @@ macro_rules! theme_section {
                 }
             }
         }
+
+        impl $full {
+            /// Every field name, in declaration order.
+            pub const TOKEN_FIELD_NAMES: &'static [&'static str] = &[
+                $( stringify!($field) ),*
+            ];
+        }
     };
 
     // Color section: additionally exposes runtime color-token lookup used by
@@ -150,6 +157,6 @@ pub use registry::{ThemeCatalogEntry, ThemeRegistry, TokenDeclaration};
 pub use resolve::{ResolvedTheme, resolve_theme};
 pub use theme::{CalloutStyle, HeadingStyle, Placeholders, PlaceholdersPatch, Theme};
 pub use typography::{
-    FontFamilyCache, FontWeightDef, ThemeTypography, ThemeTypographyPatch, TypographyScope,
-    TypographyStore,
+    FontFamilyCache, FontWeightDef, TYPOGRAPHY_SIZE_FIELDS, TYPOGRAPHY_WEIGHT_FIELDS,
+    ThemeTypography, ThemeTypographyPatch, TypographyScope, TypographyStore,
 };

@@ -109,6 +109,35 @@ theme_section!(
     }
 );
 
+/// The numeric (size) typography fields, in declaration order.
+pub const TYPOGRAPHY_SIZE_FIELDS: &[&str] = &[
+    "text_size",
+    "text_line_height",
+    "h1_size",
+    "h2_size",
+    "h3_size",
+    "h4_size",
+    "h5_size",
+    "h6_size",
+    "code_size",
+    "dialog_title_size",
+    "dialog_body_size",
+    "dialog_button_size",
+];
+
+/// The font-weight typography fields, in declaration order.
+pub const TYPOGRAPHY_WEIGHT_FIELDS: &[&str] = &[
+    "h1_weight",
+    "h2_weight",
+    "h3_weight",
+    "h4_weight",
+    "h5_weight",
+    "h6_weight",
+    "dialog_title_weight",
+    "dialog_body_weight",
+    "dialog_button_weight",
+];
+
 /// Three-tier typography scopes (Application Chrome UI, Document Prose, and Syntax Code).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
