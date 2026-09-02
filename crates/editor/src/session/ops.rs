@@ -193,9 +193,8 @@ impl Editor {
         if !self.has_tabs() {
             return false;
         }
-        let prev_text = self
-            .pane_state_ref(pane_id)
-            .and_then(|p| p.pane.document_text(cx));
+        // Panes commit their own text edits through the host (with correct
+        // undo metadata); the editor no longer auto-commits on their behalf.
         let host = self.pane_host.clone();
         let handled = if let Some(pane_state) = self.pane_state_mut(pane_id) {
             pane_state
@@ -205,14 +204,6 @@ impl Editor {
             false
         };
         if handled {
-            let next_text = self
-                .pane_state_ref(pane_id)
-                .and_then(|p| p.pane.document_text(cx));
-            if let Some(next_text) = next_text {
-                if prev_text.as_ref() != Some(&next_text) {
-                    self.commit_document_text(next_text, cx);
-                }
-            }
             cx.notify();
         }
         handled

@@ -1,18 +1,41 @@
 //! The authoritative in-memory state of one open document.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use gpui::Context;
 
-use editor_contracts::{DocumentId, DocumentSnapshot};
+use editor_contracts::{CursorHint, DocumentId, DocumentSnapshot, EditTransaction};
+
+/// Maximum retained undo steps per document.
+pub const MAX_UNDO_DEPTH: usize = 100;
+
+/// One undoable document state transition.
+///
+/// `before` / `after` hold full-text snapshots of the document around one
+/// user-level transaction (a typing run, a paste, a cut, ...). Full-text
+/// snapshots keep the model simple: Markdown documents are small, the depth
+/// is bounded by [`MAX_UNDO_DEPTH`], and panes reserialize the whole
+/// document on every commit anyway.
+#[derive(Clone, Debug)]
+pub struct DocumentEditEntry {
+    pub before: Arc<str>,
+    pub after: Arc<str>,
+    pub cursor_before: CursorHint,
+    pub cursor_after: CursorHint,
+}
 
 /// The process-level single source of truth for one document.
 ///
 /// Editors never hold a private text copy: every tab references its buffer,
 /// and every editor observes the buffers it shows. A pane edit lands in the
-/// buffer via [`DocumentBuffer::set_text`], which bumps the revision and
+/// buffer via [`DocumentBuffer::apply_edit`], which bumps the revision and
 /// notifies every observer — each observer then pushes a fresh
 /// [`DocumentSnapshot`] down to its own panes.
+///
+/// The buffer also owns the document's undo history: history is an asset of
+/// the document, not of any pane view, so it survives pane-kind switches and
+/// is shared by every editor showing this document.
 pub struct DocumentBuffer {
     pub id: DocumentId,
     /// Authoritative Markdown text.
@@ -27,6 +50,24 @@ pub struct DocumentBuffer {
     pub discarded: bool,
     /// Cached (revision, word_count) to avoid full recounting on every frame.
     pub cached_word_count: Option<(u64, usize)>,
+    /// Completed undo transactions, oldest first.
+    undo_stack: Vec<DocumentEditEntry>,
+    /// Undone transactions, in redo order.
+    redo_stack: Vec<DocumentEditEntry>,
+    /// Text snapshot at the start of the in-flight transaction, plus its
+    /// bookkeeping; flushed into `undo_stack` by the next non-merged edit,
+    /// undo, or redo.
+    pending: Option<PendingEdit>,
+    /// Cursor the next snapshot should carry when this revision was
+    /// produced by undo/redo; cleared by the next regular edit.
+    restore_cursor: Option<CursorHint>,
+}
+
+#[derive(Clone, Debug)]
+struct PendingEdit {
+    before: Arc<str>,
+    cursor_before: CursorHint,
+    cursor_after: CursorHint,
 }
 
 impl DocumentBuffer {
@@ -44,26 +85,106 @@ impl DocumentBuffer {
             dirty,
             discarded: false,
             cached_word_count: None,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            pending: None,
+            restore_cursor: None,
         }
     }
 
     pub fn snapshot(&self) -> DocumentSnapshot {
-        DocumentSnapshot::new(self.id, self.revision, self.text.clone(), self.path.clone())
+        DocumentSnapshot::with_restore_cursor(
+            self.id,
+            self.revision,
+            self.text.clone(),
+            self.path.clone(),
+            self.restore_cursor,
+        )
     }
 
-    /// Applies a pane-produced edit: normalizes line endings, bumps the
-    /// revision, and marks the document dirty. Unchanged text is a no-op so
-    /// echo writes from observers cannot loop.
-    pub fn set_text(&mut self, text: String, cx: &mut Context<Self>) {
-        let text = normalize_line_endings(text);
+    /// Applies a pane-produced edit: normalizes line endings, records it as
+    /// one undo transaction, bumps the revision, and marks the document
+    /// dirty. Unchanged text is a no-op so echo writes from observers
+    /// cannot loop.
+    pub fn apply_edit(&mut self, edit: EditTransaction, cx: &mut Context<Self>) {
+        let text = normalize_line_endings(edit.text);
         if text == self.text {
             return;
         }
+
+        // A regular edit invalidates any pending undo/redo cursor restore.
+        self.restore_cursor = None;
+
+        if !edit.merge || self.pending.is_none() {
+            self.flush_pending();
+            self.pending = Some(PendingEdit {
+                before: Arc::from(self.text.clone()),
+                cursor_before: edit.cursor_before,
+                cursor_after: edit.cursor_after,
+            });
+        } else if let Some(pending) = &mut self.pending {
+            pending.cursor_after = edit.cursor_after;
+        }
+
         self.text = text;
         self.revision = self.revision.wrapping_add(1);
         self.dirty = true;
         self.cached_word_count = None;
         cx.notify();
+    }
+
+    /// Undoes the most recent transaction, restoring the document text that
+    /// preceded it and the caret that was active before the edit. The
+    /// resulting snapshot carries `restore_cursor` so every pane converges
+    /// on the same position.
+    pub fn undo(&mut self, cx: &mut Context<Self>) {
+        self.flush_pending();
+        let Some(entry) = self.undo_stack.pop() else {
+            return;
+        };
+        let restored_cursor = entry.cursor_before;
+        self.text = entry.before.to_string();
+        self.restore_cursor = Some(restored_cursor);
+        self.redo_stack.push(entry);
+        self.finish_history_step(cx);
+    }
+
+    /// Reapplies the most recently undone transaction.
+    pub fn redo(&mut self, cx: &mut Context<Self>) {
+        self.flush_pending();
+        let Some(entry) = self.redo_stack.pop() else {
+            return;
+        };
+        let restored_cursor = entry.cursor_after;
+        self.text = entry.after.to_string();
+        self.restore_cursor = Some(restored_cursor);
+        self.undo_stack.push(entry);
+        self.finish_history_step(cx);
+    }
+
+    fn finish_history_step(&mut self, cx: &mut Context<Self>) {
+        self.revision = self.revision.wrapping_add(1);
+        self.cached_word_count = None;
+        cx.notify();
+    }
+
+    /// Closes the in-flight transaction and records it on the undo stack.
+    fn flush_pending(&mut self) {
+        let Some(pending) = self.pending.take() else {
+            return;
+        };
+        if pending.before.as_ref() == self.text.as_str() {
+            return;
+        }
+        self.undo_stack.push(DocumentEditEntry {
+            before: pending.before,
+            after: Arc::from(self.text.clone()),
+            cursor_before: pending.cursor_before,
+            cursor_after: pending.cursor_after,
+        });
+        if self.undo_stack.len() > MAX_UNDO_DEPTH {
+            self.undo_stack.remove(0);
+        }
     }
 
     /// Marks the buffer saved at `path`.

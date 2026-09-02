@@ -6,8 +6,8 @@ use gpui::*;
 use crate::model::block::Block;
 use crate::model::protocol::BlockEvent;
 use crate::pane::actions::{
-    BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll,
-    SelectEnd, SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
+    BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectEnd,
+    SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
     WordSelectRight,
 };
 impl Block {
@@ -171,14 +171,6 @@ impl Block {
     pub fn select_all_text(&mut self, cx: &mut Context<Self>) {
         self.move_to(0, cx);
         self.select_to(self.display_len(), cx);
-    }
-
-    pub fn on_select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
-        if self.show_source_line_numbers() {
-            self.select_all_text(cx);
-        } else {
-            cx.emit(BlockEvent::RequestRenderedSelectAll);
-        }
     }
 
     pub fn on_select_home(&mut self, _: &SelectHome, _window: &mut Window, cx: &mut Context<Self>) {

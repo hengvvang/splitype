@@ -95,6 +95,10 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
             label: |_| SharedString::from("Paste"),
             make_action: || Box::new(platform_contracts::actions::Paste),
         },
+        ("splitype.core", "select-all") => CommandBinding {
+            label: |_| SharedString::from("Select All"),
+            make_action: || Box::new(platform_contracts::actions::SelectAll),
+        },
         ("splitype.core", "undo") => CommandBinding {
             label: |_| SharedString::from("Undo"),
             make_action: || Box::new(editor::actions::Undo),
@@ -252,10 +256,6 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
         ("splitype.wysiwyg", "select-end") => CommandBinding {
             label: |_| SharedString::from("Select End"),
             make_action: || Box::new(wysiwyg::pane::actions::SelectEnd),
-        },
-        ("splitype.wysiwyg", "select-all") => CommandBinding {
-            label: |_| SharedString::from("Select All"),
-            make_action: || Box::new(wysiwyg::pane::actions::SelectAll),
         },
         ("splitype.wysiwyg", "bold-selection") => CommandBinding {
             label: |_| SharedString::from("Bold Selection"),

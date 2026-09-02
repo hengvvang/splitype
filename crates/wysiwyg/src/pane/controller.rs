@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use editor_contracts::OutlineNode;
-use editor_contracts::{PaneOutlineHost, PaneRenderContext};
+use editor_contracts::{CursorHint, EditTransaction, PaneOutlineHost, PaneRenderContext};
 use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, FocusHandle, InteractiveElement,
@@ -30,6 +30,17 @@ pub struct WysiwygDocumentController {
     pub active_entity: Option<Entity<Block>>,
     pub tables: TableGrids,
     pub references: ReferenceRegistries,
+    /// Text of the document after the previous commit, used to detect
+    /// typing-run continuations (single-character insertions at the same
+    /// position) for undo grouping.
+    last_committed_text: Option<String>,
+    /// Insert position of the previous typing commit, when it was a
+    /// single-character insertion.
+    last_typing_insert_at: Option<usize>,
+    /// Caret hint captured at the start of the current typing run.
+    typing_run_start_hint: Option<CursorHint>,
+    /// Caret hint after the previous commit.
+    last_cursor_hint: Option<CursorHint>,
 }
 
 impl WysiwygDocumentController {
@@ -48,6 +59,10 @@ impl WysiwygDocumentController {
                     .map(std::path::Path::to_path_buf),
                 ..ReferenceRegistries::default()
             },
+            last_committed_text: None,
+            last_typing_insert_at: None,
+            typing_run_start_hint: None,
+            last_cursor_hint: None,
         };
         controller.rebuild_from_markdown(&document.text, document.revision, cx);
         controller
@@ -112,6 +127,10 @@ impl WysiwygDocumentController {
         self.document = Some(doc);
         self.synced_revision = Some(revision);
         self.pending_edit = false;
+        self.last_committed_text = None;
+        self.last_typing_insert_at = None;
+        self.typing_run_start_hint = None;
+        self.last_cursor_hint = None;
         self.sync_reference_context(cx);
     }
 
@@ -141,11 +160,11 @@ impl WysiwygDocumentController {
         match event {
             BlockEvent::Changed => {
                 self.pending_edit = true;
-                if let Some(host) = &self.host {
-                    if let Some(text) = self.document_text(cx) {
-                        host.commit_text(text, cx);
-                    }
-                }
+                let merge = self
+                    .document_text(cx)
+                    .map(|text| self.is_typing_continuation(&text, cx))
+                    .unwrap_or(false);
+                self.commit_document_edit(merge, cx);
                 cx.notify();
             }
             BlockEvent::RequestFocus => {
@@ -177,11 +196,7 @@ impl WysiwygDocumentController {
                         cx.notify();
                     });
                     self.pending_edit = true;
-                    if let Some(host) = &self.host {
-                        if let Some(text) = self.document_text(cx) {
-                            host.commit_text(text, cx);
-                        }
-                    }
+                    self.commit_document_edit(false, cx);
                     cx.notify();
                 }
             }
@@ -206,11 +221,7 @@ impl WysiwygDocumentController {
                         cx.notify();
                     });
                     self.pending_edit = true;
-                    if let Some(host) = &self.host {
-                        if let Some(text) = self.document_text(cx) {
-                            host.commit_text(text, cx);
-                        }
-                    }
+                    self.commit_document_edit(false, cx);
                     cx.notify();
                 }
             }
@@ -238,11 +249,7 @@ impl WysiwygDocumentController {
                         doc.remove_block(block.entity_id(), cx);
                         self.active_entity = Some(prev.clone());
                         self.pending_edit = true;
-                        if let Some(host) = &self.host {
-                            if let Some(text) = self.document_text(cx) {
-                                host.commit_text(text, cx);
-                            }
-                        }
+                        self.commit_document_edit(false, cx);
                         cx.notify();
                     }
                 }
@@ -269,11 +276,7 @@ impl WysiwygDocumentController {
                         });
                     }
                     self.pending_edit = true;
-                    if let Some(host) = &self.host {
-                        if let Some(text) = self.document_text(cx) {
-                            host.commit_text(text, cx);
-                        }
-                    }
+                    self.commit_document_edit(false, cx);
                     cx.notify();
                 }
             }
@@ -333,11 +336,7 @@ impl WysiwygDocumentController {
                                 );
                                 self.active_entity = Some(block.clone());
                                 self.pending_edit = true;
-                                if let Some(host) = &self.host {
-                                    if let Some(text) = self.document_text(cx) {
-                                        host.commit_text(text, cx);
-                                    }
-                                }
+                                self.commit_document_edit(false, cx);
                                 cx.notify();
                             }
                         }
@@ -364,11 +363,7 @@ impl WysiwygDocumentController {
                             block.update(cx, |b, cx| b.convert_to_paragraph(cx));
                         }
                         self.pending_edit = true;
-                        if let Some(host) = &self.host {
-                            if let Some(text) = self.document_text(cx) {
-                                host.commit_text(text, cx);
-                            }
-                        }
+                        self.commit_document_edit(false, cx);
                         cx.notify();
                     }
                 }
@@ -386,11 +381,7 @@ impl WysiwygDocumentController {
                     cx.notify();
                 });
                 self.pending_edit = true;
-                if let Some(host) = &self.host {
-                    if let Some(text) = self.document_text(cx) {
-                        host.commit_text(text, cx);
-                    }
-                }
+                self.commit_document_edit(false, cx);
                 cx.notify();
             }
             _ => {}
@@ -424,19 +415,164 @@ impl WysiwygDocumentController {
             return;
         }
         self.rebuild_from_markdown(&document.text, document.revision, cx);
+        if let Some(hint) = document.restore_cursor {
+            self.restore_cursor_hint(hint, cx);
+        }
     }
 
     pub fn document_text(&self, cx: &App) -> Option<String> {
         self.document.as_ref().map(|d| d.serialize_markdown(cx))
     }
 
-    pub fn notify_document_changed(&mut self, cx: &mut App) {
-        self.pending_edit = true;
-        if let Some(host) = &self.host {
-            if let Some(text) = self.document_text(cx) {
-                host.commit_text(text, cx);
+    /// Current caret position of the active block as a document-level
+    /// cursor hint (1-based line/column in the serialized Markdown).
+    pub fn cursor_hint(&self, cx: &App) -> CursorHint {
+        let Some(doc) = &self.document else {
+            return CursorHint::new(1, 1);
+        };
+        let Some(active) = &self.active_entity else {
+            return CursorHint::new(1, 1);
+        };
+        let doc_text = doc.serialize_markdown(cx);
+        let markdown_offset = doc
+            .markdown_offset_of_block(active.entity_id(), cx)
+            .map(|block_start| {
+                let block = active.read(cx);
+                let caret = block.cursor_offset();
+                let intra = block.display_range_to_source_range(caret..caret);
+                let block_markdown_len = block.data.text.serialize_markdown().len();
+                block_start + intra.start.min(block_markdown_len)
+            })
+            .unwrap_or(0);
+        CursorHint::from_offset(&doc_text, markdown_offset)
+    }
+
+    /// Moves the active caret to the document position described by a
+    /// cursor hint (used to apply `restore_cursor` after undo/redo).
+    pub fn restore_cursor_hint(&mut self, hint: CursorHint, cx: &mut Context<Self>) {
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let doc_text = doc.serialize_markdown(cx);
+        let target_offset = hint.to_offset(&doc_text);
+
+        // Pick the last block starting at or before the target offset.
+        let blocks = doc.blocks();
+        let mut best: Option<(Entity<Block>, usize)> = None;
+        for entry in blocks.iter() {
+            if let Some(block_start) = doc.markdown_offset_of_block(entry.entity.entity_id(), cx) {
+                if block_start <= target_offset
+                    && best
+                        .as_ref()
+                        .map(|(_, start)| block_start >= *start)
+                        .unwrap_or(true)
+                {
+                    best = Some((entry.entity.clone(), block_start));
+                }
             }
         }
+        let Some((block, block_start)) = best else {
+            return;
+        };
+        let intra = target_offset.saturating_sub(block_start);
+        self.active_entity = Some(block.clone());
+        block.update(cx, |b, cx| {
+            let display = b.source_range_to_display_range(intra..intra);
+            let caret = display.start.min(b.display_len());
+            b.selected_range = caret..caret;
+            b.selection_reversed = false;
+            b.marked_range = None;
+            b.start_cursor_blink(cx);
+            cx.notify();
+        });
+        cx.notify();
+    }
+
+    /// Commits the current document as one edit transaction.
+    ///
+    /// `merge` marks continuation of the previous undo transaction (typing
+    /// runs). The caret hints anchor the buffer-level undo/redo restore.
+    pub fn commit_document_edit(&mut self, merge: bool, cx: &mut App) {
+        if let Some(edit) = self.take_edit_transaction(merge, cx) {
+            if let Some(host) = self.host.clone() {
+                host.commit_edit(edit, cx);
+            }
+        }
+    }
+
+    /// Builds the edit transaction for the current document state and
+    /// updates the typing-run bookkeeping. Used both by direct commits and
+    /// by contract methods that hand the transaction to the editor.
+    pub fn take_edit_transaction(&mut self, merge: bool, cx: &App) -> Option<EditTransaction> {
+        let text = self.document_text(cx)?;
+        let cursor_after = self.cursor_hint(cx);
+        let cursor_before = if merge {
+            self.typing_run_start_hint.unwrap_or(cursor_after)
+        } else {
+            self.last_cursor_hint.unwrap_or(cursor_after)
+        };
+
+        if merge {
+            if self.typing_run_start_hint.is_none() {
+                self.typing_run_start_hint = self.last_cursor_hint;
+            }
+            self.last_typing_insert_at = self.single_char_insert_at(&text);
+        } else {
+            self.typing_run_start_hint = self.last_cursor_hint;
+            self.last_typing_insert_at = None;
+        }
+
+        self.last_cursor_hint = Some(cursor_after);
+        self.last_committed_text = Some(text.clone());
+        Some(EditTransaction::new(
+            text,
+            merge,
+            cursor_before,
+            cursor_after,
+        ))
+    }
+
+    /// Whether committing `new_text` continues the previous typing run: a
+    /// single-character insertion at exactly the previous insertion point,
+    /// or an update while an IME composition is active.
+    fn is_typing_continuation(&self, new_text: &str, cx: &App) -> bool {
+        if let Some(active) = &self.active_entity {
+            if active.read(cx).marked_range.is_some() {
+                return true;
+            }
+        }
+        let Some(insert_at) = self.last_typing_insert_at else {
+            return false;
+        };
+        self.single_char_insert_at(new_text) == Some(insert_at)
+    }
+
+    /// Insert position when `new_text` is a single-character insertion into
+    /// the previously committed text.
+    fn single_char_insert_at(&self, new_text: &str) -> Option<usize> {
+        let old_text = self.last_committed_text.as_ref()?;
+        if new_text.len() != old_text.len() + 1 {
+            return None;
+        }
+        let old = old_text.as_bytes();
+        let new = new_text.as_bytes();
+        let mut prefix = 0;
+        while prefix < old.len() && prefix < new.len() && old[prefix] == new[prefix] {
+            prefix += 1;
+        }
+        if new_text.is_char_boundary(prefix)
+            && prefix < new.len()
+            && old[prefix..] == new[prefix + 1..]
+        {
+            Some(prefix)
+        } else {
+            None
+        }
+    }
+
+    pub fn notify_document_changed(&mut self, cx: &mut App) {
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
     }
 
     pub fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
@@ -548,7 +684,7 @@ impl WysiwygDocumentController {
         match_item: &SearchMatch,
         replace_with: &str,
         cx: &mut Context<Self>,
-    ) -> Option<String> {
+    ) -> Option<EditTransaction> {
         if let Some(doc) = &self.document {
             if let Some(entity_id) = match_item.entity_id {
                 crate::pane::search::replace_in_block_entity(
@@ -560,7 +696,7 @@ impl WysiwygDocumentController {
                 );
                 self.pending_edit = true;
                 cx.notify();
-                return self.document_text(cx);
+                return self.take_edit_transaction(false, cx);
             }
         }
         None
@@ -592,175 +728,62 @@ impl WysiwygDocumentController {
         target_y
     }
 
-    pub fn apply_line_prefix(&mut self, prefix: &str, cx: &mut Context<Self>) -> Option<String> {
-        if let Some(active) = self.active_entity.clone() {
-            active.update(cx, |block, cx| {
-                if !block.edits_verbatim_text() {
-                    block.data.kind = BlockKind::Paragraph;
-                }
+    /// The selected display text of the active block, when non-empty.
+    pub fn selected_text(&self, cx: &App) -> Option<String> {
+        self.active_entity.as_ref().and_then(|active| {
+            let block = active.read(cx);
+            if block.selected_range.is_empty() {
+                None
+            } else {
+                Some(block.selected_text())
+            }
+        })
+    }
+
+    /// Deletes the active block's selection and returns the resulting edit
+    /// transaction. The block's change event also commits it — the buffer
+    /// dedupes the identical text, so the caller's commit is the one that
+    /// lands with correct caret hints.
+    pub fn delete_selection(&mut self, cx: &mut Context<Self>) -> Option<EditTransaction> {
+        let active = self.active_entity.clone()?;
+        if active.read(cx).selected_range.is_empty() {
+            return None;
+        }
+        active.update(cx, |block, cx| {
+            let range = block.selected_range.clone();
+            block.replace_text_in_display_range(range, "", Some(0..0), false, cx);
+        });
+        self.pending_edit = true;
+        cx.notify();
+        self.take_edit_transaction(false, cx)
+    }
+
+    /// Inserts text at the active block's selection/caret and returns the
+    /// resulting edit transaction. The block's change event also commits
+    /// it — the buffer dedupes the identical text, so the caller's commit
+    /// is the one that lands with correct caret hints.
+    pub fn insert_text(&mut self, text: &str, cx: &mut Context<Self>) -> Option<EditTransaction> {
+        let active = self.active_entity.clone()?;
+        active.update(cx, |block, cx| {
+            let range = block.selected_range.clone();
+            if range.is_empty() {
                 let cursor = block.cursor_offset();
-                let text = block.display_text();
-                let line_start = text[..cursor.min(text.len())]
-                    .rfind('\n')
-                    .map(|i| i + 1)
-                    .unwrap_or(0);
-                let line_end = text[cursor.min(text.len())..]
-                    .find('\n')
-                    .map(|i| cursor + i)
-                    .unwrap_or(text.len());
-                let line = &text[line_start..line_end];
-                let stripped = line.trim_start_matches(|c| {
-                    c == '#'
-                        || c == '>'
-                        || c == '-'
-                        || c == '*'
-                        || c == '+'
-                        || c == ' '
-                        || c == '\t'
-                });
-                let new_line = format!("{prefix}{stripped}");
-                let prefix_len = prefix.len();
-                block.replace_text_in_display_range(
-                    line_start..line_end,
-                    &new_line,
-                    Some(prefix_len..prefix_len),
-                    false,
-                    cx,
-                );
-            });
-            self.pending_edit = true;
-            cx.notify();
-            self.document_text(cx)
-        } else {
-            None
-        }
+                block.replace_text_in_display_range(cursor..cursor, text, None, false, cx);
+            } else {
+                block.replace_text_in_display_range(range, text, None, false, cx);
+            }
+        });
+        self.pending_edit = true;
+        cx.notify();
+        self.take_edit_transaction(false, cx)
     }
 
-    pub fn apply_heading_level(&mut self, level: usize, cx: &mut Context<Self>) {
-        let prefix = match level {
-            1 => "# ",
-            2 => "## ",
-            3 => "### ",
-            4 => "#### ",
-            5 => "##### ",
-            6 => "###### ",
-            _ => "",
-        };
-        self.apply_line_prefix(prefix, cx);
-    }
-
-    pub fn apply_snippet(
-        &mut self,
-        snippet: &str,
-        caret_offset: usize,
-        cx: &mut Context<Self>,
-    ) -> Option<String> {
+    /// Selects the whole active block.
+    pub fn select_all(&mut self, cx: &mut Context<Self>) {
         if let Some(active) = self.active_entity.clone() {
             active.update(cx, |block, cx| {
-                let cursor = block.cursor_offset();
-                let range = block.selected_range.clone();
-                let len = snippet.len();
-                let offset = caret_offset.min(len);
-                if range.is_empty() {
-                    block.replace_text_in_display_range(
-                        cursor..cursor,
-                        snippet,
-                        Some(offset..offset),
-                        false,
-                        cx,
-                    );
-                } else {
-                    block.replace_text_in_display_range(
-                        range,
-                        snippet,
-                        Some(offset..offset),
-                        false,
-                        cx,
-                    );
-                }
+                block.select_all_text(cx);
             });
-            self.pending_edit = true;
-            cx.notify();
-            self.document_text(cx)
-        } else {
-            None
-        }
-    }
-
-    pub fn apply_wrapped_or_template(
-        &mut self,
-        empty_template: &str,
-        caret_offset_in_empty: usize,
-        wrap_prefix: &str,
-        wrap_suffix: &str,
-        cx: &mut Context<Self>,
-    ) -> Option<String> {
-        if let Some(active) = self.active_entity.clone() {
-            active.update(cx, |block, cx| {
-                let range = block.selected_range.clone();
-                if range.is_empty() {
-                    let cursor = block.cursor_offset();
-                    block.replace_text_in_display_range(
-                        cursor..cursor,
-                        empty_template,
-                        Some(caret_offset_in_empty..caret_offset_in_empty),
-                        false,
-                        cx,
-                    );
-                } else {
-                    let text = block.selected_text();
-                    let inner_len = text.len();
-                    let replacement = format!("{wrap_prefix}{text}{wrap_suffix}");
-                    let prefix_len = wrap_prefix.len();
-                    block.replace_text_in_display_range(
-                        range,
-                        &replacement,
-                        Some(prefix_len..prefix_len + inner_len),
-                        false,
-                        cx,
-                    );
-                }
-            });
-            self.pending_edit = true;
-            cx.notify();
-            self.document_text(cx)
-        } else {
-            None
-        }
-    }
-
-    pub fn apply_clear_format(&mut self, cx: &mut Context<Self>) -> Option<String> {
-        if let Some(active) = self.active_entity.clone() {
-            active.update(cx, |b, cx| {
-                let range = b.selected_range.clone();
-                if !range.is_empty() {
-                    let (target_range, plain) = {
-                        let text = b.display_text();
-                        let start = range.start.min(text.len());
-                        let end = range.end.min(text.len());
-                        let selected = &text[start..end];
-                        let plain = selected
-                            .trim_matches(|c| {
-                                c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$'
-                            })
-                            .to_string();
-                        (range, plain)
-                    };
-                    let plain_len = plain.len();
-                    b.replace_text_in_display_range(
-                        target_range,
-                        &plain,
-                        Some(0..plain_len),
-                        false,
-                        cx,
-                    );
-                }
-            });
-            self.pending_edit = true;
-            cx.notify();
-            self.document_text(cx)
-        } else {
-            None
         }
     }
 

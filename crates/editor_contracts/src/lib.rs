@@ -11,6 +11,7 @@
 //! re-exported here for convenience but owned by `platform_contracts`).
 
 pub mod document;
+pub mod edit;
 pub mod export;
 pub mod outline;
 pub mod pane;
@@ -18,6 +19,7 @@ pub mod panel;
 pub mod search;
 
 pub use document::{DocumentHost, DocumentId, DocumentSnapshot, TabKind};
+pub use edit::{CursorHint, EditTransaction};
 pub use export::ExportFormat;
 pub use outline::{OutlineHost, OutlineHudState, OutlineNode};
 pub use pane::{

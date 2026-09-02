@@ -26,7 +26,6 @@ actions!(
         WordSelectRight,
         SelectHome,
         SelectEnd,
-        SelectAll,
         BoldSelection,
         ItalicSelection,
         UnderlineSelection,

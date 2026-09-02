@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use editor_contracts::{PaneHost, PaneId};
+use editor_contracts::{EditTransaction, PaneHost, PaneId};
 use gpui::{App, WeakEntity, Window};
 
 use crate::editor::Editor;
@@ -19,10 +19,10 @@ impl EditorPaneHost {
 }
 
 impl PaneHost for EditorPaneHost {
-    fn commit_text(&self, text: String, cx: &mut App) {
+    fn commit_edit(&self, edit: EditTransaction, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
             editor.update(cx, |editor, cx| {
-                editor.commit_document_text(text, cx);
+                editor.commit_document_edit(edit, cx);
             });
         }
     }

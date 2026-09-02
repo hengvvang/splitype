@@ -1,4 +1,5 @@
 use crate::document::DocumentSnapshot;
+use crate::edit::EditTransaction;
 use crate::outline::OutlineNode;
 
 use crate::pane::{PaneHost, PaneId, PaneKind, PaneRenderContext};
@@ -105,38 +106,31 @@ pub trait PaneView: Any + 'static {
 
     // ── Optional behaviors, gated by [`PaneView::capabilities`] ─────────────
 
-    /// Gate: `editable`. Returns the new document text, or `None` when
-    /// the pane does not support the operation.
-    fn apply_line_prefix(&mut self, _prefix: &str, _cx: &mut App) -> Option<String> {
+    /// Gate: `editable`. The text covered by the pane's current selection,
+    /// or `None` when there is no selection. Used by the editor's unified
+    /// Copy/Cut actions; panes never touch the platform clipboard directly.
+    fn selected_text(&self, _cx: &App) -> Option<String> {
         None
     }
 
-    /// Gate: `editable`.
-    fn apply_snippet(
-        &mut self,
-        _snippet: &str,
-        _caret_offset: usize,
-        _cx: &mut App,
-    ) -> Option<String> {
+    /// Gate: `editable`. Deletes the pane's current selection and returns
+    /// the resulting edit transaction (new document text, undo metadata),
+    /// or `None` when there is nothing to delete. Used by the editor's Cut
+    /// action after copying the selection to the clipboard.
+    fn delete_selection(&mut self, _cx: &mut App) -> Option<EditTransaction> {
         None
     }
 
-    /// Gate: `editable`.
-    fn apply_wrapped_or_template(
-        &mut self,
-        _empty_template: &str,
-        _caret_offset_in_empty: usize,
-        _wrap_prefix: &str,
-        _wrap_suffix: &str,
-        _cx: &mut App,
-    ) -> Option<String> {
+    /// Gate: `editable`. Inserts `text` at the pane's cursors (replacing
+    /// any selection) and returns the resulting edit transaction, or `None`
+    /// when the pane cannot accept text. Used by the editor's Paste action.
+    fn insert_text(&mut self, _text: &str, _cx: &mut App) -> Option<EditTransaction> {
         None
     }
 
-    /// Gate: `editable`.
-    fn apply_clear_format(&mut self, _cx: &mut App) -> Option<String> {
-        None
-    }
+    /// Gate: `editable`. Selects the whole document; no text change, so no
+    /// commit follows. Used by the editor's Select All action.
+    fn select_all(&mut self, _cx: &mut App) {}
 
     /// Gate: `searchable`.
     fn search_matches(&self, _query: &SearchQuery, _cx: &App) -> Vec<SearchMatch> {
@@ -167,14 +161,14 @@ pub trait PaneView: Any + 'static {
     ) {
     }
 
-    /// Gate: `replaceable`. Returns the new document text, or `None`
-    /// when the pane does not support replacement.
+    /// Gate: `replaceable`. Returns the edit transaction carrying the new
+    /// document text, or `None` when the pane does not support replacement.
     fn replace_match(
         &mut self,
         _match_item: &SearchMatch,
         _replace_with: &str,
         _cx: &mut App,
-    ) -> Option<String> {
+    ) -> Option<EditTransaction> {
         None
     }
 
@@ -184,7 +178,7 @@ pub trait PaneView: Any + 'static {
         _query: &SearchQuery,
         _replace_with: &str,
         _cx: &mut App,
-    ) -> Option<String> {
+    ) -> Option<EditTransaction> {
         None
     }
 

@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_contracts::{DocumentHost, OutlineHudState, PaneId, PaneKind, TabKind};
+use editor_contracts::{DocumentHost, EditTransaction, OutlineHudState, PaneId, PaneKind, TabKind};
 use platform_contracts::PanelId;
 
 use crate::document::{DocumentBuffer, DocumentStore};
@@ -178,9 +178,9 @@ impl Editor {
         }
     }
 
-    /// Commits a pane-produced text edit into the shared buffer; observers
+    /// Commits a pane-produced edit into the shared buffer; observers
     /// (including this editor) broadcast the new snapshot to every pane.
-    pub fn commit_document_text(&mut self, text: String, cx: &mut Context<Self>) {
+    pub fn commit_document_edit(&mut self, edit: EditTransaction, cx: &mut Context<Self>) {
         if !self.session.has_tabs() {
             // No open tab: there is nothing to edit — ignore pane-driven
             // input instead of implicitly creating a tab.
@@ -189,7 +189,7 @@ impl Editor {
         let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
             return;
         };
-        buffer.update(cx, |buffer, cx| buffer.set_text(text, cx));
+        buffer.update(cx, |buffer, cx| buffer.apply_edit(edit, cx));
         cx.notify();
     }
 

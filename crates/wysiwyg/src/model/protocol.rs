@@ -49,7 +49,9 @@ pub enum BlockEvent {
     RequestCalloutBreak,
     /// The user pressed Backspace at the start of this block; its entire
     /// content should be appended to the previous block.
-    RequestMergeIntoPrevious { content: BlockText },
+    RequestMergeIntoPrevious {
+        content: BlockText,
+    },
     /// A multi-line paste was detected; the editor must split the pasted
     /// lines into separate blocks and re-attach the leading/trailing text
     /// to the correct positions.
@@ -66,11 +68,6 @@ pub enum BlockEvent {
         source: PastedImageSource,
         trailing: BlockText,
     },
-    /// Ctrl/Cmd+A was pressed in rendered editing. The editor decides whether
-    /// this press selects the focused block or upgrades to all rendered blocks.
-    RequestRenderedSelectAll,
-    /// Tab pressed in list context; increase the current block's nesting when
-    /// the previous visible block can adopt it.
     RequestIndent,
     /// Shift-Tab pressed in list context; lift the current block out one level.
     RequestOutdent,
@@ -88,9 +85,13 @@ pub enum BlockEvent {
     },
     /// Jump from a rendered footnote reference to the corresponding
     /// in-place footnote definition block.
-    RequestJumpToFootnoteDefinition { id: String },
+    RequestJumpToFootnoteDefinition {
+        id: String,
+    },
     /// Jump from an in-place footnote definition back to its first reference.
-    RequestJumpToFootnoteBackref { id: String },
+    RequestJumpToFootnoteBackref {
+        id: String,
+    },
     /// Show or hide the footnote content tooltip. `content` carries the
     /// definition text when the hovered element is a definition header;
     /// reference hovers leave it empty and the editor resolves it from the
@@ -102,9 +103,13 @@ pub enum BlockEvent {
         show: bool,
     },
     /// Move focus horizontally across native table cells.
-    RequestTableCellMoveHorizontal { delta: i32 },
+    RequestTableCellMoveHorizontal {
+        delta: i32,
+    },
     /// Move focus vertically across native table cells.
-    RequestTableCellMoveVertical { delta: i32 },
+    RequestTableCellMoveVertical {
+        delta: i32,
+    },
     /// Append one empty column to a native table.
     RequestAppendTableColumn,
     /// Append one empty body row to a native table.
@@ -118,7 +123,10 @@ pub enum BlockEvent {
         hovered: bool,
     },
     /// Select one native table row or column for batch operations.
-    RequestSelectTableAxis { kind: TableAxis, index: usize },
+    RequestSelectTableAxis {
+        kind: TableAxis,
+        index: usize,
+    },
     /// Open the axis context menu for a native table row or column.
     RequestOpenTableAxisMenu {
         kind: TableAxis,
@@ -126,7 +134,9 @@ pub enum BlockEvent {
         position: Point<Pixels>,
     },
     /// Open the table size matrix picker from the bottom-right corner control.
-    RequestOpenTableSizePicker { position: Point<Pixels> },
+    RequestOpenTableSizePicker {
+        position: Point<Pixels>,
+    },
     /// Reorder a native table row or column by swapping positions.
     RequestReorderTableAxis {
         kind: TableAxis,
@@ -134,13 +144,20 @@ pub enum BlockEvent {
         to: usize,
     },
     /// Insert a table row or column at a specific boundary index.
-    RequestInsertTableAxisAt { kind: TableAxis, index: usize },
+    RequestInsertTableAxisAt {
+        kind: TableAxis,
+        index: usize,
+    },
     /// Cursor reached the top of this block; move focus to the previous
     /// visible block, preserving the preferred horizontal position.
-    RequestFocusPrevious { preferred_x: Option<f32> },
+    RequestFocusPrevious {
+        preferred_x: Option<f32>,
+    },
     /// Cursor reached the bottom of this block; move focus to the next
     /// visible block, preserving the preferred horizontal position.
-    RequestFocusNext { preferred_x: Option<f32> },
+    RequestFocusNext {
+        preferred_x: Option<f32>,
+    },
     /// Move focus to the start of the previous visible block.
     RequestBlockUp,
     /// Move focus to the start of the next visible block.

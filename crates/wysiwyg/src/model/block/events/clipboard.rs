@@ -1,5 +1,6 @@
-//! Clipboard action handlers on a focused block: copy, cut, and paste,
-//! including local-image-path routing from the clipboard text.
+//! Clipboard paste handling on a focused block: rich pasting of images and
+//! multiline text. Plain copy/cut and plain-text paste fallbacks are owned
+//! by the editor layer through the pane contract.
 
 use gpui::*;
 
@@ -7,7 +8,7 @@ use crate::input::paste::plain::should_split_plain_multiline_paste;
 use crate::model::block::Block;
 use crate::model::protocol::{BlockEvent, PastedImageSource};
 use markdown_parser::inline::text::BlockText;
-use platform_contracts::actions::{Copy, Cut, Paste};
+use platform_contracts::actions::Paste;
 impl Block {
     pub fn pasted_image_source_from_clipboard(item: &ClipboardItem) -> Option<PastedImageSource> {
         item.entries().iter().find_map(|entry| match entry {
@@ -72,23 +73,6 @@ impl Block {
         let (_, trailing) = tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));
         (leading, trailing)
     }
-    pub fn on_copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(
-                self.display_text()[self.selected_range.clone()].to_string(),
-            ));
-        }
-    }
-
-    pub fn on_cut(&mut self, _: &Cut, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.selected_range.is_empty() {
-            cx.write_to_clipboard(ClipboardItem::new_string(
-                self.display_text()[self.selected_range.clone()].to_string(),
-            ));
-            self.replace_text_in_range(None, "", window, cx);
-        }
-    }
-
     pub fn on_paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         if self.kind().is_thematic_break() && !self.edits_verbatim_text() {
             return;
@@ -102,6 +86,7 @@ impl Block {
                     source,
                     trailing,
                 });
+                cx.stop_propagation();
                 return;
             }
 
@@ -115,6 +100,7 @@ impl Block {
                     source,
                     trailing,
                 });
+                cx.stop_propagation();
                 return;
             }
 
@@ -125,11 +111,13 @@ impl Block {
             if self.is_table_cell() {
                 let flattened = text.replace("\r\n", " ").replace(['\r', '\n'], " ");
                 self.replace_text_in_range(None, &flattened, window, cx);
+                cx.stop_propagation();
                 return;
             }
 
             if self.edits_verbatim_text() {
                 self.replace_text_in_range(None, &text, window, cx);
+                cx.stop_propagation();
                 return;
             }
 
@@ -137,6 +125,7 @@ impl Block {
                 let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
                 if self.quote_depth > 0 {
                     self.replace_text_in_range(None, &normalized, window, cx);
+                    cx.stop_propagation();
                     return;
                 }
                 let plain_selected = self.selection_plain_range();
@@ -154,10 +143,12 @@ impl Block {
                     trailing,
                     split_physical_lines,
                 });
+                cx.stop_propagation();
                 return;
             }
 
             self.replace_text_in_range(None, &text, window, cx);
+            cx.stop_propagation();
         }
     }
 }

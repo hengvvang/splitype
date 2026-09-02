@@ -5,15 +5,14 @@
 //! state changes live in the domain modules (`session`, `navigation`, …).
 
 pub mod defs;
-pub mod edit;
 
 pub use defs::*;
-pub use edit::{BlockStructureKind, EditCommand, InlineFormatKind, InsertionKind};
 
 use gpui::*;
 
 use crate::editor::Editor;
 use editor_contracts::ExportFormat;
+use platform_contracts::actions::{Copy, Cut, Paste, SelectAll};
 
 impl Editor {
     pub fn on_save_document(
@@ -70,14 +69,79 @@ impl Editor {
         if !self.has_tabs() {
             return;
         }
-        cx.notify();
+        if let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) {
+            buffer.update(cx, |buffer, cx| buffer.undo(cx));
+        }
     }
 
     pub fn on_redo(&mut self, _: &Redo, _window: &mut Window, cx: &mut Context<Self>) {
         if !self.has_tabs() {
             return;
         }
+        if let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) {
+            buffer.update(cx, |buffer, cx| buffer.redo(cx));
+        }
+    }
+
+    pub fn on_copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_tabs() {
+            return;
+        }
+        let pane_id = self.active_pane_id();
+        if let Some(text) = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.pane.selected_text(cx))
+        {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
+    }
+
+    pub fn on_cut(&mut self, _: &Cut, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_tabs() {
+            return;
+        }
+        let pane_id = self.active_pane_id();
+        if let Some(text) = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.pane.selected_text(cx))
+        {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        }
+        let edit = self
+            .pane_state_mut(pane_id)
+            .and_then(|state| state.pane.delete_selection(cx));
+        if let Some(edit) = edit {
+            self.commit_document_edit(edit, cx);
+        }
         cx.notify();
+    }
+
+    pub fn on_paste(&mut self, _: &Paste, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_tabs() {
+            return;
+        }
+        let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
+            return;
+        };
+        let pane_id = self.active_pane_id();
+        let edit = self
+            .pane_state_mut(pane_id)
+            .and_then(|state| state.pane.insert_text(&text, cx));
+        if let Some(edit) = edit {
+            self.commit_document_edit(edit, cx);
+        }
+        cx.notify();
+    }
+
+    pub fn on_select_all(&mut self, _: &SelectAll, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_tabs() {
+            return;
+        }
+        let pane_id = self.active_pane_id();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.pane.select_all(cx);
+            cx.notify();
+        }
     }
 
     pub fn on_export_html(&mut self, _: &ExportHtml, window: &mut Window, cx: &mut Context<Self>) {

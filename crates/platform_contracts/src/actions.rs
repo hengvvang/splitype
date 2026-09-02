@@ -11,7 +11,7 @@ use schemars::JsonSchema;
 use serde::Deserialize;
 use splitter::tree::{NodeId, SplitAxis};
 
-actions!(splitype, [Copy, Cut, Paste, DismissTransientUi,]);
+actions!(splitype, [Copy, Cut, Paste, SelectAll, DismissTransientUi,]);
 
 /// Toggle the panel-kind dropdown of the given window panel.
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, gpui::Action)]

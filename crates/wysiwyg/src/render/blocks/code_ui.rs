@@ -5,7 +5,7 @@ use ui::menu_item::menu_item;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::render::BLOCK_EDITOR_CONTEXT;
+use crate::render::EDITOR_CONTEXT;
 
 use crate::model::block::Block;
 use crate::render::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
@@ -241,7 +241,7 @@ impl Block {
             .child({
                 let is_query_active = !self.code_toolbar.picker.query.is_empty();
                 div()
-                    .key_context(BLOCK_EDITOR_CONTEXT)
+                    .key_context(EDITOR_CONTEXT)
                     .track_focus(&self.code_language_focus_handle)
                     .on_key_down(cx.listener(Self::on_code_language_key_down))
                     .on_action(cx.listener(Self::on_code_language_newline))

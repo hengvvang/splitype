@@ -15,7 +15,7 @@ pub use text_layout::*;
 
 use gpui::*;
 
-pub const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
+pub const EDITOR_CONTEXT: &str = "EditorContent";
 
 use crate::model::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
@@ -83,7 +83,7 @@ impl Block {
     ) -> Stateful<Div> {
         let base = div()
             .id(block_id)
-            .key_context(BLOCK_EDITOR_CONTEXT)
+            .key_context(EDITOR_CONTEXT)
             .track_focus(&self.focus_handle)
             .on_action(cx.listener(Self::on_newline))
             .on_action(cx.listener(Self::on_delete_backward))
@@ -106,9 +106,6 @@ impl Block {
             .on_action(cx.listener(Self::on_word_select_right))
             .on_action(cx.listener(Self::on_select_home))
             .on_action(cx.listener(Self::on_select_end))
-            .on_action(cx.listener(Self::on_select_all))
-            .on_action(cx.listener(Self::on_copy))
-            .on_action(cx.listener(Self::on_cut))
             .on_action(cx.listener(Self::on_paste))
             .on_action(cx.listener(Self::on_exit_code_block))
             .on_key_down(cx.listener(Self::on_block_key_down))

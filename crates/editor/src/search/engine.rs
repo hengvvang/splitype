@@ -619,11 +619,11 @@ impl Editor {
             if !state.pane.capabilities().replaceable {
                 return;
             }
-            let text = state
+            let edit = state
                 .pane
                 .replace_match(&match_item, &final_replace_str, cx);
-            if let Some(text) = text {
-                self.commit_document_text(text, cx);
+            if let Some(edit) = edit {
+                self.commit_document_edit(edit, cx);
             }
         } else if let Some(ref file_path) = match_item.file_path {
             if let Ok(content) = fs::read_to_string(file_path) {
@@ -658,9 +658,9 @@ impl Editor {
             if !state.pane.capabilities().replaceable {
                 return;
             }
-            let text = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
-            if let Some(text) = text {
-                self.commit_document_text(text, cx);
+            let edit = state.pane.replace_all_matches(&query, &raw_replace_str, cx);
+            if let Some(edit) = edit {
+                self.commit_document_edit(edit, cx);
             }
         }
 

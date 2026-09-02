@@ -1,5 +1,7 @@
 //! Markdown and source text serialization engine for the document block tree.
 
+use std::collections::HashMap;
+
 use gpui::*;
 
 use super::Document;
@@ -41,10 +43,140 @@ impl Document {
         }
     }
 
-    pub fn collect_single_block_markdown_lines(
+    /// Byte offset in the serialized Markdown at which each block's own
+    /// lines begin. The walker mirrors
+    /// [`Self::collect_single_block_markdown_lines`] exactly, so offsets
+    /// agree with [`Self::serialize_markdown`] byte-for-byte. Used to map
+    /// block-local carets to document-level cursor hints.
+    pub fn markdown_offsets_of_blocks(&self, cx: &App) -> HashMap<EntityId, usize> {
+        let mut offsets = HashMap::new();
+        self.walk_block_offsets(cx, &mut |entity_id, offset| {
+            offsets.insert(entity_id, offset);
+        });
+        offsets
+    }
+
+    /// Byte offset at which `target` block's own lines begin, or `None`
+    /// when the block is not part of the document.
+    pub fn markdown_offset_of_block(&self, target: EntityId, cx: &App) -> Option<usize> {
+        let mut found = None;
+        self.walk_block_offsets(cx, &mut |entity_id, offset| {
+            if found.is_none() && entity_id == target {
+                found = Some(offset);
+            }
+        });
+        found
+    }
+
+    /// Visits every block in serialization order, reporting the byte offset
+    /// at which its own lines begin. The traversal applies the same line
+    /// sequence the serializer produces, so reported offsets agree with
+    /// [`Self::serialize_markdown`] byte-for-byte.
+    fn walk_block_offsets(&self, cx: &App, visit: &mut impl FnMut(EntityId, usize)) {
+        let mut offset = 0usize;
+        Self::visit_block_offsets(&self.roots, 0, 0, false, cx, &mut offset, visit);
+    }
+
+    /// Recursive half of [`Self::walk_block_offsets`]. `line_prefix_len`
+    /// accumulates the byte length of enclosing blockquote/callout prefixes
+    /// (`{indentation}> `) prepended to every line of this subtree.
+    #[allow(clippy::too_many_arguments)]
+    fn visit_block_offsets(
+        blocks: &[Entity<Block>],
+        depth: usize,
+        line_prefix_len: usize,
+        blank_line_between: bool,
+        cx: &App,
+        offset: &mut usize,
+        visit: &mut impl FnMut(EntityId, usize),
+    ) {
+        let mut first = true;
+        let mut previous_was_list_item = false;
+        for block in blocks {
+            let block_ref = block.read(cx);
+            let current_is_list_item = block_ref.kind().is_list_item();
+            if !first && blank_line_between && !(previous_was_list_item && current_is_list_item) {
+                *offset += 1;
+            }
+            first = false;
+            visit(block.entity_id(), *offset);
+
+            let mut own_lines = Vec::new();
+            Self::collect_block_own_markdown_lines(block_ref, depth, &mut own_lines);
+            for line in own_lines {
+                *offset += line.len() + 1 + line_prefix_len;
+            }
+
+            match block_ref.kind() {
+                BlockKind::Table
+                | BlockKind::CodeBlock { .. }
+                | BlockKind::RawMarkdown
+                | BlockKind::HtmlComment
+                | BlockKind::HtmlBlock => {}
+                BlockKind::Blockquote | BlockKind::Callout(_) => {
+                    let child_prefix_len = line_prefix_len + depth * 2 + 2;
+                    Self::visit_block_offsets(
+                        &block_ref.children,
+                        depth,
+                        child_prefix_len,
+                        false,
+                        cx,
+                        offset,
+                        visit,
+                    );
+                }
+                BlockKind::FootnoteDefinition => {
+                    Self::visit_block_offsets(
+                        &block_ref.children,
+                        2,
+                        line_prefix_len,
+                        false,
+                        cx,
+                        offset,
+                        visit,
+                    );
+                }
+                BlockKind::BulletListItem
+                | BlockKind::TaskListItem { .. }
+                | BlockKind::NumberedListItem => {
+                    for child in &block_ref.children {
+                        if Self::list_child_requires_leading_blank_line(child.read(cx)) {
+                            *offset += 1;
+                        }
+                        Self::visit_block_offsets(
+                            std::slice::from_ref(child),
+                            depth + 1,
+                            line_prefix_len,
+                            false,
+                            cx,
+                            offset,
+                            visit,
+                        );
+                    }
+                }
+                _ => {
+                    let child_depth = depth + usize::from(current_is_list_item);
+                    Self::visit_block_offsets(
+                        &block_ref.children,
+                        child_depth,
+                        line_prefix_len,
+                        false,
+                        cx,
+                        offset,
+                        visit,
+                    );
+                }
+            }
+            previous_was_list_item = current_is_list_item;
+        }
+    }
+
+    /// Serializes only the lines this block itself contributes, without its
+    /// children. Line contents (including list indentation and quote
+    /// prefixes) match [`Self::serialize_markdown`] byte-for-byte.
+    pub fn collect_block_own_markdown_lines(
         block_ref: &Block,
         list_depth: usize,
-        cx: &App,
         lines: &mut Vec<String>,
     ) {
         match block_ref.kind() {
@@ -76,22 +208,6 @@ impl Document {
                         lines.push(format!("{indentation}> {line}"));
                     }
                 }
-
-                if !block_ref.children.is_empty() {
-                    let mut child_lines = Vec::new();
-                    Self::collect_markdown_lines(
-                        &block_ref.children,
-                        list_depth,
-                        cx,
-                        &mut child_lines,
-                        false,
-                    );
-                    lines.extend(
-                        child_lines
-                            .into_iter()
-                            .map(|line| format!("{indentation}> {line}")),
-                    );
-                }
             }
             BlockKind::Callout(variant) => {
                 let indentation = "  ".repeat(list_depth);
@@ -99,21 +215,6 @@ impl Document {
                     "{indentation}> {}",
                     variant.header_markdown(&block_ref.data.text_markdown())
                 ));
-                if !block_ref.children.is_empty() {
-                    let mut child_lines = Vec::new();
-                    Self::collect_markdown_lines(
-                        &block_ref.children,
-                        list_depth,
-                        cx,
-                        &mut child_lines,
-                        false,
-                    );
-                    lines.extend(
-                        child_lines
-                            .into_iter()
-                            .map(|line| format!("{indentation}> {line}")),
-                    );
-                }
             }
             BlockKind::FootnoteDefinition => {
                 let indentation = "  ".repeat(list_depth);
@@ -139,10 +240,6 @@ impl Document {
                         lines.push(format!("{indentation}    {line}"));
                     }
                 }
-
-                if !block_ref.children.is_empty() {
-                    Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, false);
-                }
             }
             BlockKind::RawMarkdown | BlockKind::HtmlComment | BlockKind::HtmlBlock => {
                 let indentation = "  ".repeat(list_depth);
@@ -159,14 +256,57 @@ impl Document {
                     }
                 }
             }
-            BlockKind::BulletListItem
-            | BlockKind::TaskListItem { .. }
-            | BlockKind::NumberedListItem => {
+            // Every remaining block kind — including list items —
+            // serializes through its single-line Markdown form.
+            _ => {
                 lines.push(
                     block_ref
                         .data
                         .serialize_markdown_line(list_depth, block_ref.list_ordinal),
                 );
+            }
+        }
+    }
+
+    pub fn collect_single_block_markdown_lines(
+        block_ref: &Block,
+        list_depth: usize,
+        cx: &App,
+        lines: &mut Vec<String>,
+    ) {
+        Self::collect_block_own_markdown_lines(block_ref, list_depth, lines);
+        match block_ref.kind() {
+            BlockKind::Table
+            | BlockKind::CodeBlock { .. }
+            | BlockKind::RawMarkdown
+            | BlockKind::HtmlComment
+            | BlockKind::HtmlBlock => {}
+            BlockKind::Blockquote | BlockKind::Callout(_) => {
+                if !block_ref.children.is_empty() {
+                    let mut child_lines = Vec::new();
+                    Self::collect_markdown_lines(
+                        &block_ref.children,
+                        list_depth,
+                        cx,
+                        &mut child_lines,
+                        false,
+                    );
+                    let indentation = "  ".repeat(list_depth);
+                    lines.extend(
+                        child_lines
+                            .into_iter()
+                            .map(|line| format!("{indentation}> {line}")),
+                    );
+                }
+            }
+            BlockKind::FootnoteDefinition => {
+                if !block_ref.children.is_empty() {
+                    Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, false);
+                }
+            }
+            BlockKind::BulletListItem
+            | BlockKind::TaskListItem { .. }
+            | BlockKind::NumberedListItem => {
                 let child_list_depth = list_depth + 1;
                 for child in &block_ref.children {
                     let child_ref = child.read(cx);
@@ -182,11 +322,6 @@ impl Document {
                 }
             }
             _ => {
-                lines.push(
-                    block_ref
-                        .data
-                        .serialize_markdown_line(list_depth, block_ref.list_ordinal),
-                );
                 let child_list_depth = list_depth + usize::from(block_ref.kind().is_list_item());
                 Self::collect_markdown_lines(
                     &block_ref.children,

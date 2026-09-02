@@ -7,9 +7,8 @@
 pub mod buffer;
 pub mod builder;
 pub mod display_map;
-pub mod element;
+pub mod editor;
 pub mod gutter;
-pub mod input;
 pub mod outline;
 pub mod search;
 pub mod selection;

@@ -8,8 +8,8 @@ pub mod plugin;
 pub mod settings;
 
 pub use actions::{
-    ClosePanel, Copy, Cut, DismissTransientUi, OpenPath, OpenPathInSplit, Paste, SplitPanel,
-    ToggleKindDropdown, TogglePanelMaximized, UpdateOpenTabPaths,
+    ClosePanel, Copy, Cut, DismissTransientUi, OpenPath, OpenPathInSplit, Paste, SelectAll,
+    SplitPanel, ToggleKindDropdown, TogglePanelMaximized, UpdateOpenTabPaths,
 };
 pub use command::{CommandContribution, CommandId, CommandRegistry, CommandRegistryError};
 pub use document_id::DocumentId;

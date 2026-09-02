@@ -7,9 +7,9 @@ use crate::model::block::Block;
 use crate::model::protocol::BlockEvent;
 use crate::pane::actions::{
     Delete, DeleteBackward, End, FocusNext, FocusPrevious, Home, IndentBlock, MoveLeft, MoveRight,
-    Newline, OutdentBlock, SelectAll, SelectLeft, SelectRight,
+    Newline, OutdentBlock, SelectLeft, SelectRight,
 };
-use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste};
+use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste, SelectAll};
 use syntax_highlighter::language::code_language_options_matching;
 impl Block {
     pub fn on_code_block_hover(

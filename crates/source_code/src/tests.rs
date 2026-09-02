@@ -1,108 +1,30 @@
-//! Unit tests for source_code buffer, coordinates, selections, and display maps.
+//! Unit tests for source_code coordinates, selections, and display maps.
+//!
+//! The editor entity itself is exercised through the application; these
+//! tests cover the pure data structures underneath it.
 
 use crate::buffer::{BufferPoint, LineMap};
-use crate::display_map::{FoldMap, FoldRange, TabMap};
-use crate::selection::SelectionsCollection;
-use crate::state::SourceCodeState;
+use crate::display_map::{DisplayPoint, DisplaySnapshot, FoldMap, FoldRange, TabMap, WrapState};
+use crate::selection::Selections;
 
 #[test]
-fn rebuild_lines_computes_accurate_byte_ranges() {
-    let state = SourceCodeState::from_text("Hello\nWorld\nRust\n");
-    assert_eq!(state.line_count(), 4);
-    assert_eq!(state.line_range(0), 0..5);
-    assert_eq!(state.line_range(1), 6..11);
-    assert_eq!(state.line_range(2), 12..16);
-    assert_eq!(state.line_range(3), 17..17);
+fn line_map_indexes_lines_and_offsets() {
+    let map = LineMap::new("ab\ncd\nef");
+    assert_eq!(map.line_count(), 3);
+    assert_eq!(map.line_start(0), 0);
+    assert_eq!(map.line_start(1), 3);
+    assert_eq!(map.line_len(0), 2);
+    assert_eq!(map.offset_to_point(4), BufferPoint::new(1, 1));
+    assert_eq!(map.point_to_offset(BufferPoint::new(1, 1)), 4);
 }
 
 #[test]
-fn single_line_without_trailing_newline() {
-    let state = SourceCodeState::from_text("Single line");
-    assert_eq!(state.line_count(), 1);
-    assert_eq!(state.line_range(0), 0..11);
-}
-
-#[test]
-fn buffer_point_offset_conversions() {
-    let text = "Hello\nWorld\nRust";
-    let map = LineMap::new(text);
-
-    let p0 = map.offset_to_point(text, 0);
-    assert_eq!(p0, BufferPoint::new(0, 0));
-
-    let p_world = map.offset_to_point(text, 6);
-    assert_eq!(p_world, BufferPoint::new(1, 0));
-
-    let off_world = map.point_to_offset(text, BufferPoint::new(1, 2));
-    assert_eq!(off_world, 8); // 'r' in "World"
-}
-
-#[test]
-fn multi_cursor_collection_normalization() {
-    let mut sel = SelectionsCollection::new();
-    sel.set_single_range(10, 15);
-    sel.add_selection(20, 25);
-    sel.add_selection(12, 18); // overlaps with 10..15
-
-    assert_eq!(sel.count(), 2);
-    assert_eq!(sel.all()[0].range_bounds(), 10..18);
-    assert_eq!(sel.all()[1].range_bounds(), 20..25);
-}
-
-#[test]
-fn tab_map_expansion() {
-    let tab_map = TabMap::new(4);
-    let line = "\tlet x = 1;";
-    let expanded = tab_map.expand_tabs(line);
-    assert_eq!(expanded, "    let x = 1;");
-    assert_eq!(tab_map.char_column_to_display_column(line, 1), 4);
-}
-
-#[test]
-fn fold_map_markdown_discovery_and_projection() {
-    let text = "# Section 1\nBody 1\nBody 2\n# Section 2\nBody 3";
-    let line_map = LineMap::new(text);
-    let folds = FoldMap::discover_markdown_folds(text, &line_map);
-    assert_eq!(folds.len(), 2);
-
-    let mut fold_map = FoldMap::new();
-    fold_map.fold(FoldRange {
-        start_row: 0,
-        end_row: 2,
-    });
-
-    assert_eq!(fold_map.visible_line_count(5), 3);
-    assert_eq!(fold_map.buffer_row_to_visible_row(0), 0);
-    assert_eq!(fold_map.buffer_row_to_visible_row(3), 1);
-}
-
-#[test]
-fn insert_and_delete_text_updates_cursor_and_lines() {
-    let mut state = SourceCodeState::from_text("Line 1\nLine 2");
-    state.selections.set_single_point(6); // At '\n'
-    state.insert_text("\nInserted");
-    assert_eq!(state.text, "Line 1\nInserted\nLine 2");
-    assert_eq!(state.line_count(), 3);
-}
-
-#[test]
-fn selection_replacement_preserves_bounds() {
-    let mut state = SourceCodeState::from_text("Foo Bar Baz");
-    state.selections.set_single_range(4, 7); // "Bar"
-    state.insert_text("Qux");
-    assert_eq!(state.text, "Foo Qux Baz");
-    assert_eq!(state.cursor(), 7);
-    assert_eq!(state.selected_text(), None);
-}
-
-#[test]
-fn indent_and_outdent() {
-    let mut state = SourceCodeState::from_text("fn main() {\nprintln!();\n}");
-    state.selections.set_single_point(12); // inside line 1
-    state.indent();
-    assert_eq!(state.text, "fn main() {\n    println!();\n}");
-    state.outdent();
-    assert_eq!(state.text, "fn main() {\nprintln!();\n}");
+fn line_map_trailing_newline_and_empty() {
+    assert_eq!(LineMap::new("").line_count(), 1);
+    let map = LineMap::new("ab\n");
+    assert_eq!(map.line_count(), 1);
+    assert_eq!(map.line_len(0), 2);
+    assert_eq!(map.offset_to_point(3), BufferPoint::new(0, 2));
 }
 
 #[test]
@@ -112,14 +34,89 @@ fn multibyte_utf8_chinese_offset_conversions() {
 
     // Any byte offset, even inside a multibyte character, should never panic
     for byte_offset in 0..=text.len() {
-        let point = map.offset_to_point(text, byte_offset);
-        let recovered_offset = map.point_to_offset(text, point);
+        let point = map.offset_to_point(byte_offset);
+        let recovered_offset = map.point_to_offset(point);
         assert!(recovered_offset <= text.len());
     }
+}
 
-    let mut state = SourceCodeState::from_text(text);
-    // Move cursor and insert text
-    state.move_to(6, false); // inside first line
-    state.insert_text("Rust");
-    assert_eq!(state.text, "你好Rust，世界。\n这是一个测试。");
+#[test]
+fn tab_map_expansion() {
+    let tab_map = TabMap::new(4);
+    let line = "\tlet x = 1;";
+    let expanded = tab_map.expand_tabs(line);
+    assert_eq!(expanded, "    let x = 1;");
+    assert_eq!(tab_map.char_column_to_display_column(line, 1), 4);
+    assert_eq!(tab_map.display_column_to_char_column(line, 4), 1);
+}
+
+#[test]
+fn selections_apply_edit_biases() {
+    let mut selections = Selections::new(2);
+    selections.apply_edit(2..2, 1);
+    // Anchors keep left bias, heads keep right bias: typing at the caret
+    // keeps the anchor fixed and moves the head past the inserted text.
+    assert_eq!(selections.cursor(), 3);
+    assert_eq!(selections.primary().anchor, 2);
+}
+
+#[test]
+fn selections_collapse_and_dedupe() {
+    let mut selections = Selections::new(0);
+    selections.set_single_range(4, 9);
+    selections.add_point(9);
+    selections.add_point(9); // exact duplicate
+    selections.clamp_and_sort(20);
+    assert_eq!(selections.count(), 2);
+    selections.collapse_all();
+    assert!(selections.iter().all(|s| s.is_empty()));
+}
+
+#[test]
+fn fold_map_discovers_markdown_regions() {
+    let text = "# Section 1\nBody 1\nBody 2\n# Section 2\nBody 3";
+    let line_map = LineMap::new(text);
+    let folds = FoldMap::discover_markdown_folds(text, &line_map);
+    assert_eq!(folds.len(), 2);
+    assert!(folds.iter().any(|f| f.start_row == 0 && f.end_row == 2));
+}
+
+#[test]
+fn row_index_flattens_folds_to_visible_rows() {
+    let text = "# A\nb\nc\n# B\nd\ne";
+    let line_map = LineMap::new(text);
+    let mut folds = FoldMap::new();
+    folds.fold(FoldRange::new(0, 2)); // hides rows 1-2
+    let wrap = WrapState::default();
+
+    let snapshot = DisplaySnapshot::new(text, &line_map, TabMap::new(4), &folds, &wrap);
+    assert_eq!(snapshot.visible_line_count(), 4); // header + 3 remaining
+    assert_eq!(snapshot.rows.buffer_row_at(0), 0);
+    // Display rows 1-3 are the remaining buffer rows 3, 4, 5.
+    assert_eq!(snapshot.rows.buffer_row_at(1), 3);
+    assert_eq!(snapshot.rows.buffer_row_at(2), 4);
+    assert_eq!(snapshot.rows.buffer_row_at(3), 5);
+}
+
+#[test]
+fn snapshot_maps_offsets_through_wraps() {
+    // A 10-column wrap splits the long first line into two visual rows.
+    let text = "abcdefghijkl\nshort";
+    let line_map = LineMap::new(text);
+    let mut points = vec![Vec::new(); 2];
+    points[0] = vec![10];
+    let wrap = WrapState::new(100.0, points);
+    let folds = FoldMap::new();
+
+    let snapshot = DisplaySnapshot::new(text, &line_map, TabMap::new(4), &folds, &wrap);
+    assert_eq!(snapshot.visible_line_count(), 3);
+
+    // Offset 12 ("l" on the first buffer line) lives on display row 1.
+    let dp = snapshot.offset_to_display_point(12);
+    assert_eq!(dp, DisplayPoint::new(1, 2));
+    assert_eq!(snapshot.display_point_to_offset(dp), 12);
+
+    // Offset 14 is the second buffer line, display row 2.
+    let dp = snapshot.offset_to_display_point(14);
+    assert_eq!(dp.row, 2);
 }

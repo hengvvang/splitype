@@ -16,152 +16,147 @@ panels = []
 [[commands]]
 id = "newline"
 shortcuts = ["enter"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "delete-backward"
 shortcuts = ["backspace"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "delete"
 shortcuts = ["delete"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "word-delete-backward"
 shortcuts = ["ctrl-backspace", "alt-backspace"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "word-delete-forward"
 shortcuts = ["ctrl-delete", "alt-delete"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "focus-previous"
 shortcuts = ["up"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "focus-next"
 shortcuts = ["down"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "move-left"
 shortcuts = ["left"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "move-right"
 shortcuts = ["right"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "word-move-left"
 shortcuts = ["ctrl-left", "alt-left"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "word-move-right"
 shortcuts = ["ctrl-right", "alt-right"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "home"
 shortcuts = ["home"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "end"
 shortcuts = ["end"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "block-up"
 shortcuts = ["ctrl-up", "alt-up"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "block-down"
 shortcuts = ["ctrl-down", "alt-down"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "select-left"
 shortcuts = ["shift-left"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "select-right"
 shortcuts = ["shift-right"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "word-select-left"
 shortcuts = ["ctrl-shift-left", "alt-shift-left"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "word-select-right"
 shortcuts = ["ctrl-shift-right", "alt-shift-right"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "select-home"
 shortcuts = ["shift-home"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "select-end"
 shortcuts = ["shift-end"]
-context = "BlockEditor"
-
-[[commands]]
-id = "select-all"
-shortcuts = ["cmd-a", "ctrl-a"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "bold-selection"
 shortcuts = ["cmd-b", "ctrl-b"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "italic-selection"
 shortcuts = ["cmd-i", "ctrl-i"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "underline-selection"
 shortcuts = ["cmd-u", "ctrl-u"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "code-selection"
 shortcuts = ["cmd-`", "ctrl-`"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "strikethrough-selection"
 shortcuts = ["cmd-shift-x", "ctrl-shift-x", "alt-shift-5"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "indent-block"
 shortcuts = ["tab"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "outdent-block"
 shortcuts = ["shift-tab"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "exit-code-block"
 shortcuts = ["cmd-enter", "ctrl-enter"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[settings]]
 key = "image_paste_behavior"

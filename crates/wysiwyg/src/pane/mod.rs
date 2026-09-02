@@ -7,7 +7,7 @@ pub mod search;
 pub mod state;
 
 use editor_contracts::OutlineNode;
-use editor_contracts::{PaneCapabilities, PaneRenderContext, PaneView};
+use editor_contracts::{EditTransaction, PaneCapabilities, PaneRenderContext, PaneView};
 use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, AppContext, FocusHandle, Window};
 use theme::Theme;
@@ -77,7 +77,7 @@ impl PaneView for WysiwygPaneState {
         match_item: &SearchMatch,
         replace_with: &str,
         cx: &mut App,
-    ) -> Option<String> {
+    ) -> Option<EditTransaction> {
         let controller = self.ensure_controller(cx);
         controller.update(cx, |c, cx| c.replace_match(match_item, replace_with, cx))
     }
@@ -87,44 +87,25 @@ impl PaneView for WysiwygPaneState {
         controller.update(cx, |c, cx| c.navigate_to_search_match(match_item, cx))
     }
 
-    fn apply_line_prefix(&mut self, prefix: &str, cx: &mut App) -> Option<String> {
-        let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| c.apply_line_prefix(prefix, cx))
+    fn selected_text(&self, cx: &App) -> Option<String> {
+        self.controller
+            .as_ref()
+            .and_then(|c| c.read(cx).selected_text(cx))
     }
 
-    fn apply_snippet(
-        &mut self,
-        snippet: &str,
-        caret_offset: usize,
-        cx: &mut App,
-    ) -> Option<String> {
+    fn delete_selection(&mut self, cx: &mut App) -> Option<EditTransaction> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| c.apply_snippet(snippet, caret_offset, cx))
+        controller.update(cx, |c, cx| c.delete_selection(cx))
     }
 
-    fn apply_wrapped_or_template(
-        &mut self,
-        empty_template: &str,
-        caret_offset_in_empty: usize,
-        wrap_prefix: &str,
-        wrap_suffix: &str,
-        cx: &mut App,
-    ) -> Option<String> {
+    fn insert_text(&mut self, text: &str, cx: &mut App) -> Option<EditTransaction> {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| {
-            c.apply_wrapped_or_template(
-                empty_template,
-                caret_offset_in_empty,
-                wrap_prefix,
-                wrap_suffix,
-                cx,
-            )
-        })
+        controller.update(cx, |c, cx| c.insert_text(text, cx))
     }
 
-    fn apply_clear_format(&mut self, cx: &mut App) -> Option<String> {
+    fn select_all(&mut self, cx: &mut App) {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |c, cx| c.apply_clear_format(cx))
+        controller.update(cx, |c, cx| c.select_all(cx));
     }
 
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement {

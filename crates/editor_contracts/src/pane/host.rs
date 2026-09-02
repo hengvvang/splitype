@@ -1,3 +1,4 @@
+use crate::edit::EditTransaction;
 use crate::pane::PaneId;
 use gpui::{App, ScrollHandle, Window};
 use std::sync::Arc;
@@ -15,10 +16,12 @@ pub struct PaneRenderContext<'a> {
 /// Only operations that panes actually invoke are exposed; everything the
 /// editor does on its own schedule (focus, refresh) stays editor-internal.
 pub trait PaneHost: Send + Sync + 'static {
-    /// Commits pane-produced document text into the shared document buffer.
-    /// The buffer bumps its revision and notifies every observing editor,
-    /// which re-syncs all of its panes with the new snapshot.
-    fn commit_text(&self, text: String, cx: &mut App);
+    /// Commits a pane-produced edit into the shared document buffer.
+    /// The buffer records it as one undo transaction (merged into the
+    /// previous one when [`EditTransaction::merge`] is set), bumps its
+    /// revision, and notifies every observing editor, which re-syncs all
+    /// of its panes with the new snapshot.
+    fn commit_edit(&self, edit: EditTransaction, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
     fn set_outline_hovered(
         &self,

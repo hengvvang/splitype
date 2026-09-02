@@ -65,27 +65,32 @@ shortcuts = ["escape"]
 [[commands]]
 id = "copy"
 shortcuts = ["cmd-c", "ctrl-c"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "cut"
 shortcuts = ["cmd-x", "ctrl-x"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "paste"
 shortcuts = ["cmd-v", "ctrl-v"]
-context = "BlockEditor"
+context = "EditorContent"
+
+[[commands]]
+id = "select-all"
+shortcuts = ["cmd-a", "ctrl-a"]
+context = "EditorContent"
 
 [[commands]]
 id = "undo"
 shortcuts = ["cmd-z", "ctrl-z"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "redo"
 shortcuts = ["cmd-shift-z", "ctrl-y"]
-context = "BlockEditor"
+context = "EditorContent"
 
 [[commands]]
 id = "repository"

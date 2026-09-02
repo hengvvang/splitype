@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::edit::CursorHint;
+
 pub use platform_contracts::DocumentId;
 
 /// Immutable document state shared with every pane implementation.
@@ -15,6 +17,9 @@ pub struct DocumentSnapshot {
     pub text: Arc<str>,
     pub path: Option<Arc<Path>>,
     pub base_dir: Option<Arc<Path>>,
+    /// Set when this revision was produced by undo/redo: the caret the pane
+    /// should move to while syncing. Regular edits carry `None`.
+    pub restore_cursor: Option<CursorHint>,
 }
 
 impl DocumentSnapshot {
@@ -23,6 +28,16 @@ impl DocumentSnapshot {
         revision: u64,
         text: impl Into<Arc<str>>,
         path: Option<PathBuf>,
+    ) -> Self {
+        Self::with_restore_cursor(id, revision, text, path, None)
+    }
+
+    pub fn with_restore_cursor(
+        id: DocumentId,
+        revision: u64,
+        text: impl Into<Arc<str>>,
+        path: Option<PathBuf>,
+        restore_cursor: Option<CursorHint>,
     ) -> Self {
         let path = path.map(Arc::<Path>::from);
         let base_dir = path
@@ -35,6 +50,7 @@ impl DocumentSnapshot {
             text: text.into(),
             path,
             base_dir,
+            restore_cursor,
         }
     }
 
