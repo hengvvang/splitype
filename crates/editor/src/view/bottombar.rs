@@ -92,10 +92,17 @@ impl Editor {
                 .flatten()
                 .map(|descriptor| descriptor.display_name().to_string())
                 .unwrap_or_else(|| focused_kind.as_str().to_string());
+            let dropdown_open = self
+                .session()
+                .root
+                .tree
+                .find_leaf(pane_id.0)
+                .is_some_and(|panel| panel.open_dropdown);
             let mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(c.text_default)
                 .opacity(1.0)
+                .when(dropdown_open, |this| this.bg(c.panel_row_hover))
                 .child(label)
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = toggle_editor.update(cx, |ed, cx| {

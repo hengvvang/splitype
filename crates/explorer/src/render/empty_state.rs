@@ -24,7 +24,7 @@ impl ExplorerState {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
-        let drop_target_bg = c.dialog_secondary_button_hover;
+        let drop_target_bg = c.panel_row_hover;
         let weak = self.self_weak.clone();
 
         let display_title = if title.is_empty() {
@@ -98,8 +98,7 @@ impl ExplorerState {
                     .border_1()
                     .border_color(c.dialog_border)
                     .bg(c.dialog_secondary_button_bg)
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.92))
+                    .hover(|this| this.bg(c.panel_row_hover))
                     .child(
                         svg()
                             .path("icons/explorer/worktree/open_folder.svg")
@@ -179,7 +178,6 @@ impl ExplorerState {
                                         .truncate()
                                         .text_size(px(13.0))
                                         .text_color(c.dialog_muted)
-                                        .hover(|this| this.text_color(c.text_default))
                                         .child(folder_name),
                                 )
                                 .on_click({
@@ -222,7 +220,6 @@ impl ExplorerState {
                                         .truncate()
                                         .text_size(px(13.0))
                                         .text_color(c.dialog_muted)
-                                        .hover(|this| this.text_color(c.text_default))
                                         .child(file_name),
                                 )
                                 .on_click({

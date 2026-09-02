@@ -3,6 +3,7 @@
 use ui::menu_item::menu_item;
 
 use gpui::*;
+use gpui::prelude::FluentBuilder;
 
 use crate::render::BLOCK_EDITOR_CONTEXT;
 
@@ -132,8 +133,7 @@ impl Block {
                     .gap(px(4.0))
                     .px(px(8.0))
                     .rounded(px(d.button_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.9))
+                    .hover(|this| this.bg(c.panel_row_hover))
                     .cursor_pointer()
                     .on_mouse_down(
                         MouseButton::Left,
@@ -159,8 +159,7 @@ impl Block {
                     .items_center()
                     .justify_center()
                     .rounded(px(d.icon_button_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.9))
+                    .hover(|this| this.bg(c.panel_row_hover))
                     .cursor_pointer()
                     .on_mouse_down(
                         MouseButton::Left,
@@ -188,8 +187,7 @@ impl Block {
                     .items_center()
                     .justify_center()
                     .rounded(px(d.icon_button_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.9))
+                    .hover(|this| this.bg(c.panel_row_hover))
                     .cursor_pointer()
                     .on_mouse_down(
                         MouseButton::Left,
@@ -338,8 +336,7 @@ impl Block {
                         .w_full()
                         .flex_shrink_0()
                         .justify_between()
-                        .bg(c.dialog_surface)
-                        .active(|this| this.opacity(0.9))
+                        .when(is_selected, |this| this.bg(c.panel_row_hover))
                         .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                             option_block.update(cx, |block, block_cx| {
                                 block_cx.stop_propagation();

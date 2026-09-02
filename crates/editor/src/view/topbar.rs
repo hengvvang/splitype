@@ -103,11 +103,7 @@ impl Editor {
         let is_search_active = self.search.visible;
         let search_button = icon_chip_button(c, d)
             .id(("panel-topbar-search", panel_id.0))
-            .bg(if is_search_active {
-                c.panel_row_selected
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
+            .when(is_search_active, |this| this.bg(c.panel_row_hover))
             .child(
                 svg()
                     .path("icons/editor/topbar/search.svg")
@@ -198,7 +194,7 @@ impl Editor {
             for (index, (file_name, is_transient, _is_dirty)) in tab_infos.iter().enumerate() {
                 let is_active = index == active_tab;
                 let tab_bg = if is_active {
-                    c.dialog_secondary_button_hover
+                    c.panel_row_hover
                 } else {
                     hsla(0.0, 0.0, 0.0, 0.0)
                 };
@@ -229,7 +225,7 @@ impl Editor {
                     .gap(px(4.0))
                     .rounded(px(d.tab_radius))
                     .bg(tab_bg)
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .hover(|this| this.bg(c.panel_row_hover))
                     .relative()
                     .text_size(px(11.0))
                     .cursor_pointer()
@@ -256,7 +252,7 @@ impl Editor {
                             .items_center()
                             .justify_center()
                             .rounded(px(d.tab_close_button_radius))
-                            .hover(|this| this.bg(c.dialog_secondary_button_bg.opacity(0.6)))
+                            .hover(|this| this.bg(c.panel_row_hover))
                             .cursor_pointer()
                             .child(
                                 svg()
@@ -297,7 +293,7 @@ impl Editor {
                     .items_center()
                     .justify_center()
                     .rounded(px(d.icon_button_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .hover(|this| this.bg(c.panel_row_hover))
                     .cursor_pointer()
                     .text_color(c.dialog_muted)
                     .child(

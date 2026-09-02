@@ -152,9 +152,7 @@ impl ExplorerState {
             .pr(px(8.0))
             .bg(if is_drag_target {
                 c.callout_tip_bg
-            } else if is_marked {
-                c.callout_note_bg
-            } else if selected {
+            } else if is_marked || selected {
                 c.panel_row_hover
             } else {
                 hsla(0.0, 0.0, 0.0, 0.0)

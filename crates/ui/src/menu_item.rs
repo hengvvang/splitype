@@ -27,6 +27,5 @@ pub fn menu_item(id: impl Into<ElementId>, c: &ThemeColors, d: &ThemeDimensions)
     menu_item_row(c, d)
         .id(id)
         .hover(|this| this.bg(c.panel_row_hover))
-        .active(|this| this.opacity(0.92))
         .cursor_pointer()
 }

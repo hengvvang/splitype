@@ -49,7 +49,7 @@ fn titlebar_control_button(
     let hover_bg = if area == WindowControlArea::Close {
         c.dialog_danger_button_bg
     } else {
-        c.dialog_secondary_button_hover
+        c.panel_row_hover
     };
     div()
         .id(id)

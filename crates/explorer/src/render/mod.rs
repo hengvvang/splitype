@@ -146,7 +146,7 @@ impl ExplorerState {
                     &self.drag_target,
                     Some(DragExplorerTarget::Background)
                 ) {
-                    c.dialog_secondary_button_hover
+                    c.panel_row_hover
                 } else {
                     hsla(0.0, 0.0, 0.0, 0.0)
                 },

@@ -63,13 +63,12 @@ pub fn make_row_with_reset(
                 .cursor_pointer()
                 .p(px(2.0))
                 .rounded(px(3.0))
-                .hover(|s| s.bg(c.dialog_secondary_button_hover))
+                .hover(|s| s.bg(c.panel_row_hover))
                 .child(
                     svg()
                         .path("icons/settings/undo.svg")
                         .size(px(12.0))
-                        .text_color(c.dialog_muted)
-                        .hover(|s| s.text_color(c.text_default)),
+                        .text_color(c.dialog_muted),
                 )
                 .on_click(reset_fn),
         );

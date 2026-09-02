@@ -25,7 +25,7 @@ pub fn select_trigger(
         .px(px(8.0))
         .rounded(px(d.select_trigger_radius))
         .bg(c.dialog_secondary_button_bg)
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .border_1()
         .border_color(c.dialog_border)
 }

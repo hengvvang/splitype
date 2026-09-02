@@ -11,6 +11,7 @@
 use std::sync::Arc;
 
 use gpui::*;
+use gpui::prelude::FluentBuilder;
 use serde_json::Value;
 
 use config::language::I18nManager;
@@ -73,11 +74,7 @@ pub fn render_settings_body(
             d,
         )
         .relative()
-        .bg(if is_active {
-            c.panel_row_hover
-        } else {
-            c.dialog_surface
-        })
+        .when(is_active, |this| this.bg(c.panel_row_hover))
         .child(
             div()
                 .text_size(px(13.0))

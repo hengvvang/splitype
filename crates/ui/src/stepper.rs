@@ -30,7 +30,7 @@ pub fn stepper_step_button(id: impl Into<ElementId>, c: &ThemeColors) -> Statefu
         .flex()
         .items_center()
         .justify_center()
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .text_size(px(13.0))
         .font_weight(FontWeight::MEDIUM)
         .text_color(c.text_default)

@@ -126,7 +126,6 @@ impl Shell {
                     base.into_any_element()
                 } else {
                     base.hover(|this| this.bg(c.panel_row_hover))
-                        .active(|this| this.opacity(0.92))
                         .cursor_pointer()
                         .on_click(move |_event, window, cx| {
                             let _ = click_shell.update(cx, |shell, cx| shell.close_menu_bar(cx));
@@ -148,11 +147,7 @@ impl Shell {
                     .w_full()
                     .flex_shrink_0()
                     .justify_between()
-                    .bg(if is_open {
-                        c.panel_row_hover
-                    } else {
-                        c.dialog_surface
-                    })
+                    .when(is_open, |this| this.bg(c.panel_row_hover))
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)

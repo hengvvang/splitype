@@ -1,3 +1,4 @@
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use config::language::I18nManager;
@@ -73,11 +74,7 @@ impl ExplorerState {
 
         let menu_btn = icon_chip_button(c, d)
             .id(("explorer-bottombar-menu-btn", panel_id.0))
-            .bg(if is_menu_open {
-                c.panel_row_hover
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
+            .when(is_menu_open, |this| this.bg(c.panel_row_hover))
             .child(
                 svg()
                     .path("icons/explorer/bottombar/v_three_points.svg")

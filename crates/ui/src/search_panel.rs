@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use gpui::*;
+use gpui::prelude::FluentBuilder;
 
 use crate::search_input::SearchInputElement;
 use editor_contracts::{
@@ -54,7 +55,7 @@ pub fn render_search_panel_overlay(
         .justify_center()
         .rounded(px(d.icon_button_radius))
         .cursor_pointer()
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .child(
             svg()
                 .path(chevron_icon)
@@ -72,11 +73,7 @@ pub fn render_search_panel_overlay(
         .px(px(4.0))
         .py(px(1.0))
         .rounded(px(d.icon_button_radius))
-        .bg(if match_case {
-            c.panel_row_selected
-        } else {
-            hsla(0.0, 0.0, 0.0, 0.0)
-        })
+        .when(match_case, |this| this.bg(c.panel_row_hover))
         .text_color(if match_case {
             c.focus_accent
         } else {
@@ -96,11 +93,7 @@ pub fn render_search_panel_overlay(
         .px(px(4.0))
         .py(px(1.0))
         .rounded(px(d.icon_button_radius))
-        .bg(if whole_word {
-            c.panel_row_selected
-        } else {
-            hsla(0.0, 0.0, 0.0, 0.0)
-        })
+        .when(whole_word, |this| this.bg(c.panel_row_hover))
         .text_color(if whole_word {
             c.focus_accent
         } else {
@@ -126,11 +119,7 @@ pub fn render_search_panel_overlay(
         .px(px(4.0))
         .py(px(1.0))
         .rounded(px(d.icon_button_radius))
-        .bg(if use_regex {
-            c.panel_row_selected
-        } else {
-            hsla(0.0, 0.0, 0.0, 0.0)
-        })
+        .when(use_regex, |this| this.bg(c.panel_row_hover))
         .text_color(if use_regex {
             c.focus_accent
         } else {
@@ -213,7 +202,7 @@ pub fn render_search_panel_overlay(
         .items_center()
         .justify_center()
         .rounded(px(d.icon_button_radius))
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
         .child(
             svg()
@@ -232,7 +221,7 @@ pub fn render_search_panel_overlay(
         .items_center()
         .justify_center()
         .rounded(px(d.icon_button_radius))
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
         .child(
             svg()
@@ -252,12 +241,11 @@ pub fn render_search_panel_overlay(
         .items_center()
         .justify_center()
         .rounded(px(d.icon_button_radius))
-        .bg(if scope == SearchScope::Worktree {
-            c.panel_row_selected
-        } else {
-            hsla(0.0, 0.0, 0.0, 0.0)
-        })
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .when(
+            scope == SearchScope::Worktree,
+            |this| this.bg(c.panel_row_hover),
+        )
+        .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
         .child(
             svg()
@@ -315,11 +303,7 @@ pub fn render_search_panel_overlay(
             .px(px(4.0))
             .py(px(1.0))
             .rounded(px(d.icon_button_radius))
-            .bg(if preserve_case {
-                c.panel_row_selected
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
+            .when(preserve_case, |this| this.bg(c.panel_row_hover))
             .text_color(if preserve_case {
                 c.focus_accent
             } else {
@@ -382,7 +366,7 @@ pub fn render_search_panel_overlay(
             .items_center()
             .justify_center()
             .rounded(px(d.icon_button_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
             .child(
                 svg()
@@ -402,7 +386,7 @@ pub fn render_search_panel_overlay(
             .items_center()
             .justify_center()
             .rounded(px(d.icon_button_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
             .child(
                 svg()
@@ -554,7 +538,7 @@ pub fn render_search_panel_overlay(
                         .justify_center()
                         .rounded(px(d.icon_button_radius))
                         .cursor_pointer()
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .hover(|this| this.bg(c.panel_row_hover))
                         .child(
                             svg()
                                 .path(if is_expanded {
@@ -618,11 +602,7 @@ pub fn render_search_panel_overlay(
                 .id(("search-match-item-card", idx))
                 .relative()
                 .rounded(px(d.menu_item_radius))
-                .bg(if is_active {
-                    c.panel_row_hover
-                } else {
-                    hsla(0.0, 0.0, 0.0, 0.0)
-                })
+                .when(is_active, |this| this.bg(c.panel_row_hover))
                 .hover(|this| this.bg(c.panel_row_hover))
                 .children(selected_indicator)
                 .child(row_header);
@@ -733,7 +713,7 @@ pub fn render_search_panel_overlay(
                                 .justify_center()
                                 .rounded(px(d.tab_close_button_radius))
                                 .cursor_pointer()
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .hover(|this| this.bg(c.panel_row_hover))
                                 .child(
                                     svg()
                                         .path("icons/editor/topbar/close.svg")

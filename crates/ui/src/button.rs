@@ -6,9 +6,12 @@
 //! - compact (`compact_*`): 32px height, small radius, used by the
 //!   unsaved-changes / drop-replace dialogs.
 //!
-//! Builders take the element id and return a stateful element so press
-//! feedback (`.active`) works. Text styling (size, weight, color) stays at
-//! call sites because it comes from different typography tokens per family.
+//! Builders take the element id and return a stateful element. Text styling
+//! (size, weight, color) stays at call sites because it comes from different
+//! typography tokens per family.
+//!
+//! Hover backgrounds are unified to [`ThemeColors::panel_row_hover`]; only
+//! primary/danger buttons keep their semantic hover variants.
 
 use gpui::*;
 
@@ -37,7 +40,7 @@ pub fn secondary_button(
         .border_color(c.dialog_border)
         .bg(c.dialog_secondary_button_bg)
         .text_color(c.dialog_secondary_button_text)
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
 }
 
 /// Compact primary action button (32px height, standard radius).
@@ -63,7 +66,7 @@ pub fn compact_secondary_button(
         .border_color(c.dialog_border)
         .bg(c.dialog_secondary_button_bg)
         .text_color(c.dialog_secondary_button_text)
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
 }
 
 /// Compact destructive action button (32px height, standard radius).
@@ -100,7 +103,7 @@ pub fn icon_chip_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .items_center()
         .justify_center()
         .rounded(px(d.icon_button_radius))
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
 }
 
@@ -117,7 +120,7 @@ pub fn small_pill_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .gap(px(4.0))
         .rounded(px(d.tab_radius))
         .bg(c.dialog_secondary_button_bg)
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
 }
 
@@ -137,8 +140,7 @@ pub fn menu_bar_button(
         .items_center()
         .justify_center()
         .rounded(px(d.menu_bar_button_radius))
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-        .active(|this| this.opacity(0.92))
+        .hover(|this| this.bg(c.panel_row_hover))
         .cursor_pointer()
 }
 
@@ -156,6 +158,5 @@ fn action_base(
         .items_center()
         .justify_center()
         .rounded(px(radius))
-        .active(|this| this.opacity(0.92))
         .cursor_pointer()
 }

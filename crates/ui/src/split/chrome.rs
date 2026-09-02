@@ -23,8 +23,9 @@ pub struct OverlayStyle {
     pub panel_radius: f32,
     /// Splitter bar base color.
     pub border: Hsla,
-    /// Splitter bar hover color.
-    pub selection: Hsla,
+    /// Hover background for divider bars and corner drag handles, unified
+    /// with the explorer row-hover color.
+    pub hover: Hsla,
     /// Splitter bar drag-in-progress color (line + hit-zone glow).
     pub active: Hsla,
     /// Surface card background color for central indicator badges.
@@ -43,7 +44,7 @@ impl OverlayStyle {
             tile_radius: d.panel_tile_radius,
             panel_radius: theme::dimensions::CONTROL_CORNER_RADIUS,
             border: c.dialog_border,
-            selection: c.selection,
+            hover: c.panel_row_hover,
             active: c.focus_accent,
             surface: c.dialog_surface,
             text: c.dialog_title,
@@ -113,7 +114,7 @@ pub fn splitter_bar_h(
                     .w(px(1.0))
                     .bg(style.border),
             )
-            .hover(move |this| this.bg(style.selection.opacity(0.15)))
+            .hover(move |this| this.bg(style.hover))
     }
 }
 
@@ -168,7 +169,7 @@ pub fn splitter_bar_v(
                     .h(px(1.0))
                     .bg(style.border),
             )
-            .hover(move |this| this.bg(style.selection.opacity(0.15)))
+            .hover(move |this| this.bg(style.hover))
     }
 }
 
@@ -202,7 +203,7 @@ where
     F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
 {
     let gap_thickness = gap.max(6.0);
-    let hover_bg = style.selection.opacity(0.15);
+    let hover_bg = style.hover;
     let make_corner = |corner_str: &'static str, top: bool, left: bool| {
         let on_start_drag = on_start_drag.clone();
         let make_arm = |dir_str: &'static str, is_h: bool| {
@@ -396,7 +397,6 @@ where
                     .rounded(px(style.item_radius))
                     .bg(style.surface)
                     .hover(|this| this.bg(style.item_hover))
-                    .active(|this| this.opacity(0.92))
                     .cursor_pointer()
                     .text_size(px(style.text_size))
                     .font_weight(style.text_weight)

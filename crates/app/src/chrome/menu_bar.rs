@@ -1,6 +1,7 @@
 //! In-window inline titlebar menu button row rendering.
 
 use gpui::*;
+use gpui::prelude::FluentBuilder;
 
 use crate::shell::Shell;
 use theme::Theme;
@@ -48,8 +49,7 @@ impl Shell {
             .items_center()
             .justify_center()
             .rounded(px(d.menu_bar_button_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .active(|this| this.opacity(0.92))
+            .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
             .child(
                 svg()
@@ -85,11 +85,7 @@ impl Shell {
                 row = row.child(
                     menu_bar_button(("app-menu-button", index), c, d)
                         .w(px(button_width))
-                        .bg(if is_open {
-                            c.dialog_secondary_button_hover
-                        } else {
-                            hsla(0.0, 0.0, 0.0, 0.0)
-                        })
+                        .when(is_open, |this| this.bg(c.panel_row_hover))
                         .text_size(px(d.menu_text_size))
                         .font_weight(t.dialog_button_weight.to_font_weight())
                         .text_color(c.dialog_secondary_button_text)

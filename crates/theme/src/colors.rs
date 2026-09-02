@@ -173,8 +173,6 @@ pub struct ThemeColors {
     pub dialog_primary_button_text: Hsla,
     /// Secondary (cancel) button background.
     pub dialog_secondary_button_bg: Hsla,
-    /// Secondary button hover background.
-    pub dialog_secondary_button_hover: Hsla,
     /// Secondary button text colour.
     pub dialog_secondary_button_text: Hsla,
     /// App-menu button icon colour while the menu bar is expanded.
@@ -191,10 +189,8 @@ pub struct ThemeColors {
     pub bottombar_text: Hsla,
     /// Dimmed/secondary text colour in the status bar.
     pub bottombar_text_dim: Hsla,
-    /// Hover background for clickable status bar items.
-    pub bottombar_button_hover: Hsla,
     /// Subtle row hover background (file tree, outline, menus, dropdowns, tabs).
+    /// Also the selected-row background: selection is indicated by the accent
+    /// indicator bar, so selected rows share the hover highlight.
     pub panel_row_hover: Hsla,
-    /// Subtle row selection background (file tree, outline, menus, dropdowns, tabs).
-    pub panel_row_selected: Hsla,
 }

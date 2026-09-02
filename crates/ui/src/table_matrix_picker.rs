@@ -7,27 +7,6 @@ use gpui::*;
 
 use theme::Theme;
 
-/// Theme-derived highlight colors for matrix cells.
-#[derive(Clone, Copy, Debug)]
-pub struct MatrixCellColors {
-    pub inactive: Hsla,
-    pub current_only: Hsla,
-    pub hover_only: Hsla,
-    pub overlap: Hsla,
-}
-
-impl MatrixCellColors {
-    pub fn from_theme(theme: &Theme) -> Self {
-        let c = &theme.colors;
-        Self {
-            inactive: c.dialog_secondary_button_bg,
-            current_only: c.dialog_secondary_button_hover,
-            hover_only: c.panel_row_selected,
-            overlap: c.focus_accent,
-        }
-    }
-}
-
 /// Renders the top indicator badge: `[ Row count ] Row  x  [ Col count ] Column`.
 pub fn render_matrix_dimension_indicator(
     rows: usize,

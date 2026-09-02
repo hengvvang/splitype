@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use gpui::*;
+use gpui::prelude::FluentBuilder;
 
 use editor_contracts::{OutlineHost, OutlineNode};
 use theme::Theme;
@@ -58,11 +59,7 @@ pub fn render_floating_outline_hud(
                     .flex()
                     .items_center()
                     .gap(px(6.0))
-                    .bg(if is_active {
-                        c.panel_row_hover
-                    } else {
-                        hsla(0.0, 0.0, 0.0, 0.0)
-                    })
+                    .when(is_active, |this| this.bg(c.panel_row_hover))
                     .hover(|style| style.bg(c.panel_row_hover))
                     .children(if is_active {
                         Some(

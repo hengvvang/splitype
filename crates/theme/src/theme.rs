@@ -214,7 +214,6 @@ impl Theme {
                 dialog_primary_button_hover: Hsla::from(rgba(0x6490ffff)),
                 dialog_primary_button_text: Hsla::from(rgba(0xffffffff)),
                 dialog_secondary_button_bg: Hsla::from(rgba(0x27272aff)),
-                dialog_secondary_button_hover: Hsla::from(rgba(0x323236ff)),
                 dialog_secondary_button_text: Hsla::from(rgba(0xf4f4f5ff)),
                 app_menu_active: Hsla::from(rgba(0x4f80ffff)),
                 dialog_danger_button_bg: Hsla::from(rgba(0xef4444ff)),
@@ -223,11 +222,8 @@ impl Theme {
                 bottombar_background: Hsla::from(rgba(0x18181bff)),
                 bottombar_text: Hsla::from(rgba(0xa1a1aaff)),
                 bottombar_text_dim: Hsla::from(rgba(0x71717aff)),
-                bottombar_button_hover: Hsla::from(rgba(0x323236ff)),
                 // Subtle translucent white row highlight (Dark: 5.5% alpha)
                 panel_row_hover: Hsla::from(rgba(0xffffff0e)),
-                // Subtle accent blue row selection (Dark: 14% alpha)
-                panel_row_selected: Hsla::from(rgba(0x4f80ff24)),
             },
             dimensions: ThemeDimensions {
                 editor_padding: 24.0,
@@ -475,7 +471,6 @@ impl Theme {
                 dialog_primary_button_hover: Hsla::from(rgba(0x1d4ed8ff)),
                 dialog_primary_button_text: Hsla::from(rgba(0xffffffff)),
                 dialog_secondary_button_bg: Hsla::from(rgba(0xf4f4f5ff)),
-                dialog_secondary_button_hover: Hsla::from(rgba(0xe4e4e7ff)),
                 dialog_secondary_button_text: Hsla::from(rgba(0x18181bff)),
                 app_menu_active: Hsla::from(rgba(0x2563ebff)),
                 dialog_danger_button_bg: Hsla::from(rgba(0xdc2626ff)),
@@ -484,11 +479,8 @@ impl Theme {
                 bottombar_background: Hsla::from(rgba(0xffffffff)),
                 bottombar_text: Hsla::from(rgba(0x52525bff)),
                 bottombar_text_dim: Hsla::from(rgba(0x71717aff)),
-                bottombar_button_hover: Hsla::from(rgba(0xe4e4e7ff)),
                 // Subtle translucent black row highlight (Light: 4.5% alpha)
                 panel_row_hover: Hsla::from(rgba(0x0000000b)),
-                // Subtle accent blue row selection (Light: 9% alpha)
-                panel_row_selected: Hsla::from(rgba(0x2563eb17)),
             },
             dimensions: base.dimensions,
             typography: base.typography,
