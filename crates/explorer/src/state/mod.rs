@@ -3,9 +3,12 @@
 //! Pure data-driven state: worktree snapshots, the flat visible-row model,
 //! selection, expansion, drag-and-drop state, and the inline filename
 //! editor. Each explorer panel instance owns one [`ExplorerState`] entity
-//! (one per `ExplorerPanelView`), so split and multi-window panels never
-//! share tree state. The VIEW (interactions, rendering) lives in the
-//! crate's sibling modules and depends on this state one-way.
+//! (one per `ExplorerPanelView`) holding the panel's VIEW state, while the
+//! scanned trees themselves are process-level shared resources in
+//! [`WorktreeStore`] — split and multi-window panels share one tree per
+//! folder root and keep independent expansion/selection. The VIEW
+//! (interactions, rendering) lives in the crate's sibling modules and
+//! depends on this state one-way.
 //!
 //! The editor family never imports this module, and vice versa.
 //!
@@ -14,7 +17,9 @@
 //! - [`SelectedEntry`] — the composite selection key `(worktree_id, entry_id)`.
 //! - [`VisibleExplorerEntry`] — flat view row derived directly from `WorktreeSnapshot`.
 //! - [`ExplorerState`] — file-tree interaction and view-model state.
+//! - [`WorktreeStore`] — the process-global registry of shared scanned trees.
 
+pub mod store;
 pub mod undo;
 pub mod utils;
 pub mod worktree;
@@ -23,16 +28,16 @@ use std::collections::{BTreeSet, HashMap};
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 
 use gpui::{
-    AnyWindowHandle, AppContext, Bounds, Entity, FocusHandle, Pixels, Task,
+    AnyWindowHandle, AppContext, Bounds, Entity, FocusHandle, Pixels, Subscription, Task,
     UniformListScrollHandle, WeakEntity,
 };
 
 use crate::state::undo::ExplorerUndoHistory;
 use crate::state::worktree::{Worktree, WorktreeEntryKind, WorktreeSnapshot};
 
+pub use crate::state::store::WorktreeStore;
 pub use crate::state::worktree::{ExplorerEntryId, WorktreeEvent, WorktreeId};
 
 /// Explorer row right-click menu: a window-level overlay rendered by the
@@ -256,13 +261,13 @@ impl DragExplorerTarget {
 /// Top-level explorer file-tree state.
 pub struct ExplorerState {
     pub tree_visible: bool,
-    /// Worktree entities in display order (mirrors Zed's `visible_worktrees`).
+    /// Shared worktree entities in this panel's display order. The trees
+    /// themselves are process-global (see [`WorktreeStore`]); this list is
+    /// the panel's view of which roots are visible.
     pub worktrees: Vec<Entity<Worktree>>,
-    /// Immutable worktree snapshots kept in sync on scan events.
+    /// Immutable worktree snapshots kept in sync on scan events (render cache).
     pub snapshots: Vec<Arc<WorktreeSnapshot>>,
-    /// Shared stable-id allocator across all worktrees.
-    pub next_entry_id: Arc<AtomicU64>,
-    /// Expanded directory ids per worktree (Zed's `expanded_dir_ids`).
+    /// Expanded directory ids per worktree.
     pub expanded: HashMap<WorktreeId, BTreeSet<ExplorerEntryId>>,
     pub file_error: Option<String>,
     /// Flat visible rows — the virtualized list's data source.
@@ -304,6 +309,10 @@ pub struct ExplorerState {
     /// Weak handle to this state's own entity, captured at construction so
     /// event handlers and background tasks can re-enter the panel state.
     pub self_weak: WeakEntity<Self>,
+    /// Worktree scan-event subscriptions, keyed by tree id. Dropping a
+    /// subscription (or the panel) unsubscribes; the store drops the shared
+    /// tree when the last view releases it.
+    pub subscriptions: HashMap<WorktreeId, Subscription>,
 }
 
 impl ExplorerState {
@@ -323,7 +332,6 @@ impl Default for ExplorerState {
             tree_visible: false,
             worktrees: Vec::new(),
             snapshots: Vec::new(),
-            next_entry_id: Arc::new(AtomicU64::new(1)),
             expanded: HashMap::new(),
             file_error: None,
             entries: Vec::new(),
@@ -347,6 +355,7 @@ impl Default for ExplorerState {
             bottombar_menu_open: false,
             active_file: None,
             self_weak: WeakEntity::new_invalid(),
+            subscriptions: HashMap::new(),
         };
         state.refresh_recent_cache();
         state

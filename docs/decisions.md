@@ -381,3 +381,33 @@ source of truth per document, and every view of it is a shallow reference:
 Cross-process conflicts (external editors) are deliberately out of scope:
 the user resolves them; within the process the shared buffer makes split
 editors and cloned windows self-consistent by construction.
+
+## ADR-025: One scanned file tree per folder, process-wide
+
+**Status:** Accepted
+
+The explorer follows the same single-source pattern as documents
+(ADR-024): the scanned tree is a shared resource, panel state is view-only.
+
+- **One tree per folder.** `WorktreeStore` (a process global) registers one
+  `Worktree` entity per canonical folder root with per-view reference
+  counts (`acquire` / `release`); the tree — its immutable snapshot, stable
+  entry ids, and its single recursive filesystem watcher — is dropped with
+  its last view. `WorktreeId` is process-stable (allocated by the store),
+  never a panel-local index.
+- **One refresh path.** Panels subscribe to `WorktreeEvent::UpdatedEntries`
+  and rebuild their visible rows; the worktree no longer re-enters a
+  specific panel. Renames, creations, and deletions are visible in every
+  panel sharing the tree the moment the single rescan lands.
+- **View state stays per panel.** `ExplorerState` keeps visible roots and
+  their display order, expansion sets, selection, marks, clipboard, drag
+  state, undo history, and the inline edit row; splits and clones share
+  trees and keep independent view state. `clone_state` persists folder
+  roots, which resolve through the store on restore — a folder already open
+  elsewhere is shared live instead of rescanned.
+- **Suspend parks the live entity.** Panel kind switches park the live
+  `Entity<ExplorerState>` (and the settings panel parks its live
+  `Entity<SettingsUiState>`), so expansion and selection survive; each
+  descriptor's `restore_panel` converges both a parked live entity and a
+  durable projection onto one live model, exactly like the editor's
+  session.

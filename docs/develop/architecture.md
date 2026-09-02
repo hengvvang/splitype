@@ -278,9 +278,12 @@ transitional hardcoding listed below is removed.
 - Panel kind switches use a generic suspend/restore protocol
   (`PanelView::suspend_state`/`clone_state`,
   `PanelDescriptor::restore_panel`/`retained_dirty_info`/`discard_retained`)
-  and `Shell::retained_panel_states`. Editor document sessions participate
-  as ordinary plugin state; the shell no longer owns an editor-specific
-  session retention mechanism.
+  and `Shell::retained_panel_states`. Editor, explorer, and settings panels
+  all park their live state entity on suspend (pane states, tree expansion,
+  and the active settings page survive kind switches), and each descriptor
+  converges both a parked live entity and a durable projection onto one
+  live model; the shell no longer owns an editor-specific session retention
+  mechanism.
 - Host-driven pane commands (`replace`, `apply_*`) return the new document
   text and the editor commits it into the shared buffer once; spontaneous
   pane edits commit through `PaneHost::commit_text`. The buffer bumps the
@@ -291,10 +294,14 @@ transitional hardcoding listed below is removed.
 - The Settings panel owns its `SettingsUiState` as a per-panel entity created
   by its descriptor; splitting the settings panel now yields independent
   instances, and the app bootstrap no longer installs a settings global.
-- The Explorer panel owns an `Entity<ExplorerState>` per instance and
-  restores/clones it through the generic suspend/clone protocol; the shell
-  routes active-file sync, tree toggles, and menu rendering to every
-  explorer instance instead of a shared app global.
+- The Explorer panel owns an `Entity<ExplorerState>` per instance holding
+  only view state (visible roots, expansion, selection, drag state), while
+  the scanned trees are process-level shared resources in the explorer's
+  `WorktreeStore` (one `Worktree` per folder root, reference-counted by
+  views, mirroring the editor's `DocumentStore`); splits, clones, and
+  multi-window explorers share one tree per folder and stay live-consistent,
+  and the shell routes active-file sync, tree toggles, and menu rendering
+  to every explorer instance instead of a shared app global.
 - The explorer's shell integration is plain plugin hooks, not a platform
   role: `set_active_document_path`, `on_document_path_changed`,
   `toggle_tree`, and `close_folder_scope` are exported by the explorer
@@ -316,7 +323,8 @@ transitional hardcoding listed below is removed.
   while non-opting panels restore fresh. Startup restores the document
   buffers first, then rebuilds panel sessions against them. Explorer and
   Settings panels opt in too: the explorer persists its tree visibility and
-  open folder paths (worktrees re-scan from disk on restore), and settings
+  open folder paths (roots resolve through the shared worktree store on
+  restore — folders already open elsewhere are shared live), and settings
   persists its active plugin page.
 - Plugins are declared through versioned TOML manifests
   (`PluginManifest`: reverse-domain `PluginId`, entry point, declared pane

@@ -34,11 +34,23 @@ impl SettingsPanelView {
             state: cx.new(|_cx| SettingsUiState::new()),
         }
     }
+
+    /// Reuses a live state entity (suspend/restore of a panel kind switch).
+    pub fn with_state(panel_id: PanelId, state: Entity<SettingsUiState>) -> Self {
+        Self { panel_id, state }
+    }
 }
 
 impl PanelView for SettingsPanelView {
     fn kind(&self) -> PanelKind {
         PanelKind::from_static(PANEL_KIND)
+    }
+
+    /// Parks the live state entity when this panel kind switches away;
+    /// restoring this kind hands the same entity back (current page,
+    /// dropdowns, and edit buffers intact).
+    fn suspend_state(&mut self, _cx: &mut App) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.state.clone()))
     }
 
     fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
@@ -134,12 +146,18 @@ impl PanelDescriptor for SettingsPanelDescriptor {
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
-        let state = state
-            .downcast::<PersistedSettingsState>()
-            .ok()
-            .map(|boxed| *boxed)?;
+        // A suspended live entity (panel kind switch) is reused as-is; a
+        // durable projection (clone / window restore) rebuilds fresh UI
+        // state carrying only the active plugin page.
+        if state.is::<Entity<SettingsUiState>>() {
+            let live = state
+                .downcast::<Entity<SettingsUiState>>()
+                .expect("just checked");
+            return Some(Box::new(SettingsPanelView::with_state(panel_id, *live)));
+        }
+        let persisted = state.downcast::<PersistedSettingsState>().ok()?;
         let view = SettingsPanelView::new(panel_id, cx);
-        let restored = SettingsUiState::from_persisted(&state);
+        let restored = SettingsUiState::from_persisted(&persisted);
         view.state.update(cx, |ui, _cx| *ui = restored);
         Some(Box::new(view))
     }

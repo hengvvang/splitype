@@ -4,13 +4,16 @@
 //!
 //! - **State & model** live in [`state`]: the [`state::worktree`] scan
 //!   entities, the file-tree nodes / visible rows / selection, the
-//!   [`state::undo`] manager, and the background helpers. Every panel
-//!   instance owns its own [`ExplorerState`] entity (one per
-//!   `ExplorerPanelView`), so split and multi-window panels never share
-//!   tree state; the panel never touches the window shell, and shell
+//!   [`state::undo`] manager, and the background helpers. Scanned trees are
+//!   process-level shared resources registered in [`state::store::WorktreeStore`]
+//!   (one `Worktree` per folder root, reference-counted by views); each
+//!   panel instance owns its own [`ExplorerState`] view state (visible
+//!   roots, expansion, selection, drag state), so split and multi-window
+//!   panels share one scanned tree per folder while keeping independent
+//!   view state. The panel never touches the window shell, and shell
 //!   interactions go through the [`platform_contracts`] host seams.
 //! - **Selection** is keyed by the stable double key
-//!   `(worktree index, entry id)`; ids survive renames and moves, so
+//!   `(worktree id, entry id)`; ids survive renames and moves, so
 //!   selection and expansion state survive rescans. Multi-select marks,
 //!   range selection, and keyboard navigation live in [`ops::selection`].
 //! - **File operations** ([`ops::file_ops`], [`state::undo`]) cover delete /

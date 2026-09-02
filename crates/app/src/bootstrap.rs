@@ -134,6 +134,7 @@ pub fn run(args: Args) {
         I18nManager::init(cx);
         I18nManager::register_settings_sync_hook();
         editor::document::DocumentStore::init(cx);
+        explorer::state::WorktreeStore::init(cx);
         ThemeManager::init(cx);
         ThemeManager::register_settings_sync_hook();
         theme::TypographyStore::init(cx);

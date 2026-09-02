@@ -1,11 +1,12 @@
 //! Worktree entity — disk facts for one project root (mirrors Zed's
 //! `Worktree` architecture): an immutable entry snapshot, a stable id
-//! allocator shared across worktrees, a recursive filesystem watcher, and
-//! background rescans that reuse ids so selections and expansions survive
-//! renames and moves.
+//! allocator, a recursive filesystem watcher, and background rescans that
+//! reuse ids so selections and expansions survive renames and moves.
 //!
-//! The panel never mutates a worktree; it consumes `snapshot()` clones and
-//! rebuilds its visible list when `WorktreeEvent::UpdatedEntries` fires.
+//! A worktree is process-globally shared through [`crate::state::store::WorktreeStore`];
+//! panels never mutate it — they consume `snapshot()` clones, subscribe to
+//! `WorktreeEvent`, and rebuild their visible list when `UpdatedEntries`
+//! fires.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
@@ -18,12 +19,12 @@ use gpui::*;
 #[cfg(not(test))]
 use notify::Watcher as _;
 
-use crate::state::ExplorerState;
-
 // ── Identifiers ─────────────────────────────────────────────────────────
 
+/// Process-stable identity of a scanned folder tree, allocated by the
+/// worktree store (never a panel-local index).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct WorktreeId(pub usize);
+pub struct WorktreeId(pub u64);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExplorerEntryId(pub u64);
@@ -132,21 +133,19 @@ pub struct Worktree {
     root: PathBuf,
     root_id: ExplorerEntryId,
     snapshot: Arc<WorktreeSnapshot>,
-    /// Shared across all worktrees in one panel (mirrors Zed's
-    /// `WorktreeStore::next_entry_id`).
+    /// Stable id allocator for this tree's entries (ids only need to be
+    /// unique within one tree).
     next_entry_id: Arc<AtomicU64>,
     /// Skip dotfiles in scans (persisted explorer setting).
     hide_hidden: bool,
     /// Handle to this entity, captured at construction so background
-    /// tasks can wake and re-enter the worktree (the owning explorer state
-    /// keeps no `Context` to derive it from).
+    /// tasks can wake and re-enter the worktree.
     self_weak: WeakEntity<Worktree>,
-    /// Weak handle to the owning [`ExplorerState`] entity; scan events
-    /// re-enter it to refresh the visible tree.
-    explorer: WeakEntity<ExplorerState>,
     /// Window handle for try-borrow-safe re-entry from background tasks:
     /// `AnyWindowHandle::update` skips a wake-up that lands mid-render
-    /// instead of panicking ("RefCell already borrowed"). `None` in tests.
+    /// instead of panicking ("RefCell already borrowed"). The first window
+    /// that opened the tree provides it; shared trees keep using it.
+    /// `None` in tests.
     window_handle: Option<AnyWindowHandle>,
     #[cfg_attr(test, allow(dead_code))]
     fs_watch_task: Option<Task<()>>,
@@ -162,12 +161,11 @@ impl Worktree {
     pub fn new(
         id: WorktreeId,
         root: PathBuf,
-        next_entry_id: Arc<AtomicU64>,
         hide_hidden: bool,
         window_handle: Option<AnyWindowHandle>,
-        explorer: WeakEntity<ExplorerState>,
         cx: &mut App,
     ) -> Entity<Self> {
+        let next_entry_id = Arc::new(AtomicU64::new(1));
         let root_id = ExplorerEntryId(next_entry_id.fetch_add(1, Ordering::SeqCst));
         cx.new(|cx| {
             let snapshot = WorktreeSnapshot {
@@ -182,7 +180,6 @@ impl Worktree {
                 next_entry_id,
                 hide_hidden,
                 self_weak: cx.weak_entity(),
-                explorer,
                 window_handle,
                 fs_watch_task: None,
                 scan_task: None,
@@ -265,26 +262,9 @@ impl Worktree {
                         );
                         this.snapshot = Arc::new(snapshot);
                         this.needs_rescan = false;
+                        // Panels subscribe to this event and rebuild their
+                        // visible rows from the new snapshot.
                         cx.emit(WorktreeEvent::UpdatedEntries);
-                        // Refresh the explorer's visible tree from the new
-                        // snapshot (the explorer owns no subscription).
-                        //
-                        // This must be deferred past the end of this update:
-                        // `on_explorer_worktree_event` re-reads every
-                        // worktree snapshot — including this one, which is
-                        // mid-update right now — and GPUI panics when an
-                        // entity is read while it is being updated.
-                        let worktree_entity = cx.entity();
-                        let explorer_weak = this.explorer.clone();
-                        cx.defer(move |cx| {
-                            let _ = explorer_weak.update(cx, |explorer, cx| {
-                                explorer.on_explorer_worktree_event(
-                                    worktree_entity,
-                                    &WorktreeEvent::UpdatedEntries,
-                                    cx,
-                                );
-                            });
-                        });
                     }
                     Ok(_) | Err(_) => {
                         tracing::warn!(root = %root_for_log.display(), "[explorer] failed to scan worktree");

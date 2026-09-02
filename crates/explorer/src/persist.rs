@@ -4,8 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Durable explorer facts persisted across launches (and shared with the
-/// suspend/clone protocol). Live worktree entities are re-scanned from the
-/// folder paths on restore.
+/// suspend/clone protocol). On restore, folder roots resolve through the
+/// shared worktree store — a folder already open elsewhere is shared live
+/// instead of rescanned.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PersistedExplorerState {
     pub tree_visible: bool,

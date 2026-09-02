@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::settings::ExplorerSettings;
-use crate::state::worktree::Worktree;
 use crate::state::*;
 use config::settings::PluginSettings;
 
@@ -22,9 +21,8 @@ impl ExplorerState {
         cx.refresh_windows();
     }
     pub fn close_folder_scope(&mut self, cx: &mut App) {
+        self.release_worktrees(cx);
         let explorer = &mut *self;
-        explorer.worktrees.clear();
-        explorer.snapshots.clear();
         explorer.expanded.clear();
         explorer.file_error = None;
         explorer.entries.clear();
@@ -43,6 +41,19 @@ impl ExplorerState {
         explorer.refresh_recent_cache();
         self.rebuild_explorer_entries();
         cx.refresh_windows();
+    }
+
+    /// Releases every tree view of this panel without touching content,
+    /// ahead of panel or window teardown. Shared trees lose only this
+    /// panel's reference; fully owned trees are dropped with their last
+    /// view.
+    pub(crate) fn release_worktrees(&mut self, cx: &mut App) {
+        for worktree in self.worktrees.drain(..) {
+            let root = worktree.read(cx).root().to_path_buf();
+            cx.global_mut::<WorktreeStore>().release(&root);
+        }
+        self.subscriptions.clear();
+        self.snapshots.clear();
     }
 
     /// Add a project root as a new worktree (mirrors Zed's
@@ -78,27 +89,40 @@ impl ExplorerState {
             return; // already added
         }
         explorer.tree_visible = true;
-        let worktree_id = WorktreeId(explorer.worktrees.len());
         let hide_hidden = PluginSettings::<ExplorerSettings>::get(cx).hide_hidden;
-        let explorer_weak = explorer.self_weak.clone();
-        let worktree = Worktree::new(
-            worktree_id,
-            path.clone(),
-            explorer.next_entry_id.clone(),
-            hide_hidden,
-            window_handle,
-            explorer_weak,
-            cx,
-        );
+        // Resolve-or-scan the shared tree through the store; a folder already
+        // open in another panel (or window) is shared live, not rescanned.
+        let worktree = WorktreeStore::open(path, hide_hidden, window_handle, cx);
+        // The store keys by canonical root, so a symlinked alias of an
+        // already-visible folder resolves to the same tree — skip it.
+        if explorer.worktrees.contains(&worktree) {
+            return;
+        }
+        let (root, worktree_id, root_id) = {
+            let worktree = worktree.read(cx);
+            (
+                worktree.root().to_path_buf(),
+                worktree.id(),
+                worktree.root_id(),
+            )
+        };
+        cx.global_mut::<WorktreeStore>().acquire(&root);
+        let weak = explorer.self_weak.clone();
+        let subscription = cx.subscribe(&worktree, move |_tree, _event, cx| {
+            // Defer past the worktree update so the panel can read the
+            // shared snapshots without re-entering the emitting entity.
+            let weak = weak.clone();
+            cx.defer(move |cx| {
+                let _ = weak.update(cx, |state, cx| state.on_worktree_event(cx));
+            });
+        });
+        explorer.subscriptions.insert(worktree_id, subscription);
         // The root row starts expanded (VSCode-style title row visible).
-        let root_id = worktree.read(cx).root_id();
         explorer
             .expanded
             .entry(worktree_id)
             .or_default()
             .insert(root_id);
-        // The worktree notifies its owning explorer state itself when its
-        // snapshots change (no shell subscription needed).
         explorer.worktrees.push(worktree);
         explorer.snapshots = explorer
             .worktrees
@@ -118,7 +142,12 @@ impl ExplorerState {
             return;
         }
         let removed_wt = explorer.worktrees.remove(index);
-        let removed_id = removed_wt.read(cx).id();
+        let (removed_id, root) = {
+            let removed = removed_wt.read(cx);
+            (removed.id(), removed.root().to_path_buf())
+        };
+        explorer.subscriptions.remove(&removed_id);
+        cx.global_mut::<WorktreeStore>().release(&root);
         explorer.expanded.remove(&removed_id);
         if let Some(sel) = explorer.selected {
             if sel.worktree_id == removed_id {
@@ -139,12 +168,11 @@ impl ExplorerState {
 
     /// Closes all open worktree folders in the explorer.
     pub(crate) fn close_all_explorer_worktrees(&mut self, cx: &mut App) {
+        self.release_worktrees(cx);
         let explorer = &mut *self;
-        explorer.worktrees.clear();
         explorer.expanded.clear();
         explorer.selected = None;
         explorer.marked.clear();
-        explorer.snapshots.clear();
         explorer.edit = None;
         explorer.pending_select = None;
         self.rebuild_explorer_entries();
@@ -173,15 +201,11 @@ impl ExplorerState {
         cx.refresh_windows();
     }
 
-    /// Handle a worktree scan event: refresh the tree cache and rebuild the
-    /// visible list (Zed's `WorktreeUpdatedEntries` handler). Also consumes
-    /// a pending copy-collision rename once the new entry became visible.
-    pub(crate) fn on_explorer_worktree_event(
-        &mut self,
-        _worktree: Entity<Worktree>,
-        _event: &WorktreeEvent,
-        cx: &mut App,
-    ) {
+    /// Handle a worktree scan event (arrives through the panel's
+    /// subscription, deferred past the worktree update): refresh the tree
+    /// cache and rebuild the visible list. Also consumes a pending
+    /// copy-collision rename once the new entry became visible.
+    pub(crate) fn on_worktree_event(&mut self, cx: &mut App) {
         self.snapshots = self
             .worktrees
             .iter()

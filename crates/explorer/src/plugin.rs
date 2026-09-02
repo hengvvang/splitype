@@ -21,8 +21,9 @@ pub const TOPBAR_ICON_PREFIX: &str = "icons/explorer";
 /// View wrapper implementing [`PanelView`] for the Explorer file-tree panel.
 pub struct ExplorerPanelView {
     pub panel_id: PanelId,
-    /// The panel's own explorer state entity (one per panel instance, so
-    /// splits and multi-window panels never share tree state).
+    /// The panel's own explorer view-state entity (one per panel instance);
+    /// the scanned trees it shows are process-level shared resources from
+    /// the worktree store.
     pub state: Entity<ExplorerState>,
 }
 
@@ -32,6 +33,11 @@ impl ExplorerPanelView {
             panel_id,
             state: ExplorerState::entity(cx),
         }
+    }
+
+    /// Reuses a live state entity (suspend/restore of a panel kind switch).
+    pub fn with_state(panel_id: PanelId, state: Entity<ExplorerState>) -> Self {
+        Self { panel_id, state }
     }
 }
 
@@ -99,6 +105,13 @@ impl PanelView for ExplorerPanelView {
             .into_any_element()
     }
 
+    /// Parks the live state entity when this panel kind switches away; the
+    /// shared worktrees stay registered in the store, and restoring this
+    /// kind hands the same state (expansion, selection included) back.
+    fn suspend_state(&mut self, _cx: &mut App) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.state.clone()))
+    }
+
     fn clone_state(&self, cx: &mut App) -> Option<Box<dyn Any>> {
         let state = self.state.read(cx);
         let open_folders = state
@@ -110,6 +123,19 @@ impl PanelView for ExplorerPanelView {
             tree_visible: state.tree_visible,
             open_folders,
         }))
+    }
+
+    /// The explorer holds no dirty content: discarding a panel simply
+    /// releases its tree views (idempotent — trees drain on first call).
+    fn discard_changes(&mut self, cx: &mut App) {
+        self.state
+            .update(cx, |state, cx| state.release_worktrees(cx));
+    }
+
+    /// Releases every tree view of this panel ahead of teardown.
+    fn release_documents(&mut self, cx: &mut App) {
+        self.state
+            .update(cx, |state, cx| state.release_worktrees(cx));
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -188,14 +214,21 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
         state: Box<dyn Any>,
         cx: &mut App,
     ) -> Option<Box<dyn PanelView>> {
-        let state = state
-            .downcast::<PersistedExplorerState>()
-            .ok()
-            .map(|boxed| *boxed)?;
+        // Two distinct sources converge on one live model: a suspended live
+        // state entity (panel kind switch) keeps its registered tree views,
+        // while a durable projection (clone / window restore) resolves its
+        // folders through the shared worktree store.
+        if state.is::<Entity<ExplorerState>>() {
+            let live = state
+                .downcast::<Entity<ExplorerState>>()
+                .expect("just checked");
+            return Some(Box::new(ExplorerPanelView::with_state(panel_id, *live)));
+        }
+        let persisted = state.downcast::<PersistedExplorerState>().ok()?;
         let view = ExplorerPanelView::new(panel_id, cx);
         view.state.update(cx, |explorer, cx| {
-            explorer.tree_visible = state.tree_visible;
-            for path in state.open_folders {
+            explorer.tree_visible = persisted.tree_visible;
+            for path in persisted.open_folders {
                 explorer.restore_worktree(path, cx);
             }
         });
@@ -210,5 +243,19 @@ impl PanelDescriptor for ExplorerPanelDescriptor {
     fn deserialize_state(&self, json: &serde_json::Value) -> Option<Box<dyn Any>> {
         let state: PersistedExplorerState = serde_json::from_value(json.clone()).ok()?;
         Some(Box::new(state))
+    }
+
+    /// Releases the tree views held inside a suspended live state (panel
+    /// teardown); shared trees lose only this panel's reference.
+    fn release_retained(&self, state: &mut Box<dyn Any>, cx: &mut App) {
+        if let Some(entity) = state.downcast_ref::<Entity<ExplorerState>>() {
+            entity.update(cx, |state, cx| state.release_worktrees(cx));
+        }
+    }
+
+    /// The explorer has no dirty content to discard — discarding a retained
+    /// panel releases its tree views.
+    fn discard_retained(&self, state: &mut Box<dyn Any>, cx: &mut App) {
+        self.release_retained(state, cx);
     }
 }
