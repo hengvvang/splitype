@@ -1,10 +1,9 @@
 //! Drag-session records and the corner-drag fact vocabulary.
 //!
-//! These are pure state records; the gesture handling that drives them
-//! and every policy decision (what a drag means, whether to render an
-//! indicator) lives in the hosts' render layer (the window layout drives
-//! the mouse gestures for both the outer panels and the inner editor
-//! panes; the editor renders the panes).
+//! These are pure state records plus pure geometry math over them. The
+//! gesture state machines live on [`crate::root::SplitterRoot`]; the
+//! policy decisions (what a drag means) live in [`crate::policy`]; and
+//! what an indicator looks like lives in the `ui` crate.
 
 use gpui::{Pixels, Point};
 
@@ -91,14 +90,9 @@ pub struct CornerDragSession {
 }
 
 /// Context menu state for right-clicking a border divider bar between leaves.
-///
-/// `split_id` doubles as the target area id: by the split tree's convention
-/// a split node's id equals its second child leaf's id, so split/close (which
-/// target that leaf) and swap (which needs the split id) all use one value.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderMenuState {
     pub split_id: NodeId,
-    pub axis: SplitAxis,
     pub position: Point<Pixels>,
 }
 
@@ -118,20 +112,6 @@ pub fn calc_snapped_ratio(raw_ratio: f32, ctrl_held: bool) -> f32 {
         return frac.clamp(0.0, 1.0);
     }
     clamped
-}
-
-/// Check if two leaf rects share an edge (are direct adjacent neighbors).
-pub fn is_adjacent_neighbor(a: &LeafRect, b: &LeafRect) -> bool {
-    const EPS: f32 = 6.0;
-    let overlap_x = (a.x + a.width).min(b.x + b.width) - a.x.max(b.x);
-    let overlap_y = (a.y + a.height).min(b.y + b.height) - a.y.max(b.y);
-
-    let shares_vertical_border =
-        (a.x + a.width - b.x).abs() <= EPS || (b.x + b.width - a.x).abs() <= EPS;
-    let shares_horizontal_border =
-        (a.y + a.height - b.y).abs() <= EPS || (b.y + b.height - a.y).abs() <= EPS;
-
-    (shares_vertical_border && overlap_y > EPS) || (shares_horizontal_border && overlap_x > EPS)
 }
 
 /// Calculate the exact merged slice geometry for joining two adjacent areas, matching Blender's area join logic.
@@ -175,7 +155,6 @@ pub fn calculate_join_slice_rect(source: &LeafRect, target: &LeafRect) -> (f32, 
 pub fn calculate_dock_target(
     source_rect: &LeafRect,
     target_rect: &LeafRect,
-    _dir: Direction,
     pointer_pos: Point<Pixels>,
     ctrl_held: bool,
 ) -> (AreaDockTarget, f32) {

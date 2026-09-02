@@ -8,6 +8,7 @@ use splitter::tree::NodeId;
 use theme::Theme;
 use ui::menu_item::menu_item;
 use ui::popover::menu_panel;
+use ui::split::chrome::{OverlayStyle, corner_drag_handles};
 
 impl Shell {
     pub(crate) fn render_window_panel_tile(
@@ -80,7 +81,6 @@ impl Shell {
             .relative()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
-                    shell.panels.layout.focused_leaf = Some(leaf_id);
                     if activates_on_click {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
@@ -97,13 +97,13 @@ impl Shell {
             );
 
             let shell_corner = cx.entity().downgrade();
-            let corner_handles = splitter::interaction::corner_drag_handles(
+            let overlay_style = OverlayStyle::from_theme(theme);
+            let corner_handles = corner_drag_handles(
                 "panel-corner",
                 leaf_id,
                 gap,
                 48.0,
-                false,
-                false,
+                &overlay_style,
                 move |modifier, pos, cx| {
                     let _ = shell_corner.update(cx, |shell, cx| {
                         let body_pos =

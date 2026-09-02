@@ -1,31 +1,34 @@
-//! Corner-drag indicator rendering (host-side logic).
+//! Corner-drag indicator rendering.
 //!
-//! The splitter engine reports only raw gesture facts ([`CornerDragSession`]);
-//! this module owns the *rendering*: what the indicator looks like.
+//! The splitter engine reports only raw gesture facts
+//! ([`splitter::sessions::CornerDragSession`]); this module owns the
+//! rendering: what the indicator looks like.
 
 use gpui::*;
 
-use splitter::interaction::{OverlayStyle, overlay_container};
+use super::chrome::{OverlayStyle, overlay_container, preview_allowed};
 use splitter::root::SplitterRoot;
-use splitter::sessions::{
-    AreaDockTarget, CornerDragModifier, CornerDragSession, calculate_join_slice_rect,
-};
+use splitter::sessions::{AreaDockTarget, calculate_join_slice_rect};
 use splitter::tree::{LeafRect, SplitAxis};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
-/// show yet (no gesture direction).
+/// show yet (no gesture direction, or the modifier is not supported).
 pub fn render_corner_drag_preview<T: Clone + PartialEq>(
     root: &SplitterRoot<T>,
-    drag: &CornerDragSession,
+    drag: &splitter::sessions::CornerDragSession,
     container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> Option<AnyElement> {
+    if !preview_allowed(drag) {
+        return None;
+    }
+
     let mut rects = Vec::new();
     root.tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
     let target_rect = rect_by_id(&rects, drag.target_id)?;
 
     // 0. Shift drag preview: Duplicate Area into New Window
-    if drag.modifier == CornerDragModifier::Shift {
+    if drag.modifier == splitter::sessions::CornerDragModifier::Shift {
         return Some(new_window_preview_overlay(
             target_rect,
             drag.pointer_pos,
@@ -39,7 +42,7 @@ pub fn render_corner_drag_preview<T: Clone + PartialEq>(
             let hover_target = rect_by_id(&rects, hover)?;
 
             // 1. Swap preview (Ctrl held or hovering Center)
-            if drag.modifier == CornerDragModifier::Ctrl
+            if drag.modifier == splitter::sessions::CornerDragModifier::Ctrl
                 || drag.dock_target == AreaDockTarget::Center
             {
                 return Some(swap_preview_overlay(
@@ -200,7 +203,7 @@ fn cursor_action_panel(
         .top(px(top_px))
         .px(px(10.0))
         .py(px(6.0))
-        .rounded(px(theme::dimensions::CONTROL_CORNER_RADIUS))
+        .rounded(px(style.panel_radius))
         .bg(style.surface)
         .border(px(1.0))
         .border_color(style.border)

@@ -67,9 +67,4 @@ impl<T: Clone + PartialEq> SplitterContainer<T> {
         self.active_corner_drag = None;
         Some(session)
     }
-
-    /// End this panel's corner-drag session without returning facts.
-    pub fn end_corner_drag(&mut self) {
-        self.active_corner_drag = None;
-    }
 }

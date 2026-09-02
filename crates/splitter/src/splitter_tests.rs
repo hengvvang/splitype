@@ -112,3 +112,78 @@ fn split_is_disallowed_when_maximized() {
     assert!(split_success.is_some());
     assert_eq!(root.tree.count_leaves(), 3);
 }
+
+#[test]
+fn splitter_drag_updates_ratio_and_cancel_restores_it() {
+    let mut root = new_root();
+    let new_id = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+    // The split node id is allocated right before the new leaf id.
+    let split_id = new_id - 1;
+
+    root.start_splitter_drag(split_id, SplitAxis::Horizontal, 100.0, 0.5);
+    assert!(root.active_splitter_drag.is_some());
+
+    // Span refreshes from the viewport (1000px wide); +200px on a 1000px
+    // span moves the ratio from 0.5 to 0.7.
+    let viewport = gpui::size(gpui::px(1000.0), gpui::px(800.0));
+    let updated = root.update_drag_gesture(gpui::point(gpui::px(300.0), gpui::px(0.0)), viewport);
+    assert!(updated);
+    let ratio = match &root.tree {
+        crate::tree::SplitTree::Split { ratio, .. } => *ratio,
+        _ => panic!("expected a split node"),
+    };
+    assert!((ratio - 0.7).abs() < 0.001);
+
+    // Escape-style cancel restores the start ratio and clears the session.
+    assert!(root.cancel_drag_gesture());
+    assert!(root.active_splitter_drag.is_none());
+    let restored = match &root.tree {
+        crate::tree::SplitTree::Split { ratio, .. } => *ratio,
+        _ => panic!("expected a split node"),
+    };
+    assert!((restored - 0.5).abs() < 0.001);
+}
+
+#[test]
+fn corner_drag_gesture_round_trips_through_policy() {
+    let mut root = new_root();
+    let new_id = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+
+    // Plain drag within the same leaf splits it along the drag direction.
+    root.start_corner_drag(
+        1,
+        gpui::point(gpui::px(10.0), gpui::px(10.0)),
+        crate::sessions::CornerDragModifier::None,
+    );
+    assert!(root.corner_drag_panel().is_some());
+    let viewport = gpui::size(gpui::px(1000.0), gpui::px(800.0));
+    assert!(root.update_drag_gesture(gpui::point(gpui::px(300.0), gpui::px(200.0)), viewport));
+
+    let result = root.finish_drag_gesture(viewport);
+    match result {
+        Some(crate::policy::CornerDragResult::Split { new_leaf_id, .. }) => {
+            assert!(new_leaf_id > new_id);
+        }
+        other => panic!("expected a split result, got {other:?}"),
+    }
+    assert!(root.corner_drag_panel().is_none());
+}
+
+#[test]
+fn finishing_without_an_active_gesture_reports_none() {
+    let mut root = new_root();
+    let viewport = gpui::size(gpui::px(1000.0), gpui::px(800.0));
+    assert!(root.finish_drag_gesture(viewport).is_none());
+    assert!(!root.cancel_drag_gesture());
+}
+
+#[test]
+fn border_menu_state_tracks_split_and_position_only() {
+    let mut root = new_root();
+    let new_id = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+    let split_id = new_id - 1;
+    root.open_border_menu(split_id, gpui::point(gpui::px(320.0), gpui::px(240.0)));
+    let menu = root.active_border_menu.expect("menu open");
+    assert_eq!(menu.split_id, split_id);
+    assert_eq!(f32::from(menu.position.x), 320.0);
+}

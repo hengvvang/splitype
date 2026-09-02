@@ -44,9 +44,6 @@ pub struct SplitterRoot<T: Clone + PartialEq> {
     /// closes, focus moves to the previous entry in history instead of
     /// picking an arbitrary neighbor.
     pub activation_history: Vec<NodeId>,
-    /// The leaf the mouse is currently operating on.
-    #[serde(skip)]
-    pub focused_leaf: Option<NodeId>,
 }
 
 impl<T: Clone + PartialEq> SplitterRoot<T> {
@@ -60,7 +57,6 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
             active_border_menu: None,
             active_leaf: None,
             activation_history: Vec::new(),
-            focused_leaf: None,
         }
     }
 
@@ -118,30 +114,6 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         self.activation_history.retain(|id| *id != leaf_id);
         self.activation_history.push(leaf_id);
         self.active_leaf = Some(leaf_id);
-    }
-
-    /// Returns the active leaf of the given `kind`, resolving through:
-    /// 1. Currently active leaf (if of kind `kind`)
-    /// 2. MRU activation history fallback
-    /// 3. First available leaf of kind `kind` in tree traversal
-    pub fn active_leaf_of_kind(&self, kind: T) -> Option<NodeId> {
-        if let Some(active) = self.active_leaf {
-            if self.tree.find_leaf_kind(active).as_ref() == Some(&kind) {
-                return Some(active);
-            }
-        }
-        self.activation_history
-            .iter()
-            .rev()
-            .copied()
-            .find(|id| self.tree.find_leaf_kind(*id).as_ref() == Some(&kind))
-            .or_else(|| {
-                let mut leaves = Vec::new();
-                self.tree.leaf_ids(&mut leaves);
-                leaves
-                    .into_iter()
-                    .find(|id| self.tree.find_leaf_kind(*id).as_ref() == Some(&kind))
-            })
     }
 
     /// Recompute the active leaf after the layout changed: the most
@@ -332,20 +304,109 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
     }
 
     // ------------------------------------------------------------------
-    // Splitter drag (resizing dividers — tree-level)
+    // Drag gestures — splitter bars and corner drags
     // ------------------------------------------------------------------
 
-    pub fn update_splitter_drag(&mut self, current_pointer_pos: f32) {
-        if let Some(session) = self.active_splitter_drag {
-            if session.total_span > 1.0 {
-                let new_ratio = session.ratio_at(current_pointer_pos);
-                self.tree.set_split_ratio(session.split_id, new_ratio);
+    /// Begin a splitter-bar drag on a split node.
+    ///
+    /// `current_ratio` is the split ratio at drag start; the real pixel
+    /// span is refreshed on the first move event.
+    pub fn start_splitter_drag(
+        &mut self,
+        split_id: NodeId,
+        axis: SplitAxis,
+        start_pointer_pos: f32,
+        current_ratio: f32,
+    ) {
+        if self.tree.find_maximized_leaf().is_some() {
+            return;
+        }
+        self.active_splitter_drag = Some(crate::sessions::SplitterDragSession {
+            split_id,
+            axis,
+            start_pointer_pos,
+            start_ratio: current_ratio,
+            total_span: 1000.0,
+        });
+    }
+
+    /// Open the border context menu on a split bar (right click).
+    pub fn open_border_menu(&mut self, split_id: NodeId, position: Point<Pixels>) {
+        if self.tree.find_maximized_leaf().is_some() {
+            return;
+        }
+        self.active_border_menu = Some(crate::sessions::BorderMenuState { split_id, position });
+    }
+
+    /// Progress the active drag gesture (splitter bar or corner drag).
+    ///
+    /// `pos` and `viewport` must share a coordinate system: the window body
+    /// for an outer layout, the panel's local space for an editor pane
+    /// layout. Returns whether a gesture was active (the host should
+    /// repaint).
+    pub fn update_drag_gesture(&mut self, pos: Point<Pixels>, viewport: Size<Pixels>) -> bool {
+        if let Some(drag) = self.active_splitter_drag {
+            let current_pos = match drag.axis {
+                SplitAxis::Horizontal => f32::from(pos.x),
+                SplitAxis::Vertical => f32::from(pos.y),
+            };
+            let span = self
+                .split_pixel_span(drag.split_id, viewport)
+                .unwrap_or_else(|| match drag.axis {
+                    SplitAxis::Horizontal => f32::from(viewport.width),
+                    SplitAxis::Vertical => f32::from(viewport.height),
+                });
+            if span > 1.0 {
+                let mut session = drag;
+                session.total_span = span;
+                self.active_splitter_drag = Some(session);
             }
+            if let Some(session) = self.active_splitter_drag {
+                if session.total_span > 1.0 {
+                    let new_ratio = session.ratio_at(current_pos);
+                    self.tree.set_split_ratio(session.split_id, new_ratio);
+                }
+            }
+            true
+        } else if self.corner_drag_panel().is_some() {
+            self.update_corner_drag(pos, viewport);
+            true
+        } else {
+            false
         }
     }
 
-    pub fn end_splitter_drag(&mut self) {
-        self.active_splitter_drag = None;
+    /// Finish and apply the active drag gesture (splitter bar or corner
+    /// drag). Returns `None` when no gesture was active.
+    pub fn finish_drag_gesture(
+        &mut self,
+        container_size: Size<Pixels>,
+    ) -> Option<crate::policy::CornerDragResult<T>> {
+        if self.active_splitter_drag.is_some() {
+            self.active_splitter_drag = None;
+            Some(crate::policy::CornerDragResult::None)
+        } else if self.corner_drag_panel().is_some() {
+            Some(self.apply_corner_drag(container_size))
+        } else {
+            None
+        }
+    }
+
+    /// Cancel the active drag gesture without applying it (e.g. Escape).
+    /// A splitter-bar drag restores the split ratio it started from.
+    /// Returns whether a gesture was cancelled.
+    pub fn cancel_drag_gesture(&mut self) -> bool {
+        if let Some(drag) = self.active_splitter_drag.take() {
+            self.tree.set_split_ratio(drag.split_id, drag.start_ratio);
+            return true;
+        }
+        if let Some(target_id) = self.corner_drag_panel() {
+            if let Some(panel) = self.tree.find_leaf_mut(target_id) {
+                panel.active_corner_drag = None;
+                return true;
+            }
+        }
+        false
     }
 
     // ------------------------------------------------------------------
@@ -366,7 +427,6 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         }
         if let Some(panel) = self.tree.find_leaf_mut(target_id) {
             panel.start_corner_drag(pos, modifier);
-            self.focused_leaf = Some(target_id);
         }
     }
 
@@ -385,14 +445,13 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
     ///
     /// Only updates the raw facts of the dragging panel's session —
     /// cardinal gesture direction, pointer position, and the hovered
-    /// leaf. The engine never interprets them: the host decides what the
-    /// gesture means, when a shortcut fires, and whether to render an
-    /// indicator.
+    /// leaf. The engine never interprets them: the policy decides what the
+    /// gesture means and the ui layer renders the indicator.
     ///
     /// `current_pos` and the container size must share a coordinate system
     /// (window coords for the outer layout, the pane layout's local space
     /// for an editor). Returns whether a session was updated.
-    pub fn update_corner_drag(
+    fn update_corner_drag(
         &mut self,
         current_pos: Point<Pixels>,
         container_size: Size<Pixels>,
@@ -438,7 +497,6 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
                     crate::sessions::calculate_dock_target(
                         source_rect,
                         target_rect,
-                        dir,
                         current_pos,
                         session.modifier == CornerDragModifier::Ctrl,
                     )
@@ -471,14 +529,14 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
 
     /// Finish the corner-drag gesture on mouse release: returns the final
     /// raw facts of the dragging panel and clears its session.
-    pub fn finish_corner_drag(&mut self) -> Option<CornerDragSession> {
+    fn finish_corner_drag(&mut self) -> Option<CornerDragSession> {
         let target_id = self.corner_drag_panel()?;
         self.tree.find_leaf_mut(target_id)?.finish_corner_drag()
     }
 
     /// Finish and apply the active corner-drag gesture on mouse release:
     /// executes the topological operation and returns the structured result.
-    pub fn apply_corner_drag(
+    fn apply_corner_drag(
         &mut self,
         container_size: Size<Pixels>,
     ) -> crate::policy::CornerDragResult<T> {
@@ -489,15 +547,6 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
             return crate::policy::CornerDragResult::None;
         }
         crate::policy::apply_corner_drag_session(self, &facts, container_size)
-    }
-
-    /// End the dragging panel's corner-drag session, clearing state.
-    pub fn end_corner_drag(&mut self) {
-        if let Some(target_id) = self.corner_drag_panel() {
-            if let Some(panel) = self.tree.find_leaf_mut(target_id) {
-                panel.end_corner_drag();
-            }
-        }
     }
 
     // ------------------------------------------------------------------

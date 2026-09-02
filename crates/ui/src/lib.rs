@@ -7,7 +7,6 @@
 pub mod bottombar;
 pub mod button;
 pub mod chrome;
-pub mod corner_drag_preview;
 pub mod custom_titlebar;
 pub mod dialog;
 pub mod empty_state;
@@ -20,14 +19,14 @@ pub mod search_panel;
 pub mod section;
 pub mod select;
 pub mod settings_form;
+pub mod split;
 pub mod stepper;
 pub mod switch;
 pub mod tab;
 pub mod table_matrix_picker;
 pub mod topbar;
 
-pub use chrome::{border_menu_style, panel_topbar_icon};
-pub use corner_drag_preview::render_corner_drag_preview;
+pub use chrome::panel_topbar_icon;
 pub use outline_hud::render_floating_outline_hud;
 pub use search_panel::render_search_panel_overlay;
 pub use settings_form::{
@@ -35,3 +34,4 @@ pub use settings_form::{
     SettingsOptionHandler, SettingsSearchHandler, make_row, make_row_with_reset, make_section,
     render_number_field, render_searchable_font_picker,
 };
+pub use split::{OverlayStyle, border_menu_style, render_corner_drag_preview};

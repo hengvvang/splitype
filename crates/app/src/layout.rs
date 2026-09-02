@@ -10,10 +10,10 @@ use gpui::*;
 use crate::shell::Shell;
 use config::language::I18nStrings;
 use splitter::policy::CornerDragResult;
-use splitter::sessions::CornerDragModifier;
 use splitter::tree::NodeId;
 use theme::{Theme, ThemeManager};
-use ui::corner_drag_preview::render_corner_drag_preview;
+use ui::split::chrome::OverlayStyle;
+use ui::split::drag_preview::render_corner_drag_preview;
 use window::WindowLayout;
 
 /// Tiled-layout state of the window.
@@ -143,11 +143,7 @@ impl Shell {
                     let body_height = (f32::from(viewport.height) - titlebar_height).max(0.0);
                     let body_size = size(viewport.width, px(body_height));
                     let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
-                    if splitter::interaction::update_splitter_drag(
-                        &mut shell.panels.layout,
-                        body_pos,
-                        body_size,
-                    ) {
+                    if shell.panels.layout.update_drag_gesture(body_pos, body_size) {
                         changed = true;
                     }
                     for view in shell.panel_views.values_mut() {
@@ -170,15 +166,7 @@ impl Shell {
             })
             .child(layout_tree);
 
-        let overlay_style = splitter::interaction::OverlayStyle {
-            accent: theme.colors.split_indicator,
-            tile_radius: theme.dimensions.panel_tile_radius,
-            border: theme.colors.dialog_border,
-            selection: theme.colors.selection,
-            active: theme.colors.focus_accent,
-            surface: theme.colors.dialog_surface,
-            text: theme.colors.dialog_title,
-        };
+        let overlay_style = OverlayStyle::from_theme(theme);
         let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
         let body_size = size(window.viewport_size().width, px(body_height));
         let preview_overlay = self.panels.layout.corner_drag_panel().and_then(|panel_id| {
@@ -188,12 +176,6 @@ impl Shell {
                 .tree
                 .find_leaf(panel_id)
                 .and_then(|p| p.active_corner_drag)?;
-            if drag.modifier != CornerDragModifier::None
-                && drag.modifier != CornerDragModifier::Ctrl
-                && drag.modifier != CornerDragModifier::Shift
-            {
-                return None;
-            }
             render_corner_drag_preview(&self.panels.layout, &drag, body_size, &overlay_style)
         });
         let container = container.children(preview_overlay);
@@ -207,12 +189,6 @@ impl Shell {
     }
 
     pub(crate) fn finish_drag_gestures(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.panels.layout.active_splitter_drag.is_some() {
-            self.panels.layout.end_splitter_drag();
-            cx.notify();
-            return;
-        }
-
         let theme = cx.global::<ThemeManager>().current_arc();
         let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
@@ -222,42 +198,58 @@ impl Shell {
         let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
         let body_size = size(window.viewport_size().width, px(body_height));
 
-        match self.panels.layout.apply_corner_drag(body_size) {
-            CornerDragResult::Split { new_leaf_id, .. } => {
-                self.seed_split_panel(new_leaf_id, cx);
-            }
-            CornerDragResult::Join {
-                into_id: _,
-                removed_id,
-            } => {
-                self.handle_joined_panel(removed_id, cx);
-            }
-            CornerDragResult::MoveAndDock {
-                source_id,
-                target_id,
-                new_leaf_id,
-                dock_target,
-                ..
-            } => {
-                self.handle_moved_and_docked_panel(
+        if let Some(result) = self.panels.layout.finish_drag_gesture(body_size) {
+            match result {
+                CornerDragResult::Split { new_leaf_id, .. } => {
+                    self.seed_split_panel(new_leaf_id, cx);
+                }
+                CornerDragResult::Join {
+                    into_id: _,
+                    removed_id,
+                } => {
+                    self.handle_joined_panel(removed_id, cx);
+                }
+                CornerDragResult::MoveAndDock {
                     source_id,
                     target_id,
                     new_leaf_id,
                     dock_target,
-                    cx,
-                );
+                    ..
+                } => {
+                    self.handle_moved_and_docked_panel(
+                        source_id,
+                        target_id,
+                        new_leaf_id,
+                        dock_target,
+                        cx,
+                    );
+                }
+                CornerDragResult::Swap { a, b } => {
+                    self.handle_swapped_panels(a, b, cx);
+                }
+                CornerDragResult::CloneWindow { container, .. } => {
+                    self.clone_container_into_new_window(container, cx);
+                }
+                CornerDragResult::None => {}
             }
-            CornerDragResult::Swap { a, b } => {
-                self.handle_swapped_panels(a, b, cx);
-            }
-            CornerDragResult::CloneWindow { container, .. } => {
-                self.clone_container_into_new_window(container, cx);
-            }
-            CornerDragResult::None => {}
+            cx.notify();
         }
-        cx.notify();
         for view in self.panel_views.values_mut() {
             view.finish_inner_gestures(window, cx);
+        }
+    }
+
+    /// Escape cancels an in-progress window-level drag gesture (splitter bar
+    /// or corner drag) without applying it.
+    pub(crate) fn on_shell_key_down_capture(
+        &mut self,
+        event: &KeyDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if event.keystroke.key == "escape" && self.panels.layout.cancel_drag_gesture() {
+            cx.stop_propagation();
+            cx.notify();
         }
     }
 }

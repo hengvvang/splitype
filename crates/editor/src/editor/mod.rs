@@ -42,7 +42,6 @@ pub struct Editor {
     pub leaf_count: usize,
     pub outline: OutlineHudState,
     pub focused_pane_id: Option<PaneId>,
-    pub pane_dropdown_open: bool,
     pub search: editor_contracts::SearchPanelState,
 }
 
@@ -64,7 +63,6 @@ impl Editor {
             leaf_count: 1,
             outline: OutlineHudState::default(),
             focused_pane_id: None,
-            pane_dropdown_open: false,
             search: editor_contracts::SearchPanelState::new(cx),
         }
     }

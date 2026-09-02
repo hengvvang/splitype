@@ -1,21 +1,16 @@
-//! Content-independent split interaction rendering.
+//! Content-independent split interaction chrome: the draggable divider
+//! bars between tiles, the corner-drag handles and the splitter-bar
+//! context menu.
 //!
-//! The draggable splitter bars between panels, the corner-drag handles and
-//! the splitter-bar context menu are pure window-management UI: they depend
-//! on the layout tree geometry and a small set of visual parameters, never
-//! on what the panels contain. Rendering and gesture state machines live
-//! here so any host (window shell, editor panel layout) can reuse them
-//! without reimplementing the interaction visuals.
-//!
-//! Visual parameters are injected via [`OverlayStyle`] and [`MenuStyle`]
-//! so this crate stays free of any concrete theme; menu actions are
-//! injected as callbacks.
+//! Visual parameters are injected via [`OverlayStyle`] and [`MenuStyle`] so
+//! this module stays free of any concrete theme; menu actions are injected
+//! as callbacks.
 
 use gpui::*;
+use theme::Theme;
 
-use crate::root::SplitterRoot;
-use crate::sessions::{CornerDragModifier, CornerDragSession};
-use crate::tree::{NodeId, SplitAxis};
+use splitter::sessions::{CornerDragModifier, CornerDragSession, past_shortcut_threshold};
+use splitter::tree::NodeId;
 
 /// Visual parameters for split interaction overlays.
 #[derive(Clone, Copy, Debug)]
@@ -24,6 +19,8 @@ pub struct OverlayStyle {
     pub accent: Hsla,
     /// Corner radius of panel tiles, used to round the highlight overlays.
     pub tile_radius: f32,
+    /// Corner radius of the cursor-following action panels.
+    pub panel_radius: f32,
     /// Splitter bar base color.
     pub border: Hsla,
     /// Splitter bar hover color.
@@ -36,26 +33,28 @@ pub struct OverlayStyle {
     pub text: Hsla,
 }
 
-impl Default for OverlayStyle {
-    fn default() -> Self {
+impl OverlayStyle {
+    /// Maps a theme to the split interaction overlay parameters.
+    pub fn from_theme(theme: &Theme) -> Self {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
         Self {
-            // Professional blue used by IDE split previews (≈ #60a5fa).
-            accent: hsla(0.592, 0.94, 0.68, 0.9),
-            tile_radius: 8.0,
-            border: hsla(0.0, 0.0, 1.0, 0.15),
-            selection: hsla(0.58, 0.6, 0.6, 0.8),
-            // Sky blue (≈ #72cffe) for the active drag highlight.
-            active: hsla(0.556, 0.99, 0.72, 0.9),
-            surface: hsla(0.0, 0.0, 0.12, 0.95),
-            text: hsla(0.0, 0.0, 0.95, 1.0),
+            accent: c.split_indicator,
+            tile_radius: d.panel_tile_radius,
+            panel_radius: theme::dimensions::CONTROL_CORNER_RADIUS,
+            border: c.dialog_border,
+            selection: c.selection,
+            active: c.focus_accent,
+            surface: c.dialog_surface,
+            text: c.dialog_title,
         }
     }
 }
 
-/// Window-level overlay container: covers the whole window, absolutely.
+/// Overlay container covering the whole host area, absolutely positioned.
 ///
 /// Rendered as the topmost layer so drag previews and menus can draw over
-/// every area, including the titlebar strip.
+/// every tile.
 pub fn overlay_container() -> Div {
     div().absolute().top_0().left_0().right_0().bottom_0()
 }
@@ -64,10 +63,9 @@ pub fn overlay_container() -> Div {
 ///
 /// An overlay, not a flex child: the split leaves tile seamlessly and the
 /// bar floats on the boundary at `ratio` (a fraction of the container
-/// width). The 4px hit zone sits on the second side; a 1px guide line
-/// marks the boundary. `active` is the drag-in-progress state (driven by
-/// the host from the drag session): the hit zone glows stronger and the
-/// guide line takes the selection color.
+/// width). The 12px hit zone sits on the second side; a 1px guide line
+/// marks the boundary. `active` is the drag-in-progress state: the guide
+/// line takes the selection color and grows to 2.5px.
 pub fn splitter_bar_h(
     id: impl Into<ElementId>,
     ratio: f32,
@@ -174,100 +172,6 @@ pub fn splitter_bar_v(
     }
 }
 
-/// Start a splitter-bar drag on a split node.
-///
-/// `current_ratio` is the split ratio at drag start; the real span is
-/// refreshed on the first move event.
-pub fn start_splitter_drag<T: Clone + PartialEq>(
-    container: &mut SplitterRoot<T>,
-    split_id: NodeId,
-    axis: SplitAxis,
-    start_pointer_pos: f32,
-    current_ratio: f32,
-) {
-    if container.tree.find_maximized_leaf().is_some() {
-        return;
-    }
-    container.active_splitter_drag = Some(crate::sessions::SplitterDragSession {
-        split_id,
-        axis,
-        start_pointer_pos,
-        start_ratio: current_ratio,
-        total_span: 1000.0,
-    });
-}
-
-/// Open the border context menu on a split bar (right click).
-pub fn open_border_menu<T: Clone + PartialEq>(
-    container: &mut SplitterRoot<T>,
-    split_id: NodeId,
-    axis: SplitAxis,
-    position: Point<Pixels>,
-) {
-    if container.tree.find_maximized_leaf().is_some() {
-        return;
-    }
-    container.active_border_menu = Some(crate::sessions::BorderMenuState {
-        split_id,
-        axis,
-        position,
-    });
-}
-
-/// Progress the active drag gesture (splitter or corner) of a root.
-///
-/// Generic over the layout level: the outer window root passes the
-/// pointer and viewport in window coordinates; an editor pane layout
-/// passes them in its local space. Returns whether a gesture was active
-/// (the host should repaint). The host reads the root's drag sessions to
-/// apply its own policy; `finish_splitter_drag` returns the corner-drag
-/// facts on release.
-pub fn update_splitter_drag<T: Clone + PartialEq>(
-    container: &mut SplitterRoot<T>,
-    pos: Point<Pixels>,
-    viewport: Size<Pixels>,
-) -> bool {
-    if let Some(drag) = container.active_splitter_drag {
-        let current_pos = match drag.axis {
-            SplitAxis::Horizontal => f32::from(pos.x),
-            SplitAxis::Vertical => f32::from(pos.y),
-        };
-        let span = container
-            .split_pixel_span(drag.split_id, viewport)
-            .unwrap_or_else(|| match drag.axis {
-                SplitAxis::Horizontal => f32::from(viewport.width),
-                SplitAxis::Vertical => f32::from(viewport.height),
-            });
-        if span > 1.0 {
-            let mut session = drag;
-            session.total_span = span;
-            container.active_splitter_drag = Some(session);
-        }
-        container.update_splitter_drag(current_pos);
-        true
-    } else if container.corner_drag_panel().is_some() {
-        container.update_corner_drag(pos, viewport);
-        true
-    } else {
-        false
-    }
-}
-
-/// End the active drag gesture of a root; returns the final corner-
-/// drag facts (splitter-bar drags just end).
-pub fn finish_splitter_drag<T: Clone + PartialEq>(
-    container: &mut SplitterRoot<T>,
-) -> Option<CornerDragSession> {
-    if container.active_splitter_drag.is_some() {
-        container.end_splitter_drag();
-        None
-    } else if container.corner_drag_panel().is_some() {
-        container.finish_corner_drag()
-    } else {
-        None
-    }
-}
-
 /// The modifier key held during a corner drag, decoded from a mouse event.
 fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
     if event.modifiers.control {
@@ -281,52 +185,24 @@ fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
     }
 }
 
-/// Build the four corner-gap drag handles of a tile located in the difference
-/// area between the tile rectangle and the inner panel card.
+/// Build the four corner-gap drag handles of a tile located in the
+/// difference area between the tile rectangle and the inner panel card.
 ///
-/// - `gap`: Margin thickness around the inner panel card.
-/// - `corner_span`: Span of the corner drag zone along each edge (e.g. 48.0px).
+/// - `gap`: margin thickness around the inner panel card.
+/// - `corner_span`: span of the corner drag zone along each edge (e.g. 48px).
 pub fn corner_drag_handles<F>(
     id_prefix: &'static str,
     target_id: NodeId,
     gap: f32,
     corner_span: f32,
-    rounded: bool,
-    occlude: bool,
-    on_start_drag: F,
-) -> Stateful<Div>
-where
-    F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
-{
-    corner_drag_handles_sides(
-        id_prefix,
-        target_id,
-        gap,
-        corner_span,
-        rounded,
-        occlude,
-        true,
-        true,
-        on_start_drag,
-    )
-}
-
-/// Build the corner-gap drag handles of a tile with selectable top/bottom sides.
-pub fn corner_drag_handles_sides<F>(
-    id_prefix: &'static str,
-    target_id: NodeId,
-    gap: f32,
-    corner_span: f32,
-    _rounded: bool,
-    _occlude: bool,
-    include_top: bool,
-    include_bottom: bool,
+    style: &OverlayStyle,
     on_start_drag: F,
 ) -> Stateful<Div>
 where
     F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
 {
     let gap_thickness = gap.max(6.0);
+    let hover_bg = style.selection.opacity(0.15);
     let make_corner = |corner_str: &'static str, top: bool, left: bool| {
         let on_start_drag = on_start_drag.clone();
         let make_arm = |dir_str: &'static str, is_h: bool| {
@@ -338,7 +214,7 @@ where
                 ))
                 .absolute()
                 .cursor_crosshair()
-                .hover(|s| s.bg(hsla(0.0, 0.0, 1.0, 0.15)));
+                .hover(move |s| s.bg(hover_bg));
 
             if top {
                 arm = arm.top_0();
@@ -388,7 +264,7 @@ where
             .child(make_arm("v", false))
     };
 
-    let mut container = div()
+    div()
         .id((
             SharedString::from(format!("{id_prefix}-corners")),
             target_id,
@@ -397,20 +273,11 @@ where
         .top_0()
         .bottom_0()
         .left_0()
-        .right_0();
-
-    if include_top {
-        container = container
-            .child(make_corner("tl", true, true))
-            .child(make_corner("tr", true, false));
-    }
-    if include_bottom {
-        container = container
-            .child(make_corner("bl", false, true))
-            .child(make_corner("br", false, false));
-    }
-
-    container
+        .right_0()
+        .child(make_corner("tl", true, true))
+        .child(make_corner("tr", true, false))
+        .child(make_corner("bl", false, true))
+        .child(make_corner("br", false, false))
 }
 
 /// Visual parameters for floating menu panels (border context menus).
@@ -440,6 +307,32 @@ pub struct MenuStyle {
     pub separator_margin_x: f32,
     pub separator_margin_y: f32,
     pub separator_height: f32,
+}
+
+/// Map a theme to the splitter border-menu style parameters.
+pub fn border_menu_style(theme: &Theme) -> MenuStyle {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+    let t = &theme.typography;
+    MenuStyle {
+        surface: c.dialog_surface,
+        border: c.dialog_border,
+        border_width: d.dialog_border_width,
+        radius: d.menu_panel_radius,
+        width: d.menu_panel_width,
+        padding: d.menu_panel_padding,
+        gap: d.menu_panel_gap,
+        text: c.dialog_secondary_button_text,
+        text_size: d.menu_text_size,
+        text_weight: t.dialog_body_weight.to_font_weight(),
+        item_height: d.menu_item_height,
+        item_padding_x: d.menu_item_padding_x,
+        item_radius: d.menu_item_radius,
+        item_hover: c.panel_row_hover,
+        separator_margin_x: d.menu_separator_margin_x,
+        separator_margin_y: d.menu_separator_margin_y,
+        separator_height: d.menu_separator_height,
+    }
 }
 
 /// One entry of a border context menu: label plus activation callback.
@@ -520,4 +413,57 @@ where
         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| on_dismiss(cx))
         .child(panel)
         .into_any_element()
+}
+
+/// Host-supplied behavior for the standard border-menu actions.
+pub struct BorderMenuActions {
+    pub split_horizontal: Box<dyn Fn(&mut App)>,
+    pub split_vertical: Box<dyn Fn(&mut App)>,
+    pub swap: Box<dyn Fn(&mut App)>,
+    pub close: Box<dyn Fn(&mut App)>,
+}
+
+/// Render the standard border context menu: split horizontally/vertically,
+/// swap and close, with host-supplied behavior.
+pub fn render_standard_border_menu(
+    position: Point<Pixels>,
+    actions: BorderMenuActions,
+    style: &MenuStyle,
+    on_dismiss: impl Fn(&mut App) + 'static,
+) -> AnyElement {
+    render_border_menu(
+        position,
+        vec![
+            BorderMenuItem {
+                label: "Split Horizontally",
+                on_activate: actions.split_horizontal,
+            },
+            BorderMenuItem {
+                label: "Split Vertically",
+                on_activate: actions.split_vertical,
+            },
+            BorderMenuItem {
+                label: "Swap Panels",
+                on_activate: actions.swap,
+            },
+            BorderMenuItem {
+                label: "Close Panel",
+                on_activate: actions.close,
+            },
+        ],
+        style,
+        Box::new(on_dismiss),
+    )
+}
+
+/// Whether a corner-drag gesture may show a preview (and be applied) by
+/// hosts: plain and Ctrl drags always; Shift (duplicate into a new window)
+/// requires a minimum movement so a plain click doesn't clone; Alt drags
+/// are reserved.
+pub fn preview_allowed(drag: &CornerDragSession) -> bool {
+    match drag.modifier {
+        CornerDragModifier::None | CornerDragModifier::Ctrl => true,
+        CornerDragModifier::Shift => past_shortcut_threshold(drag),
+        CornerDragModifier::Alt => false,
+    }
 }

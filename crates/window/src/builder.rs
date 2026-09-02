@@ -60,7 +60,6 @@ impl WindowLayoutBuilder {
             active_border_menu: None,
             active_leaf: Some(active_id.0),
             activation_history: vec![active_id.0],
-            focused_leaf: None,
         });
         self
     }

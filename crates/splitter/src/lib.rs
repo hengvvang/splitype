@@ -1,23 +1,29 @@
 //! Tiled layout engine — the pure layout core shared by the window-level
-//! panel layout (`SplitterRoot<PanelKindId>`) and the editor's inner
-//! pane layout (`SplitterRoot<PaneKind>`).
+//! panel layout (`SplitterRoot<PanelKind>`) and the editor's inner pane
+//! layout (`SplitterRoot<PaneKind>`).
 //!
-//! This module owns:
-//! - [`SplitterContainer`] — the panel container (one leaf): the panel
-//!   type `T` is the identity, and each container records its own
-//!   interaction state.
+//! This crate owns the split tree topology, its geometry, the drag-gesture
+//! state machines and the gesture policy. It renders nothing: every split
+//! visual (divider bars, corner handles, border context menus, drag
+//! previews) lives in the `ui` crate. Hosts (the window shell, the editor)
+//! drive the gestures with mouse/keyboard events and apply the returned
+//! [`policy::CornerDragResult`] to their own panel/pane state.
+//!
+//! The engine depends only on gpui's geometry types (`Point` / `Size` /
+//! `Pixels`) plus serde/schemars for persistence; panel and pane semantics
+//! stay in the hosts.
+//!
+//! - [`SplitterContainer`] — one leaf: the panel type `T` is the identity,
+//!   and each container records its own interaction state.
 //! - [`SplitTree`] — the recursive binary split tree; every leaf is a
-//!   [`SplitterContainer`], so splitting a leaf creates a second container
-//!   and both hang on the same tree.
-//! - [`SplitterRoot`] — one initialized split region: the tree plus the
-//!   tree-level state (id pool, activation, splitter drags).
-//! - The drag-session records and the [`DragPolicy`] defaults.
-//!
-//! It depends only on gpui's geometry types (`Point`/`Size`/`Pixels`);
-//! rendering and panel/pane state live in the consuming crates.
+//!   [`SplitterContainer`].
+//! - [`SplitterRoot`] — one split region: the tree plus tree-level state
+//!   (id pool, activation, drag sessions, border menu).
+//! - [`sessions`] — raw gesture-fact records and pure geometry math.
+//! - [`policy`] — translates finished gesture facts into tree mutations
+//!   and a structured [`policy::CornerDragResult`].
 
 pub mod container;
-pub mod interaction;
 pub mod policy;
 pub mod root;
 pub mod sessions;

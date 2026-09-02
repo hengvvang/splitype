@@ -85,7 +85,7 @@ impl Editor {
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        if let (Some(_pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind.clone()) {
+        if let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind.clone()) {
             let toggle_editor = cx.entity().downgrade();
             let label = editor_contracts::PaneRegistry::registered(focused_kind.clone())
                 .ok()
@@ -99,7 +99,7 @@ impl Editor {
                 .child(label)
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = toggle_editor.update(cx, |ed, cx| {
-                        ed.pane_dropdown_open = !ed.pane_dropdown_open;
+                        ed.toggle_pane_dropdown(pane_id, cx);
                         cx.notify();
                     });
                 });
@@ -240,11 +240,17 @@ impl Editor {
                     .children(right_items),
             );
 
-        if self.pane_dropdown_open
-            && let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind.clone())
-        {
-            let menu = self.render_pane_type_dropdown_menu(pane_id, focused_kind, theme, cx);
-            bar = bar.child(menu);
+        if let Some(pane_id) = focused_pane_id {
+            let dropdown_open = self
+                .session
+                .root
+                .tree
+                .find_leaf(pane_id.0)
+                .is_some_and(|panel| panel.open_dropdown);
+            if dropdown_open && let Some(focused_kind) = focused_kind.clone() {
+                let menu = self.render_pane_type_dropdown_menu(pane_id, focused_kind, theme, cx);
+                bar = bar.child(menu);
+            }
         }
 
         bar.into_any_element()
@@ -305,7 +311,6 @@ impl Editor {
                                 let kind_id = kind_id.clone();
                                 let _ = option_editor.update(cx, |ed, cx| {
                                     ed.select_pane_kind(pane_id, kind_id, cx);
-                                    ed.pane_dropdown_open = false;
                                     cx.notify();
                                 });
                             })

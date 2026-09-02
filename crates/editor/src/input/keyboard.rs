@@ -21,6 +21,14 @@ impl Editor {
             }
         }
 
+        // Escape cancels an in-progress pane-layout drag gesture without
+        // applying it.
+        if event.keystroke.key == "escape" && self.session.root.cancel_drag_gesture() {
+            cx.stop_propagation();
+            cx.notify();
+            return;
+        }
+
         let active_pane = self.active_pane_id();
         let handled = self.handle_pane_key_down(active_pane, event, window, cx);
         if handled {

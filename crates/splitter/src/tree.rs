@@ -169,16 +169,7 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         }
     }
 
-    /// Finds the first leaf container matching the given `kind`, if any.
-    pub fn find_first_leaf_by_kind(&self, kind: &T) -> Option<&SplitterContainer<T>> {
-        match self {
-            Self::Leaf(container) => (&container.kind == kind).then_some(container),
-            Self::Split { first, second, .. } => first
-                .find_first_leaf_by_kind(kind)
-                .or_else(|| second.find_first_leaf_by_kind(kind)),
-        }
-    }
-
+    /// Sets a leaf's kind by id.
     pub fn set_leaf_kind(&mut self, leaf_id: NodeId, new_kind: T) -> bool {
         match self {
             Self::Leaf(container) => {

@@ -45,7 +45,6 @@ impl PersistedWindowState {
             active_border_menu: None,
             active_leaf: self.active_leaf,
             activation_history: self.activation_history,
-            focused_leaf: None,
         }
     }
 }

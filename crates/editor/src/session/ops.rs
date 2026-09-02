@@ -2,10 +2,11 @@
 
 use gpui::Context;
 use splitter::NodeId;
+use splitter::sessions::AreaDockTarget;
 use splitter::tree::SplitAxis;
 
 use crate::editor::Editor;
-use crate::session::{EditorSession, PaneKind};
+use crate::session::{EditorSession, PaneKind, PaneState};
 use editor_contracts::PaneId;
 
 impl Editor {
@@ -26,7 +27,9 @@ impl Editor {
     }
 
     pub fn close_pane(&mut self, pane_id: impl Into<PaneId>) {
-        self.session.root.close_leaf(pane_id.into().0);
+        let pane_id = pane_id.into();
+        self.session.root.close_leaf(pane_id.0);
+        self.forget_pane_state(pane_id.0);
     }
 
     pub fn toggle_pane_dropdown(&mut self, pane_id: impl Into<PaneId>, cx: &mut Context<Self>) {
@@ -60,10 +63,6 @@ impl Editor {
         self.session.root.split_leaf(pane_id.0, axis, ratio);
     }
 
-    pub fn swap_pane_kinds(&mut self, a: impl Into<PaneId>, b: impl Into<PaneId>) {
-        self.session.root.swap_kinds(a.into().0, b.into().0);
-    }
-
     pub fn swap_pane_split_sides(&mut self, split_id: NodeId) {
         self.session.root.swap_split_sides(split_id);
     }
@@ -77,6 +76,73 @@ impl Editor {
         let active = self.active_pane_id();
         self.toggle_pane_maximize(active);
         cx.notify();
+    }
+
+    // ------------------------------------------------------------------
+    // Pane-state reconciliation after layout gestures
+    // ------------------------------------------------------------------
+
+    /// The active pane-state map (the active tab's panes when a tab is
+    /// open, the shared empty-pane map otherwise).
+    fn panes_mut(&mut self) -> &mut std::collections::HashMap<PaneId, PaneState> {
+        if self.session.has_tabs() {
+            &mut self
+                .session
+                .active_tab_mut()
+                .expect("session has tabs")
+                .panes
+        } else {
+            &mut self.session.empty_panes
+        }
+    }
+
+    /// Drop a pane's state after its leaf was removed from the tree.
+    pub(crate) fn forget_pane_state(&mut self, pane_id: usize) {
+        self.panes_mut().remove(&PaneId(pane_id));
+    }
+
+    /// Swap two leaves' pane states after a kind swap (scroll and focus
+    /// belong to the leaf position, not the kind).
+    pub(crate) fn swap_pane_states(&mut self, a: usize, b: usize) {
+        let panes = self.panes_mut();
+        let state_a = panes.remove(&PaneId(a));
+        let state_b = panes.remove(&PaneId(b));
+        if let Some(state) = state_a {
+            panes.insert(PaneId(b), state);
+        }
+        if let Some(state) = state_b {
+            panes.insert(PaneId(a), state);
+        }
+    }
+
+    /// Re-seat pane states after a move-and-dock, mirroring the window
+    /// shell's panel-view handling.
+    pub(crate) fn move_and_dock_pane_states(
+        &mut self,
+        source_id: usize,
+        target_id: usize,
+        new_leaf_id: usize,
+        dock_target: AreaDockTarget,
+    ) {
+        let panes = self.panes_mut();
+        let source = panes.remove(&PaneId(source_id));
+        let target = panes.remove(&PaneId(target_id));
+        let source_first = matches!(dock_target, AreaDockTarget::Left | AreaDockTarget::Top);
+        if source_first {
+            if let Some(state) = source {
+                panes.insert(PaneId(target_id), state);
+            }
+            if let Some(state) = target {
+                panes.insert(PaneId(new_leaf_id), state);
+            }
+        } else {
+            if let Some(state) = target {
+                panes.insert(PaneId(target_id), state);
+            }
+            if let Some(state) = source {
+                panes.insert(PaneId(new_leaf_id), state);
+            }
+        }
     }
 
     /// Switches `pane_id` to `kind`, resetting its viewport and syncing the

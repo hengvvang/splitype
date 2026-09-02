@@ -110,7 +110,6 @@ pub fn open_cloned_window(
         active_border_menu: None,
         active_leaf: None,
         activation_history: Vec::new(),
-        focused_leaf: None,
     };
     open_window_with_retained(cx, layout, retained)
 }

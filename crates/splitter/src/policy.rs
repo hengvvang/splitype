@@ -65,6 +65,9 @@ pub fn apply_corner_drag_session<T: Clone + PartialEq>(
 ) -> CornerDragResult<T> {
     match facts.modifier {
         CornerDragModifier::Shift => {
+            if !past_shortcut_threshold(facts) {
+                return CornerDragResult::None;
+            }
             let Some(kind) = root.tree.find_leaf_kind(facts.target_id) else {
                 return CornerDragResult::None;
             };

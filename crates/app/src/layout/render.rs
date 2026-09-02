@@ -6,6 +6,7 @@ use crate::shell::Shell;
 use config::language::I18nStrings;
 use splitter::tree::{NodeId, SplitAxis, SplitTree};
 use theme::Theme;
+use ui::split::chrome::{OverlayStyle, splitter_bar_h, splitter_bar_v};
 
 impl Shell {
     pub(crate) fn render_window_panel_node(
@@ -18,16 +19,7 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let c = &theme.colors;
-        let overlay_style = splitter::interaction::OverlayStyle {
-            accent: c.split_indicator,
-            tile_radius: theme.dimensions.panel_tile_radius,
-            border: c.dialog_border,
-            selection: c.selection,
-            active: c.focus_accent,
-            surface: c.dialog_surface,
-            text: c.dialog_title,
-        };
+        let overlay_style = OverlayStyle::from_theme(theme);
         let shell = cx.entity().downgrade();
 
         match node {
@@ -50,7 +42,6 @@ impl Shell {
                 second,
             } => {
                 let split_id = *id;
-                let split_axis = *axis;
                 let r = *ratio;
 
                 let first_elem = self.render_window_panel_node(
@@ -115,7 +106,7 @@ impl Shell {
                                     .child(second_elem),
                             )
                             .child(
-                                splitter::interaction::splitter_bar_h(
+                                splitter_bar_h(
                                     ("tiled-root-bar-h", split_id),
                                     r,
                                     bar_active,
@@ -124,8 +115,7 @@ impl Shell {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_shell.update(cx, |shell, cx| {
-                                        splitter::interaction::start_splitter_drag(
-                                            &mut shell.panels.layout,
+                                        shell.panels.layout.start_splitter_drag(
                                             split_id,
                                             SplitAxis::Horizontal,
                                             start_pos,
@@ -139,12 +129,7 @@ impl Shell {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_shell.update(cx, |shell, cx| {
-                                            splitter::interaction::open_border_menu(
-                                                &mut shell.panels.layout,
-                                                split_id,
-                                                split_axis,
-                                                pos,
-                                            );
+                                            shell.panels.layout.open_border_menu(split_id, pos);
                                             cx.notify();
                                         });
                                     },
@@ -194,7 +179,7 @@ impl Shell {
                                     .child(second_elem),
                             )
                             .child(
-                                splitter::interaction::splitter_bar_v(
+                                splitter_bar_v(
                                     ("tiled-root-bar-v", split_id),
                                     r,
                                     bar_active,
@@ -203,8 +188,7 @@ impl Shell {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_shell.update(cx, |shell, cx| {
-                                        splitter::interaction::start_splitter_drag(
-                                            &mut shell.panels.layout,
+                                        shell.panels.layout.start_splitter_drag(
                                             split_id,
                                             SplitAxis::Vertical,
                                             start_pos,
@@ -218,12 +202,7 @@ impl Shell {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_shell.update(cx, |shell, cx| {
-                                            splitter::interaction::open_border_menu(
-                                                &mut shell.panels.layout,
-                                                split_id,
-                                                split_axis,
-                                                pos,
-                                            );
+                                            shell.panels.layout.open_border_menu(split_id, pos);
                                             cx.notify();
                                         });
                                     },
