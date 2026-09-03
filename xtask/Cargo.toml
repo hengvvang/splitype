@@ -1,9 +1,11 @@
 [package]
 name = "xtask"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
 publish = false
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
-anyhow = "1"
+# Fast command-line argument parsing with compile-time derive
+clap = { version = "4.5", default-features = false, features = ["derive", "std", "help", "usage"] }
+# Context-aware error handling and propagation
+anyhow = "1.0"

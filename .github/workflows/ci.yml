@@ -1,4 +1,4 @@
-name: CI
+name: CI Quality Gate
 
 on:
   push:
@@ -8,68 +8,44 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  fmt:
-    name: Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-      - name: Check Formatting
-        run: cargo fmt --all -- --check
-
-  clippy:
-    name: Clippy
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - name: Run Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-  test:
-    name: Test (${{ matrix.os }})
+  # Cross-platform matrix checking formatting, compilation, and clippy
+  check-and-test:
+    name: Verify (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - name: Run Tests
-        run: cargo test --workspace
+      - uses: taiki-e/install-action@nextest
 
-  machete:
-    name: Machete (unused deps)
+      # Direct delegation to the project's task runner
+      - name: Run code quality checks
+        run: cargo xtask check
+
+      - name: Run test suite
+        run: cargo xtask test
+
+  # Supply-chain and security audit (runs fast on Ubuntu)
+  audit:
+    name: Supply Chain Audit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Install machete
-        run: cargo install cargo-machete --locked
-      - name: Audit unused dependencies
-        run: cargo machete
+      - uses: taiki-e/install-action@cargo-machete
+      - uses: taiki-e/install-action@cargo-deny
 
-  deny:
-    name: Deny (advisories / licenses / bans)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
-      - name: Audit dependencies
-        run: cargo deny --workspace check
+      - name: Run security & license audit (strict mode)
+        run: cargo xtask audit --strict
