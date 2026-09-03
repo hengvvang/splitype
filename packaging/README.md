@@ -11,9 +11,10 @@ This directory holds the build-time and distribution-time assets needed to packa
 ```text
 packaging/
 ├── windows/
-│   ├── splitype.ico                # Multi-resolution icon embedded into splitype.exe
-│   ├── splitype.manifest           # Modern Windows application manifest (DPI, UTF-8, etc.)
-│   └── splitype.rc                 # PE resource script compiling icon and manifest into binary
+│   ├── build_dist.ps1              # Standalone packaging script to assemble dist/splitype-windows-x64
+│   ├── splitype.ico                # Multi-resolution icon embedded into binary and staged for dist
+│   ├── splitype.manifest           # Windows application manifest (UTF-8, Long paths, PerMonitorV2 DPI)
+│   └── splitype.rc                 # PE resource script embedding icon into executable
 ├── macos/
 │   ├── build_app.sh                # Standalone script to assemble dist/splitype.app
 │   ├── build_pkg.sh                # Script to create installable splitype.pkg package
@@ -35,14 +36,15 @@ packaging/
 ## Platform Details
 
 ### 1. Windows (`windows/`)
+- **`build_dist.ps1`**: Compiles release binary and packages `dist/splitype-windows-x64/` (and optional `.zip` distribution archive).
 - **`splitype.ico`**: 16, 32, 48, 64, 128, and 256 px resolutions.
-- **`splitype.manifest`**: Application manifest declaring:
+- **`splitype.manifest`**: Application manifest deployed side-by-side (`splitype.exe.manifest`) declaring:
   - `Per-Monitor V2` DPI awareness (prevents scaling blur on high-DPI displays).
-  - Native UTF-8 active code page.
+  - Native UTF-8 active code page (`activeCodePage`).
   - Long path awareness (`longPathAware`).
   - Windows 10 & 11 compatibility.
   - Common Controls v6 visual styling.
-- **`splitype.rc`**: Compiled directly into `splitype.exe` by `crates/app/build.rs` via `embed-resource`.
+- **`splitype.rc`**: Resource script embedding `splitype.ico` into the PE binary table.
 
 ### 2. macOS (`macos/`)
 - **`build_app.sh`**: Compiles release binary and packages `dist/splitype.app`.
