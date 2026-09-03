@@ -52,6 +52,14 @@ pub enum WysiwygContextMenuState {
         position: Point<Pixels>,
         selection: TableAxisSelection,
     },
+    TableResize {
+        position: Point<Pixels>,
+        table_block_id: EntityId,
+        current_rows: usize,
+        current_cols: usize,
+        hovered_rows: Option<usize>,
+        hovered_cols: Option<usize>,
+    },
 }
 
 /// Autonomous controller for a WYSIWYG editor pane.
@@ -644,6 +652,19 @@ impl WysiwygDocumentController {
                 }
             }
             BlockEvent::RequestTableAxisPreview { kind, index, hovered } => {
+                let target_entity = block.entity_id();
+                if let Some(doc) = &self.document {
+                    for entry in doc.blocks() {
+                        if entry.entity.entity_id() != target_entity {
+                            entry.entity.update(cx, |blk, cx| {
+                                if blk.table_axis_preview.is_some() {
+                                    blk.table_axis_preview = None;
+                                    cx.notify();
+                                }
+                            });
+                        }
+                    }
+                }
                 block.update(cx, |b, cx| {
                     b.table_axis_preview = if *hovered {
                         Some(TableAxisMarker {
@@ -658,6 +679,19 @@ impl WysiwygDocumentController {
                 cx.notify();
             }
             BlockEvent::RequestSelectTableAxis { kind, index } => {
+                let target_entity = block.entity_id();
+                if let Some(doc) = &self.document {
+                    for entry in doc.blocks() {
+                        if entry.entity.entity_id() != target_entity {
+                            entry.entity.update(cx, |blk, cx| {
+                                if blk.table_axis_selection.is_some() {
+                                    blk.table_axis_selection = None;
+                                    cx.notify();
+                                }
+                            });
+                        }
+                    }
+                }
                 block.update(cx, |b, cx| {
                     b.table_axis_selection = Some(TableAxisMarker {
                         kind: *kind,
@@ -1026,6 +1060,77 @@ impl WysiwygDocumentController {
             self.commit_document_edit(false, cx);
             cx.notify();
         }
+    }
+
+    pub fn open_table_resize_picker(
+        &mut self,
+        table_block_id: EntityId,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let (current_rows, current_cols) = if let Some(doc) = &self.document {
+            if let Some(target) = doc.block_entity_by_id(table_block_id) {
+                target
+                    .read(cx)
+                    .data
+                    .table
+                    .as_ref()
+                    .map(|t| (1 + t.rows.len(), t.column_count()))
+                    .unwrap_or((2, 2))
+            } else {
+                (2, 2)
+            }
+        } else {
+            (2, 2)
+        };
+
+        self.context_menu = Some(WysiwygContextMenuState::TableResize {
+            position,
+            table_block_id,
+            current_rows,
+            current_cols,
+            hovered_rows: None,
+            hovered_cols: None,
+        });
+        cx.notify();
+    }
+
+    pub fn set_table_resize_hover(
+        &mut self,
+        hovered_rows: Option<usize>,
+        hovered_cols: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(WysiwygContextMenuState::TableResize {
+            hovered_rows: hr,
+            hovered_cols: hc,
+            ..
+        }) = &mut self.context_menu
+        {
+            *hr = hovered_rows;
+            *hc = hovered_cols;
+            cx.notify();
+        }
+    }
+
+    pub fn resize_table(
+        &mut self,
+        table_block_id: EntityId,
+        target_rows: usize,
+        target_cols: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                table.resize_shape(target_rows, target_cols);
+            }
+        });
+        self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
     }
 
     pub fn cut_active_selection(&mut self, cx: &mut Context<Self>) {

@@ -52,6 +52,7 @@ pub fn render_wysiwyg_context_menu(
                           enabled: bool,
                           danger: bool,
                           closes_submenu: bool,
+                          auto_close_menu: bool,
                           on_click: ContextMenuActionHandler| {
         if enabled {
             let mut el = menu_item(id, c, d)
@@ -82,7 +83,9 @@ pub fn render_wysiwyg_context_menu(
             el.on_mouse_down(MouseButton::Left, cx.listener(move |this, _event, window, cx| {
                 cx.stop_propagation();
                 on_click(this, window, cx);
-                this.close_context_menu(cx);
+                if auto_close_menu {
+                    this.close_context_menu(cx);
+                }
             }))
             .into_any_element()
         } else {
@@ -120,7 +123,7 @@ pub fn render_wysiwyg_context_menu(
                      enabled: bool,
                      danger: bool,
                      on_click: ContextMenuActionHandler| {
-        make_item_base(id, label, shortcut, enabled, danger, false, on_click)
+        make_item_base(id, label, shortcut, enabled, danger, false, true, on_click)
     };
 
     let make_main_item = |id: &'static str,
@@ -129,7 +132,16 @@ pub fn render_wysiwyg_context_menu(
                           enabled: bool,
                           danger: bool,
                           on_click: ContextMenuActionHandler| {
-        make_item_base(id, label, shortcut, enabled, danger, true, on_click)
+        make_item_base(id, label, shortcut, enabled, danger, true, true, on_click)
+    };
+
+    let make_nav_item = |id: &'static str,
+                         label: &'static str,
+                         shortcut: Option<&'static str>,
+                         enabled: bool,
+                         danger: bool,
+                         on_click: ContextMenuActionHandler| {
+        make_item_base(id, label, shortcut, enabled, danger, false, false, on_click)
     };
 
     let make_submenu_trigger = |id: &'static str,
@@ -756,6 +768,7 @@ pub fn render_wysiwyg_context_menu(
 
             let table_block_id = selection.table_block_id;
             let axis_index = selection.index;
+            let pos = *position;
 
             let items = match selection.kind {
                 TableAxis::Column => vec![
@@ -836,6 +849,17 @@ pub fn render_wysiwyg_context_menu(
                         }),
                     ),
                     make_separator(),
+                    make_nav_item(
+                        "table-axis-resize-table",
+                        tr("调整表格", "Resize Table"),
+                        None,
+                        true,
+                        false,
+                        Box::new(move |this, _window, cx| {
+                            this.open_table_resize_picker(table_block_id, pos, cx);
+                        }),
+                    ),
+                    make_separator(),
                     make_item(
                         "table-axis-delete-column",
                         tr("删除列", "Delete Column"),
@@ -879,6 +903,17 @@ pub fn render_wysiwyg_context_menu(
                         }),
                     ),
                     make_separator(),
+                    make_nav_item(
+                        "table-axis-resize-table",
+                        tr("调整表格", "Resize Table"),
+                        None,
+                        true,
+                        false,
+                        Box::new(move |this, _window, cx| {
+                            this.open_table_resize_picker(table_block_id, pos, cx);
+                        }),
+                    ),
+                    make_separator(),
                     make_item(
                         "table-axis-delete-row",
                         tr("删除行", "Delete Row"),
@@ -912,6 +947,146 @@ pub fn render_wysiwyg_context_menu(
                             cx.stop_propagation()
                         })
                         .children(items),
+                )
+                .into_any_element()
+        }
+        WysiwygContextMenuState::TableResize {
+            position,
+            table_block_id,
+            current_rows,
+            current_cols,
+            hovered_rows,
+            hovered_cols,
+        } => {
+            let max_matrix_rows = 8usize;
+            let max_matrix_cols = 8usize;
+
+            let display_rows = hovered_rows
+                .unwrap_or(*current_rows)
+                .clamp(1, max_matrix_rows);
+            let display_cols = hovered_cols
+                .unwrap_or(*current_cols)
+                .clamp(1, max_matrix_cols);
+
+            let panel_x = position.x - origin.x;
+            let panel_y = position.y - origin.y;
+            let panel_width = 224.0_f32;
+            let panel_height = 250.0_f32;
+            let panel_left = px(f32::from(panel_x)
+                .clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
+            let panel_top = px(f32::from(panel_y)
+                .clamp(8.0, (pane_height - panel_height - 16.0).max(8.0)));
+
+            let table_id = *table_block_id;
+            let cur_r = *current_rows;
+            let cur_c = *current_cols;
+            let hov_r = *hovered_rows;
+            let hov_c = *hovered_cols;
+
+            use ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+            let top_indicator = render_matrix_dimension_indicator(
+                display_rows,
+                display_cols,
+                tr("行", "Row"),
+                tr("列", "Column"),
+                theme,
+            );
+
+            let colors = MatrixCellColors::from_theme(theme);
+
+            let mut grid_rows = Vec::with_capacity(max_matrix_rows);
+            for r in 0..max_matrix_rows {
+                let row_num = r + 1;
+                let mut row_cells = Vec::with_capacity(max_matrix_cols);
+                for col in 0..max_matrix_cols {
+                    let col_num = col + 1;
+                    let is_in_current = r < cur_r && col < cur_c;
+                    let is_in_hovered = if let (Some(h_r), Some(h_c)) = (hov_r, hov_c) {
+                        r < h_r && col < h_c
+                    } else {
+                        false
+                    };
+
+                    let cell_bg = match (is_in_current, is_in_hovered) {
+                        (true, true) => colors.overlap,
+                        (false, true) => colors.hover_only,
+                        (true, false) => colors.current_only,
+                        (false, false) => colors.inactive,
+                    };
+
+                    let cell = div()
+                        .id(ElementId::Name(format!("table-resize-cell-{}-{}", r, col).into()))
+                        .size(px(20.0))
+                        .rounded(px(3.0))
+                        .bg(cell_bg)
+                        .cursor_pointer()
+                        .on_hover(cx.listener(move |this, hovered: &bool, _window, cx| {
+                            if *hovered {
+                                this.set_table_resize_hover(Some(row_num), Some(col_num), cx);
+                            }
+                        }))
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, _event, _window, cx| {
+                                cx.stop_propagation();
+                                this.resize_table(table_id, row_num, col_num, cx);
+                                this.close_context_menu(cx);
+                            }),
+                        );
+                    row_cells.push(cell);
+                }
+                grid_rows.push(
+                    div()
+                        .flex()
+                        .gap(px(3.0))
+                        .children(row_cells),
+                );
+            }
+
+            let matrix_grid = div()
+                .id("table-resize-matrix-grid")
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(3.0))
+                .pt(px(6.0))
+                .on_hover(cx.listener(|this, hovered: &bool, _window, cx| {
+                    if !*hovered {
+                        this.set_table_resize_hover(None, None, cx);
+                    }
+                }))
+                .children(grid_rows);
+
+            overlay()
+                .id("editor-table-resize-overlay")
+                .occlude()
+                .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
+                    this.close_context_menu(cx);
+                }))
+                .on_mouse_down(MouseButton::Right, cx.listener(|this, _event, _window, cx| {
+                    this.close_context_menu(cx);
+                }))
+                .child(
+                    div()
+                        .id("editor-table-resize-panel")
+                        .absolute()
+                        .left(panel_left)
+                        .top(panel_top)
+                        .p(px(12.0))
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.0))
+                        .bg(c.dialog_surface)
+                        .border(px(d.dialog_border_width))
+                        .border_color(c.dialog_border)
+                        .rounded(px(d.menu_panel_radius))
+                        .shadow_lg()
+                        .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                            cx.stop_propagation();
+                        })
+                        .child(top_indicator)
+                        .child(matrix_grid),
                 )
                 .into_any_element()
         }

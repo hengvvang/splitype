@@ -23,6 +23,7 @@ pub mod split;
 pub mod stepper;
 pub mod switch;
 pub mod tab;
+pub mod table_matrix_picker;
 pub mod topbar;
 
 pub use outline_hud::render_floating_outline_hud;

@@ -133,10 +133,6 @@ pub enum BlockEvent {
         index: usize,
         position: Point<Pixels>,
     },
-    /// Open the table size matrix picker from the bottom-right corner control.
-    RequestOpenTableSizePicker {
-        position: Point<Pixels>,
-    },
     /// Reorder a native table row or column by swapping positions.
     RequestReorderTableAxis {
         kind: TableAxis,
