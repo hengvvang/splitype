@@ -6,11 +6,13 @@
 //! the read-only preview presentation lives in the `preview` plugin.
 
 pub mod blocks;
+pub mod context_menu;
 pub mod inline;
 pub mod layout;
 pub mod text_layout;
 
 pub use blocks::*;
+pub use context_menu::*;
 pub use text_layout::*;
 
 use gpui::*;

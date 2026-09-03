@@ -6,18 +6,53 @@ use editor_contracts::OutlineNode;
 use editor_contracts::{CursorHint, EditTransaction, PaneOutlineHost, PaneRenderContext};
 use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{
-    AnyElement, App, AppContext, Context, Div, ElementId, Entity, FocusHandle, InteractiveElement,
-    IntoElement, ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
+    AnyElement, App, AppContext, ClipboardItem, Context, Div, ElementId, Entity, EntityId,
+    FocusHandle, InteractiveElement, IntoElement, MouseButton, MouseDownEvent, ParentElement,
+    Pixels, Point, SharedString, StatefulInteractiveElement, Styled, Window, div, px, relative,
 };
 use theme::Theme;
 use theme::ThemeManager;
 
 use crate::model::Document;
+use crate::model::block::state::InlineFormat;
 use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::model::protocol::BlockEvent;
-use crate::pane::state::{ReferenceRegistries, TableGrids};
+use crate::pane::state::{ReferenceRegistries, TableAxisSelection, TableCellBinding, TableGrids};
+use markdown_parser::block::table::{
+    TableAxis, TableAxisMarker, TableCellPosition, TableColumnAlignment, TableData,
+};
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::{BlockData, BlockKind};
+
+/// State for a floating footnote definition tooltip.
+#[derive(Clone, Debug)]
+pub struct FootnoteTooltipState {
+    pub id: String,
+    pub content: SharedString,
+    pub position: Point<Pixels>,
+}
+
+/// Active secondary submenu in the context menu.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ContextSubmenu {
+    TextFormat,
+    ParagraphSettings,
+    Insert,
+}
+
+/// State for the context menu on a WYSIWYG block or table axis.
+#[derive(Clone, Debug)]
+pub enum WysiwygContextMenuState {
+    Edit {
+        position: Point<Pixels>,
+        target_entity_id: Option<EntityId>,
+        active_submenu: Option<ContextSubmenu>,
+    },
+    TableAxis {
+        position: Point<Pixels>,
+        selection: TableAxisSelection,
+    },
+}
 
 /// Autonomous controller for a WYSIWYG editor pane.
 pub struct WysiwygDocumentController {
@@ -30,6 +65,8 @@ pub struct WysiwygDocumentController {
     pub active_entity: Option<Entity<Block>>,
     pub tables: TableGrids,
     pub references: ReferenceRegistries,
+    pub footnote_tooltip: Option<FootnoteTooltipState>,
+    pub context_menu: Option<WysiwygContextMenuState>,
     /// Text of the document after the previous commit, used to detect
     /// typing-run continuations (single-character insertions at the same
     /// position) for undo grouping.
@@ -59,6 +96,8 @@ impl WysiwygDocumentController {
                     .map(std::path::Path::to_path_buf),
                 ..ReferenceRegistries::default()
             },
+            footnote_tooltip: None,
+            context_menu: None,
             last_committed_text: None,
             last_typing_insert_at: None,
             typing_run_start_hint: None,
@@ -131,16 +170,114 @@ impl WysiwygDocumentController {
         self.last_typing_insert_at = None;
         self.typing_run_start_hint = None;
         self.last_cursor_hint = None;
+        self.rebuild_table_grids(cx);
         self.sync_reference_context(cx);
     }
 
-    fn sync_reference_context(&self, cx: &mut App) {
+    /// Rebuilds table grid structures and bindings for all table blocks.
+    pub fn rebuild_table_grids(&mut self, cx: &mut Context<Self>) {
+        self.tables.cells.clear();
+        self.tables.axis_preview = None;
+        self.tables.axis_selection = None;
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let mut tables_to_install = Vec::new();
+        for entry in doc.blocks() {
+            entry.entity.update(cx, |block, _cx| block.clear_table_grid());
+            let block = entry.entity.read(cx);
+            if block.kind() == BlockKind::Table
+                && let Some(table) = block.data.table.clone()
+            {
+                tables_to_install.push((entry.entity.clone(), table));
+            }
+        }
+        for (table_block, table_data) in tables_to_install {
+            let mut bindings = Vec::new();
+            let header = table_data
+                .header
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(column, text)| {
+                    let alignment = table_data
+                        .alignments
+                        .get(column)
+                        .copied()
+                        .unwrap_or(TableColumnAlignment::Default);
+                    let position = TableCellPosition { row: 0, column };
+                    let cell = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
+                    cell.update(cx, |b, _cx| b.set_table_cell_mode(position, alignment));
+                    bindings.push(TableCellBinding {
+                        table_block: table_block.clone(),
+                        cell: cell.clone(),
+                        position,
+                    });
+                    cell
+                })
+                .collect::<Vec<_>>();
+
+            let rows = table_data
+                .rows
+                .iter()
+                .cloned()
+                .enumerate()
+                .map(|(body_row_index, row)| {
+                    row.into_iter()
+                        .enumerate()
+                        .map(|(column, text)| {
+                            let alignment = table_data
+                                .alignments
+                                .get(column)
+                                .copied()
+                                .unwrap_or(TableColumnAlignment::Default);
+                            let position = TableCellPosition {
+                                row: body_row_index + 1,
+                                column,
+                            };
+                            let cell = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
+                            cell.update(cx, |b, _cx| b.set_table_cell_mode(position, alignment));
+                            bindings.push(TableCellBinding {
+                                table_block: table_block.clone(),
+                                cell: cell.clone(),
+                                position,
+                            });
+                            cell
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>();
+
+            table_block.update(cx, {
+                let grid = crate::table::TableGrid { header, rows };
+                move |block, _cx| block.set_table_grid(grid.clone())
+            });
+
+            for binding in bindings {
+                self.tables.cells.insert(binding.cell.entity_id(), binding);
+            }
+        }
+    }
+
+    fn sync_reference_context(&mut self, cx: &mut App) {
         let Some(document) = &self.document else {
             return;
         };
+        self.references.footnotes =
+            Arc::new(crate::model::references::rebuild_footnote_registry(document, cx));
         for entry in document.blocks() {
             crate::model::references::sync_reference_context_for_block(
                 &entry.entity,
+                self.references.base_dir.as_deref(),
+                self.references.image.clone(),
+                self.references.link.clone(),
+                self.references.footnotes.clone(),
+                cx,
+            );
+        }
+        for binding in self.tables.cells.values() {
+            crate::model::references::sync_reference_context_for_block(
+                &binding.cell,
                 self.references.base_dir.as_deref(),
                 self.references.image.clone(),
                 self.references.link.clone(),
@@ -157,6 +294,95 @@ impl WysiwygDocumentController {
         event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
+        if let Some(binding) = self.tables.cells.get(&block.entity_id()).cloned() {
+            match event {
+                BlockEvent::Changed => {
+                    crate::table::grid::sync_table_data_from_grid(&binding.table_block, cx);
+                    self.pending_edit = true;
+                    self.commit_document_edit(false, cx);
+                    cx.notify();
+                    return;
+                }
+                BlockEvent::RequestTableCellMoveHorizontal { delta } => {
+                    let current = binding.position;
+                    let table_block = binding.table_block.clone();
+                    if let Some(grid) = table_block.read(cx).table_grid.clone() {
+                        let col_count = grid.header.len();
+                        let total_rows = grid.rows.len() + 1;
+                        if col_count > 0 {
+                            let (next_row, next_col) = if *delta > 0 {
+                                if current.column + 1 < col_count {
+                                    (current.row, current.column + 1)
+                                } else if current.row + 1 < total_rows {
+                                    (current.row + 1, 0)
+                                } else {
+                                    table_block.update(cx, |b, _cx| {
+                                        if let Some(table) = b.data.table.as_mut() {
+                                            crate::table::rows::append_table_row(table);
+                                        }
+                                    });
+                                    self.rebuild_table_grids(cx);
+                                    self.pending_edit = true;
+                                    self.commit_document_edit(false, cx);
+                                    (current.row + 1, 0)
+                                }
+                            } else if current.column > 0 {
+                                (current.row, current.column - 1)
+                            } else if current.row > 0 {
+                                (current.row - 1, col_count.saturating_sub(1))
+                            } else {
+                                (0, 0)
+                            };
+                            let next_pos = TableCellPosition {
+                                row: next_row,
+                                column: next_col,
+                            };
+                            if let Some(cell) = table_block
+                                .read(cx)
+                                .table_grid
+                                .as_ref()
+                                .and_then(|g| g.cell(next_pos))
+                            {
+                                self.active_entity = Some(cell.clone());
+                                cell.update(cx, |c, cx| {
+                                    c.start_cursor_blink(cx);
+                                    cx.notify();
+                                });
+                                cx.notify();
+                            }
+                        }
+                    }
+                    return;
+                }
+                BlockEvent::RequestTableCellMoveVertical { delta } => {
+                    let current = binding.position;
+                    let table_block = binding.table_block.clone();
+                    if let Some(grid) = table_block.read(cx).table_grid.clone() {
+                        let total_rows = grid.rows.len() + 1;
+                        let next_row = if *delta > 0 {
+                            (current.row + 1).min(total_rows.saturating_sub(1))
+                        } else {
+                            current.row.saturating_sub(1)
+                        };
+                        let next_pos = TableCellPosition {
+                            row: next_row,
+                            column: current.column,
+                        };
+                        if let Some(cell) = grid.cell(next_pos) {
+                            self.active_entity = Some(cell.clone());
+                            cell.update(cx, |c, cx| {
+                                c.start_cursor_blink(cx);
+                                cx.notify();
+                            });
+                            cx.notify();
+                        }
+                    }
+                    return;
+                }
+                _ => {}
+            }
+        }
+
         match event {
             BlockEvent::Changed => {
                 self.pending_edit = true;
@@ -384,7 +610,668 @@ impl WysiwygDocumentController {
                 self.commit_document_edit(false, cx);
                 cx.notify();
             }
+            BlockEvent::RequestAppendTableColumn => {
+                let target = block.clone();
+                let mut modified = false;
+                target.update(cx, |b, _cx| {
+                    if let Some(table) = b.data.table.as_mut() {
+                        crate::table::columns::append_table_column(table);
+                        modified = true;
+                    }
+                });
+                if modified {
+                    self.rebuild_table_grids(cx);
+                    self.pending_edit = true;
+                    self.commit_document_edit(false, cx);
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestAppendTableRow => {
+                let target = block.clone();
+                let mut modified = false;
+                target.update(cx, |b, _cx| {
+                    if let Some(table) = b.data.table.as_mut() {
+                        crate::table::rows::append_table_row(table);
+                        modified = true;
+                    }
+                });
+                if modified {
+                    self.rebuild_table_grids(cx);
+                    self.pending_edit = true;
+                    self.commit_document_edit(false, cx);
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestTableAxisPreview { kind, index, hovered } => {
+                block.update(cx, |b, cx| {
+                    b.table_axis_preview = if *hovered {
+                        Some(TableAxisMarker {
+                            kind: *kind,
+                            index: *index,
+                        })
+                    } else {
+                        None
+                    };
+                    cx.notify();
+                });
+                cx.notify();
+            }
+            BlockEvent::RequestSelectTableAxis { kind, index } => {
+                block.update(cx, |b, cx| {
+                    b.table_axis_selection = Some(TableAxisMarker {
+                        kind: *kind,
+                        index: *index,
+                    });
+                    cx.notify();
+                });
+                cx.notify();
+            }
+            BlockEvent::RequestReorderTableAxis { kind, from, to } => {
+                crate::table::axis::reorder_table_axis(&block, *kind, *from, *to, cx);
+                self.rebuild_table_grids(cx);
+                self.pending_edit = true;
+                self.commit_document_edit(false, cx);
+                cx.notify();
+            }
+            BlockEvent::RequestInsertTableAxisAt { kind, index } => {
+                block.update(cx, |b, _cx| {
+                    if let Some(table) = b.data.table.as_mut() {
+                        match kind {
+                            TableAxis::Column => {
+                                crate::table::columns::insert_table_column_at(table, *index);
+                            }
+                            TableAxis::Row => {
+                                crate::table::rows::insert_table_row_at(table, *index);
+                            }
+                        }
+                    }
+                });
+                self.rebuild_table_grids(cx);
+                self.pending_edit = true;
+                self.commit_document_edit(false, cx);
+                cx.notify();
+            }
+            BlockEvent::RequestFootnoteTooltip {
+                id,
+                content,
+                position,
+                show,
+            } => {
+                if *show {
+                    let resolved_content = content.clone().or_else(|| {
+                        let binding = self.references.footnotes.binding(id)?;
+                        let doc = self.document.as_ref()?;
+                        let def_entry = doc
+                            .blocks()
+                            .iter()
+                            .find(|e| e.entity.read(cx).data.id == binding.definition_block_id)?;
+                        let plain = def_entry.entity.read(cx).data.text.plain_text();
+                        let text = markdown_parser::block::footnote::split_footnote_definition_text(&plain).1;
+                        Some(SharedString::from(text.trim().to_string()))
+                    });
+                    if let Some(content) = resolved_content {
+                        self.footnote_tooltip = Some(FootnoteTooltipState {
+                            id: id.clone(),
+                            content,
+                            position: *position,
+                        });
+                        cx.notify();
+                    }
+                } else if self.footnote_tooltip.as_ref().map(|t| &t.id) == Some(id) {
+                    self.footnote_tooltip = None;
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestJumpToFootnoteDefinition { id } => {
+                if let Some(binding) = self.references.footnotes.binding(id)
+                    && let Some(doc) = &self.document
+                    && let Some(entry) = doc
+                        .blocks()
+                        .iter()
+                        .find(|e| e.entity.read(cx).data.id == binding.definition_block_id)
+                {
+                    let target = entry.entity.clone();
+                    self.active_entity = Some(target.clone());
+                    target.update(cx, |b, cx| {
+                        b.selected_range = 0..0;
+                        b.selection_reversed = false;
+                        b.marked_range = None;
+                        b.start_cursor_blink(cx);
+                        cx.notify();
+                    });
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestJumpToFootnoteBackref { id } => {
+                if let Some(binding) = self.references.footnotes.binding(id)
+                    && let Some(first_ref) = binding.first_reference.as_ref()
+                    && let Some(doc) = &self.document
+                    && let Some(entry) = doc
+                        .blocks()
+                        .iter()
+                        .find(|e| e.entity.read(cx).data.id == first_ref.block_id)
+                {
+                    let target = entry.entity.clone();
+                    self.active_entity = Some(target.clone());
+                    target.update(cx, |b, cx| {
+                        b.sync_inline_projection_for_focus(true);
+                        if let Some(range) =
+                            b.display_range_for_footnote_occurrence(first_ref.occurrence_index)
+                        {
+                            b.selected_range = range;
+                            b.selection_reversed = false;
+                            b.marked_range = None;
+                        }
+                        b.start_cursor_blink(cx);
+                        cx.notify();
+                    });
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestOpenTableAxisMenu {
+                kind,
+                index,
+                position,
+            } => {
+                let table_block_id = block.entity_id();
+                self.context_menu = Some(WysiwygContextMenuState::TableAxis {
+                    position: *position,
+                    selection: TableAxisSelection {
+                        table_block_id,
+                        kind: *kind,
+                        index: *index,
+                    },
+                });
+                cx.notify();
+            }
             _ => {}
+        }
+    }
+
+    pub fn open_context_menu(
+        &mut self,
+        entity_id: EntityId,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(doc) = &self.document
+            && let Some(target) = doc.block_entity_by_id(entity_id)
+        {
+            self.active_entity = Some(target);
+        }
+        self.context_menu = Some(WysiwygContextMenuState::Edit {
+            position,
+            target_entity_id: Some(entity_id),
+            active_submenu: None,
+        });
+        cx.notify();
+    }
+
+    pub fn set_context_menu_submenu(
+        &mut self,
+        submenu: Option<ContextSubmenu>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(WysiwygContextMenuState::Edit { active_submenu, .. }) = &mut self.context_menu {
+            if *active_submenu != submenu {
+                *active_submenu = submenu;
+                cx.notify();
+            }
+        }
+    }
+
+    pub fn close_context_menu(&mut self, cx: &mut Context<Self>) {
+        self.context_menu = None;
+        cx.notify();
+    }
+
+    pub fn paste_plain_into_active(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        if let Some(item) = cx.read_from_clipboard() {
+            if let Some(text) = item.text() {
+                active.update(cx, |b, cx| {
+                    let range = b.selected_range.clone();
+                    b.apply_source_space_text_edit(range, &text, None, false, cx);
+                });
+                self.pending_edit = true;
+                self.commit_document_edit(false, cx);
+                cx.notify();
+            }
+        }
+    }
+
+    pub fn insert_callout_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let new_block = Self::new_block(
+            cx,
+            BlockData::new(BlockKind::Blockquote, BlockText::plain("[!NOTE]\n")),
+        );
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_mermaid_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let new_block = Self::new_block(
+            cx,
+            BlockData::new(
+                BlockKind::CodeBlock {
+                    language: Some("mermaid".into()),
+                },
+                BlockText::plain("graph TD\n    A --> B"),
+            ),
+        );
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_table_column_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                crate::table::columns::insert_table_column_at(table, index);
+            }
+        });
+        self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn duplicate_table_column_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                crate::table::columns::duplicate_table_column(table, index);
+            }
+        });
+        self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn set_table_column_alignment_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        alignment: TableColumnAlignment,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                crate::table::columns::set_table_column_alignment(table, index, alignment);
+            }
+        });
+        self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn delete_table_column_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let mut deleted = false;
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                deleted = crate::table::columns::delete_table_column(table, index);
+            }
+        });
+        if deleted {
+            self.rebuild_table_grids(cx);
+            self.pending_edit = true;
+            self.commit_document_edit(false, cx);
+            cx.notify();
+        }
+    }
+
+    pub fn insert_table_row_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                crate::table::rows::insert_table_row_at(table, index);
+            }
+        });
+        self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn duplicate_table_row_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                crate::table::rows::duplicate_table_row(table, index);
+            }
+        });
+        self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn delete_table_row_at_index(
+        &mut self,
+        table_block_id: EntityId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else { return; };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let mut deleted = false;
+        target.update(cx, |b, _cx| {
+            if let Some(table) = b.data.table.as_mut() {
+                deleted = if index == 0 {
+                    crate::table::rows::delete_table_header_row(table)
+                } else {
+                    crate::table::rows::delete_table_row(table, index - 1)
+                };
+            }
+        });
+        if deleted {
+            self.rebuild_table_grids(cx);
+            self.pending_edit = true;
+            self.commit_document_edit(false, cx);
+            cx.notify();
+        }
+    }
+
+    pub fn cut_active_selection(&mut self, cx: &mut Context<Self>) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        active.update(cx, |b, cx| {
+            if !b.selected_range.is_empty() {
+                let text = b.selected_text();
+                cx.write_to_clipboard(ClipboardItem::new_string(text));
+                b.apply_source_space_text_edit(b.selected_range.clone(), "", None, false, cx);
+            } else {
+                let text = b.data.text.plain_text();
+                cx.write_to_clipboard(ClipboardItem::new_string(text));
+                b.data.text = BlockText::plain(String::new());
+                b.mark_changed(cx);
+            }
+        });
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn copy_active_selection(&self, cx: &mut Context<Self>) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        active.read_with(cx, |b, cx| {
+            let text = if !b.selected_range.is_empty() {
+                b.selected_text()
+            } else {
+                b.data.text.plain_text()
+            };
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+        });
+    }
+
+    pub fn paste_into_active(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        active.update(cx, |b, cx| {
+            b.on_paste(&platform_contracts::actions::Paste, window, cx);
+        });
+    }
+
+    pub fn toggle_active_format(&mut self, format: InlineFormat, cx: &mut Context<Self>) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        active.update(cx, |b, cx| {
+            b.toggle_inline_format(format, cx);
+        });
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn wrap_active_selection(
+        &mut self,
+        left_delim: &str,
+        right_delim: &str,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        active.update(cx, |b, cx| {
+            if !b.selected_range.is_empty() {
+                let text = b.selected_text();
+                let wrapped = format!("{left_delim}{text}{right_delim}");
+                b.apply_source_space_text_edit(b.selected_range.clone(), &wrapped, None, false, cx);
+            } else {
+                let wrapped = format!("{left_delim}{right_delim}");
+                let cur = b.selected_range.start;
+                b.apply_source_space_text_edit(cur..cur, &wrapped, None, false, cx);
+            }
+        });
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn clear_active_selection_format(&mut self, cx: &mut Context<Self>) {
+        let Some(active) = &self.active_entity else {
+            return;
+        };
+        active.update(cx, |b, cx| {
+            if !b.selected_range.is_empty() {
+                let text = b.selected_text();
+                let cleaned = text
+                    .replace("**", "")
+                    .replace("~~", "")
+                    .replace("==", "")
+                    .replace(['*', '`', '$'], "");
+                b.apply_source_space_text_edit(b.selected_range.clone(), &cleaned, None, false, cx);
+            }
+        });
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn convert_target_block(
+        &mut self,
+        target_id: EntityId,
+        kind: BlockKind,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(target_id) else {
+            return;
+        };
+        target.update(cx, |b, cx| {
+            b.data.kind = kind;
+            b.mark_changed(cx);
+        });
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_table_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let table_data = TableData {
+            header: vec![
+                BlockText::plain("Col 1"),
+                BlockText::plain("Col 2"),
+                BlockText::plain("Col 3"),
+            ],
+            rows: vec![
+                vec![BlockText::plain(""), BlockText::plain(""), BlockText::plain("")],
+                vec![BlockText::plain(""), BlockText::plain(""), BlockText::plain("")],
+            ],
+            alignments: vec![
+                TableColumnAlignment::Default,
+                TableColumnAlignment::Default,
+                TableColumnAlignment::Default,
+            ],
+        };
+        let mut data = BlockData::new(BlockKind::Table, BlockText::plain(""));
+        data.table = Some(table_data);
+        let new_block = Self::new_block(cx, data);
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.rebuild_table_grids(cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_code_block_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let new_block = Self::new_block(
+            cx,
+            BlockData::new(BlockKind::CodeBlock { language: None }, BlockText::plain("")),
+        );
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_math_block_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let new_block = Self::new_block(
+            cx,
+            BlockData::new(BlockKind::MathBlock, BlockText::plain("")),
+        );
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_footnote_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let fn_id = (self.references.footnotes.bindings.len() + 1).to_string();
+        let new_block = Self::new_block(
+            cx,
+            BlockData::new(
+                BlockKind::FootnoteDefinition,
+                BlockText::plain(format!("{fn_id}: ")),
+            ),
+        );
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.sync_reference_context(cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn insert_divider_after(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let Some(location) = doc.find_block_location(target_id) else {
+            return;
+        };
+        let new_block = Self::new_block(
+            cx,
+            BlockData::new(BlockKind::ThematicBreak, BlockText::plain("---")),
+        );
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.active_entity = Some(new_block);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn delete_target_block(&mut self, target_id: EntityId, cx: &mut Context<Self>) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        if doc.blocks().len() > 1 {
+            doc.remove_block(target_id, cx);
+            self.active_entity = doc.blocks().first().map(|b| b.entity.clone());
+            self.rebuild_table_grids(cx);
+            self.sync_reference_context(cx);
+            self.pending_edit = true;
+            self.commit_document_edit(false, cx);
+            cx.notify();
         }
     }
 
@@ -869,7 +1756,7 @@ impl WysiwygDocumentController {
     pub fn render(
         &mut self,
         ctx: &PaneRenderContext,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.host = Some(ctx.host.clone());
@@ -896,7 +1783,14 @@ impl WysiwygDocumentController {
                         centered_width,
                         &theme,
                         d,
-                        |row: Div, _id| row,
+                        |row: Div, entity_id: EntityId| {
+                            row.on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(move |this, event: &MouseDownEvent, _window, cx| {
+                                    this.open_context_menu(entity_id, event.position, cx);
+                                }),
+                            )
+                        },
                     )
                 })
                 .collect();
@@ -926,6 +1820,51 @@ impl WysiwygDocumentController {
                 &outline_host,
             );
 
+            let scroll_bounds = ctx.scroll.bounds();
+            let origin = scroll_bounds.origin;
+            let pane_size = scroll_bounds.size;
+            let pane_width = f32::from(pane_size.width);
+
+            let footnote_tooltip_element = self.footnote_tooltip.as_ref().map(|tooltip| {
+                let top = (tooltip.position.y - origin.y + px(4.0)).max(px(0.0));
+                let max_width = 420.0_f32;
+                let mut left_f32 = f32::from(tooltip.position.x - origin.x);
+                if left_f32 + 200.0 > pane_width {
+                    left_f32 = (pane_width - max_width.min(pane_width) - 16.0).max(8.0);
+                }
+                let left = px(left_f32.max(8.0));
+                div()
+                    .absolute()
+                    .occlude()
+                    .left(left)
+                    .top(top)
+                    .max_w(px(max_width))
+                    .px(px(10.0))
+                    .py(px(6.0))
+                    .rounded(px(5.0))
+                    .bg(c.dialog_surface)
+                    .border(px(1.0))
+                    .border_color(c.dialog_border)
+                    .shadow_md()
+                    .text_size(px(13.0))
+                    .text_color(c.dialog_muted)
+                    .line_height(relative(1.5))
+                    .child(tooltip.content.clone())
+                    .into_any_element()
+            });
+
+            let context_menu_element = self.context_menu.clone().map(|menu_state| {
+                crate::render::context_menu::render_wysiwyg_context_menu(
+                    self,
+                    &menu_state,
+                    origin,
+                    pane_size,
+                    &theme,
+                    window,
+                    cx,
+                )
+            });
+
             div()
                 .id(ElementId::Name(
                     format!("tiled-wysiwyg-editor-{pane_id}").into(),
@@ -952,6 +1891,8 @@ impl WysiwygDocumentController {
                         .children(row_elements),
                 )
                 .child(outline_hud)
+                .children(footnote_tooltip_element)
+                .children(context_menu_element)
                 .into_any_element()
         } else {
             div().into_any_element()
