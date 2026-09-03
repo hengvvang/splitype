@@ -5,6 +5,13 @@
 //! the document text itself is committed back to the shared buffer as edit
 //! transactions, and undo history lives entirely in the buffer (see
 //! `editor_contracts::EditTransaction`).
+//!
+//! The text layer mirrors Zed's architecture: an immutable chunk [`Rope`]
+//! with incremental line indexing (edits are O(chunks), never O(document)),
+//! a local `text_version` that every derived cache keys on, a
+//! content-addressed per-line wrap cache, and a background highlight
+//! pipeline that re-derives syntax spans and outline headings after an
+//! idle debounce (stale-while-revalidate, like Zed's async highlighting).
 
 pub mod edit;
 pub mod ime;
@@ -13,19 +20,21 @@ pub mod mouse;
 pub mod movement;
 pub mod render;
 
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use config::settings::PluginSettings;
 use editor_contracts::{CursorHint, DocumentSnapshot, EditTransaction, OutlineNode, PaneHost};
 use gpui::*;
 use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
 
-use crate::buffer::LineMap;
-use crate::display_map::{DisplaySnapshot, FoldMap, RowIndex, TabMap, WrapState};
+use crate::display_map::{DisplaySnapshot, FoldMap, FoldRange, RowIndex, TabMap, WrapState};
 use crate::selection::Selections;
 use crate::settings::SourceCodeSettings;
+use crate::text::Rope;
 
 /// A continuous typing run, used to group consecutive insertions/deletions
 /// into one buffer-level undo transaction.
@@ -37,6 +46,35 @@ pub struct TypingRun {
     pub start_hint: CursorHint,
 }
 
+/// Background syntax-highlighting pipeline: recomputes Markdown spans and
+/// outline headings after an idle debounce, keeping the previous result
+/// visible while typing (stale-while-revalidate).
+struct HighlightState {
+    /// The last completed highlight result, if any.
+    result: Option<Arc<CodeHighlightResult>>,
+    /// Outline headings computed alongside the last highlight run.
+    outline: Option<Arc<Vec<OutlineNode>>>,
+    /// Foldable regions (fences and heading sections) from the last
+    /// highlight run, sorted by header row.
+    folds: Option<Arc<Vec<FoldRange>>>,
+    /// Bumped on every schedule; guards stale completions.
+    generation: u64,
+    /// In-flight debounce + compute task.
+    task: Option<Task<()>>,
+}
+
+impl HighlightState {
+    fn new() -> Self {
+        Self {
+            result: None,
+            outline: None,
+            folds: None,
+            generation: 0,
+            task: None,
+        }
+    }
+}
+
 /// The source code editor engine entity.
 pub struct SourceCodeEditor {
     pub host: Option<Arc<dyn PaneHost>>,
@@ -44,8 +82,10 @@ pub struct SourceCodeEditor {
     pub focus_handle: FocusHandle,
 
     // ── Document projection ──────────────────────────────────────────────
-    text: String,
-    line_map: LineMap,
+    text: Rope,
+    /// Local text version, bumped on every local or applied text change.
+    /// All derived caches key on this, not on the shared buffer revision.
+    text_version: u64,
     synced_revision: Option<u64>,
     /// A local edit exists that the host's next snapshot has not echoed yet.
     pending_edit: bool,
@@ -63,16 +103,33 @@ pub struct SourceCodeEditor {
     wrap: WrapState,
     /// Viewport width the wrap state was computed for; `None` = dirty.
     wrap_width_px: Option<f32>,
+    /// Column budget the wrap points were computed for (pure numbers, so
+    /// incremental wrap patching needs no font access).
+    wrap_max_columns: Option<u32>,
+    /// Content-addressed per-line wrap points (line hash → points). Edits
+    /// never invalidate it; it is rebuilt when the wrap width changes.
+    wrap_cache: HashMap<u64, Arc<Vec<usize>>>,
+    /// Union byte span (original-text coordinates) of the local edits
+    /// since the last `after_text_change`; drives incremental wrap and
+    /// row-index patching.
+    edit_span: Option<(usize, usize)>,
+    /// Total bytes inserted by the pending local edits.
+    edit_inserted: usize,
+    /// Final-text span still awaiting wrap-point patching (consumed by
+    /// `ensure_wrap` on the next frame).
+    dirty_wrap_span: Option<(usize, usize)>,
 
     // ── Caches ───────────────────────────────────────────────────────────
-    highlight_cache: Option<CodeHighlightResult>,
-    /// Theme family the highlight cache was computed for.
-    highlight_theme: String,
-    /// Flattened display rows, rebuilt only when the text, folds, or wrap
-    /// state change (never per frame).
     rows_cache: Option<Arc<RowIndex>>,
-    /// Outline headings keyed by the revision they were extracted at.
-    outline_cache: Option<(u64, Vec<OutlineNode>)>,
+    /// Line count the `rows_cache` was built for; a mismatch means the
+    /// index is stale.
+    rows_line_count: Option<usize>,
+    /// Cached matching-bracket result for (text_version, cursor).
+    bracket_cache: Option<(u64, usize, Option<usize>)>,
+    /// The bracket offset resolved for the current frame (computed in
+    /// `render`, consumed by the element's prepaint).
+    pub(crate) bracket_offset: Option<usize>,
+    highlight: HighlightState,
     search_matches: Vec<(Range<usize>, bool)>,
     last_bounds: Bounds<Pixels>,
     cursor_blink_epoch: Option<Instant>,
@@ -91,8 +148,8 @@ impl SourceCodeEditor {
             host: None,
             scroll: None,
             focus_handle: cx.focus_handle(),
-            text: String::new(),
-            line_map: LineMap::default(),
+            text: Rope::new(""),
+            text_version: 0,
             synced_revision: None,
             pending_edit: false,
             selections: Selections::new(0),
@@ -104,17 +161,23 @@ impl SourceCodeEditor {
             folds: FoldMap::new(),
             wrap: WrapState::default(),
             wrap_width_px: None,
-            highlight_cache: None,
-            highlight_theme: String::new(),
+            wrap_max_columns: None,
+            wrap_cache: HashMap::new(),
+            edit_span: None,
+            edit_inserted: 0,
+            dirty_wrap_span: None,
             rows_cache: None,
-            outline_cache: None,
+            rows_line_count: None,
+            bracket_cache: None,
+            bracket_offset: None,
+            highlight: HighlightState::new(),
             search_matches: Vec::new(),
             last_bounds: Bounds::default(),
             cursor_blink_epoch: None,
             frame_rows: Vec::new(),
             deferred_commit: None,
         };
-        editor.apply_document_text(&document.text, document.revision);
+        editor.apply_document_text(&document.text, document.revision, cx);
         editor
     }
 
@@ -122,9 +185,13 @@ impl SourceCodeEditor {
 
     /// Replaces the local text with a document snapshot, rebuilding derived
     /// state. Folds are pruned to the new line count.
-    fn apply_document_text(&mut self, text: &str, revision: u64) {
-        self.text = normalize_line_endings(text);
-        self.rebuild_derived();
+    fn apply_document_text(&mut self, text: &str, revision: u64, cx: &mut Context<Self>) {
+        self.text = Rope::new(&normalize_line_endings(text));
+        self.selections.clamp_and_sort(self.text.len());
+        self.edit_span = None;
+        self.edit_inserted = 0;
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.synced_revision = Some(revision);
         self.marked_range = None;
         self.is_dragging = false;
@@ -149,20 +216,23 @@ impl SourceCodeEditor {
         }
         // Revision equality implies text equality: the buffer only bumps
         // its revision when the text changes, and local edits are covered
-        // by the pending-edit path above. Avoids an O(n) string compare
-        // per pane per frame.
+        // by the pending-edit path above. Avoids an O(n) compare per pane
+        // per frame.
         if self.synced_revision == Some(document.revision) {
             return;
         }
-        self.apply_document_text(&document.text, document.revision);
+        let had_text = !self.text.is_empty();
+        self.apply_document_text(&document.text, document.revision, cx);
         if let Some(hint) = document.restore_cursor {
             self.restore_cursor_hint(hint);
         }
-        cx.notify();
+        if had_text {
+            cx.notify();
+        }
     }
 
     pub fn document_text(&self) -> String {
-        self.text.clone()
+        self.text.materialize()
     }
 
     // ── Cursor and selection access ──────────────────────────────────────
@@ -172,11 +242,12 @@ impl SourceCodeEditor {
     }
 
     pub fn cursor_hint(&self) -> CursorHint {
-        CursorHint::from_offset(&self.text, self.cursor())
+        CursorHint::from_offset(&self.text.materialize(), self.cursor())
     }
 
     pub fn restore_cursor_hint(&mut self, hint: CursorHint) {
-        let offset = hint.to_offset(&self.text);
+        let text = self.text.materialize();
+        let offset = hint.to_offset(&text);
         self.selections.set_single_point(offset);
     }
 
@@ -199,7 +270,7 @@ impl SourceCodeEditor {
     pub fn selected_text(&self) -> Option<String> {
         self.selections
             .primary_range()
-            .map(|range| self.text[range].to_string())
+            .map(|range| self.text.slice_owned(range))
     }
 
     /// Ends the current typing run (any cursor movement does this).
@@ -243,18 +314,79 @@ impl SourceCodeEditor {
         });
     }
 
-    /// Rebuilds every text-derived cache after a local edit: line map,
-    /// fold pruning, wrap invalidation, highlight cache, and selection
-    /// clamping.
-    fn rebuild_derived(&mut self) {
-        self.line_map = LineMap::new(&self.text);
-        self.selections.clamp_and_sort(self.text.len());
-        let line_count = self.line_map.line_count() as u32;
-        self.folds.prune_to_line_count(line_count);
-        self.invalidate_wrap();
-        self.highlight_cache = None;
-        self.rows_cache = None;
-        self.outline_cache = None;
+    /// Applies a local rope edit without touching derived caches. Callers
+    /// must follow up with `after_text_change` + `schedule_highlight` once
+    /// per logical edit. Edits are applied back-to-front, so each edit's
+    /// coordinates are also original-text coordinates; the accumulated
+    /// span drives incremental wrap/row-index patching.
+    pub(crate) fn replace_local(&mut self, range: Range<usize>, replacement: &str) {
+        let (start, end) = (
+            range.start.min(self.text.len()),
+            range.end.min(self.text.len()),
+        );
+        match &mut self.edit_span {
+            None => self.edit_span = Some((start, end)),
+            Some(span) => {
+                span.0 = span.0.min(start);
+                span.1 = span.1.max(end);
+            }
+        }
+        self.edit_inserted += replacement.len();
+        self.text = self.text.edit(start..end, replacement);
+    }
+
+    /// Applies a local rope edit and updates every text-derived cache. The
+    /// rope maintains its line index incrementally; this only bumps the
+    /// version, prunes folds, patches soft-wrap points for the touched
+    /// lines, drops derived caches, and schedules the background highlight
+    /// refresh.
+    pub fn edit_text(&mut self, range: Range<usize>, inserted: &str, cx: &mut Context<Self>) {
+        self.replace_local(range, inserted);
+        self.after_text_change();
+        self.schedule_highlight(cx);
+    }
+
+    /// Bumps the text version and invalidates text-derived caches. When the
+    /// change came from local edits (`replace_local`), the display caches
+    /// update incrementally: wrap points are patched for the touched lines
+    /// and the row index survives when the visual row count is unchanged.
+    fn after_text_change(&mut self) {
+        self.text_version = self.text_version.wrapping_add(1);
+        self.bracket_cache = None;
+        let line_count = self.text.line_count();
+        let pruned = self.folds.prune_to_line_count(line_count as u32);
+
+        let Some(span) = self.edit_span.take() else {
+            // Whole-document replacement: every derived display cache is
+            // stale; wrap points rebuild lazily on the next frame.
+            self.edit_inserted = 0;
+            self.rows_cache = None;
+            self.rows_line_count = None;
+            self.wrap = WrapState::default();
+            self.wrap_width_px = None;
+            self.wrap_max_columns = None;
+            self.dirty_wrap_span = None;
+            return;
+        };
+
+        // The final-text span is the original span extended by the total
+        // inserted bytes; every changed byte lies within it. Batches that
+        // arrive before the next frame merge conservatively (over-covering
+        // rows is harmless: unchanged lines are content-cache hits).
+        let new_span = (span.0, span.1 + self.edit_inserted);
+        self.dirty_wrap_span = Some(match self.dirty_wrap_span {
+            None => new_span,
+            Some(old) => (
+                old.0.min(new_span.0),
+                old.1.max(new_span.1) + self.edit_inserted,
+            ),
+        });
+        self.edit_inserted = 0;
+
+        if pruned || self.rows_line_count != Some(line_count) {
+            self.rows_cache = None;
+            self.rows_line_count = None;
+        }
     }
 
     /// Commits a local edit through the pane host after refreshing the
@@ -293,16 +425,11 @@ impl SourceCodeEditor {
         merge: bool,
         cursor_before: CursorHint,
     ) -> Option<EditTransaction> {
-        // Normalize so the local text matches what the buffer will store.
-        if self.text.contains('\r') {
-            self.text = normalize_line_endings(&self.text);
-            self.line_map = LineMap::new(&self.text);
-            self.selections.clamp_and_sort(self.text.len());
-        }
         self.pending_edit = true;
-        let cursor_after = self.cursor_hint();
+        let text = self.text.materialize();
+        let cursor_after = CursorHint::from_offset(&text, self.cursor());
         Some(EditTransaction::new(
-            self.text.clone(),
+            text,
             merge,
             cursor_before,
             cursor_after,
@@ -353,14 +480,13 @@ impl SourceCodeEditor {
     pub fn snapshot(&self) -> DisplaySnapshot<'_> {
         let rows = self.rows_cache.clone().unwrap_or_else(|| {
             Arc::new(RowIndex::build(
-                self.line_map.line_count(),
+                self.text.line_count(),
                 &self.folds,
                 &self.wrap,
             ))
         });
         DisplaySnapshot::new(
             &self.text,
-            &self.line_map,
             TabMap::new(self.settings.tab_size),
             &self.folds,
             &self.wrap,
@@ -373,41 +499,97 @@ impl SourceCodeEditor {
     pub fn ensure_rows_cache(&mut self) {
         if self.rows_cache.is_none() {
             self.rows_cache = Some(Arc::new(RowIndex::build(
-                self.line_map.line_count(),
+                self.text.line_count(),
                 &self.folds,
                 &self.wrap,
             )));
+            self.rows_line_count = Some(self.text.line_count());
         }
     }
 
-    /// Ensures the wrap state matches the given viewport width, recomputing
-    /// when the text, width, or wrap settings changed.
+    /// Ensures the wrap state matches the given viewport width. On a width
+    /// change all lines rebuild (content-addressed, so unchanged lines are
+    /// free); otherwise only the lines touched by edits since the last
+    /// frame are patched, and the row index survives when no line's visual
+    /// row count changed.
     pub fn ensure_wrap(&mut self, viewport_width_px: f32, cx: &App) -> bool {
         if !self.settings.word_wrap {
-            if !self.wrap.points.is_empty() || self.wrap_width_px.is_some() {
+            let had_wrap = !self.wrap.points.is_empty() || self.wrap_width_px.is_some();
+            self.dirty_wrap_span = None;
+            if had_wrap {
                 self.wrap = WrapState::default();
                 self.wrap_width_px = None;
+                self.wrap_max_columns = None;
                 self.rows_cache = None;
+                self.rows_line_count = None;
                 return true;
             }
             return false;
         }
-        if self.wrap_width_px == Some(viewport_width_px) {
-            return false;
+        if self.wrap_width_px != Some(viewport_width_px) {
+            return self.rebuild_wrap(viewport_width_px, cx);
         }
+        let Some(span) = self.dirty_wrap_span.take() else {
+            return false;
+        };
+        if self.wrap.points.len() != self.text.line_count() {
+            // A newline was inserted or removed: resizing the points array
+            // row-accurately needs the old edit coordinates; rebuild.
+            return self.rebuild_wrap(viewport_width_px, cx);
+        }
+        let max_columns = self.wrap_max_columns.unwrap_or(8);
+        let tab_map = TabMap::new(self.settings.tab_size);
+        let (first_row, _) = self.text.offset_to_point(span.0.min(self.text.len()));
+        let (last_row, _) = self.text.offset_to_point(span.1.min(self.text.len()));
+        let mut row_count_changed = false;
+        for row in first_row..=last_row.min(self.text.line_count() - 1) {
+            let line = self.text.line_str(row);
+            let hash = hash_str(line);
+            let entry = self.wrap_cache.entry(hash).or_insert_with(|| {
+                Arc::new(Self::wrap_points_for_line(line, max_columns, &tab_map))
+            });
+            if self.wrap.points[row].len() != entry.len() {
+                row_count_changed = true;
+            }
+            self.wrap.points[row] = entry.as_ref().clone();
+        }
+        if row_count_changed {
+            self.rows_cache = None;
+            self.rows_line_count = None;
+            return true;
+        }
+        false
+    }
+
+    /// Rebuilds the wrap state for a new viewport width.
+    fn rebuild_wrap(&mut self, viewport_width_px: f32, cx: &App) -> bool {
         let char_width = self.char_width_px(cx);
         let text_width_px =
             (viewport_width_px - self.gutter_width_px(cx) - 12.0).max(char_width * 8.0);
         let max_columns = (text_width_px / char_width).floor().max(8.0) as u32;
         let tab_map = TabMap::new(self.settings.tab_size);
-        let mut points = Vec::with_capacity(self.line_map.line_count());
-        for row in 0..self.line_map.line_count() {
-            let line = self.line_str(row);
-            points.push(Self::wrap_points_for_line(line, max_columns, &tab_map));
+
+        // Rebuild the cache when it grows past the number of live lines
+        // (stale entries from deleted lines are dropped).
+        if self.wrap_cache.len() > self.text.line_count().max(64) * 2 + 64 {
+            self.wrap_cache.clear();
+        }
+
+        let mut points = Vec::with_capacity(self.text.line_count());
+        for row in 0..self.text.line_count() {
+            let line = self.text.line_str(row);
+            let hash = hash_str(line);
+            let entry = self.wrap_cache.entry(hash).or_insert_with(|| {
+                Arc::new(Self::wrap_points_for_line(line, max_columns, &tab_map))
+            });
+            points.push(entry.as_ref().clone());
         }
         self.wrap = WrapState::new(viewport_width_px, points);
         self.wrap_width_px = Some(viewport_width_px);
+        self.wrap_max_columns = Some(max_columns);
+        self.dirty_wrap_span = None;
         self.rows_cache = None;
+        self.rows_line_count = None;
         true
     }
 
@@ -442,30 +624,34 @@ impl SourceCodeEditor {
         self.wrap_width_px = None;
     }
 
-    /// The foldable region whose header is the primary cursor's line.
-    pub fn foldable_at_cursor(&self) -> Option<crate::display_map::FoldRange> {
-        let row = self.line_map.offset_to_point(self.cursor()).row;
-        self.folds.foldable_at(&self.text, &self.line_map, row)
+    /// The foldable region headed by `row`, from the last background
+    /// highlight run (stale-while-typing, like Zed's background parsing).
+    pub fn foldable_at(&self, row: u32) -> Option<FoldRange> {
+        let ranges = self.highlight.folds.as_deref()?;
+        let idx = ranges
+            .binary_search_by_key(&row, |range| range.start_row)
+            .ok()?;
+        Some(ranges[idx])
     }
 
     /// Toggles the fold containing or heading the primary cursor's line.
     pub fn toggle_fold_at_cursor(&mut self) {
-        let row = self.line_map.offset_to_point(self.cursor()).row;
-        if self.folds.is_folded(row) {
-            self.folds.unfold(row);
+        let row = self.text.offset_to_point(self.cursor()).0;
+        if self.folds.is_folded(row as u32) {
+            self.folds.unfold(row as u32);
             self.rows_cache = None;
             return;
         }
         // A cursor inside a fold should unfold it.
-        if self.folds.is_row_hidden(row) {
-            let header = self.folds.header_of_hidden(row);
+        if self.folds.is_row_hidden(row as u32) {
+            let header = self.folds.header_of_hidden(row as u32);
             if let Some(header) = header {
                 self.folds.unfold(header);
                 self.rows_cache = None;
                 return;
             }
         }
-        if let Some(range) = self.folds.foldable_at(&self.text, &self.line_map, row) {
+        if let Some(range) = self.foldable_at(row as u32) {
             self.folds.fold(range);
             self.rows_cache = None;
         }
@@ -478,22 +664,20 @@ impl SourceCodeEditor {
 
     // ── Text and layout accessors ────────────────────────────────────────
 
-    pub fn text(&self) -> &str {
+    pub fn text(&self) -> &Rope {
         &self.text
     }
 
-    pub fn line_map(&self) -> &LineMap {
-        &self.line_map
+    pub fn text_version(&self) -> u64 {
+        self.text_version
     }
 
     pub fn line_str(&self, row: usize) -> &str {
-        let start = self.line_map.line_start(row);
-        let len = self.line_map.line_len(row);
-        &self.text[start..start + len]
+        self.text.line_str(row)
     }
 
     pub fn line_count(&self) -> usize {
-        self.line_map.line_count()
+        self.text.line_count()
     }
 
     pub fn settings(&self) -> SourceCodeSettings {
@@ -529,34 +713,71 @@ impl SourceCodeEditor {
         self.cursor_blink_epoch
     }
 
-    // ── Syntax highlighting cache ────────────────────────────────────────
+    // ── Highlight pipeline ────────────────────────────────────────────────
 
-    /// Returns cached Markdown highlights. The cache is invalidated on
-    /// every text edit (`rebuild_derived`) and recomputed only when the
-    /// theme family changed — never re-derived per frame.
-    pub fn highlight(&mut self, theme_name: &str) -> Option<&CodeHighlightResult> {
-        if self.highlight_cache.is_none() || self.highlight_theme != theme_name {
-            self.highlight_cache = highlight_code_block(Some("markdown"), &self.text);
-            self.highlight_theme = theme_name.to_string();
+    /// Schedules a background highlight refresh after an idle debounce.
+    /// The current (possibly stale) result keeps rendering while the task
+    /// runs; completions whose generation moved are discarded and the
+    /// debounce restarts.
+    fn schedule_highlight(&mut self, cx: &mut Context<Self>) {
+        self.highlight.generation = self.highlight.generation.wrapping_add(1);
+        if self.highlight.task.is_some() {
+            return; // the running task restarts the debounce when stale
         }
-        self.highlight_cache.as_ref()
+        let task = cx.spawn(async move |entity, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(Duration::from_millis(150))
+                    .await;
+                let Ok((text, generation)) = entity.update(cx, |editor, _cx| {
+                    (editor.text.materialize(), editor.highlight.generation)
+                }) else {
+                    return;
+                };
+                let computed = cx
+                    .background_executor()
+                    .spawn(async move {
+                        let highlight = highlight_code_block(Some("markdown"), &text);
+                        let outline = crate::outline::extract_outline_headings(&text);
+                        let rope = Rope::new(&text);
+                        let mut folds = FoldMap::discover_markdown_folds(&rope);
+                        folds.sort_by_key(|range| range.start_row);
+                        (highlight, outline, folds)
+                    })
+                    .await;
+                let Ok(done) = entity.update(cx, |editor, cx| {
+                    if editor.highlight.generation == generation {
+                        editor.highlight.result = computed.0.map(Arc::new);
+                        editor.highlight.outline = Some(Arc::new(computed.1));
+                        editor.highlight.folds = Some(Arc::new(computed.2));
+                        editor.highlight.task = None;
+                        cx.notify();
+                        true
+                    } else {
+                        false
+                    }
+                }) else {
+                    return;
+                };
+                if done {
+                    break;
+                }
+            }
+        });
+        self.highlight.task = Some(task);
     }
 
-    /// Returns the Markdown outline headings, cached by document revision.
-    /// Local edits invalidate the cache (`rebuild_derived`), so this is
-    /// O(1) on frames without text changes instead of re-parsing the whole
-    /// document every frame.
-    pub fn cached_outline_headings(&mut self) -> &[OutlineNode] {
-        let revision = self.synced_revision.unwrap_or(0);
-        let stale = self
-            .outline_cache
-            .as_ref()
-            .is_none_or(|(cached_rev, _)| *cached_rev != revision);
-        if stale {
-            let headings = crate::outline::extract_outline_headings(&self.text);
-            self.outline_cache = Some((revision, headings));
-        }
-        &self.outline_cache.as_ref().expect("cache just filled").1
+    /// The most recent highlight result (possibly stale while a refresh is
+    /// in flight — text keeps its previous colors while typing).
+    pub fn highlight_result(&self) -> Option<Arc<CodeHighlightResult>> {
+        self.highlight.result.clone()
+    }
+
+    /// Cached outline headings from the last background refresh. Empty
+    /// until the first background highlight completes (the editor never
+    /// extracts the outline synchronously on the UI thread).
+    pub fn cached_outline_headings(&self) -> Arc<Vec<OutlineNode>> {
+        self.highlight.outline.clone().unwrap_or_default()
     }
 
     // ── Metrics ──────────────────────────────────────────────────────────
@@ -586,6 +807,23 @@ impl SourceCodeEditor {
             8.0
         }
     }
+
+    // ── Matching bracket cache ───────────────────────────────────────────
+
+    /// Finds the matching bracket offset for the primary cursor, cached
+    /// per (text_version, cursor).
+    pub fn matching_bracket(&mut self) -> Option<usize> {
+        let cursor = self.cursor();
+        if let Some((version, cached_cursor, result)) = &self.bracket_cache {
+            if *version == self.text_version && *cached_cursor == cursor {
+                return *result;
+            }
+        }
+        let text = self.text.materialize();
+        let result = crate::syntax::find_matching_bracket(&text, cursor);
+        self.bracket_cache = Some((self.text_version, cursor, result));
+        result
+    }
 }
 
 /// Normalizes CRLF / CR line endings to LF so pane text always matches what
@@ -596,4 +834,10 @@ pub fn normalize_line_endings(text: &str) -> String {
     } else {
         text.to_string()
     }
+}
+
+fn hash_str(text: &str) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut hasher);
+    hasher.finish()
 }

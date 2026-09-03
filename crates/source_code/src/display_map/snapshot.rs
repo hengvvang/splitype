@@ -7,17 +7,16 @@
 
 use std::sync::Arc;
 
-use crate::buffer::LineMap;
 use crate::display_map::display_point::DisplayPoint;
 use crate::display_map::fold_map::FoldMap;
 use crate::display_map::tab_map::TabMap;
 use crate::display_map::wrap_map::WrapState;
+use crate::text::Rope;
 
 /// Immutable, frame-stable snapshot of all display transformation state.
 #[derive(Clone, Debug)]
 pub struct DisplaySnapshot<'a> {
-    pub text: &'a str,
-    pub line_map: &'a LineMap,
+    pub text: &'a Rope,
     pub tab_map: TabMap,
     pub fold_map: &'a FoldMap,
     pub wrap: &'a WrapState,
@@ -88,8 +87,7 @@ impl RowIndex {
 
 impl<'a> DisplaySnapshot<'a> {
     pub fn new(
-        text: &'a str,
-        line_map: &'a LineMap,
+        text: &'a Rope,
         tab_map: TabMap,
         fold_map: &'a FoldMap,
         wrap: &'a WrapState,
@@ -97,7 +95,6 @@ impl<'a> DisplaySnapshot<'a> {
     ) -> Self {
         Self {
             text,
-            line_map,
             tab_map,
             fold_map,
             wrap,
@@ -107,14 +104,13 @@ impl<'a> DisplaySnapshot<'a> {
 
     /// Builds the snapshot from a freshly computed row index.
     pub fn build(
-        text: &'a str,
-        line_map: &'a LineMap,
+        text: &'a Rope,
         tab_map: TabMap,
         fold_map: &'a FoldMap,
         wrap: &'a WrapState,
     ) -> Self {
-        let rows = Arc::new(RowIndex::build(line_map.line_count(), fold_map, wrap));
-        Self::new(text, line_map, tab_map, fold_map, wrap, rows)
+        let rows = Arc::new(RowIndex::build(text.line_count(), fold_map, wrap));
+        Self::new(text, tab_map, fold_map, wrap, rows)
     }
 
     /// Total number of visible display rows.
@@ -126,26 +122,20 @@ impl<'a> DisplaySnapshot<'a> {
     /// The line text of a buffer row.
     #[inline]
     fn line_str(&self, buffer_row: u32) -> &'a str {
-        let start = self.line_map.line_start(buffer_row as usize);
-        let len = self.line_map.line_len(buffer_row as usize);
-        &self.text[start..start + len]
+        self.text.line_str(buffer_row as usize)
     }
 
     /// Converts a byte offset to a display point. Offsets inside folded
     /// content clamp to the fold header row.
     pub fn offset_to_display_point(&self, offset: usize) -> DisplayPoint {
-        let point = self.line_map.offset_to_point(offset);
-        let buffer_row = point.row;
-        let start_row = self.rows.starts[buffer_row as usize];
-        let line = self.line_str(buffer_row);
+        let (row, column) = self.text.offset_to_point(offset);
+        let buffer_row = row;
+        let start_row = self.rows.starts[buffer_row];
+        let line = self.line_str(buffer_row as u32);
 
-        let wrap_index = self
-            .wrap
-            .wrap_index_of(buffer_row as usize, point.column as usize);
-        let segment = self
-            .wrap
-            .row_range(buffer_row as usize, wrap_index, 0..line.len());
-        let column_in_segment = (point.column as usize).saturating_sub(segment.start);
+        let wrap_index = self.wrap.wrap_index_of(buffer_row, column);
+        let segment = self.wrap.row_range(buffer_row, wrap_index, 0..line.len());
+        let column_in_segment = column.saturating_sub(segment.start);
         let display_column = self.tab_map.char_column_to_display_column(
             &line[segment.start..segment.end],
             column_in_segment as u32,
@@ -161,7 +151,7 @@ impl<'a> DisplaySnapshot<'a> {
         let start_row = self.rows.starts[buffer_row as usize];
         let wrap_index = point.row.saturating_sub(start_row);
 
-        let line_start = self.line_map.line_start(buffer_row as usize);
+        let line_start = self.text.line_start(buffer_row as usize);
         let line = self.line_str(buffer_row);
         let segment = self
             .wrap

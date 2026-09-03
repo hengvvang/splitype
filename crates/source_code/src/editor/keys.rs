@@ -83,6 +83,16 @@ impl SourceCodeEditor {
                     cx.notify();
                     return true;
                 }
+                "[" => {
+                    self.toggle_fold_at_cursor();
+                    cx.notify();
+                    return true;
+                }
+                "]" => {
+                    self.unfold_all();
+                    cx.notify();
+                    return true;
+                }
                 _ => {}
             }
         }

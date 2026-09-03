@@ -86,7 +86,7 @@ impl PaneView for SourceCodeState {
             .as_ref()
             .map(|controller| {
                 let editor = controller.read(cx);
-                crate::outline::extract_outline_headings(editor.text())
+                editor.cached_outline_headings().as_ref().clone()
             })
             .unwrap_or_default()
     }
@@ -94,7 +94,7 @@ impl PaneView for SourceCodeState {
     fn navigate_to_outline(&mut self, index: usize, theme: &Theme, cx: &mut App) -> Option<f32> {
         let controller = self.ensure_controller(cx);
         controller.update(cx, |editor, cx| {
-            let headings = crate::outline::extract_outline_headings(editor.text());
+            let headings = editor.cached_outline_headings();
             let heading = headings.get(index)?;
             let offset = editor.line_start_offset(heading.block_index);
             editor.move_to(offset, false);
@@ -113,7 +113,7 @@ impl PaneView for SourceCodeState {
             .as_ref()
             .map(|controller| {
                 let editor = controller.read(cx);
-                crate::search::search_in_source(editor.text(), query)
+                crate::search::search_in_source(&editor.document_text(), query)
             })
             .unwrap_or_default()
     }
@@ -174,7 +174,7 @@ impl PaneView for SourceCodeState {
     ) -> Option<EditTransaction> {
         let controller = self.ensure_controller(cx);
         let matches = controller.update(cx, |editor, _cx| {
-            crate::search::search_in_source(editor.text(), query)
+            crate::search::search_in_source(&editor.document_text(), query)
                 .into_iter()
                 .map(|m| (m.byte_range, replace_with.to_string()))
                 .collect::<Vec<_>>()

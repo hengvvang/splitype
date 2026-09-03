@@ -7,7 +7,6 @@
 
 use crate::display_map::DisplayPoint;
 use crate::editor::SourceCodeEditor;
-use crate::syntax::find_matching_bracket;
 
 impl SourceCodeEditor {
     // ── Point/offset geometry ─────────────────────────────────────────────
@@ -15,28 +14,23 @@ impl SourceCodeEditor {
     /// (0-based line, byte column within the line) of a byte offset.
     #[inline]
     pub fn point_of(&self, offset: usize) -> (usize, usize) {
-        let point = self.line_map.offset_to_point(offset);
-        (point.row as usize, point.column as usize)
+        self.text.offset_to_point(offset)
     }
 
     /// Byte offset of a (line, byte-column) point.
     #[inline]
     pub fn offset_at_line_col(&self, line_index: usize, col: usize) -> usize {
-        self.line_map
-            .point_to_offset(crate::buffer::BufferPoint::new(
-                line_index as u32,
-                col as u32,
-            ))
+        self.text.point_to_offset(line_index, col)
     }
 
     #[inline]
     pub fn line_start_offset(&self, row: usize) -> usize {
-        self.line_map.line_start(row)
+        self.text.line_start(row)
     }
 
     #[inline]
     pub fn line_end_offset(&self, row: usize) -> usize {
-        self.line_start_offset(row) + self.line_map.line_len(row)
+        self.text.line_start(row) + self.text.line_len(row)
     }
 
     /// Returns (1-based line, 1-based char column) cursor position for the
@@ -52,11 +46,6 @@ impl SourceCodeEditor {
             char_count += 1;
         }
         (line + 1, char_count + 1)
-    }
-
-    /// Finds the matching bracket offset for the primary cursor.
-    pub fn matching_bracket(&self) -> Option<usize> {
-        find_matching_bracket(&self.text, self.cursor())
     }
 
     // ── Movement ──────────────────────────────────────────────────────────
@@ -114,7 +103,7 @@ impl SourceCodeEditor {
                 let target = if s.head == 0 {
                     s.head
                 } else if word {
-                    let before = &self.text[..s.head];
+                    let before = self.text.slice_owned(..s.head);
                     let mut prev = 0;
                     let mut seen_non_ws = false;
                     for (idx, ch) in before.char_indices().rev() {
@@ -130,9 +119,9 @@ impl SourceCodeEditor {
                     }
                     prev
                 } else {
-                    let prev_char_len = self.text[..s.head]
-                        .chars()
-                        .last()
+                    let prev_char_len = self
+                        .text
+                        .char_before(s.head)
                         .map(|c| c.len_utf8())
                         .unwrap_or(1);
                     s.head.saturating_sub(prev_char_len)
@@ -165,7 +154,7 @@ impl SourceCodeEditor {
                 let target = if s.head >= text_len {
                     s.head
                 } else if word {
-                    let after = &self.text[s.head..];
+                    let after = self.text.slice_owned(s.head..);
                     let mut next = text_len;
                     let mut seen_non_ws = false;
                     for (idx, ch) in after.char_indices() {
@@ -180,9 +169,9 @@ impl SourceCodeEditor {
                     }
                     next
                 } else {
-                    let next_char_len = self.text[s.head..]
-                        .chars()
-                        .next()
+                    let next_char_len = self
+                        .text
+                        .char_after(s.head)
                         .map(|c| c.len_utf8())
                         .unwrap_or(1);
                     (s.head + next_char_len).min(text_len)

@@ -58,11 +58,11 @@ impl SourceCodeEditor {
         }
 
         // Warm the per-revision caches before the element reads them
-        // during prepaint: highlight spans, the display row index, and the
-        // outline headings (each recomputes only on invalidation).
-        let theme_name = theme.name.clone();
-        self.highlight(&theme_name);
+        // during prepaint: the display row index and the matching bracket
+        // (each recomputes only on invalidation). Outline headings and
+        // foldable regions come from the background highlight pipeline.
         self.ensure_rows_cache();
+        self.bracket_offset = self.matching_bracket();
         let headings = self.cached_outline_headings();
         let scroll_y = -f32::from(ctx.scroll.offset().y);
         let top_visible_line = (scroll_y / line_height).floor().max(0.0) as usize;
@@ -77,7 +77,7 @@ impl SourceCodeEditor {
         });
         let outline_hud = ui::render_floating_outline_hud(
             ctx.pane_id.0,
-            headings,
+            &headings,
             active_index,
             ctx.is_outline_hovered,
             &theme,
@@ -236,6 +236,17 @@ impl Element for EditorElement {
         let editor_padding = theme.dimensions.editor_padding;
         let font = TypographyStore::default_font(TypographyScope::Code);
 
+        // The visible display-row window, computed before the editor read
+        // so only visible rows are walked (never the whole document).
+        let visible_bounds = window.content_mask().bounds;
+        let scroll_y = f32::from(bounds.top() - visible_bounds.top());
+        let viewport_height = f32::from(visible_bounds.size.height.max(bounds.size.height));
+        let start_visible_row = ((-scroll_y - editor_padding) / line_height)
+            .floor()
+            .max(0.0) as u32;
+        let visible_count = ((viewport_height / line_height).ceil() as u32) + 8;
+        let end_visible_row = start_visible_row + visible_count;
+
         // One editor read gathers every piece of frame data; the row loop
         // below only uses owned copies.
         let (
@@ -247,14 +258,13 @@ impl Element for EditorElement {
             highlight_active_line,
             line_numbers,
             tab_size,
-            spans,
+            highlight,
             search_matches,
             selection_ranges,
             cursor_rows,
             gutter_width,
             marked_range,
             matching_bracket_offset,
-            fold_marker_rows,
             is_focused,
         ) = {
             let editor = self.editor.read(cx);
@@ -262,32 +272,35 @@ impl Element for EditorElement {
             let is_focused = self.is_focused || editor.focus_handle.is_focused(window);
             let line_count = editor.line_count();
 
-            // Walk buffer rows exactly like RowIndex::build: fold headers
-            // consume their wrap rows, hidden rows are skipped.
-            let mut frames = Vec::new();
-            let mut display_row = 0u32;
-            for buffer_row in 0..line_count {
-                if buffer_row > 0
-                    && snapshot.rows.starts[buffer_row] == snapshot.rows.starts[buffer_row - 1]
-                {
-                    continue; // hidden inside a fold
-                }
-                let line_start = editor.line_start_offset(buffer_row);
+            // Walk only the visible display rows, mapping each back to its
+            // buffer row through the row index (O(log n) per row). Folded
+            // and foldable markers are looked up per visible row.
+            let mut frames: Vec<(RowFrame, Option<bool>)> = Vec::new();
+            let total_rows = snapshot.rows.total.min(end_visible_row);
+            for display_row in start_visible_row..total_rows {
+                let buffer_row = snapshot.rows.buffer_row_at(display_row) as usize;
+                let start_row = snapshot.rows.starts[buffer_row];
+                let wrap_index = display_row - start_row;
                 let line = editor.line_str(buffer_row);
-                let wrap_rows = snapshot.wrap.line_rows(buffer_row);
-                for wrap_index in 0..wrap_rows {
-                    let range =
-                        snapshot
-                            .wrap
-                            .row_range(buffer_row, wrap_index as usize, 0..line.len());
-                    frames.push(RowFrame {
+                if wrap_index >= snapshot.wrap.line_rows(buffer_row) {
+                    continue; // display row inside a folded region
+                }
+                let segment =
+                    snapshot
+                        .wrap
+                        .row_range(buffer_row, wrap_index as usize, 0..line.len());
+                let line_start = editor.line_start_offset(buffer_row);
+                let folded = editor.folds().is_folded(buffer_row as u32);
+                let foldable = !folded && editor.foldable_at(buffer_row as u32).is_some();
+                frames.push((
+                    RowFrame {
                         display_row,
                         buffer_row: buffer_row as u32,
                         is_first: wrap_index == 0,
-                        range: line_start + range.start..line_start + range.end,
-                    });
-                    display_row += 1;
-                }
+                        range: line_start + segment.start..line_start + segment.end,
+                    },
+                    (folded || foldable).then_some(folded),
+                ));
             }
 
             let primary_head_display_row = snapshot.offset_to_display_point(editor.cursor()).row;
@@ -305,20 +318,9 @@ impl Element for EditorElement {
                     (s.head, dp.row)
                 })
                 .collect();
-            let fold_marker_rows: Vec<(u32, bool)> = (0..line_count as u32)
-                .filter_map(|row| {
-                    let folded = editor.folds().fold_at(row).is_some();
-                    let foldable = !folded
-                        && editor
-                            .folds()
-                            .foldable_at(&editor.text, &editor.line_map, row)
-                            .is_some();
-                    (folded || foldable).then_some((row, folded))
-                })
-                .collect();
 
             (
-                editor.text.clone(),
+                editor.text().clone(),
                 frames,
                 line_count,
                 primary_head_display_row,
@@ -326,31 +328,16 @@ impl Element for EditorElement {
                 editor.settings().highlight_active_line,
                 editor.settings().line_numbers,
                 editor.settings().tab_size,
-                editor
-                    .highlight_cache
-                    .as_ref()
-                    .map(|cache| cache.spans.clone())
-                    .unwrap_or_default(),
-                editor.search_matches.clone(),
+                editor.highlight_result(),
+                editor.search_matches().to_vec(),
                 selection_ranges,
                 cursor_rows,
                 editor.gutter_width_px(cx),
                 editor.marked_range(),
-                editor.matching_bracket(),
-                fold_marker_rows,
+                editor.bracket_offset,
                 is_focused,
             )
         };
-
-        let visible_bounds = window.content_mask().bounds;
-        let scroll_y = f32::from(bounds.top() - visible_bounds.top());
-        let viewport_height = f32::from(visible_bounds.size.height.max(bounds.size.height));
-
-        let start_visible_row = ((-scroll_y - editor_padding) / line_height)
-            .floor()
-            .max(0.0) as u32;
-        let visible_count = ((viewport_height / line_height).ceil() as u32) + 8;
-        let end_visible_row = start_visible_row + visible_count;
 
         let mut shaped_lines = Vec::new();
         let mut gutter_numbers = Vec::new();
@@ -367,21 +354,22 @@ impl Element for EditorElement {
         let char_width = font_size * 0.6;
         let gutter_layout = crate::gutter::GutterLayout::new(line_count, font_size);
 
-        for frame in frames
-            .iter()
-            .filter(|f| f.display_row >= start_visible_row && f.display_row < end_visible_row)
-        {
+        for (frame, fold_marker) in &frames {
             let line_y = bounds.top() + px(editor_padding + frame.display_row as f32 * line_height);
-            let segment = &text[frame.range.clone()];
+            let segment = text.slice_owned(frame.range.clone());
+            let spans = highlight
+                .as_ref()
+                .map(|result| result.spans.as_slice())
+                .unwrap_or(&[]);
             let runs = build_line_text_runs(
-                segment,
+                &segment,
                 frame.range.clone(),
-                &spans,
+                spans,
                 font.clone(),
                 &theme.colors,
             );
             let shaped_line = window.text_system().shape_line(
-                SharedString::new(segment),
+                SharedString::new(segment.clone()),
                 px(font_size),
                 &runs,
                 None,
@@ -401,7 +389,7 @@ impl Element for EditorElement {
 
             // 2. Indent guides on the leading whitespace of the buffer line.
             if frame.is_first {
-                let indent_cols = compute_indent_guide_columns(segment, tab_size);
+                let indent_cols = compute_indent_guide_columns(&segment, tab_size);
                 for col in indent_cols {
                     let guide_x = text_origin_x + px(col as f32 * char_width);
                     indent_guide_quads.push(fill(
@@ -549,10 +537,7 @@ impl Element for EditorElement {
                     gutter_numbers.push((frame.display_row, shaped_num, is_active_row));
                 }
 
-                if let Some((_, folded)) = fold_marker_rows
-                    .iter()
-                    .find(|(row, _)| *row == frame.buffer_row)
-                {
+                if let Some(folded) = fold_marker {
                     let marker = if *folded { "▾" } else { "▸" };
                     let marker_run = TextRun {
                         len: marker.len(),
@@ -573,8 +558,9 @@ impl Element for EditorElement {
 
         // Store the frame layout for mouse hit-testing and the bounds for
         // coordinate math.
+        let stored_frames: Vec<RowFrame> = frames.iter().map(|(frame, _)| frame.clone()).collect();
         self.editor.update(cx, |editor, _cx| {
-            editor.frame_rows = frames;
+            editor.frame_rows = stored_frames;
             editor.set_last_bounds(bounds);
         });
 

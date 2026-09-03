@@ -4,7 +4,6 @@
 //! display maps (Tab/Fold/Wrap), multi-cursor selection collection,
 //! syntax highlighting, indent guides, and virtualized viewport rendering.
 
-pub mod buffer;
 pub mod builder;
 pub mod display_map;
 pub mod editor;
@@ -15,6 +14,7 @@ pub mod selection;
 pub mod settings;
 pub mod state;
 pub mod syntax;
+pub mod text;
 
 pub use builder::*;
 pub use settings::SourceCodeSettings;

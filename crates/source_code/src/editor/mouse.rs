@@ -30,25 +30,26 @@ impl SourceCodeEditor {
             .ok()
             .map(|idx| &self.frame_rows[idx])?;
 
-        let segment = &self.text[frame.range.clone()];
+        let segment = self.text.slice_owned(frame.range.clone());
         let rel_x = f32::from(position.x - bounds.origin.x - px(gutter_width + 12.0));
 
         let col_in_segment = if rel_x <= 0.0 || segment.is_empty() {
             0
         } else {
+            let segment_len = segment.len();
             let font = TypographyStore::default_font(TypographyScope::Code);
             let shaped = window.text_system().shape_line(
                 SharedString::new(segment),
                 px(font_size),
                 &[TextRun {
-                    len: segment.len(),
+                    len: segment_len,
                     font,
                     color: theme.colors.text_default,
                     ..Default::default()
                 }],
                 None,
             );
-            shaped.index_for_x(px(rel_x)).unwrap_or(segment.len())
+            shaped.index_for_x(px(rel_x)).unwrap_or(segment_len)
         };
 
         Some(frame.range.start + col_in_segment)

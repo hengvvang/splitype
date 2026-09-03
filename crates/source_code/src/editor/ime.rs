@@ -50,6 +50,14 @@ fn utf8_range_to_utf16(text: &str, range: &Range<usize>) -> Range<usize> {
     start..end
 }
 
+impl SourceCodeEditor {
+    /// Materializes the full text for IME range conversions (composition
+    /// events are per-keystroke frequency, not per-frame).
+    fn ime_text(&self) -> String {
+        self.text.materialize()
+    }
+}
+
 impl EntityInputHandler for SourceCodeEditor {
     fn text_for_range(
         &mut self,
@@ -58,11 +66,12 @@ impl EntityInputHandler for SourceCodeEditor {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<String> {
-        let range = utf16_range_to_utf8(&self.text, &range_utf16);
-        actual_range.replace(utf8_range_to_utf16(&self.text, &range));
-        let start = floor_char_boundary(&self.text, range.start);
-        let end = ceil_char_boundary(&self.text, range.end.max(start));
-        Some(self.text[start..end].to_string())
+        let text = self.ime_text();
+        let range = utf16_range_to_utf8(&text, &range_utf16);
+        actual_range.replace(utf8_range_to_utf16(&text, &range));
+        let start = floor_char_boundary(&text, range.start);
+        let end = ceil_char_boundary(&text, range.end.max(start));
+        Some(text[start..end].to_string())
     }
 
     fn selected_text_range(
@@ -71,12 +80,13 @@ impl EntityInputHandler for SourceCodeEditor {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
+        let text = self.ime_text();
         let range = self
             .selections
             .primary_range()
             .unwrap_or_else(|| self.cursor()..self.cursor());
         Some(UTF16Selection {
-            range: utf8_range_to_utf16(&self.text, &range),
+            range: utf8_range_to_utf16(&text, &range),
             reversed: self.selections.primary().is_reversed(),
         })
     }
@@ -86,9 +96,10 @@ impl EntityInputHandler for SourceCodeEditor {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Range<usize>> {
+        let text = self.ime_text();
         self.marked_range
             .as_ref()
-            .map(|range| utf8_range_to_utf16(&self.text, range))
+            .map(|range| utf8_range_to_utf16(&text, range))
     }
 
     fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
@@ -103,9 +114,10 @@ impl EntityInputHandler for SourceCodeEditor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let text = self.ime_text();
         let range = range_utf16
             .as_ref()
-            .map(|r| utf16_range_to_utf8(&self.text, r))
+            .map(|r| utf16_range_to_utf8(&text, r))
             .or_else(|| self.marked_range.clone())
             .unwrap_or_else(|| {
                 self.selections
@@ -113,15 +125,16 @@ impl EntityInputHandler for SourceCodeEditor {
                     .unwrap_or_else(|| self.cursor()..self.cursor())
             });
         let sanitized = new_text.replace(['\r', '\n'], "");
-        let start = floor_char_boundary(&self.text, range.start);
-        let end = ceil_char_boundary(&self.text, range.end.max(start));
+        let start = floor_char_boundary(&text, range.start);
+        let end = ceil_char_boundary(&text, range.end.max(start));
 
         let cursor_before = self.cursor_hint();
         let merge = self.marked_range.is_some();
-        self.text.replace_range(start..end, &sanitized);
+        self.replace_local(start..end, &sanitized);
         self.marked_range = None;
         self.record_edit_run(merge, cursor_before, Some(start + sanitized.len()));
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.selections.set_single_point(start + sanitized.len());
         self.commit_local_edit(merge, cursor_before, cx);
     }
@@ -134,7 +147,7 @@ impl EntityInputHandler for SourceCodeEditor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let text = self.text.clone();
+        let text = self.ime_text();
         let range = range_utf16
             .as_ref()
             .map(|r| utf16_range_to_utf8(&text, r))
@@ -146,12 +159,12 @@ impl EntityInputHandler for SourceCodeEditor {
             });
 
         let sanitized = new_text.replace(['\r', '\n'], "");
-        let start = floor_char_boundary(&self.text, range.start);
-        let end = ceil_char_boundary(&self.text, range.end.max(start));
+        let start = floor_char_boundary(&text, range.start);
+        let end = ceil_char_boundary(&text, range.end.max(start));
 
         let cursor_before = self.cursor_hint();
         let merge = self.marked_range.is_some() || self.typing_run.is_some();
-        self.text.replace_range(start..end, &sanitized);
+        self.replace_local(start..end, &sanitized);
 
         let marked = start..start + sanitized.len();
         let selection = new_selected_range_utf16
@@ -164,7 +177,8 @@ impl EntityInputHandler for SourceCodeEditor {
         self.selections
             .set_single_range(selection.start, selection.end);
         self.record_edit_run(merge, cursor_before, Some(selection.end));
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.commit_local_edit(merge, cursor_before, cx);
     }
 

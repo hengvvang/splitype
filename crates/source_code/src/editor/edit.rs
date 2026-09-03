@@ -1,9 +1,10 @@
 //! Text editing operations on the editor's local document projection.
 //!
-//! Every local edit updates the text, the line map, and the selections,
-//! then commits through the pane host as one [`EditTransaction`]. Typing
-//! runs (consecutive single-character insertions at the same position) are
-//! merged into one buffer-level undo transaction via [`EditTransaction::merge`].
+//! Every local edit applies a rope edit (O(chunks), with the line index
+//! maintained incrementally by the rope) and then commits through the pane
+//! host as one [`EditTransaction`]. Typing runs (consecutive
+//! single-character insertions at the same position) are merged into one
+//! buffer-level undo transaction via [`EditTransaction::merge`].
 
 use std::ops::Range;
 
@@ -22,7 +23,8 @@ impl SourceCodeEditor {
         let merge = self.merge_for_insert(self.cursor(), inserted);
         let insert_pos = self.insert_text_local(inserted);
         self.record_edit_run(merge, cursor_before, insert_pos);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.commit_local_edit(merge, cursor_before, cx);
     }
 
@@ -55,11 +57,12 @@ impl SourceCodeEditor {
 
         let cursor_before = self.cursor_hint();
         for row in (start_row..=actual_end_row).rev() {
-            self.text
-                .insert_str(self.line_start_offset(row), &indent_unit);
+            let offset = self.line_start_offset(row);
+            self.replace_local(offset..offset, &indent_unit);
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         let new_start = self.line_start_offset(start_row);
         let new_end = self.line_end_offset(actual_end_row);
         self.selections.set_single_range(new_start, new_end);
@@ -90,11 +93,12 @@ impl SourceCodeEditor {
                 line.chars().take_while(|&c| c == ' ').count().min(4)
             };
             if spaces_to_remove > 0 {
-                self.text.drain(start..start + spaces_to_remove);
+                self.replace_local(start..start + spaces_to_remove, "");
             }
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         let new_start = self.line_start_offset(start_row);
         let new_end = self.line_end_offset(end_row);
         if self.selections.has_selection() {
@@ -114,9 +118,10 @@ impl SourceCodeEditor {
         let end = self.line_end_offset(row);
 
         let cursor_before = self.cursor_hint();
-        self.text.insert_str(end, &format!("\n{line}"));
+        self.replace_local(end..end, &format!("\n{line}"));
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.selections.set_single_point(end + 1 + line.len());
         self.commit_local_edit(false, cursor_before, cx);
     }
@@ -134,10 +139,11 @@ impl SourceCodeEditor {
 
         let cursor_before = self.cursor_hint();
         if start < end && end <= self.text.len() {
-            self.text.drain(start..end);
+            self.replace_local(start..end, "");
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.selections.set_single_point(start.min(self.text.len()));
         self.commit_local_edit(false, cursor_before, cx);
     }
@@ -152,13 +158,13 @@ impl SourceCodeEditor {
             selections.sort_by_key(|s| std::cmp::Reverse(s.head));
             for s in &mut selections {
                 if s.head > 0 && s.head <= self.text.len() {
-                    let prev_char_len = self.text[..s.head]
-                        .chars()
-                        .last()
+                    let prev_char_len = self
+                        .text
+                        .char_before(s.head)
                         .map(|c| c.len_utf8())
                         .unwrap_or(1);
                     let remove_start = s.head - prev_char_len;
-                    self.text.drain(remove_start..s.head);
+                    self.replace_local(remove_start..s.head, "");
                     *s = crate::selection::Selection::point(s.id, remove_start);
                 }
             }
@@ -166,7 +172,8 @@ impl SourceCodeEditor {
                 Self::selections_from_points(selections.iter().map(|s| s.head).collect());
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.commit_local_edit(false, cursor_before, cx);
     }
 
@@ -178,7 +185,7 @@ impl SourceCodeEditor {
         } else {
             let cursor = self.cursor();
             if cursor > 0 {
-                let before = &self.text[..cursor];
+                let before = self.text.slice_owned(..cursor);
                 let mut remove_start = cursor;
                 let mut seen_non_ws = false;
                 for (idx, ch) in before.char_indices().rev() {
@@ -199,13 +206,14 @@ impl SourceCodeEditor {
                     remove_start = idx;
                 }
                 if remove_start < cursor {
-                    self.text.drain(remove_start..cursor);
+                    self.replace_local(remove_start..cursor, "");
                     self.selections.set_single_point(remove_start);
                 }
             }
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.commit_local_edit(false, cursor_before, cx);
     }
 
@@ -219,12 +227,12 @@ impl SourceCodeEditor {
             selections.sort_by_key(|s| std::cmp::Reverse(s.head));
             for s in &mut selections {
                 if s.head < self.text.len() {
-                    let next_char_len = self.text[s.head..]
-                        .chars()
-                        .next()
+                    let next_char_len = self
+                        .text
+                        .char_after(s.head)
                         .map(|c| c.len_utf8())
                         .unwrap_or(1);
-                    self.text.drain(s.head..s.head + next_char_len);
+                    self.replace_local(s.head..s.head + next_char_len, "");
                     *s = crate::selection::Selection::point(s.id, s.head);
                 }
             }
@@ -232,7 +240,8 @@ impl SourceCodeEditor {
                 Self::selections_from_points(selections.iter().map(|s| s.head).collect());
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.commit_local_edit(false, cursor_before, cx);
     }
 
@@ -244,7 +253,7 @@ impl SourceCodeEditor {
         } else {
             let cursor = self.cursor();
             if cursor < self.text.len() {
-                let after = &self.text[cursor..];
+                let after = self.text.slice_owned(cursor..);
                 let mut remove_end = self.text.len();
                 let mut seen_non_ws = false;
                 for (idx, ch) in after.char_indices() {
@@ -264,13 +273,14 @@ impl SourceCodeEditor {
                     }
                 }
                 if remove_end > cursor {
-                    self.text.drain(cursor..remove_end);
+                    self.replace_local(cursor..remove_end, "");
                     self.selections.set_single_point(cursor);
                 }
             }
         }
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.commit_local_edit(false, cursor_before, cx);
     }
 
@@ -287,7 +297,8 @@ impl SourceCodeEditor {
         let merge = self.merge_for_insert(self.cursor(), inserted);
         let insert_pos = self.insert_text_local(inserted);
         self.record_edit_run(merge, cursor_before, insert_pos);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         cx.notify();
         self.take_transaction(merge, cursor_before)
     }
@@ -301,7 +312,8 @@ impl SourceCodeEditor {
         let cursor_before = self.cursor_hint();
         self.delete_selection_local();
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         cx.notify();
         self.take_transaction(false, cursor_before)
     }
@@ -325,9 +337,10 @@ impl SourceCodeEditor {
             return None;
         }
         let cursor_before = self.cursor_hint();
-        self.text.replace_range(range.clone(), replacement);
+        self.replace_local(range.clone(), replacement);
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.selections
             .set_single_point(range.start + replacement.len());
         cx.notify();
@@ -345,7 +358,7 @@ impl SourceCodeEditor {
         replacements.sort_by_key(|(range, _)| std::cmp::Reverse(range.start));
         for (range, replacement) in &replacements {
             if range.start <= self.text.len() && range.end <= self.text.len() {
-                self.text.replace_range(range.clone(), replacement);
+                self.replace_local(range.clone(), replacement);
             }
         }
         let caret = replacements
@@ -354,7 +367,8 @@ impl SourceCodeEditor {
             .min()
             .unwrap_or(0);
         self.record_edit_run(false, cursor_before, None);
-        self.rebuild_derived();
+        self.after_text_change();
+        self.schedule_highlight(cx);
         self.selections.set_single_point(caret.min(self.text.len()));
         cx.notify();
         self.take_transaction(false, cursor_before)
@@ -369,7 +383,7 @@ impl SourceCodeEditor {
         if self.selections.count() == 1 {
             let s = *self.selections.primary();
             let range = s.start().min(self.text.len())..s.end().min(self.text.len());
-            self.text.replace_range(range.clone(), inserted);
+            self.replace_local(range.clone(), inserted);
             self.selections
                 .set_single_point(range.start + inserted.len());
             Some(range.start + inserted.len())
@@ -387,7 +401,7 @@ impl SourceCodeEditor {
             ordered.sort_by_key(|(_, range)| std::cmp::Reverse(range.start));
             let mut heads: Vec<usize> = Vec::with_capacity(ordered.len());
             for (_, range) in &ordered {
-                self.text.replace_range(range.clone(), inserted);
+                self.replace_local(range.clone(), inserted);
                 heads.push(range.start + inserted.len());
             }
             self.selections = Self::selections_from_points(heads);
@@ -407,7 +421,7 @@ impl SourceCodeEditor {
         ordered.sort_by_key(|range| std::cmp::Reverse(range.start));
         let mut heads: Vec<usize> = Vec::with_capacity(ordered.len());
         for range in &ordered {
-            self.text.replace_range(range.clone(), "");
+            self.replace_local(range.clone(), "");
             heads.push(range.start);
         }
         self.selections = Self::selections_from_points(heads);

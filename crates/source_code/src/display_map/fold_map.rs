@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::buffer::LineMap;
+use crate::text::Rope;
 
 /// A fold region from `start_row` (visible header) to `end_row` (last
 /// hidden row), inclusive.
@@ -69,25 +69,9 @@ impl FoldMap {
         self.folds.remove(&start_row);
     }
 
-    /// Toggles the region (folded → unfolded, unfolded → folded).
-    pub fn toggle(&mut self, range: FoldRange) {
-        if self.is_folded(range.start_row) {
-            self.unfold(range.start_row);
-        } else {
-            self.fold(range);
-        }
-    }
-
     /// Unfolds everything.
     pub fn unfold_all(&mut self) {
         self.folds.clear();
-    }
-
-    /// The foldable region whose header is `row`, discovered from the text.
-    pub fn foldable_at(&self, text: &str, line_map: &LineMap, row: u32) -> Option<FoldRange> {
-        Self::discover_markdown_folds(text, line_map)
-            .into_iter()
-            .find(|range| range.start_row == row)
     }
 
     /// The header row of the fold hiding `row`, if any.
@@ -98,25 +82,26 @@ impl FoldMap {
             .map(|(start, _)| *start)
     }
 
-    /// Drops folds whose header rows no longer exist.
-    pub fn prune_to_line_count(&mut self, line_count: u32) {
+    /// Drops folds whose header rows no longer exist. Returns whether any
+    /// fold was removed.
+    pub fn prune_to_line_count(&mut self, line_count: u32) -> bool {
+        let before = self.folds.len();
         self.folds.retain(|start, _| *start < line_count);
+        self.folds.len() != before
     }
 
     /// Scans Markdown text for all foldable regions: fenced code blocks and
     /// heading sections.
-    pub fn discover_markdown_folds(text: &str, line_map: &LineMap) -> Vec<FoldRange> {
+    pub fn discover_markdown_folds(text: &Rope) -> Vec<FoldRange> {
         let mut foldable = Vec::new();
-        let total_lines = line_map.line_count() as u32;
+        let total_lines = text.line_count() as u32;
 
         let mut in_code_fence = false;
         let mut fence_start = 0u32;
         let mut heading_stack: Vec<(u8, u32)> = Vec::new();
 
         for row in 0..total_lines {
-            let start = line_map.line_start(row as usize);
-            let len = line_map.line_len(row as usize);
-            let line = text[start..start + len].trim_start();
+            let line = text.line_str(row as usize).trim_start();
 
             // Code fence detection
             if line.starts_with("```") || line.starts_with("~~~") {
@@ -178,8 +163,8 @@ mod tests {
     #[test]
     fn discovers_heading_folds() {
         let text = "# A\n\npara\n\n## B\npara2\n";
-        let line_map = LineMap::new(text);
-        let folds = FoldMap::discover_markdown_folds(text, &line_map);
+        let rope = Rope::new(text);
+        let folds = FoldMap::discover_markdown_folds(&rope);
         // "# A" spans the whole document (rows 0-5, including the
         // "## B" subsection at row 4); "## B" folds its own section.
         assert!(folds.iter().any(|f| f.start_row == 0 && f.end_row == 5));
