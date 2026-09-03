@@ -248,6 +248,7 @@ pub fn render_wysiwyg_context_menu(
             let is_p = matches!(active_kind, Some(BlockKind::Paragraph)) || active_kind.is_none();
 
             let target_entity = target_id.or_else(|| controller.active_entity.as_ref().map(|b| b.entity_id()));
+            let pos = *position;
 
             let submenu_rendered = active_submenu.map(|sub| {
                 let (items, y_offset) = match sub {
@@ -516,16 +517,14 @@ pub fn render_wysiwyg_context_menu(
                                     }
                                 }),
                             ),
-                            make_item(
+                            make_nav_item(
                                 "menu-ins-table",
                                 tr("表格", "Table"),
                                 None,
                                 true,
                                 false,
                                 Box::new(move |this, _window, cx| {
-                                    if let Some(id) = target_entity {
-                                        this.insert_table_after(id, cx);
-                                    }
+                                    this.open_table_insert_picker(target_entity, pos, cx);
                                 }),
                             ),
                             make_item(
@@ -1070,6 +1069,136 @@ pub fn render_wysiwyg_context_menu(
                 .child(
                     div()
                         .id("editor-table-resize-panel")
+                        .absolute()
+                        .left(panel_left)
+                        .top(panel_top)
+                        .p(px(12.0))
+                        .flex()
+                        .flex_col()
+                        .gap(px(4.0))
+                        .bg(c.dialog_surface)
+                        .border(px(d.dialog_border_width))
+                        .border_color(c.dialog_border)
+                        .rounded(px(d.menu_panel_radius))
+                        .shadow_lg()
+                        .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                            cx.stop_propagation();
+                        })
+                        .child(top_indicator)
+                        .child(matrix_grid),
+                )
+                .into_any_element()
+        }
+        WysiwygContextMenuState::TableInsert {
+            position,
+            target_entity_id,
+            hovered_rows,
+            hovered_cols,
+        } => {
+            let max_matrix_rows = 8usize;
+            let max_matrix_cols = 8usize;
+
+            let display_rows = hovered_rows.unwrap_or(3).clamp(1, max_matrix_rows);
+            let display_cols = hovered_cols.unwrap_or(3).clamp(1, max_matrix_cols);
+
+            let panel_x = position.x - origin.x;
+            let panel_y = position.y - origin.y;
+            let panel_width = 224.0_f32;
+            let panel_height = 250.0_f32;
+            let panel_left = px(f32::from(panel_x)
+                .clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
+            let panel_top = px(f32::from(panel_y)
+                .clamp(8.0, (pane_height - panel_height - 16.0).max(8.0)));
+
+            let target_id = *target_entity_id;
+            let hov_r = *hovered_rows;
+            let hov_c = *hovered_cols;
+
+            use ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+            let top_indicator = render_matrix_dimension_indicator(
+                display_rows,
+                display_cols,
+                tr("行", "Row"),
+                tr("列", "Column"),
+                theme,
+            );
+
+            let colors = MatrixCellColors::from_theme(theme);
+
+            let mut grid_rows = Vec::with_capacity(max_matrix_rows);
+            for r in 0..max_matrix_rows {
+                let row_num = r + 1;
+                let mut row_cells = Vec::with_capacity(max_matrix_cols);
+                for col in 0..max_matrix_cols {
+                    let col_num = col + 1;
+                    let is_in_selection = if let (Some(h_r), Some(h_c)) = (hov_r, hov_c) {
+                        r < h_r && col < h_c
+                    } else {
+                        r < 3 && col < 3
+                    };
+
+                    let cell_bg = if is_in_selection {
+                        colors.hover_only
+                    } else {
+                        colors.inactive
+                    };
+
+                    let cell = div()
+                        .id(ElementId::Name(format!("table-insert-cell-{}-{}", r, col).into()))
+                        .size(px(20.0))
+                        .rounded(px(3.0))
+                        .bg(cell_bg)
+                        .cursor_pointer()
+                        .on_hover(cx.listener(move |this, hovered: &bool, _window, cx| {
+                            if *hovered {
+                                this.set_table_insert_hover(Some(row_num), Some(col_num), cx);
+                            }
+                        }))
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, _event, _window, cx| {
+                                cx.stop_propagation();
+                                this.insert_table_with_size_after(target_id, row_num, col_num, cx);
+                                this.close_context_menu(cx);
+                            }),
+                        );
+                    row_cells.push(cell);
+                }
+                grid_rows.push(
+                    div()
+                        .flex()
+                        .gap(px(3.0))
+                        .children(row_cells),
+                );
+            }
+
+            let matrix_grid = div()
+                .id("table-insert-matrix-grid")
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .gap(px(3.0))
+                .pt(px(6.0))
+                .on_hover(cx.listener(|this, hovered: &bool, _window, cx| {
+                    if !*hovered {
+                        this.set_table_insert_hover(None, None, cx);
+                    }
+                }))
+                .children(grid_rows);
+
+            overlay()
+                .id("editor-table-insert-overlay")
+                .occlude()
+                .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
+                    this.close_context_menu(cx);
+                }))
+                .on_mouse_down(MouseButton::Right, cx.listener(|this, _event, _window, cx| {
+                    this.close_context_menu(cx);
+                }))
+                .child(
+                    div()
+                        .id("editor-table-insert-panel")
                         .absolute()
                         .left(panel_left)
                         .top(panel_top)

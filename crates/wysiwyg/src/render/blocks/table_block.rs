@@ -387,6 +387,7 @@ pub fn render_table(
             });
         })
         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+            cx.stop_propagation();
             let _ = header_select_block.update(cx, |_block, cx| {
                 cx.emit(BlockEvent::RequestSelectTableAxis {
                     kind: TableAxis::Row,
@@ -493,6 +494,7 @@ pub fn render_table(
                             });
                         })
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                            cx.stop_propagation();
                             let _ = select_block.update(cx, |_block, cx| {
                                 cx.emit(BlockEvent::RequestSelectTableAxis {
                                     kind: TableAxis::Column,
@@ -584,6 +586,7 @@ pub fn render_table(
                     });
                 })
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                    cx.stop_propagation();
                     let _ = select_block.update(cx, |_block, cx| {
                         cx.emit(BlockEvent::RequestSelectTableAxis {
                             kind: TableAxis::Row,

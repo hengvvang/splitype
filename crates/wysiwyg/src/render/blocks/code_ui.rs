@@ -114,12 +114,7 @@ impl Block {
             .flex()
             .items_center()
             .gap(px(2.0))
-            .p(px(2.0))
             .h(px(toolbar_height))
-            .rounded(px(d.button_radius))
-            .bg(c.code_language_input_bg)
-            .border_1()
-            .border_color(c.table_border)
             .text_size(px(12.0))
             .text_color(c.code_language_input_text)
             .child(
@@ -131,7 +126,7 @@ impl Block {
                     .flex()
                     .items_center()
                     .gap(px(4.0))
-                    .px(px(8.0))
+                    .px(px(6.0))
                     .rounded(px(d.button_radius))
                     .hover(|this| this.bg(c.panel_row_hover))
                     .cursor_pointer()
@@ -147,7 +142,6 @@ impl Block {
                             .text_color(c.dialog_muted),
                     ),
             )
-            .child(div().w(px(1.0)).h(px(14.0)).bg(c.table_border))
             .child(
                 div()
                     .id(ElementId::Name(

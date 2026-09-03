@@ -60,6 +60,12 @@ pub enum WysiwygContextMenuState {
         hovered_rows: Option<usize>,
         hovered_cols: Option<usize>,
     },
+    TableInsert {
+        position: Point<Pixels>,
+        target_entity_id: Option<EntityId>,
+        hovered_rows: Option<usize>,
+        hovered_cols: Option<usize>,
+    },
 }
 
 /// Autonomous controller for a WYSIWYG editor pane.
@@ -404,6 +410,7 @@ impl WysiwygDocumentController {
             BlockEvent::RequestFocus => {
                 self.active_entity = Some(block.clone());
                 self.footnote_tooltip = None;
+                self.clear_all_table_axis_selections(cx);
                 cx.notify();
             }
             BlockEvent::RequestNewline {
@@ -1128,6 +1135,103 @@ impl WysiwygDocumentController {
             }
         });
         self.rebuild_table_grids(cx);
+        self.pending_edit = true;
+        self.commit_document_edit(false, cx);
+        cx.notify();
+    }
+
+    pub fn clear_all_table_axis_selections(&mut self, cx: &mut Context<Self>) {
+        if let Some(doc) = &self.document {
+            let mut changed = false;
+            for entry in doc.blocks() {
+                entry.entity.update(cx, |blk, cx| {
+                    if blk.table_axis_selection.is_some() {
+                        blk.table_axis_selection = None;
+                        changed = true;
+                        cx.notify();
+                    }
+                });
+            }
+            if changed {
+                cx.notify();
+            }
+        }
+    }
+
+    pub fn open_table_insert_picker(
+        &mut self,
+        target_entity_id: Option<EntityId>,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        self.context_menu = Some(WysiwygContextMenuState::TableInsert {
+            position,
+            target_entity_id,
+            hovered_rows: None,
+            hovered_cols: None,
+        });
+        cx.notify();
+    }
+
+    pub fn set_table_insert_hover(
+        &mut self,
+        hovered_rows: Option<usize>,
+        hovered_cols: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(WysiwygContextMenuState::TableInsert {
+            hovered_rows: hr,
+            hovered_cols: hc,
+            ..
+        }) = &mut self.context_menu
+        {
+            *hr = hovered_rows;
+            *hc = hovered_cols;
+            cx.notify();
+        }
+    }
+
+    pub fn insert_table_with_size_after(
+        &mut self,
+        target_id: Option<EntityId>,
+        rows: usize,
+        cols: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(doc) = &mut self.document else {
+            return;
+        };
+        let location = target_id
+            .and_then(|id| doc.find_block_location(id))
+            .or_else(|| {
+                self.active_entity
+                    .as_ref()
+                    .and_then(|e| doc.find_block_location(e.entity_id()))
+            })
+            .or_else(|| {
+                doc.blocks().last().and_then(|b| doc.find_block_location(b.entity.entity_id()))
+            });
+        let Some(location) = location else {
+            return;
+        };
+        let cols = cols.max(1);
+        let rows = rows.max(1);
+        let body_rows_count = rows.saturating_sub(1);
+        let table_data = TableData {
+            header: (1..=cols)
+                .map(|i| BlockText::plain(format!("Col {}", i)))
+                .collect(),
+            rows: (0..body_rows_count)
+                .map(|_| (0..cols).map(|_| BlockText::plain("")).collect())
+                .collect(),
+            alignments: vec![TableColumnAlignment::Default; cols],
+        };
+        let mut data = BlockData::new(BlockKind::Table, BlockText::plain(""));
+        data.table = Some(table_data);
+        let new_block = Self::new_block(cx, data);
+        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        self.rebuild_table_grids(cx);
+        self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
@@ -1994,6 +2098,9 @@ impl WysiwygDocumentController {
                         .track_scroll(ctx.scroll)
                         .p(px(d.editor_padding))
                         .pb(px(d.editor_padding + 200.0))
+                        .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
+                            this.clear_all_table_axis_selections(cx);
+                        }))
                         .children(row_elements),
                 )
                 .child(outline_hud)
