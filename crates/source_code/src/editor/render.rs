@@ -57,12 +57,13 @@ impl SourceCodeEditor {
             self.ensure_wrap(viewport_width, cx);
         }
 
-        // Warm the highlight cache for this text/theme pair before the
-        // element reads it during prepaint.
+        // Warm the per-revision caches before the element reads them
+        // during prepaint: highlight spans, the display row index, and the
+        // outline headings (each recomputes only on invalidation).
         let theme_name = theme.name.clone();
         self.highlight(&theme_name);
-
-        let headings = crate::outline::extract_outline_headings(&self.text);
+        self.ensure_rows_cache();
+        let headings = self.cached_outline_headings();
         let scroll_y = -f32::from(ctx.scroll.offset().y);
         let top_visible_line = (scroll_y / line_height).floor().max(0.0) as usize;
         let active_index = headings
@@ -76,7 +77,7 @@ impl SourceCodeEditor {
         });
         let outline_hud = ui::render_floating_outline_hud(
             ctx.pane_id.0,
-            &headings,
+            headings,
             active_index,
             ctx.is_outline_hovered,
             &theme,

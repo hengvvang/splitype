@@ -240,10 +240,14 @@ impl Editor {
         cx: &mut gpui::Context<Self>,
     ) {
         if let Some(pane_state) = self.pane_state_mut(pane_id) {
-            pane_state
+            // Only re-render when the pane actually changed state; plain
+            // pointer motion must not trigger a full window repaint.
+            if pane_state
                 .pane_mut()
-                .handle_mouse_move(pane_id, event, window, cx);
-            cx.notify();
+                .handle_mouse_move(pane_id, event, window, cx)
+            {
+                cx.notify();
+            }
         }
     }
 

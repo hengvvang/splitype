@@ -35,6 +35,12 @@ impl PaneView for PreviewState {
     }
 
     fn sync_document(&mut self, document: &editor_contracts::DocumentSnapshot, _cx: &mut App) {
+        // Revision equality implies text equality; the buffer only bumps
+        // its revision when the text changes. Skip the O(n) hash on every
+        // frame once the preview tree is built.
+        if self.synced_revision == Some(document.revision) && !self.blocks.is_empty() {
+            return;
+        }
         let text = document.text.as_ref();
         let revision = document.revision;
         let hash = {

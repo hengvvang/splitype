@@ -234,11 +234,9 @@ impl PaneView for SourceCodeState {
         event: &gpui::MouseMoveEvent,
         window: &mut Window,
         cx: &mut App,
-    ) {
+    ) -> bool {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |editor, cx| {
-            editor.handle_mouse_move(event, window, cx);
-        });
+        controller.update(cx, |editor, cx| editor.handle_mouse_move(event, window, cx))
     }
 
     fn handle_mouse_up(

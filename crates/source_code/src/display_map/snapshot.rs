@@ -5,6 +5,8 @@
 //! converts buffer offsets to display points and back in O(log n). The
 //! editor rebuilds it whenever the text, folds, or wrap state change.
 
+use std::sync::Arc;
+
 use crate::buffer::LineMap;
 use crate::display_map::display_point::DisplayPoint;
 use crate::display_map::fold_map::FoldMap;
@@ -19,7 +21,7 @@ pub struct DisplaySnapshot<'a> {
     pub tab_map: TabMap,
     pub fold_map: &'a FoldMap,
     pub wrap: &'a WrapState,
-    pub rows: RowIndex,
+    pub rows: Arc<RowIndex>,
 }
 
 /// The flattened visual row index.
@@ -91,8 +93,8 @@ impl<'a> DisplaySnapshot<'a> {
         tab_map: TabMap,
         fold_map: &'a FoldMap,
         wrap: &'a WrapState,
+        rows: Arc<RowIndex>,
     ) -> Self {
-        let rows = RowIndex::build(line_map.line_count(), fold_map, wrap);
         Self {
             text,
             line_map,
@@ -101,6 +103,18 @@ impl<'a> DisplaySnapshot<'a> {
             wrap,
             rows,
         }
+    }
+
+    /// Builds the snapshot from a freshly computed row index.
+    pub fn build(
+        text: &'a str,
+        line_map: &'a LineMap,
+        tab_map: TabMap,
+        fold_map: &'a FoldMap,
+        wrap: &'a WrapState,
+    ) -> Self {
+        let rows = Arc::new(RowIndex::build(line_map.line_count(), fold_map, wrap));
+        Self::new(text, line_map, tab_map, fold_map, wrap, rows)
     }
 
     /// Total number of visible display rows.

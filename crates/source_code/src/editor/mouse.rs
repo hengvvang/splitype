@@ -85,20 +85,24 @@ impl SourceCodeEditor {
         cx.notify();
     }
 
-    /// Mouse-move while dragging: extend the selection.
+    /// Mouse-move while dragging: extend the selection. Returns whether
+    /// the move changed editor state (only while a drag is active), so the
+    /// host can skip re-rendering for plain pointer motion.
     pub fn handle_mouse_move(
         &mut self,
         event: &MouseMoveEvent,
         window: &Window,
         cx: &mut Context<Self>,
-    ) {
+    ) -> bool {
         if !self.is_dragging {
-            return;
+            return false;
         }
         if let Some(offset) = self.hit_test(event.position, window, cx) {
             self.update_drag(offset);
             cx.notify();
+            return true;
         }
+        false
     }
 
     /// Mouse-up ends the drag session.

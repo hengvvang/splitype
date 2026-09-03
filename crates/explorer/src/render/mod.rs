@@ -424,7 +424,10 @@ impl ExplorerState {
         cx: &mut App,
     ) -> AnyElement {
         if !self.worktrees.is_empty() {
-            self.sync_explorer_models(cx);
+            // Cheap selection follow (map lookups only). The flat row list
+            // itself rebuilds exclusively on scan/expansion events — a
+            // full tree rebuild every frame made the whole window lag.
+            self.select_active_file_in_tree(false, cx);
         }
         self.render_explorer_files_tree(panel_id, theme, strings, cx)
     }

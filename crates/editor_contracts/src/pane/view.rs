@@ -86,13 +86,18 @@ pub trait PaneView: Any + 'static {
     ) {
     }
 
+    /// Routes a raw mouse-move event to the pane; returns whether the pane
+    /// actually changed state and needs a repaint. Returning `false` for
+    /// plain pointer motion keeps the window from re-rendering on every
+    /// mouse move.
     fn handle_mouse_move(
         &mut self,
         _pane_id: PaneId,
         _event: &gpui::MouseMoveEvent,
         _window: &mut Window,
         _cx: &mut App,
-    ) {
+    ) -> bool {
+        false
     }
 
     fn handle_mouse_up(

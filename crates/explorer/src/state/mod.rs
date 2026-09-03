@@ -443,8 +443,10 @@ pub fn build_explorer_rows(
                 false
             };
 
-            // Check if this directory has children in the snapshot
-            let has_children = is_dir && snapshot.child_entries(path).next().is_some();
+            // Check if this directory has children in the snapshot. Child
+            // counts are precomputed per snapshot so this stays O(1) —
+            // rescanning each directory's subtree here was quadratic.
+            let has_children = is_dir && snapshot.child_count(entry.id) > 0;
 
             // Determine entry kind
             let kind = if is_dir {

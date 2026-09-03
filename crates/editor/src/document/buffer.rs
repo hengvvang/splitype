@@ -40,6 +40,9 @@ pub struct DocumentBuffer {
     pub id: DocumentId,
     /// Authoritative Markdown text.
     pub text: String,
+    /// Cheap-to-clone mirror of `text`, so `snapshot()` stays O(1) even
+    /// though it is built per pane per frame.
+    text_arc: Arc<str>,
     /// Bumped whenever the document text changes.
     pub revision: u64,
     /// Backing path on disk; `None` for untitled documents.
@@ -77,9 +80,11 @@ impl DocumentBuffer {
 
     /// Rebuilds a buffer from a persisted snapshot, preserving identity.
     pub fn restore(id: DocumentId, text: String, path: Option<PathBuf>, dirty: bool) -> Self {
+        let text = normalize_line_endings(text);
         Self {
             id,
-            text: normalize_line_endings(text),
+            text_arc: Arc::from(text.clone()),
+            text,
             revision: 1,
             path,
             dirty,
@@ -96,10 +101,16 @@ impl DocumentBuffer {
         DocumentSnapshot::with_restore_cursor(
             self.id,
             self.revision,
-            self.text.clone(),
+            self.text_arc.clone(),
             self.path.clone(),
             self.restore_cursor,
         )
+    }
+
+    /// Replaces the authoritative text and refreshes the Arc mirror.
+    fn set_text(&mut self, text: String) {
+        self.text_arc = Arc::from(text.clone());
+        self.text = text;
     }
 
     /// Applies a pane-produced edit: normalizes line endings, records it as
@@ -126,7 +137,7 @@ impl DocumentBuffer {
             pending.cursor_after = edit.cursor_after;
         }
 
-        self.text = text;
+        self.set_text(text);
         self.revision = self.revision.wrapping_add(1);
         self.dirty = true;
         self.cached_word_count = None;
@@ -143,7 +154,7 @@ impl DocumentBuffer {
             return;
         };
         let restored_cursor = entry.cursor_before;
-        self.text = entry.before.to_string();
+        self.set_text(entry.before.to_string());
         self.restore_cursor = Some(restored_cursor);
         self.redo_stack.push(entry);
         self.finish_history_step(cx);
@@ -156,7 +167,7 @@ impl DocumentBuffer {
             return;
         };
         let restored_cursor = entry.cursor_after;
-        self.text = entry.after.to_string();
+        self.set_text(entry.after.to_string());
         self.restore_cursor = Some(restored_cursor);
         self.undo_stack.push(entry);
         self.finish_history_step(cx);
@@ -224,5 +235,43 @@ fn normalize_line_endings(text: String) -> String {
         text.replace("\r\n", "\n").replace('\r', "\n")
     } else {
         text
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use std::time::Instant;
+
+    use super::DocumentBuffer;
+
+    fn bench_snapshot(name: &str, size_kb: usize) {
+        let text = "line of markdown text\n".repeat(size_kb * 1024 / 22);
+        let buffer = DocumentBuffer::new(text, None);
+
+        // Warm-up.
+        for _ in 0..3 {
+            std::hint::black_box(buffer.snapshot());
+        }
+
+        let frames = 120; // two seconds of 60fps frames
+        let start = Instant::now();
+        for _ in 0..frames {
+            std::hint::black_box(buffer.snapshot());
+        }
+        let elapsed = start.elapsed();
+        println!(
+            "bench_snapshot[{name}]: {size_kb}KB x{frames} frames = {elapsed:?} ({}us/frame)",
+            elapsed.as_micros() / frames as u128
+        );
+    }
+
+    /// `render_pane` builds a fresh snapshot per pane per frame via
+    /// `buffer.read(cx).snapshot()`. The buffer keeps an `Arc<str>` mirror
+    /// so this is a refcount bump, not a full-text copy.
+    #[test]
+    #[ignore = "perf benchmark"]
+    fn bench_snapshot_clone_per_frame() {
+        bench_snapshot("64KB", 64);
+        bench_snapshot("1MB", 1024);
     }
 }

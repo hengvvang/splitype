@@ -89,7 +89,7 @@ fn row_index_flattens_folds_to_visible_rows() {
     folds.fold(FoldRange::new(0, 2)); // hides rows 1-2
     let wrap = WrapState::default();
 
-    let snapshot = DisplaySnapshot::new(text, &line_map, TabMap::new(4), &folds, &wrap);
+    let snapshot = DisplaySnapshot::build(text, &line_map, TabMap::new(4), &folds, &wrap);
     assert_eq!(snapshot.visible_line_count(), 4); // header + 3 remaining
     assert_eq!(snapshot.rows.buffer_row_at(0), 0);
     // Display rows 1-3 are the remaining buffer rows 3, 4, 5.
@@ -108,7 +108,7 @@ fn snapshot_maps_offsets_through_wraps() {
     let wrap = WrapState::new(100.0, points);
     let folds = FoldMap::new();
 
-    let snapshot = DisplaySnapshot::new(text, &line_map, TabMap::new(4), &folds, &wrap);
+    let snapshot = DisplaySnapshot::build(text, &line_map, TabMap::new(4), &folds, &wrap);
     assert_eq!(snapshot.visible_line_count(), 3);
 
     // Offset 12 ("l" on the first buffer line) lives on display row 1.
@@ -119,4 +119,63 @@ fn snapshot_maps_offsets_through_wraps() {
     // Offset 14 is the second buffer line, display row 2.
     let dp = snapshot.offset_to_display_point(14);
     assert_eq!(dp.row, 2);
+}
+
+#[cfg(test)]
+mod bench {
+    use std::time::Instant;
+
+    use crate::display_map::{DisplaySnapshot, FoldMap, TabMap, WrapState};
+
+    fn frame_cost(name: &str, size_kb: usize) {
+        let text = "# Heading\n\nA paragraph of markdown text.\n".repeat(size_kb * 1024 / 40);
+        let frames = 60;
+
+        // Per-frame source-code render work: outline extraction plus the
+        // highlight cache hash (both O(n) over the whole document).
+        let start = Instant::now();
+        for _ in 0..frames {
+            std::hint::black_box(crate::outline::extract_outline_headings(&text));
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            use std::hash::{Hash, Hasher};
+            text.hash(&mut hasher);
+            std::hint::black_box(hasher.finish());
+        }
+        let outline_hash = start.elapsed();
+
+        // Per-frame display snapshot build (RowIndex walk over all lines).
+        let line_map = crate::buffer::LineMap::new(&text);
+        let folds = FoldMap::new();
+        let wrap = WrapState::default();
+        let start = Instant::now();
+        for _ in 0..frames {
+            std::hint::black_box(DisplaySnapshot::build(
+                &text,
+                &line_map,
+                TabMap::new(4),
+                &folds,
+                &wrap,
+            ));
+        }
+        let snapshot_build = start.elapsed();
+
+        println!(
+            "bench_source_code_frame[{name}]: {size_kb}KB x{frames} frames: outline+hash={:?} ({}us/frame), snapshot={:?} ({}us/frame)",
+            outline_hash,
+            outline_hash.as_micros() / frames as u128,
+            snapshot_build,
+            snapshot_build.as_micros() / frames as u128,
+        );
+    }
+
+    /// Per-invalidation work in `SourceCodeEditor`: outline extraction,
+    /// the highlight re-derivation, and the display row-index rebuild.
+    /// These no longer run per frame (they are cached and invalidated by
+    /// edits/theme/fold/wrap changes); this measures the invalidation cost.
+    #[test]
+    #[ignore = "perf benchmark"]
+    fn bench_source_code_frame() {
+        frame_cost("64KB", 64);
+        frame_cost("1MB", 1024);
+    }
 }

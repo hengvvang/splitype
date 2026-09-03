@@ -18,12 +18,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use config::settings::PluginSettings;
-use editor_contracts::{CursorHint, DocumentSnapshot, EditTransaction, PaneHost};
+use editor_contracts::{CursorHint, DocumentSnapshot, EditTransaction, OutlineNode, PaneHost};
 use gpui::*;
 use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
 
 use crate::buffer::LineMap;
-use crate::display_map::{DisplaySnapshot, FoldMap, TabMap, WrapState};
+use crate::display_map::{DisplaySnapshot, FoldMap, RowIndex, TabMap, WrapState};
 use crate::selection::Selections;
 use crate::settings::SourceCodeSettings;
 
@@ -66,7 +66,13 @@ pub struct SourceCodeEditor {
 
     // ── Caches ───────────────────────────────────────────────────────────
     highlight_cache: Option<CodeHighlightResult>,
-    highlight_hash: u64,
+    /// Theme family the highlight cache was computed for.
+    highlight_theme: String,
+    /// Flattened display rows, rebuilt only when the text, folds, or wrap
+    /// state change (never per frame).
+    rows_cache: Option<Arc<RowIndex>>,
+    /// Outline headings keyed by the revision they were extracted at.
+    outline_cache: Option<(u64, Vec<OutlineNode>)>,
     search_matches: Vec<(Range<usize>, bool)>,
     last_bounds: Bounds<Pixels>,
     cursor_blink_epoch: Option<Instant>,
@@ -99,7 +105,9 @@ impl SourceCodeEditor {
             wrap: WrapState::default(),
             wrap_width_px: None,
             highlight_cache: None,
-            highlight_hash: 0,
+            highlight_theme: String::new(),
+            rows_cache: None,
+            outline_cache: None,
             search_matches: Vec::new(),
             last_bounds: Bounds::default(),
             cursor_blink_epoch: None,
@@ -139,7 +147,11 @@ impl SourceCodeEditor {
             self.pending_edit = false;
             return;
         }
-        if self.synced_revision == Some(document.revision) && self.text == document.text.as_ref() {
+        // Revision equality implies text equality: the buffer only bumps
+        // its revision when the text changes, and local edits are covered
+        // by the pending-edit path above. Avoids an O(n) string compare
+        // per pane per frame.
+        if self.synced_revision == Some(document.revision) {
             return;
         }
         self.apply_document_text(&document.text, document.revision);
@@ -241,6 +253,8 @@ impl SourceCodeEditor {
         self.folds.prune_to_line_count(line_count);
         self.invalidate_wrap();
         self.highlight_cache = None;
+        self.rows_cache = None;
+        self.outline_cache = None;
     }
 
     /// Commits a local edit through the pane host after refreshing the
@@ -334,15 +348,36 @@ impl SourceCodeEditor {
 
     // ── Display transformation ───────────────────────────────────────────
 
-    /// Builds the display snapshot (recomputing the row index on demand).
+    /// Builds the display snapshot. The flattened row index is cached on
+    /// the editor and invalidated only by text/fold/wrap changes.
     pub fn snapshot(&self) -> DisplaySnapshot<'_> {
+        let rows = self.rows_cache.clone().unwrap_or_else(|| {
+            Arc::new(RowIndex::build(
+                self.line_map.line_count(),
+                &self.folds,
+                &self.wrap,
+            ))
+        });
         DisplaySnapshot::new(
             &self.text,
             &self.line_map,
             TabMap::new(self.settings.tab_size),
             &self.folds,
             &self.wrap,
+            rows,
         )
+    }
+
+    /// Warms the row-index cache. Called from the render path (which has
+    /// `&mut self`) before the element reads the snapshot.
+    pub fn ensure_rows_cache(&mut self) {
+        if self.rows_cache.is_none() {
+            self.rows_cache = Some(Arc::new(RowIndex::build(
+                self.line_map.line_count(),
+                &self.folds,
+                &self.wrap,
+            )));
+        }
     }
 
     /// Ensures the wrap state matches the given viewport width, recomputing
@@ -352,6 +387,7 @@ impl SourceCodeEditor {
             if !self.wrap.points.is_empty() || self.wrap_width_px.is_some() {
                 self.wrap = WrapState::default();
                 self.wrap_width_px = None;
+                self.rows_cache = None;
                 return true;
             }
             return false;
@@ -371,6 +407,7 @@ impl SourceCodeEditor {
         }
         self.wrap = WrapState::new(viewport_width_px, points);
         self.wrap_width_px = Some(viewport_width_px);
+        self.rows_cache = None;
         true
     }
 
@@ -416,6 +453,7 @@ impl SourceCodeEditor {
         let row = self.line_map.offset_to_point(self.cursor()).row;
         if self.folds.is_folded(row) {
             self.folds.unfold(row);
+            self.rows_cache = None;
             return;
         }
         // A cursor inside a fold should unfold it.
@@ -423,16 +461,19 @@ impl SourceCodeEditor {
             let header = self.folds.header_of_hidden(row);
             if let Some(header) = header {
                 self.folds.unfold(header);
+                self.rows_cache = None;
                 return;
             }
         }
         if let Some(range) = self.folds.foldable_at(&self.text, &self.line_map, row) {
             self.folds.fold(range);
+            self.rows_cache = None;
         }
     }
 
     pub fn unfold_all(&mut self) {
         self.folds.unfold_all();
+        self.rows_cache = None;
     }
 
     // ── Text and layout accessors ────────────────────────────────────────
@@ -490,19 +531,32 @@ impl SourceCodeEditor {
 
     // ── Syntax highlighting cache ────────────────────────────────────────
 
-    /// Returns cached Markdown highlights, recomputing when the text or
-    /// theme changed.
+    /// Returns cached Markdown highlights. The cache is invalidated on
+    /// every text edit (`rebuild_derived`) and recomputed only when the
+    /// theme family changed — never re-derived per frame.
     pub fn highlight(&mut self, theme_name: &str) -> Option<&CodeHighlightResult> {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.text.hash(&mut hasher);
-        theme_name.hash(&mut hasher);
-        let hash = hasher.finish();
-        if self.highlight_cache.is_none() || self.highlight_hash != hash {
+        if self.highlight_cache.is_none() || self.highlight_theme != theme_name {
             self.highlight_cache = highlight_code_block(Some("markdown"), &self.text);
-            self.highlight_hash = hash;
+            self.highlight_theme = theme_name.to_string();
         }
         self.highlight_cache.as_ref()
+    }
+
+    /// Returns the Markdown outline headings, cached by document revision.
+    /// Local edits invalidate the cache (`rebuild_derived`), so this is
+    /// O(1) on frames without text changes instead of re-parsing the whole
+    /// document every frame.
+    pub fn cached_outline_headings(&mut self) -> &[OutlineNode] {
+        let revision = self.synced_revision.unwrap_or(0);
+        let stale = self
+            .outline_cache
+            .as_ref()
+            .is_none_or(|(cached_rev, _)| *cached_rev != revision);
+        if stale {
+            let headings = crate::outline::extract_outline_headings(&self.text);
+            self.outline_cache = Some((revision, headings));
+        }
+        &self.outline_cache.as_ref().expect("cache just filled").1
     }
 
     // ── Metrics ──────────────────────────────────────────────────────────

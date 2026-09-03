@@ -61,9 +61,21 @@ pub struct WorktreeSnapshot {
     pub path_for_id: HashMap<ExplorerEntryId, PathBuf>,
     /// File id → entry id (rename/move detection between rescans).
     inode_to_id: HashMap<u64, ExplorerEntryId>,
+    /// Directory id → direct child count. Precomputed during the scan so
+    /// row derivation can answer `has_children` in O(1) instead of
+    /// rescanning each directory's subtree (which was quadratic when
+    /// every directory is expanded).
+    dir_child_counts: HashMap<ExplorerEntryId, u32>,
 }
 
 impl WorktreeSnapshot {
+    /// The direct child count of a directory entry (0 for files and for
+    /// directories without scanned children).
+    #[inline]
+    pub fn child_count(&self, id: ExplorerEntryId) -> u32 {
+        self.dir_child_counts.get(&id).copied().unwrap_or(0)
+    }
+
     #[inline]
     pub fn id(&self) -> WorktreeId {
         self.worktree_id
@@ -564,4 +576,155 @@ fn assign_stable_ids(
         }
     }
     out.entries_by_path = std::mem::take(new_entries);
+
+    // Precompute direct child counts so the panel's row derivation can
+    // answer has_children in O(1) (per-directory subtree rescans would
+    // make the rebuild quadratic when everything is expanded).
+    for (path, entry) in out.entries_by_path.iter() {
+        if path == root {
+            continue;
+        }
+        let Some(parent) = path.parent() else {
+            continue;
+        };
+        let Some(parent_id) = out.id_for_path.get(parent) else {
+            continue;
+        };
+        *out.dir_child_counts.entry(*parent_id).or_insert(0) += 1;
+        let _ = entry;
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use std::time::Instant;
+
+    use super::{ExplorerEntryId, WorktreeEntry, WorktreeEntryKind, WorktreeId, WorktreeSnapshot};
+    use crate::state::{ExplorerRow, build_explorer_rows};
+
+    /// Builds a synthetic snapshot rooted at `/root`. Returns the snapshot
+    /// and the ids of every directory entry, in allocation order.
+    fn make_snapshot(
+        entries: Vec<(String, WorktreeEntryKind)>,
+    ) -> (WorktreeSnapshot, Vec<ExplorerEntryId>) {
+        let mut entries_by_path = BTreeMap::new();
+        let mut id_for_path = HashMap::new();
+        let mut path_for_id = HashMap::new();
+        let mut dir_child_counts = HashMap::new();
+        let mut dir_ids = Vec::new();
+        let root = PathBuf::from("/root");
+        let root_entry = WorktreeEntry {
+            id: ExplorerEntryId(0),
+            path: root.clone(),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+        entries_by_path.insert(root.clone(), root_entry.clone());
+        id_for_path.insert(root.clone(), ExplorerEntryId(0));
+        path_for_id.insert(ExplorerEntryId(0), root.clone());
+        dir_ids.push(ExplorerEntryId(0));
+        for (index, (name, kind)) in entries.into_iter().enumerate() {
+            let entry_id = ExplorerEntryId(index as u64 + 1);
+            let path = root.join(&name);
+            let entry = WorktreeEntry {
+                id: entry_id,
+                path: path.clone(),
+                kind,
+                inode: None,
+            };
+            if kind == WorktreeEntryKind::Directory {
+                dir_ids.push(entry.id);
+            }
+            entries_by_path.insert(path.clone(), entry.clone());
+            id_for_path.insert(path.clone(), entry.id);
+            path_for_id.insert(entry.id, path);
+        }
+        // Precompute child counts the same way the real scan does.
+        for path in entries_by_path.keys() {
+            if path == &root {
+                continue;
+            }
+            if let Some(parent) = path.parent()
+                && let Some(parent_id) = id_for_path.get(parent)
+            {
+                *dir_child_counts.entry(*parent_id).or_insert(0) += 1;
+            }
+        }
+        (
+            WorktreeSnapshot {
+                worktree_id: WorktreeId(1),
+                entries_by_path,
+                id_for_path,
+                path_for_id,
+                inode_to_id: HashMap::new(),
+                dir_child_counts,
+            },
+            dir_ids,
+        )
+    }
+
+    fn bench(
+        name: &str,
+        snapshot: &WorktreeSnapshot,
+        expanded: &HashMap<WorktreeId, BTreeSet<ExplorerEntryId>>,
+    ) {
+        let start = Instant::now();
+        let rows: Vec<ExplorerRow> =
+            build_explorer_rows(&[Arc::new(snapshot.clone())], expanded, None);
+        let elapsed = start.elapsed();
+        println!(
+            "bench_explorer_rows[{name}]: entries={} rows={} elapsed={elapsed:?}",
+            snapshot.entries_by_path.len(),
+            rows.len(),
+        );
+    }
+
+    /// One full row derivation (`sync_explorer_file_tree` →
+    /// `build_explorer_rows`). This now runs only on scan/expansion
+    /// events, never per frame; the numbers bound the cost of each such
+    /// event (e.g. expanding a folder or a background rescan completing).
+    #[test]
+    #[ignore = "perf benchmark"]
+    fn bench_explorer_rows() {
+        // 1. Flat tree: root + 3,000 files.
+        let (flat, _) = make_snapshot(
+            (0..3000)
+                .map(|i| (format!("file{i:05}.md"), WorktreeEntryKind::File))
+                .collect(),
+        );
+        bench("flat-3000", &flat, &HashMap::new());
+
+        // 2. Deep directory chain with every directory expanded: each
+        //    directory's has_children check rescans its whole subtree →
+        //    quadratic in the number of entries.
+        let depth = 2000;
+        let mut entries = Vec::new();
+        let mut path = String::new();
+        for d in 0..depth {
+            path.push_str(&format!("d{d}"));
+            entries.push((path.clone(), WorktreeEntryKind::Directory));
+            path.push('/');
+        }
+        entries.push((format!("{path}f.md"), WorktreeEntryKind::File));
+        let (chain, dir_ids) = make_snapshot(entries);
+        let mut expanded = HashMap::new();
+        expanded.insert(WorktreeId(1), dir_ids.into_iter().collect::<BTreeSet<_>>());
+        bench("chain-2000-expanded", &chain, &expanded);
+
+        // 3. Wide project: 400 directories × 30 files, all expanded.
+        let mut entries = Vec::new();
+        for d in 0..400 {
+            entries.push((format!("dir{d:04}"), WorktreeEntryKind::Directory));
+            for f in 0..30 {
+                entries.push((format!("dir{d:04}/file{f:03}.md"), WorktreeEntryKind::File));
+            }
+        }
+        let (wide, dir_ids) = make_snapshot(entries);
+        let mut expanded = HashMap::new();
+        expanded.insert(WorktreeId(1), dir_ids.into_iter().collect::<BTreeSet<_>>());
+        bench("wide-400x30-expanded", &wide, &expanded);
+    }
 }
