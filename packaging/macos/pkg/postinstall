@@ -2,8 +2,6 @@
 # Post-install script for splitype.pkg
 # This script runs after the app is installed to /Applications
 
-# Don't use 'set -e' - we want to continue even if checks fail
-
 APP_NAME="splitype"
 BINARY_NAME="splitype"
 APP_PATH="/Applications/${APP_NAME}.app"
@@ -21,6 +19,7 @@ ls -la "$APP_PATH" 2>&1 || echo "ERROR: App not found at $APP_PATH"
 # Create CLI symlink (only if app exists)
 if [ -d "$APP_PATH" ] && [ -f "$BINARY_PATH" ]; then
     echo "==> Creating command-line tool symlink..."
+    mkdir -p /usr/local/bin
     rm -f "$CLI_LINK"
     ln -s "$BINARY_PATH" "$CLI_LINK"
     

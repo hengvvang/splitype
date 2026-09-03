@@ -105,9 +105,9 @@ jobs:
           mkdir -p dist/package/share/icons/hicolor/512x512/apps
           cp target/release/app dist/package/app
           cp README.md LICENSE-APACHE dist/package/
-          cp resources/linux/com.hengvvang.splitype.desktop dist/package/share/applications/
-          cp resources/linux/icons/hicolor/256x256/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/256x256/apps/
-          cp resources/linux/icons/hicolor/512x512/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/512x512/apps/
+          cp packaging/linux/com.hengvvang.splitype.desktop dist/package/share/applications/
+          cp packaging/linux/icons/hicolor/256x256/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/256x256/apps/
+          cp packaging/linux/icons/hicolor/512x512/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/512x512/apps/
           archive="app-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
           tar -C dist/package -czf "dist/$archive" .
 
@@ -117,14 +117,14 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          mkdir -p "dist/app.app/Contents/MacOS"
-          mkdir -p "dist/app.app/Contents/Resources"
-          cp target/release/app "dist/app.app/Contents/MacOS/app"
-          cp resources/macos/Info.plist "dist/app.app/Contents/Info.plist"
-          cp resources/macos/app.icns "dist/app.app/Contents/Resources/app.icns"
-          chmod +x "dist/app.app/Contents/MacOS/app"
+          mkdir -p "dist/splitype.app/Contents/MacOS"
+          mkdir -p "dist/splitype.app/Contents/Resources"
+          cp target/release/app "dist/splitype.app/Contents/MacOS/splitype"
+          cp packaging/macos/Info.plist "dist/splitype.app/Contents/Info.plist"
+          cp packaging/macos/splitype.icns "dist/splitype.app/Contents/Resources/splitype.icns"
+          chmod +x "dist/splitype.app/Contents/MacOS/splitype"
           archive="app-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
-          ditto -c -k --sequesterRsrc --keepParent "dist/app.app" "dist/$archive"
+          ditto -c -k --sequesterRsrc --keepParent "dist/splitype.app" "dist/$archive"
 
       - name: Create macOS PKG installer
         if: runner.os == 'macOS' && matrix.name == 'macOS aarch64'
@@ -141,8 +141,8 @@ jobs:
           mkdir -p dist/pkg/scripts
 
           cp -R dist/${APP_NAME}.app dist/pkg/root/Applications/
-          cp resources/macos/pkg/postinstall dist/pkg/scripts/
-          cp resources/macos/pkg/preuninstall dist/pkg/scripts/
+          cp packaging/macos/pkg/postinstall dist/pkg/scripts/
+          cp packaging/macos/pkg/preuninstall dist/pkg/scripts/
           chmod +x dist/pkg/scripts/*
 
           # Sign the app bundle with ad-hoc signature
@@ -159,7 +159,7 @@ jobs:
             --install-location "/" \
             dist/pkg/${COMPONENT_PKG}
 
-          cp resources/macos/pkg/Distribution.xml dist/pkg/
+          cp packaging/macos/pkg/Distribution.xml dist/pkg/
           sed -i '' "s/__SPLITYPE_VERSION__/${VERSION}/g" dist/pkg/Distribution.xml
 
           productbuild --distribution dist/pkg/Distribution.xml \

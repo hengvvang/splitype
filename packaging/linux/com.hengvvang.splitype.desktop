@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=splitype
+GenericName=Markdown Editor
+Comment=Native block-based Markdown editor built with Rust and GPUI
+Exec=splitype %F
+Icon=com.hengvvang.splitype
+Terminal=false
+Categories=Office;TextEditor;Utility;Development;
+Keywords=markdown;editor;notes;writing;rust;
+MimeType=text/markdown;text/x-markdown;
+StartupNotify=true
+StartupWMClass=com.hengvvang.splitype
+Actions=NewWindow;
+
+[Desktop Action NewWindow]
+Name=New Window
+Exec=splitype --new-window

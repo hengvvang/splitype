@@ -1,8 +1,8 @@
 fn main() {
-    let rc_path = if std::path::Path::new("resources/windows/splitype.rc").exists() {
-        "resources/windows/splitype.rc"
+    let rc_path = if std::path::Path::new("packaging/windows/splitype.rc").exists() {
+        "packaging/windows/splitype.rc"
     } else {
-        "../../resources/windows/splitype.rc"
+        "../../packaging/windows/splitype.rc"
     };
 
     println!("cargo:rerun-if-changed={rc_path}");

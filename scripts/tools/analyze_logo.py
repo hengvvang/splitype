@@ -1,4 +1,5 @@
-"""Print an ASCII preview of a PNG to check the rendered content."""
+#!/usr/bin/env python3
+"""Print an ASCII preview of a PNG to check rendered content in the terminal."""
 import struct, zlib, sys
 
 def decode_png(path):
@@ -49,26 +50,31 @@ def decode_png(path):
         prev = line
     return w, h, channels, bytes(out)
 
-w, h, ch, px = decode_png(sys.argv[1])
-gw, gh = 48, 48
-for gy in range(gh):
-    row = ""
-    for gx in range(gw):
-        # sample the center of each cell
-        x = int((gx + 0.5) * w / gw)
-        y = int((gy + 0.5) * h / gh)
-        i = (y * w + x) * ch
-        r, g, b = px[i], px[i+1], px[i+2]
-        a = px[i+3] if ch == 4 else 255
-        lum = (r + g + b) / 3
-        if a < 128:
-            row += " "
-        elif lum < 128:
-            row += "#"
-        elif lum < 200:
-            row += "+"
-        elif lum < 245:
-            row += "."
-        else:
-            row += " "
-    print(row)
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python analyze_logo.py <path-to-png>")
+        sys.exit(1)
+
+    w, h, ch, px = decode_png(sys.argv[1])
+    gw, gh = 48, 48
+    for gy in range(gh):
+        row = ""
+        for gx in range(gw):
+            # sample the center of each cell
+            x = int((gx + 0.5) * w / gw)
+            y = int((gy + 0.5) * h / gh)
+            i = (y * w + x) * ch
+            r, g, b = px[i], px[i+1], px[i+2]
+            a = px[i+3] if ch == 4 else 255
+            lum = (r + g + b) / 3
+            if a < 128:
+                row += " "
+            elif lum < 128:
+                row += "#"
+            elif lum < 200:
+                row += "+"
+            elif lum < 245:
+                row += "."
+            else:
+                row += " "
+        print(row)

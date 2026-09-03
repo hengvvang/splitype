@@ -10,11 +10,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 fn root_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for ancestor in manifest_dir.ancestors() {
+        if ancestor.join("Cargo.lock").exists() && ancestor.join("crates").is_dir() {
+            return ancestor.to_path_buf();
+        }
+    }
+    manifest_dir
         .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .unwrap_or(&manifest_dir)
         .to_path_buf()
 }
 
@@ -63,9 +69,13 @@ fn main() {
     let root = root_dir();
     let svg = fs::read_to_string(root.join("assets/identity/logo.svg")).expect("read logo.svg");
     let identity_dir = root.join("assets/identity");
-    let windows_dir = root.join("resources/windows");
-    let macos_dir = root.join("resources/macos");
-    let linux_dir = root.join("resources/linux/icons/hicolor");
+    let windows_dir = root.join("packaging/windows");
+    let macos_dir = root.join("packaging/macos");
+    let linux_dir = root.join("packaging/linux/icons/hicolor");
+
+    fs::create_dir_all(&windows_dir).expect("create packaging/windows");
+    fs::create_dir_all(&macos_dir).expect("create packaging/macos");
+    fs::create_dir_all(&linux_dir).expect("create packaging/linux/icons/hicolor");
 
     // --- Square PNGs -----------------------------------------------------
     let mut pngs: Vec<(u32, Vec<u8>)> = Vec::new();
@@ -88,6 +98,9 @@ fn main() {
             .join(format!("{size}x{size}"))
             .join("apps")
             .join("com.hengvvang.splitype.png");
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create parent dir for linux icon");
+        }
         pixmap.save_png(&path).expect("save png");
         println!("wrote {}", path.display());
     }

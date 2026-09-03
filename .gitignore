@@ -1,4 +1,4 @@
 /target
 .DS_Store
 /dist
-scripts/icon-gen/target
+scripts/tools/icon-gen/target
