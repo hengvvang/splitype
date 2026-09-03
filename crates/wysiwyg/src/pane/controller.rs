@@ -395,6 +395,7 @@ impl WysiwygDocumentController {
             }
             BlockEvent::RequestFocus => {
                 self.active_entity = Some(block.clone());
+                self.footnote_tooltip = None;
                 cx.notify();
             }
             BlockEvent::RequestNewline {

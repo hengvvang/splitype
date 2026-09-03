@@ -6,14 +6,83 @@ use gpui::*;
 use crate::model::block::Block;
 use crate::model::protocol::BlockEvent;
 impl Block {
+    pub fn focus_and_select_footnote_reference(
+        &mut self,
+        occurrence_index: usize,
+        footnote_id: String,
+        anchor_pos: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.is_selecting = false;
+        self.sync_inline_projection_for_focus(true);
+        if let Some(range) = self.display_range_for_footnote(&footnote_id, occurrence_index) {
+            let plain_selected = self.display_to_plain_range(range.clone());
+            let supports_projection = self.edit_mode.supports_inline_projection();
+            let kind_key = match self.kind() {
+                markdown_parser::parse::BlockKind::Heading { level } => Some(level),
+                markdown_parser::parse::BlockKind::Callout(variant) => Some(10 + variant as u8),
+                _ => None,
+            };
+            self.projection_cache_key = Some((supports_projection, kind_key, plain_selected, None));
+            self.selected_range = range;
+            self.selection_reversed = false;
+            self.marked_range = None;
+        }
+        self.focus_handle.focus(window, cx);
+        self.start_cursor_blink(cx);
+        cx.emit(BlockEvent::RequestFocus);
+        cx.emit(BlockEvent::RequestFootnoteTooltip {
+            id: footnote_id,
+            content: None,
+            position: anchor_pos,
+            show: false,
+        });
+        cx.notify();
+    }
+
     pub fn on_mouse_down(
         &mut self,
         event: &MouseDownEvent,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let offset = self.index_for_mouse_position(event.position);
         let was_focused = self.focus_handle.is_focused(window);
+        let offset = self.index_for_mouse_position(event.position);
+
+        // Thematic break: clicking on the divider places cursor at the end to facilitate editing.
+        if self.kind() == markdown_parser::parse::BlockKind::ThematicBreak && (!was_focused || offset == 0) {
+            self.is_selecting = false;
+            let end_offset = self.display_text().len();
+            self.move_to(end_offset, cx);
+            self.focus_handle.focus(window, cx);
+            self.start_cursor_blink(cx);
+            cx.emit(BlockEvent::RequestFocus);
+            return;
+        }
+
+        // Footnote superscript: clicking enters edit mode and selects the footnote id (e.g. "ref" in "[^ref]").
+        if !was_focused
+            && let Some((footnote, _)) = self.last_paint_at(event.position).and_then(|paint| {
+                crate::render::text_layout::footnote_at_position(
+                    self,
+                    &paint.layout,
+                    paint.bounds,
+                    paint.line_height,
+                    event.position,
+                )
+            })
+        {
+            self.focus_and_select_footnote_reference(
+                footnote.occurrence_index,
+                footnote.id.clone(),
+                event.position,
+                window,
+                cx,
+            );
+            cx.stop_propagation();
+            return;
+        }
 
         // Cmd/Ctrl+click follows a rendered link instead of editing it, so the
         // block is neither focused nor selected; the link opens on mouse-up.
@@ -96,23 +165,6 @@ impl Block {
             && let Some(link) = self.pointer_link_hit(event.position)
         {
             self.open_wysiwyg_link(&link, cx);
-            return;
-        }
-
-        // Footnote reference click jumps to definition directly.
-        if let Some((footnote, _)) = self.last_paint_at(event.position).and_then(|paint| {
-            crate::render::text_layout::footnote_at_position(
-                self,
-                &paint.layout,
-                paint.bounds,
-                paint.line_height,
-                event.position,
-            )
-        }) {
-            cx.stop_propagation();
-            cx.emit(BlockEvent::RequestJumpToFootnoteDefinition {
-                id: footnote.id.clone(),
-            });
         }
     }
 

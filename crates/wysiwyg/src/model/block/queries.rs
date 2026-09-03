@@ -99,13 +99,27 @@ impl Block {
         })
     }
 
-    pub fn display_range_for_footnote_occurrence(
+    pub fn display_range_for_footnote(
         &self,
+        footnote_id: &str,
         occurrence_index: usize,
     ) -> Option<Range<usize>> {
         if let Some(projection) = self.projection.as_ref() {
+            // Prefer matching both id and occurrence_index
             for span in &projection.footnote_spans {
-                if span.footnote.occurrence_index == occurrence_index {
+                if span.footnote.id == footnote_id && span.footnote.occurrence_index == occurrence_index {
+                    let start = span.display_range.start + 2; // skip "[^"
+                    let end = span.display_range.end.saturating_sub(1); // skip "]"
+                    if start <= end {
+                        return Some(start..end);
+                    }
+                }
+            }
+            // Fallback to matching id or occurrence_index
+            for span in &projection.footnote_spans {
+                if (!footnote_id.is_empty() && span.footnote.id == footnote_id)
+                    || span.footnote.occurrence_index == occurrence_index
+                {
                     let start = span.display_range.start + 2; // skip "[^"
                     let end = span.display_range.end.saturating_sub(1); // skip "]"
                     if start <= end {
@@ -117,15 +131,22 @@ impl Block {
         let mut plain_offset = 0usize;
         for fragment in &self.data.text.fragments {
             let len = fragment.text.len();
-            if fragment
-                .footnote()
-                .is_some_and(|footnote| footnote.occurrence_index == occurrence_index)
-            {
+            if fragment.footnote().is_some_and(|footnote| {
+                (!footnote_id.is_empty() && footnote.id == footnote_id)
+                    || footnote.occurrence_index == occurrence_index
+            }) {
                 return Some(self.plain_to_display_range(plain_offset..plain_offset + len));
             }
             plain_offset += len;
         }
         None
+    }
+
+    pub fn display_range_for_footnote_occurrence(
+        &self,
+        occurrence_index: usize,
+    ) -> Option<Range<usize>> {
+        self.display_range_for_footnote("", occurrence_index)
     }
 
     pub fn is_empty(&self) -> bool {

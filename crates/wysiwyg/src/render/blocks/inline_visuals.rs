@@ -284,16 +284,18 @@ impl Block {
         }
 
         // Footnote references in mixed inline visuals show the definition tooltip
-        // on hover and jump to the definition on click.
+        // on hover and enter edit mode selecting footnote text on click.
         if let Some(footnote) = span.footnote.clone() {
-            let footnote_id = footnote.id.clone();
+            let hover_footnote_id = footnote.id.clone();
+            let click_footnote_id = footnote.id;
+            let occurrence_index = footnote.occurrence_index;
             let element = element
                 .id(("footnote-ref", span.range.start))
                 .cursor(CursorStyle::PointingHand)
                 .on_hover(cx.listener(move |_block, hovered: &bool, window, cx| {
                     let anchor_pos = window.mouse_position();
                     cx.emit(crate::model::protocol::BlockEvent::RequestFootnoteTooltip {
-                        id: footnote_id.clone(),
+                        id: hover_footnote_id.clone(),
                         content: None,
                         position: anchor_pos,
                         show: *hovered,
@@ -301,19 +303,21 @@ impl Block {
                 }))
                 .on_mouse_down(
                     MouseButton::Left,
-                    cx.listener(move |_block, _event: &MouseDownEvent, _window, cx| {
+                    cx.listener(move |block, event: &MouseDownEvent, window, cx| {
                         cx.stop_propagation();
+                        block.focus_and_select_footnote_reference(
+                            occurrence_index,
+                            click_footnote_id.clone(),
+                            event.position,
+                            window,
+                            cx,
+                        );
                     }),
                 )
                 .on_mouse_up(
                     MouseButton::Left,
                     cx.listener(move |_block, _event: &MouseUpEvent, _window, cx| {
                         cx.stop_propagation();
-                        cx.emit(
-                            crate::model::protocol::BlockEvent::RequestJumpToFootnoteDefinition {
-                                id: footnote.id.clone(),
-                            },
-                        );
                     }),
                 );
             return element.into_any_element();
