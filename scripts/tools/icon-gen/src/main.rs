@@ -80,7 +80,7 @@ fn main() {
     // --- Square PNGs -----------------------------------------------------
     let mut pngs: Vec<(u32, Vec<u8>)> = Vec::new();
     for size in [16u32, 32, 48, 64, 128, 256, 512, 1024] {
-        let pixmap = render_logo(&svg, size, size, 0.88);
+        let pixmap = render_logo(&svg, size, size, 1.0);
         let path = if size == 1024 {
             identity_dir.join("logo.png")
         } else {
@@ -93,7 +93,7 @@ fn main() {
 
     // --- Linux hicolor icons ---------------------------------------------
     for size in [256u32, 512] {
-        let pixmap = render_logo(&svg, size, size, 0.88);
+        let pixmap = render_logo(&svg, size, size, 1.0);
         let path = linux_dir
             .join(format!("{size}x{size}"))
             .join("apps")
