@@ -411,7 +411,7 @@ impl SourceCodeEditor {
 
     /// Deletes every non-empty selection in place, collapsing them to
     /// carets at their starts.
-    fn delete_selection_local(&mut self) {
+    pub(crate) fn delete_selection_local(&mut self) {
         let mut ordered: Vec<Range<usize>> = self
             .selections
             .iter()

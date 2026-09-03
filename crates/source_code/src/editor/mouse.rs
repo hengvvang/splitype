@@ -56,13 +56,22 @@ impl SourceCodeEditor {
     }
 
     /// Mouse-down: place caret, start a drag, add a cursor (Alt), or
-    /// select word/line by click count.
+    /// select word/line by click count. Clicks on a gutter fold chevron
+    /// toggle the fold instead.
     pub fn handle_mouse_down(
         &mut self,
         event: &MouseDownEvent,
         window: &Window,
         cx: &mut Context<Self>,
     ) {
+        // Fold-chevron zone: the leftmost gutter column toggles the fold
+        // headed by the row under the pointer.
+        if let Some(row) = self.fold_marker_row_at(event.position, cx) {
+            self.toggle_fold_at_row(row);
+            cx.notify();
+            return;
+        }
+
         let shift = event.modifiers.shift;
         let alt = event.modifiers.alt;
         let click_count = event.click_count;
@@ -110,5 +119,31 @@ impl SourceCodeEditor {
     pub fn handle_mouse_up(&mut self, _event: &MouseUpEvent, cx: &mut Context<Self>) {
         self.end_drag();
         cx.notify();
+    }
+
+    /// The buffer row whose fold chevron sits under `position`, if any.
+    /// Returns the row when it is folded or foldable, within the leftmost
+    /// gutter column, on a rendered frame row.
+    fn fold_marker_row_at(&self, position: Point<Pixels>, cx: &App) -> Option<u32> {
+        let theme = cx.global::<ThemeManager>().current_arc();
+        let line_height =
+            (theme.typography.code_size.max(12.0) * theme.typography.text_line_height).round();
+        let padding = theme.dimensions.editor_padding;
+        let gutter_width = self.gutter_width_px(cx);
+        let bounds = self.last_bounds();
+        let zone_right = bounds.left() + px(gutter_width.min(18.0));
+        if position.x < bounds.left() || position.x >= zone_right {
+            return None;
+        }
+        let rel_y = f32::from(position.y - bounds.origin.y - px(padding));
+        let display_row = (rel_y / line_height).floor().max(0.0) as u32;
+        let frame = self
+            .frame_rows
+            .binary_search_by(|frame| frame.display_row.cmp(&display_row))
+            .ok()?;
+        let buffer_row = self.frame_rows[frame].buffer_row;
+        let folded = self.folds.is_folded(buffer_row);
+        let foldable = !folded && self.foldable_at(buffer_row).is_some();
+        (folded || foldable).then_some(buffer_row)
     }
 }

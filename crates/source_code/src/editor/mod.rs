@@ -13,6 +13,7 @@
 //! pipeline that re-derives syntax spans and outline headings after an
 //! idle debounce (stale-while-revalidate, like Zed's async highlighting).
 
+pub mod context_menu;
 pub mod edit;
 pub mod ime;
 pub mod keys;
@@ -29,7 +30,7 @@ use std::time::{Duration, Instant};
 use config::settings::PluginSettings;
 use editor_contracts::{CursorHint, DocumentSnapshot, EditTransaction, OutlineNode, PaneHost};
 use gpui::*;
-use syntax_highlighter::highlight::{CodeHighlightResult, highlight_code_block};
+use syntax_highlighter::highlight::{CodeHighlightSpan, highlight_code_block};
 
 use crate::display_map::{DisplaySnapshot, FoldMap, FoldRange, RowIndex, TabMap, WrapState};
 use crate::selection::Selections;
@@ -50,8 +51,9 @@ pub struct TypingRun {
 /// outline headings after an idle debounce, keeping the previous result
 /// visible while typing (stale-while-revalidate).
 struct HighlightState {
-    /// The last completed highlight result, if any.
-    result: Option<Arc<CodeHighlightResult>>,
+    /// Highlight spans bucketed per buffer line (doc coordinates
+    /// preserved), so a visual row looks up its spans in O(1).
+    spans_by_line: Option<Arc<Vec<Vec<CodeHighlightSpan>>>>,
     /// Outline headings computed alongside the last highlight run.
     outline: Option<Arc<Vec<OutlineNode>>>,
     /// Foldable regions (fences and heading sections) from the last
@@ -66,7 +68,7 @@ struct HighlightState {
 impl HighlightState {
     fn new() -> Self {
         Self {
-            result: None,
+            spans_by_line: None,
             outline: None,
             folds: None,
             generation: 0,
@@ -80,6 +82,8 @@ pub struct SourceCodeEditor {
     pub host: Option<Arc<dyn PaneHost>>,
     pub scroll: Option<ScrollHandle>,
     pub focus_handle: FocusHandle,
+    /// Context menu currently open in this pane, if any.
+    pub context_menu: Option<context_menu::SourceContextMenu>,
 
     // ── Document projection ──────────────────────────────────────────────
     text: Rope,
@@ -148,6 +152,7 @@ impl SourceCodeEditor {
             host: None,
             scroll: None,
             focus_handle: cx.focus_handle(),
+            context_menu: None,
             text: Rope::new(""),
             text_version: 0,
             synced_revision: None,
@@ -634,12 +639,24 @@ impl SourceCodeEditor {
         Some(ranges[idx])
     }
 
+    /// Toggles the fold headed by `row` (folded → unfold; foldable → fold).
+    pub fn toggle_fold_at_row(&mut self, row: u32) {
+        if self.folds.is_folded(row) {
+            self.folds.unfold(row);
+        } else if let Some(range) = self.foldable_at(row) {
+            self.folds.fold(range);
+        }
+        self.rows_cache = None;
+        self.rows_line_count = None;
+    }
+
     /// Toggles the fold containing or heading the primary cursor's line.
     pub fn toggle_fold_at_cursor(&mut self) {
         let row = self.text.offset_to_point(self.cursor()).0;
         if self.folds.is_folded(row as u32) {
             self.folds.unfold(row as u32);
             self.rows_cache = None;
+            self.rows_line_count = None;
             return;
         }
         // A cursor inside a fold should unfold it.
@@ -648,12 +665,14 @@ impl SourceCodeEditor {
             if let Some(header) = header {
                 self.folds.unfold(header);
                 self.rows_cache = None;
+                self.rows_line_count = None;
                 return;
             }
         }
         if let Some(range) = self.foldable_at(row as u32) {
             self.folds.fold(range);
             self.rows_cache = None;
+            self.rows_line_count = None;
         }
     }
 
@@ -742,12 +761,15 @@ impl SourceCodeEditor {
                         let rope = Rope::new(&text);
                         let mut folds = FoldMap::discover_markdown_folds(&rope);
                         folds.sort_by_key(|range| range.start_row);
-                        (highlight, outline, folds)
+                        let spans_by_line = highlight
+                            .as_ref()
+                            .map(|result| index_spans_by_line(&rope, &result.spans));
+                        (spans_by_line, outline, folds)
                     })
                     .await;
                 let Ok(done) = entity.update(cx, |editor, cx| {
                     if editor.highlight.generation == generation {
-                        editor.highlight.result = computed.0.map(Arc::new);
+                        editor.highlight.spans_by_line = computed.0.map(Arc::new);
                         editor.highlight.outline = Some(Arc::new(computed.1));
                         editor.highlight.folds = Some(Arc::new(computed.2));
                         editor.highlight.task = None;
@@ -767,10 +789,10 @@ impl SourceCodeEditor {
         self.highlight.task = Some(task);
     }
 
-    /// The most recent highlight result (possibly stale while a refresh is
-    /// in flight — text keeps its previous colors while typing).
-    pub fn highlight_result(&self) -> Option<Arc<CodeHighlightResult>> {
-        self.highlight.result.clone()
+    /// Highlight spans bucketed per buffer line, from the last background
+    /// refresh (stale-while-typing, like Zed's async highlighting).
+    pub fn highlight_spans_by_line(&self) -> Option<Arc<Vec<Vec<CodeHighlightSpan>>>> {
+        self.highlight.spans_by_line.clone()
     }
 
     /// Cached outline headings from the last background refresh. Empty
@@ -804,7 +826,8 @@ impl SourceCodeEditor {
         if self.settings.line_numbers {
             crate::gutter::GutterLayout::new(self.line_count(), font_size).width()
         } else {
-            8.0
+            // Fold chevrons need a gutter column even without line numbers.
+            20.0
         }
     }
 
@@ -840,4 +863,71 @@ fn hash_str(text: &str) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     text.hash(&mut hasher);
     hasher.finish()
+}
+
+/// Splits flat highlight spans into per-buffer-line buckets (document
+/// coordinates preserved). A visual row then looks up its spans in O(1)
+/// instead of scanning the whole span list, and wrap segments filter them
+/// by range. Multi-line spans (e.g. fenced code) are split per line.
+fn index_spans_by_line(rope: &Rope, spans: &[CodeHighlightSpan]) -> Vec<Vec<CodeHighlightSpan>> {
+    let mut by_line: Vec<Vec<CodeHighlightSpan>> = vec![Vec::new(); rope.line_count()];
+    for span in spans {
+        if span.range.start >= span.range.end {
+            continue;
+        }
+        let (start_row, _) = rope.offset_to_point(span.range.start);
+        let (end_row, _) = rope.offset_to_point(span.range.end - 1);
+        for row in start_row..=end_row.min(by_line.len() - 1) {
+            let line_start = rope.line_start(row);
+            let line_end = line_start + rope.line_len(row);
+            let start = span.range.start.max(line_start);
+            let end = span.range.end.min(line_end);
+            if start < end {
+                by_line[row].push(CodeHighlightSpan {
+                    range: start..end,
+                    class: span.class,
+                });
+            }
+        }
+    }
+    by_line
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Rope, index_spans_by_line};
+    use syntax_highlighter::highlight::{CodeHighlightClass, highlight_code_block};
+
+    #[test]
+    fn span_index_buckets_per_line_within_line_bounds() {
+        let text = "aa **bb** cc\n```rust\nfn main() {}\n```\nlast";
+        let rope = Rope::new(text);
+        let result = highlight_code_block(Some("markdown"), text).expect("highlight");
+        let by_line = index_spans_by_line(&rope, &result.spans);
+        assert_eq!(by_line.len(), rope.line_count());
+        // Every bucketed span stays within its line's bounds.
+        for (row, spans) in by_line.iter().enumerate() {
+            let line_start = rope.line_start(row);
+            let line_end = line_start + rope.line_len(row);
+            for span in spans {
+                assert!(
+                    span.range.start >= line_start && span.range.end <= line_end,
+                    "row {row}: {:?}",
+                    span.range
+                );
+            }
+        }
+        // The bold span on row 0 is bucketed to row 0.
+        assert!(
+            by_line[0]
+                .iter()
+                .any(|span| span.class == CodeHighlightClass::MarkupBold)
+        );
+        // The rust keyword lands on the fence-content row.
+        assert!(
+            by_line[2]
+                .iter()
+                .any(|span| span.class == CodeHighlightClass::Keyword)
+        );
+    }
 }

@@ -13,7 +13,7 @@ use gpui::{
     AnyElement, App, Bounds, Context, Element, ElementId, GlobalElementId, Hitbox, HitboxBehavior,
     InspectorElementId, InteractiveElement, IntoElement, LayoutId, PaintQuad, ParentElement,
     Pixels, ShapedLine, SharedString, StatefulInteractiveElement, Style, Styled, TextAlign,
-    TextRun, Window, div, fill, point, px, relative, size,
+    TextRun, TransformationMatrix, Window, div, fill, point, px, relative, size,
 };
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
@@ -86,6 +86,17 @@ impl SourceCodeEditor {
 
         let focus_handle = self.focus_handle.clone();
         let editor_entity = cx.entity();
+        let right_click_entity = editor_entity.clone();
+
+        // Geometry of the scroll viewport: context menu and floating HUD
+        // children position themselves relative to its origin.
+        let scroll_bounds = ctx.scroll.bounds();
+        let menu_origin = scroll_bounds.origin;
+        let menu_size = scroll_bounds.size;
+        let context_menu_element = self
+            .context_menu
+            .clone()
+            .map(|menu| self.render_context_menu(&menu, menu_origin, menu_size, &theme, cx));
 
         let mut outer = div()
             .id(ElementId::Name(
@@ -131,9 +142,15 @@ impl SourceCodeEditor {
                     .on_mouse_up(gpui::MouseButton::Left, move |event, window, cx| {
                         host_up.handle_pane_mouse_up(pane_id, event, window, cx);
                     })
+                    .on_mouse_down(gpui::MouseButton::Right, move |event, window, cx| {
+                        right_click_entity.update(cx, |editor, cx| {
+                            editor.open_context_menu(event.position, window, cx);
+                        });
+                    })
                     .child(EditorElement::new(editor_entity, pane_id, ctx.is_focused)),
             )
             .child(outline_hud)
+            .children(context_menu_element)
             .into_any_element()
     }
 }
@@ -168,7 +185,7 @@ pub struct SourceCodePrepaintState {
     pub(crate) marked_range_quads: Vec<PaintQuad>,
     pub(crate) indent_guide_quads: Vec<PaintQuad>,
     pub(crate) gutter_numbers: Vec<(u32, ShapedLine, bool)>,
-    pub(crate) fold_markers: Vec<(u32, ShapedLine)>,
+    pub(crate) fold_markers: Vec<(u32, bool)>,
     pub(crate) hitbox: Option<Hitbox>,
 }
 
@@ -258,7 +275,7 @@ impl Element for EditorElement {
             highlight_active_line,
             line_numbers,
             tab_size,
-            highlight,
+            highlight_spans,
             search_matches,
             selection_ranges,
             cursor_rows,
@@ -328,7 +345,7 @@ impl Element for EditorElement {
                 editor.settings().highlight_active_line,
                 editor.settings().line_numbers,
                 editor.settings().tab_size,
-                editor.highlight_result(),
+                editor.highlight_spans_by_line(),
                 editor.search_matches().to_vec(),
                 selection_ranges,
                 cursor_rows,
@@ -357,9 +374,10 @@ impl Element for EditorElement {
         for (frame, fold_marker) in &frames {
             let line_y = bounds.top() + px(editor_padding + frame.display_row as f32 * line_height);
             let segment = text.slice_owned(frame.range.clone());
-            let spans = highlight
-                .as_ref()
-                .map(|result| result.spans.as_slice())
+            let spans = highlight_spans
+                .as_deref()
+                .and_then(|by_line| by_line.get(frame.buffer_row as usize))
+                .map(Vec::as_slice)
                 .unwrap_or(&[]);
             let runs = build_line_text_runs(
                 &segment,
@@ -538,20 +556,7 @@ impl Element for EditorElement {
                 }
 
                 if let Some(folded) = fold_marker {
-                    let marker = if *folded { "▾" } else { "▸" };
-                    let marker_run = TextRun {
-                        len: marker.len(),
-                        font: font.clone(),
-                        color: theme.colors.dialog_muted,
-                        ..Default::default()
-                    };
-                    let shaped_marker = window.text_system().shape_line(
-                        SharedString::new(marker),
-                        px(font_size),
-                        &[marker_run],
-                        None,
-                    );
-                    fold_markers.push((frame.display_row, shaped_marker));
+                    fold_markers.push((frame.display_row, *folded));
                 }
             }
         }
@@ -656,20 +661,33 @@ impl Element for EditorElement {
                 .ok();
         }
 
-        // 9. Fold markers at the left of the gutter.
-        for (visible_row, shaped_marker) in prepaint.fold_markers.drain(..) {
+        // 9. Fold markers at the left of the gutter: settings chevrons
+        // (down = folded, right = foldable), matching the settings UI.
+        for (visible_row, folded) in prepaint.fold_markers.drain(..) {
             let line_y = bounds.top()
                 + px(prepaint.editor_padding + visible_row as f32 * prepaint.line_height);
-            shaped_marker
-                .paint(
-                    point(bounds.left() + px(6.0), line_y),
-                    px(prepaint.line_height),
-                    TextAlign::Left,
-                    None,
-                    window,
-                    cx,
-                )
-                .ok();
+            let icon_size = 12.0;
+            let icon_bounds = Bounds::new(
+                point(
+                    bounds.left() + px(4.0),
+                    line_y + px((prepaint.line_height - icon_size) / 2.0),
+                ),
+                size(px(icon_size), px(icon_size)),
+            );
+            let path: SharedString = if folded {
+                "icons/settings/chevron-down.svg"
+            } else {
+                "icons/settings/chevron-right.svg"
+            }
+            .into();
+            let _ = window.paint_svg(
+                icon_bounds,
+                path,
+                None,
+                TransformationMatrix::default(),
+                theme.colors.dialog_muted,
+                cx,
+            );
         }
 
         // 10. Shaped syntax text lines.

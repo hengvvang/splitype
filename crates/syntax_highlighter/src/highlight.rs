@@ -6,7 +6,7 @@ use std::ops::Range;
 #[cfg(feature = "code-highlight-core")]
 use std::sync::{Arc, LazyLock, RwLock};
 
-use gpui::{Font, Hsla, TextRun};
+use gpui::{Font, FontStyle, FontWeight, Hsla, TextRun, UnderlineStyle, px};
 #[cfg(feature = "code-highlight-core")]
 use tree_sitter_highlight::{Highlight, HighlightConfiguration, HighlightEvent, Highlighter};
 
@@ -65,7 +65,7 @@ pub enum CodeLanguageKey {
 
 /// Token class category for code highlighting.
 #[cfg_attr(not(feature = "code-highlight-core"), allow(dead_code))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum CodeHighlightClass {
     /// Source code comment.
     Comment,
@@ -89,6 +89,24 @@ pub enum CodeHighlightClass {
     Operator,
     /// Punctuation token.
     Punctuation,
+    /// Markdown heading text (level 1..=6).
+    MarkupHeading(u8),
+    /// Markdown strong emphasis: rendered bold.
+    MarkupBold,
+    /// Markdown emphasis: rendered italic.
+    MarkupItalic,
+    /// Markdown inline code span: tinted background.
+    MarkupCode,
+    /// Markdown link text: colored and underlined.
+    MarkupLink,
+    /// Markdown link destination / autolink URI.
+    MarkupUri,
+    /// Markdown list markers and thematic breaks.
+    MarkupList,
+    /// Markdown block-quote markers.
+    MarkupQuote,
+    /// Backslash escapes and hard line breaks.
+    MarkupEscape,
 }
 
 /// Highlighted byte range inside a code block.
@@ -235,6 +253,26 @@ const HIGHLIGHT_NAMES: &[&str] = &[
     "variable",
     "variable.builtin",
     "variable.parameter",
+    "markup.heading.1",
+    "markup.heading.2",
+    "markup.heading.3",
+    "markup.heading.4",
+    "markup.heading.5",
+    "markup.heading.6",
+    "markup.bold",
+    "markup.italic",
+    "markup.code",
+    "markup.link",
+    "markup.uri",
+    "markup.list",
+    "markup.quote",
+    "markup.escape",
+    "string.escape",
+    "text.literal",
+    "text.emphasis",
+    "text.strong",
+    "text.uri",
+    "text.reference",
 ];
 
 /// Lazily built tree-sitter highlighter registry.
@@ -446,12 +484,71 @@ fn build_json_config() -> Option<HighlightConfiguration> {
 }
 
 #[cfg(feature = "code-highlight-official")]
+/// Markdown block-grammar highlight query with per-level heading captures
+/// and block markup classes. Inline markup (emphasis, links, code spans)
+/// arrives through the `markdown_inline` injection, whose spans overlay
+/// these block spans.
+const MARKDOWN_HIGHLIGHT_QUERY: &str = r#"
+; Heading text and markers, per level.
+(atx_heading (atx_h1_marker) (inline) @markup.heading.1)
+(atx_heading (atx_h2_marker) (inline) @markup.heading.2)
+(atx_heading (atx_h3_marker) (inline) @markup.heading.3)
+(atx_heading (atx_h4_marker) (inline) @markup.heading.4)
+(atx_heading (atx_h5_marker) (inline) @markup.heading.5)
+(atx_heading (atx_h6_marker) (inline) @markup.heading.6)
+(atx_heading (atx_h1_marker) @markup.heading.1)
+(atx_heading (atx_h2_marker) @markup.heading.2)
+(atx_heading (atx_h3_marker) @markup.heading.3)
+(atx_heading (atx_h4_marker) @markup.heading.4)
+(atx_heading (atx_h5_marker) @markup.heading.5)
+(atx_heading (atx_h6_marker) @markup.heading.6)
+(setext_heading (paragraph) @markup.heading.1 (setext_h1_underline))
+(setext_heading (paragraph) @markup.heading.2 (setext_h2_underline))
+(setext_heading (setext_h1_underline) @markup.heading.1)
+(setext_heading (setext_h2_underline) @markup.heading.2)
+
+; List markers, thematic breaks, and quote markers.
+[
+  (list_marker_plus)
+  (list_marker_minus)
+  (list_marker_star)
+  (list_marker_dot)
+  (list_marker_parenthesis)
+] @markup.list
+(thematic_break) @markup.list
+(block_quote_marker) @markup.quote
+
+; Fences and escapes.
+(fenced_code_block_delimiter) @punctuation.delimiter
+(backslash_escape) @markup.escape
+"#;
+
+/// Markdown injection query: fenced code blocks inject their info-string
+/// language, HTML blocks inject `html`, and inline content injects
+/// `markdown_inline`. The inline injection sets
+/// `injection.include-children` because the `inline` node's text lives in
+/// its children.
+const MARKDOWN_INJECTION_QUERY: &str = r#"
+(fenced_code_block
+  (info_string
+    (language) @injection.language)
+  (code_fence_content) @injection.content)
+
+((html_block) @injection.content
+  (#set! injection.language "html"))
+
+((inline) @injection.content
+  (#set! injection.language "markdown_inline")
+  (#set! injection.include-children))
+"#;
+
+#[cfg(feature = "code-highlight-official")]
 fn build_markdown_config() -> Option<HighlightConfiguration> {
     configure_highlights(
         tree_sitter_md::LANGUAGE.into(),
         "markdown",
-        tree_sitter_md::HIGHLIGHT_QUERY_BLOCK,
-        tree_sitter_md::INJECTION_QUERY_BLOCK,
+        MARKDOWN_HIGHLIGHT_QUERY,
+        MARKDOWN_INJECTION_QUERY,
         "",
     )
 }
@@ -624,49 +721,25 @@ pub fn highlight_code_block(language: Option<&str>, source: &str) -> Option<Code
     let key = resolve_code_language_key(language)?;
 
     #[cfg(feature = "code-highlight-core")]
-    if let Some(config) = CODE_HIGHLIGHT_REGISTRY.config_for(key) {
-        let mut highlighter = Highlighter::new();
-        let events = match highlighter.highlight(&config, source.as_bytes(), None, |_| None) {
-            Ok(events) => events,
-            Err(_) => {
-                return Some(CodeHighlightResult {
-                    language: key,
-                    spans: Vec::new(),
-                });
-            }
-        };
-
-        let mut spans = Vec::new();
-        let mut active = Vec::new();
-        for event in events {
-            let Ok(event) = event else {
-                return Some(CodeHighlightResult {
-                    language: key,
-                    spans: Vec::new(),
-                });
-            };
-
-            match event {
-                HighlightEvent::Source { start, end } => {
-                    if let Some(class) = active.last().copied() {
-                        push_highlight_span(&mut spans, start..end, class);
-                    }
-                }
-                HighlightEvent::HighlightStart(highlight) => {
-                    if let Some(class) = class_for_highlight(highlight) {
-                        active.push(class);
-                    }
-                }
-                HighlightEvent::HighlightEnd => {
-                    active.pop();
-                }
-            }
+    {
+        // Markdown runs two passes: a base pass for block structure and an
+        // overlay pass with injections (inline markup, fenced code
+        // languages), merged so heading colors show through between
+        // emphasized runs.
+        #[cfg(feature = "code-highlight-official")]
+        if key == CodeLanguageKey::Markdown {
+            return Some(CodeHighlightResult {
+                language: key,
+                spans: highlight_markdown(source),
+            });
         }
-
-        return Some(CodeHighlightResult {
-            language: key,
-            spans,
-        });
+        if let Some(config) = CODE_HIGHLIGHT_REGISTRY.config_for(key) {
+            let spans = collect_highlight_spans(&config, source, &HashMap::new());
+            return Some(CodeHighlightResult {
+                language: key,
+                spans,
+            });
+        }
     }
 
     // Languages without a tree-sitter grammar (LaTeX, Mermaid) fall back to
@@ -683,6 +756,176 @@ pub fn highlight_code_block(language: Option<&str>, source: &str) -> Option<Code
         language: key,
         spans: Vec::new(),
     })
+}
+
+/// Runs the highlighter over `source`, resolving injections against the
+/// given configuration map (language name → configuration).
+#[cfg(feature = "code-highlight-core")]
+fn collect_highlight_spans(
+    config: &HighlightConfiguration,
+    source: &str,
+    injections: &HashMap<String, Arc<HighlightConfiguration>>,
+) -> Vec<CodeHighlightSpan> {
+    let mut highlighter = Highlighter::new();
+    let events = match highlighter.highlight(config, source.as_bytes(), None, |name| {
+        injections.get(name).map(|arc| arc.as_ref())
+    }) {
+        Ok(events) => events,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut spans = Vec::new();
+    let mut active = Vec::new();
+    for event in events {
+        let Ok(event) = event else {
+            return Vec::new();
+        };
+
+        match event {
+            HighlightEvent::Source { start, end } => {
+                if let Some(class) = active.last().copied() {
+                    push_highlight_span(&mut spans, start..end, class);
+                }
+            }
+            HighlightEvent::HighlightStart(highlight) => {
+                if let Some(class) = class_for_highlight(highlight) {
+                    active.push(class);
+                }
+            }
+            HighlightEvent::HighlightEnd => {
+                active.pop();
+            }
+        }
+    }
+
+    spans
+}
+
+/// The `markdown_inline` grammar configuration, built once. Its capture
+/// names share the global `HIGHLIGHT_NAMES` list, so highlight indices are
+/// compatible across injected configurations.
+#[cfg(feature = "code-highlight-official")]
+fn markdown_inline_config() -> Option<Arc<HighlightConfiguration>> {
+    static INLINE_CONFIG: LazyLock<Option<Arc<HighlightConfiguration>>> = LazyLock::new(|| {
+        configure_highlights(
+            tree_sitter_md::INLINE_LANGUAGE.into(),
+            "markdown_inline",
+            tree_sitter_md::HIGHLIGHT_QUERY_INLINE,
+            tree_sitter_md::INJECTION_QUERY_INLINE,
+            "",
+        )
+        .map(Arc::new)
+    });
+    INLINE_CONFIG.clone()
+}
+
+/// Highlight Markdown with block structure and inline markup combined:
+/// the base pass colors headings, list and quote markers, and fences; the
+/// overlay pass adds emphasis, links, inline code, and fenced-code
+/// languages through injections.
+#[cfg(feature = "code-highlight-official")]
+fn highlight_markdown(source: &str) -> Vec<CodeHighlightSpan> {
+    let Some(config) = CODE_HIGHLIGHT_REGISTRY.config_for(CodeLanguageKey::Markdown) else {
+        return Vec::new();
+    };
+
+    // Base pass without injections: heading color spans cover their full
+    // inline content.
+    let base = collect_highlight_spans(&config, source, &HashMap::new());
+
+    // Overlay pass: inline markup plus fenced-code languages.
+    let mut injections: HashMap<String, Arc<HighlightConfiguration>> = HashMap::new();
+    if let Some(cfg) = markdown_inline_config() {
+        injections.insert("markdown_inline".to_string(), cfg);
+    }
+    for name in ["html", "yaml", "toml"] {
+        if let Some(key) = resolve_code_language_key(Some(name))
+            && let Some(cfg) = CODE_HIGHLIGHT_REGISTRY.config_for(key)
+        {
+            injections.insert(name.to_string(), cfg);
+        }
+    }
+    for lang in fence_languages(source) {
+        if injections.contains_key(lang) {
+            continue;
+        }
+        if let Some(key) = resolve_code_language_key(Some(lang))
+            && let Some(cfg) = CODE_HIGHLIGHT_REGISTRY.config_for(key)
+        {
+            injections.insert(lang.to_string(), cfg);
+        }
+    }
+    let overlay = collect_highlight_spans(&config, source, &injections);
+
+    merge_span_layers(base, overlay)
+}
+
+/// Language tags of fenced code blocks (` ```rust ` → "rust"), driving the
+/// dynamic injection lookup.
+#[cfg(feature = "code-highlight-official")]
+fn fence_languages(source: &str) -> Vec<&str> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim_start();
+            let fence = line
+                .strip_prefix("```")
+                .or_else(|| line.strip_prefix("~~~"))?;
+            let lang = fence.split_whitespace().next()?;
+            (!lang.is_empty()).then_some(lang)
+        })
+        .collect()
+}
+
+/// Merges a base span layer with an overlay layer: overlay spans win where
+/// they exist, base spans fill the gaps. Both layers are sorted by range
+/// start and non-overlapping within themselves, so this is one linear
+/// pass.
+#[cfg(feature = "code-highlight-core")]
+fn merge_span_layers(
+    mut base: Vec<CodeHighlightSpan>,
+    overlay: Vec<CodeHighlightSpan>,
+) -> Vec<CodeHighlightSpan> {
+    let mut merged = Vec::with_capacity(base.len() + overlay.len());
+    let mut base_idx = 0usize;
+    for span in overlay {
+        // Base spans entirely before the overlay span.
+        while base_idx < base.len() && base[base_idx].range.end <= span.range.start {
+            merged.push(base[base_idx].clone());
+            base_idx += 1;
+        }
+        // The head of the base span straddling the overlay start.
+        if base_idx < base.len() && base[base_idx].range.start < span.range.start {
+            let head = CodeHighlightSpan {
+                range: base[base_idx].range.start..span.range.start,
+                class: base[base_idx].class,
+            };
+            if head.range.start < head.range.end {
+                merged.push(head);
+            }
+            base[base_idx].range.start = span.range.start;
+        }
+        // The overlay span itself.
+        if span.range.start < span.range.end {
+            merged.push(span.clone());
+        }
+        // Skip base spans fully covered by the overlay; trim the one
+        // straddling the overlay end.
+        while base_idx < base.len() && base[base_idx].range.start < span.range.end {
+            if base[base_idx].range.end <= span.range.end {
+                base_idx += 1;
+            } else {
+                base[base_idx].range.start = span.range.end;
+                break;
+            }
+        }
+    }
+    // Base spans after the last overlay span.
+    while base_idx < base.len() {
+        merged.push(base[base_idx].clone());
+        base_idx += 1;
+    }
+    merged
 }
 
 /// Lightweight rule-based highlighting for languages without a tree-sitter
@@ -850,6 +1093,25 @@ fn class_for_highlight(highlight: Highlight) -> Option<CodeHighlightClass> {
         "punctuation" | "punctuation.bracket" | "punctuation.delimiter" | "punctuation.special" => {
             CodeHighlightClass::Punctuation
         }
+        "markup.heading.1" => CodeHighlightClass::MarkupHeading(1),
+        "markup.heading.2" => CodeHighlightClass::MarkupHeading(2),
+        "markup.heading.3" => CodeHighlightClass::MarkupHeading(3),
+        "markup.heading.4" => CodeHighlightClass::MarkupHeading(4),
+        "markup.heading.5" => CodeHighlightClass::MarkupHeading(5),
+        "markup.heading.6" => CodeHighlightClass::MarkupHeading(6),
+        "markup.bold" => CodeHighlightClass::MarkupBold,
+        "markup.italic" => CodeHighlightClass::MarkupItalic,
+        "markup.code" => CodeHighlightClass::MarkupCode,
+        "markup.link" => CodeHighlightClass::MarkupLink,
+        "markup.uri" => CodeHighlightClass::MarkupUri,
+        "markup.list" => CodeHighlightClass::MarkupList,
+        "markup.quote" => CodeHighlightClass::MarkupQuote,
+        "markup.escape" | "string.escape" => CodeHighlightClass::MarkupEscape,
+        "text.literal" => CodeHighlightClass::MarkupCode,
+        "text.emphasis" => CodeHighlightClass::MarkupItalic,
+        "text.strong" => CodeHighlightClass::MarkupBold,
+        "text.uri" => CodeHighlightClass::MarkupUri,
+        "text.reference" => CodeHighlightClass::MarkupLink,
         _ => return None,
     })
 }
@@ -867,10 +1129,25 @@ pub fn code_highlight_color(colors: &ThemeColors, class: CodeHighlightClass) -> 
         CodeHighlightClass::Property => colors.code_syntax_property,
         CodeHighlightClass::Operator => colors.code_syntax_operator,
         CodeHighlightClass::Punctuation => colors.code_syntax_punctuation,
+        CodeHighlightClass::MarkupHeading(1) => colors.text_h1,
+        CodeHighlightClass::MarkupHeading(2) => colors.text_h2,
+        CodeHighlightClass::MarkupHeading(3) => colors.text_h3,
+        CodeHighlightClass::MarkupHeading(4) => colors.text_h4,
+        CodeHighlightClass::MarkupHeading(5) => colors.text_h5,
+        CodeHighlightClass::MarkupHeading(_) => colors.text_h6,
+        CodeHighlightClass::MarkupCode => colors.code_text,
+        CodeHighlightClass::MarkupLink | CodeHighlightClass::MarkupUri => colors.text_link,
+        CodeHighlightClass::MarkupList => colors.markdown_marker,
+        CodeHighlightClass::MarkupQuote => colors.text_quote,
+        CodeHighlightClass::MarkupEscape => colors.code_syntax_string,
+        CodeHighlightClass::MarkupBold | CodeHighlightClass::MarkupItalic => colors.text_default,
     }
 }
 
-/// Builds a sequence of `TextRun`s for a single line using Tree-sitter highlight spans.
+/// Builds a sequence of `TextRun`s for a single line using Tree-sitter
+/// highlight spans. Markdown markup classes get Zed-style styling: heading
+/// colors and weights, bold/italic faces, tinted inline-code backgrounds,
+/// and underlined links.
 pub fn build_line_text_runs(
     line_text: &str,
     line_range: Range<usize>,
@@ -921,13 +1198,34 @@ pub fn build_line_text_runs(
 
         if span_local_end > current_offset {
             let seg_len = span_local_end - current_offset;
-            let color = code_highlight_color(theme_colors, span.class);
-            runs.push(TextRun {
+            let mut run_font = font.clone();
+            let mut run = TextRun {
                 len: seg_len,
-                font: font.clone(),
-                color,
+                font: run_font.clone(),
+                color: code_highlight_color(theme_colors, span.class),
                 ..Default::default()
-            });
+            };
+            match span.class {
+                CodeHighlightClass::MarkupHeading(_) | CodeHighlightClass::MarkupBold => {
+                    run_font.weight = FontWeight::BOLD;
+                }
+                CodeHighlightClass::MarkupItalic => {
+                    run_font.style = FontStyle::Italic;
+                }
+                CodeHighlightClass::MarkupCode => {
+                    run.background_color = Some(theme_colors.code_bg.opacity(0.6));
+                }
+                CodeHighlightClass::MarkupLink => {
+                    run.underline = Some(UnderlineStyle {
+                        color: Some(theme_colors.text_link),
+                        thickness: px(1.0),
+                        wavy: false,
+                    });
+                }
+                _ => {}
+            }
+            run.font = run_font;
+            runs.push(run);
             current_offset = span_local_end;
         }
     }
@@ -951,4 +1249,49 @@ pub fn build_line_text_runs(
     }
 
     runs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+
+    #[test]
+    fn markdown_query_produces_markup_classes() {
+        let source = "# Heading One\n\nSome **bold** and *italic* text with `code` and a [link](https://example.com).\n\n- item one\n- item two\n\n> quoted line\n\n```rust\nfn main() {}\n```\n";
+        let result = highlight_code_block(Some("markdown"), source).expect("markdown highlight");
+        let classes: HashSet<_> = result.spans.iter().map(|span| span.class).collect();
+        assert!(
+            classes.contains(&CodeHighlightClass::MarkupHeading(1)),
+            "h1"
+        );
+        assert!(classes.contains(&CodeHighlightClass::MarkupBold), "bold");
+        assert!(
+            classes.contains(&CodeHighlightClass::MarkupItalic),
+            "italic"
+        );
+        assert!(
+            classes.contains(&CodeHighlightClass::MarkupCode),
+            "inline code"
+        );
+        assert!(
+            classes.contains(&CodeHighlightClass::MarkupLink),
+            "link text"
+        );
+        assert!(classes.contains(&CodeHighlightClass::MarkupUri), "link uri");
+        assert!(
+            classes.contains(&CodeHighlightClass::MarkupList),
+            "list markers"
+        );
+        assert!(
+            classes.contains(&CodeHighlightClass::MarkupQuote),
+            "quote marker"
+        );
+        // The fenced Rust block is injected and highlighted with the inner
+        // language, producing code classes.
+        assert!(
+            classes.contains(&CodeHighlightClass::Keyword),
+            "rust keyword"
+        );
+    }
 }
