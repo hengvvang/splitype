@@ -11,11 +11,31 @@ use markdown_parser::block::image::parse_standalone_image;
 use markdown_parser::block::table::serialize_table_markdown_lines;
 use markdown_parser::parse::BlockKind;
 
+/// Mapping from a block's entity id to its line range in the serialized Markdown document.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlockLineMapping {
+    pub entity_id: EntityId,
+    pub own_start_line: usize,
+    pub own_end_line: usize,
+    pub list_depth: usize,
+}
+
 impl Document {
     pub fn serialize_markdown(&self, cx: &App) -> String {
-        let mut lines = Vec::new();
-        Self::collect_root_markdown_lines(&self.roots, cx, &mut lines);
+        let (lines, _) = self.serialize_markdown_lines_with_mapping(cx);
         lines.join("\n")
+    }
+
+    /// Serializes all document lines into a `Vec<String>` and records each
+    /// block's own line range and list depth.
+    pub fn serialize_markdown_lines_with_mapping(
+        &self,
+        cx: &App,
+    ) -> (Vec<String>, Vec<BlockLineMapping>) {
+        let mut lines = Vec::new();
+        let mut mappings = Vec::new();
+        Self::collect_root_markdown_lines_with_mapping(&self.roots, cx, &mut lines, &mut mappings);
+        (lines, mappings)
     }
 
     pub fn serialize_source_text(&self, cx: &App) -> String {
@@ -26,10 +46,30 @@ impl Document {
             .collect::<Vec<_>>()
             .join("\n")
     }
+
     pub fn is_empty_root_paragraph(block: &Block) -> bool {
         block.kind() == BlockKind::Paragraph
             && block.data.text.plain_text().is_empty()
             && block.children.is_empty()
+    }
+
+    pub fn collect_root_markdown_lines_with_mapping(
+        blocks: &[Entity<Block>],
+        cx: &App,
+        lines: &mut Vec<String>,
+        mappings: &mut Vec<BlockLineMapping>,
+    ) {
+        for block in blocks {
+            let block_ref = block.read(cx);
+            Self::collect_single_block_markdown_lines_with_mapping(
+                Some(block.entity_id()),
+                block_ref,
+                0,
+                cx,
+                lines,
+                mappings,
+            );
+        }
     }
 
     pub fn collect_root_markdown_lines(
@@ -37,138 +77,40 @@ impl Document {
         cx: &App,
         lines: &mut Vec<String>,
     ) {
-        for block in blocks {
-            let block_ref = block.read(cx);
-            Self::collect_single_block_markdown_lines(block_ref, 0, cx, lines);
-        }
+        let mut mappings = Vec::new();
+        Self::collect_root_markdown_lines_with_mapping(blocks, cx, lines, &mut mappings);
     }
 
     /// Byte offset in the serialized Markdown at which each block's own
-    /// lines begin. The walker mirrors
-    /// [`Self::collect_single_block_markdown_lines`] exactly, so offsets
-    /// agree with [`Self::serialize_markdown`] byte-for-byte. Used to map
-    /// block-local carets to document-level cursor hints.
+    /// lines begin. Matches [`Self::serialize_markdown`] byte-for-byte.
     pub fn markdown_offsets_of_blocks(&self, cx: &App) -> HashMap<EntityId, usize> {
+        let (lines, mappings) = self.serialize_markdown_lines_with_mapping(cx);
+        let mut line_offsets = Vec::with_capacity(lines.len() + 1);
+        let mut curr = 0usize;
+        for line in &lines {
+            line_offsets.push(curr);
+            curr += line.len() + 1;
+        }
+        line_offsets.push(curr);
+
         let mut offsets = HashMap::new();
-        self.walk_block_offsets(cx, &mut |entity_id, offset| {
-            offsets.insert(entity_id, offset);
-        });
+        for m in mappings {
+            let offset = line_offsets.get(m.own_start_line).copied().unwrap_or(curr);
+            offsets.insert(m.entity_id, offset);
+        }
         offsets
     }
 
     /// Byte offset at which `target` block's own lines begin, or `None`
     /// when the block is not part of the document.
     pub fn markdown_offset_of_block(&self, target: EntityId, cx: &App) -> Option<usize> {
-        let mut found = None;
-        self.walk_block_offsets(cx, &mut |entity_id, offset| {
-            if found.is_none() && entity_id == target {
-                found = Some(offset);
-            }
-        });
-        found
-    }
-
-    /// Visits every block in serialization order, reporting the byte offset
-    /// at which its own lines begin. The traversal applies the same line
-    /// sequence the serializer produces, so reported offsets agree with
-    /// [`Self::serialize_markdown`] byte-for-byte.
-    fn walk_block_offsets(&self, cx: &App, visit: &mut impl FnMut(EntityId, usize)) {
+        let (lines, mappings) = self.serialize_markdown_lines_with_mapping(cx);
+        let mapping = mappings.into_iter().find(|m| m.entity_id == target)?;
         let mut offset = 0usize;
-        Self::visit_block_offsets(&self.roots, 0, 0, false, cx, &mut offset, visit);
-    }
-
-    /// Recursive half of [`Self::walk_block_offsets`]. `line_prefix_len`
-    /// accumulates the byte length of enclosing blockquote/callout prefixes
-    /// (`{indentation}> `) prepended to every line of this subtree.
-    #[allow(clippy::too_many_arguments)]
-    fn visit_block_offsets(
-        blocks: &[Entity<Block>],
-        depth: usize,
-        line_prefix_len: usize,
-        blank_line_between: bool,
-        cx: &App,
-        offset: &mut usize,
-        visit: &mut impl FnMut(EntityId, usize),
-    ) {
-        let mut first = true;
-        let mut previous_was_list_item = false;
-        for block in blocks {
-            let block_ref = block.read(cx);
-            let current_is_list_item = block_ref.kind().is_list_item();
-            if !first && blank_line_between && !(previous_was_list_item && current_is_list_item) {
-                *offset += 1;
-            }
-            first = false;
-            visit(block.entity_id(), *offset);
-
-            let mut own_lines = Vec::new();
-            Self::collect_block_own_markdown_lines(block_ref, depth, &mut own_lines);
-            for line in own_lines {
-                *offset += line.len() + 1 + line_prefix_len;
-            }
-
-            match block_ref.kind() {
-                BlockKind::Table
-                | BlockKind::CodeBlock { .. }
-                | BlockKind::RawMarkdown
-                | BlockKind::HtmlComment
-                | BlockKind::HtmlBlock => {}
-                BlockKind::Blockquote | BlockKind::Callout(_) => {
-                    let child_prefix_len = line_prefix_len + depth * 2 + 2;
-                    Self::visit_block_offsets(
-                        &block_ref.children,
-                        depth,
-                        child_prefix_len,
-                        false,
-                        cx,
-                        offset,
-                        visit,
-                    );
-                }
-                BlockKind::FootnoteDefinition => {
-                    Self::visit_block_offsets(
-                        &block_ref.children,
-                        2,
-                        line_prefix_len,
-                        false,
-                        cx,
-                        offset,
-                        visit,
-                    );
-                }
-                BlockKind::BulletListItem
-                | BlockKind::TaskListItem { .. }
-                | BlockKind::NumberedListItem => {
-                    for child in &block_ref.children {
-                        if Self::list_child_requires_leading_blank_line(child.read(cx)) {
-                            *offset += 1;
-                        }
-                        Self::visit_block_offsets(
-                            std::slice::from_ref(child),
-                            depth + 1,
-                            line_prefix_len,
-                            false,
-                            cx,
-                            offset,
-                            visit,
-                        );
-                    }
-                }
-                _ => {
-                    let child_depth = depth + usize::from(current_is_list_item);
-                    Self::visit_block_offsets(
-                        &block_ref.children,
-                        child_depth,
-                        line_prefix_len,
-                        false,
-                        cx,
-                        offset,
-                        visit,
-                    );
-                }
-            }
-            previous_was_list_item = current_is_list_item;
+        for line in &lines[..mapping.own_start_line.min(lines.len())] {
+            offset += line.len() + 1;
         }
+        Some(offset)
     }
 
     /// Serializes only the lines this block itself contributes, without its
@@ -274,7 +216,37 @@ impl Document {
         cx: &App,
         lines: &mut Vec<String>,
     ) {
+        let mut mappings = Vec::new();
+        Self::collect_single_block_markdown_lines_with_mapping(
+            None,
+            block_ref,
+            list_depth,
+            cx,
+            lines,
+            &mut mappings,
+        );
+    }
+
+    pub fn collect_single_block_markdown_lines_with_mapping(
+        entity_id: Option<EntityId>,
+        block_ref: &Block,
+        list_depth: usize,
+        cx: &App,
+        lines: &mut Vec<String>,
+        mappings: &mut Vec<BlockLineMapping>,
+    ) {
+        let start_line = lines.len();
         Self::collect_block_own_markdown_lines(block_ref, list_depth, lines);
+        let own_end_line = lines.len();
+        if let Some(id) = entity_id {
+            mappings.push(BlockLineMapping {
+                entity_id: id,
+                own_start_line: start_line,
+                own_end_line,
+                list_depth,
+            });
+        }
+
         match block_ref.kind() {
             BlockKind::Table
             | BlockKind::CodeBlock { .. }
@@ -284,24 +256,39 @@ impl Document {
             BlockKind::Blockquote | BlockKind::Callout(_) => {
                 if !block_ref.children.is_empty() {
                     let mut child_lines = Vec::new();
-                    Self::collect_markdown_lines(
+                    let mut child_mappings = Vec::new();
+                    Self::collect_markdown_lines_with_mapping(
                         &block_ref.children,
                         list_depth,
                         cx,
                         &mut child_lines,
+                        &mut child_mappings,
                         false,
                     );
+                    let base_line = lines.len();
                     let indentation = "  ".repeat(list_depth);
                     lines.extend(
                         child_lines
                             .into_iter()
                             .map(|line| format!("{indentation}> {line}")),
                     );
+                    for mut cm in child_mappings {
+                        cm.own_start_line += base_line;
+                        cm.own_end_line += base_line;
+                        mappings.push(cm);
+                    }
                 }
             }
             BlockKind::FootnoteDefinition => {
                 if !block_ref.children.is_empty() {
-                    Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, false);
+                    Self::collect_markdown_lines_with_mapping(
+                        &block_ref.children,
+                        2,
+                        cx,
+                        lines,
+                        mappings,
+                        false,
+                    );
                 }
             }
             BlockKind::BulletListItem
@@ -313,21 +300,24 @@ impl Document {
                     if Self::list_child_requires_leading_blank_line(child_ref) {
                         lines.push(String::new());
                     }
-                    Self::collect_single_block_markdown_lines(
+                    Self::collect_single_block_markdown_lines_with_mapping(
+                        Some(child.entity_id()),
                         child_ref,
                         child_list_depth,
                         cx,
                         lines,
+                        mappings,
                     );
                 }
             }
             _ => {
                 let child_list_depth = list_depth + usize::from(block_ref.kind().is_list_item());
-                Self::collect_markdown_lines(
+                Self::collect_markdown_lines_with_mapping(
                     &block_ref.children,
                     child_list_depth,
                     cx,
                     lines,
+                    mappings,
                     false,
                 );
             }
@@ -343,11 +333,12 @@ impl Document {
         !markdown.is_empty() && parse_standalone_image(&markdown).is_none()
     }
 
-    pub fn collect_markdown_lines(
+    pub fn collect_markdown_lines_with_mapping(
         blocks: &[Entity<Block>],
         depth: usize,
         cx: &App,
         lines: &mut Vec<String>,
+        mappings: &mut Vec<BlockLineMapping>,
         blank_line_between_siblings: bool,
     ) {
         let mut first = true;
@@ -363,8 +354,33 @@ impl Document {
             first = false;
 
             let block_ref = block.read(cx);
-            Self::collect_single_block_markdown_lines(block_ref, depth, cx, lines);
+            Self::collect_single_block_markdown_lines_with_mapping(
+                Some(block.entity_id()),
+                block_ref,
+                depth,
+                cx,
+                lines,
+                mappings,
+            );
             previous_was_list_item = current_is_list_item;
         }
+    }
+
+    pub fn collect_markdown_lines(
+        blocks: &[Entity<Block>],
+        depth: usize,
+        cx: &App,
+        lines: &mut Vec<String>,
+        blank_line_between_siblings: bool,
+    ) {
+        let mut mappings = Vec::new();
+        Self::collect_markdown_lines_with_mapping(
+            blocks,
+            depth,
+            cx,
+            lines,
+            &mut mappings,
+            blank_line_between_siblings,
+        );
     }
 }

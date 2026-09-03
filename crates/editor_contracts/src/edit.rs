@@ -24,9 +24,13 @@ impl CursorHint {
     }
 
     /// Computes the hint of a byte offset in `text` (1-based line and
-    /// character column).
-    pub fn from_offset(text: &str, offset: usize) -> Self {
-        let offset = offset.min(text.len());
+    /// character column). If `offset` falls inside a multi-byte UTF-8
+    /// character sequence, it is clamped down to the nearest character boundary.
+    pub fn from_offset(text: &str, mut offset: usize) -> Self {
+        offset = offset.min(text.len());
+        while !text.is_char_boundary(offset) {
+            offset -= 1;
+        }
         let before = &text[..offset];
         let line = before.matches('\n').count() as u32 + 1;
         let column = before
@@ -108,3 +112,39 @@ impl EditTransaction {
         Self::new(text, false, cursor, cursor)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_offset_clamps_to_char_boundary_safely() {
+        let text = "a内容b";
+        // '内' is at bytes 1..4 (1, 2, 3)
+        // '容' is at bytes 4..7 (4, 5, 6)
+        assert_eq!(CursorHint::from_offset(text, 0), CursorHint::new(1, 1));
+        assert_eq!(CursorHint::from_offset(text, 1), CursorHint::new(1, 2));
+        // Offset 2 and 3 are inside '内', should floor to byte 1
+        assert_eq!(CursorHint::from_offset(text, 2), CursorHint::new(1, 2));
+        assert_eq!(CursorHint::from_offset(text, 3), CursorHint::new(1, 2));
+        // Offset 4 is start of '容'
+        assert_eq!(CursorHint::from_offset(text, 4), CursorHint::new(1, 3));
+        // Offset 5 and 6 are inside '容', should floor to byte 4
+        assert_eq!(CursorHint::from_offset(text, 5), CursorHint::new(1, 3));
+        assert_eq!(CursorHint::from_offset(text, 6), CursorHint::new(1, 3));
+        // Offset 7 is 'b'
+        assert_eq!(CursorHint::from_offset(text, 7), CursorHint::new(1, 4));
+        // Offset past end
+        assert_eq!(CursorHint::from_offset(text, 100), CursorHint::new(1, 5));
+    }
+
+    #[test]
+    fn cursor_hint_round_trip() {
+        let text = "# 第一行内容\n- 第二行列表\n> 第三行引用";
+        let offset = CursorHint::new(2, 4).to_offset(text);
+        assert!(text.is_char_boundary(offset));
+        let hint = CursorHint::from_offset(text, offset);
+        assert_eq!(hint, CursorHint::new(2, 4));
+    }
+}
+

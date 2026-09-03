@@ -433,18 +433,54 @@ impl WysiwygDocumentController {
         let Some(active) = &self.active_entity else {
             return CursorHint::new(1, 1);
         };
-        let doc_text = doc.serialize_markdown(cx);
-        let markdown_offset = doc
-            .markdown_offset_of_block(active.entity_id(), cx)
-            .map(|block_start| {
-                let block = active.read(cx);
-                let caret = block.cursor_offset();
-                let intra = block.display_range_to_source_range(caret..caret);
-                let block_markdown_len = block.data.text.serialize_markdown().len();
-                block_start + intra.start.min(block_markdown_len)
-            })
-            .unwrap_or(0);
-        CursorHint::from_offset(&doc_text, markdown_offset)
+        let (lines, mappings) = doc.serialize_markdown_lines_with_mapping(cx);
+        if lines.is_empty() || mappings.is_empty() {
+            return CursorHint::new(1, 1);
+        }
+        let Some(mapping) = mappings.iter().find(|m| m.entity_id == active.entity_id()) else {
+            return CursorHint::new(1, 1);
+        };
+        if mapping.own_start_line >= mapping.own_end_line || mapping.own_start_line >= lines.len() {
+            return CursorHint::new((mapping.own_start_line + 1).min(lines.len()) as u32, 1);
+        }
+
+        let block = active.read(cx);
+        let caret = block.cursor_offset();
+        let intra = block.display_range_to_source_range(caret..caret);
+        let markdown_text = block.data.text.serialize_markdown();
+        let intra_offset = markdown_parser::inline::serialize::clamp_to_char_boundary(
+            &markdown_text,
+            intra.start.min(markdown_text.len()),
+        );
+        let before = &markdown_text[..intra_offset];
+        let line_in_block = before.matches('\n').count();
+        let col_in_block = before.rsplit('\n').next().unwrap_or("").chars().count();
+
+        let num_own_lines = mapping.own_end_line - mapping.own_start_line;
+        let line_offset_in_own = if block.kind().is_code_block() {
+            (line_in_block + 1).min(num_own_lines.saturating_sub(1))
+        } else {
+            line_in_block.min(num_own_lines.saturating_sub(1))
+        };
+        let doc_line = mapping.own_start_line + line_offset_in_own;
+        if doc_line >= lines.len() {
+            return CursorHint::new(lines.len() as u32, 1);
+        }
+
+        let line_str = &lines[doc_line];
+        let text_line = markdown_text.split('\n').nth(line_in_block).unwrap_or("");
+        let prefix_bytes = if line_str.ends_with(text_line) {
+            line_str.len() - text_line.len()
+        } else {
+            markdown_parser::inline::serialize::clamp_to_char_boundary(
+                line_str,
+                line_str.len().saturating_sub(text_line.len()),
+            )
+        };
+        let prefix_chars = line_str[..prefix_bytes].chars().count();
+        let col_chars = prefix_chars + col_in_block;
+
+        CursorHint::new((doc_line + 1) as u32, (col_chars + 1) as u32)
     }
 
     /// Moves the active caret to the document position described by a
@@ -453,31 +489,74 @@ impl WysiwygDocumentController {
         let Some(doc) = &self.document else {
             return;
         };
-        let doc_text = doc.serialize_markdown(cx);
-        let target_offset = hint.to_offset(&doc_text);
+        let (lines, mappings) = doc.serialize_markdown_lines_with_mapping(cx);
+        if mappings.is_empty() || lines.is_empty() {
+            return;
+        }
 
-        // Pick the last block starting at or before the target offset.
-        let blocks = doc.blocks();
-        let mut best: Option<(Entity<Block>, usize)> = None;
-        for entry in blocks.iter() {
-            if let Some(block_start) = doc.markdown_offset_of_block(entry.entity.entity_id(), cx) {
-                if block_start <= target_offset
-                    && best
-                        .as_ref()
-                        .map(|(_, start)| block_start >= *start)
-                        .unwrap_or(true)
-                {
-                    best = Some((entry.entity.clone(), block_start));
-                }
+        let target_line = hint.line.saturating_sub(1) as usize;
+        let target_col = hint.column.saturating_sub(1) as usize;
+
+        let mut best = &mappings[0];
+        for m in &mappings {
+            if target_line >= m.own_start_line {
+                best = m;
+            }
+            if target_line >= m.own_start_line && target_line < m.own_end_line {
+                best = m;
+                break;
             }
         }
-        let Some((block, block_start)) = best else {
+
+        let Some(target_entity) = doc.block_entity_by_id(best.entity_id) else {
             return;
         };
-        let intra = target_offset.saturating_sub(block_start);
-        self.active_entity = Some(block.clone());
-        block.update(cx, |b, cx| {
-            let display = b.source_range_to_display_range(intra..intra);
+
+        let block_ref = target_entity.read(cx);
+        let markdown_text = block_ref.data.text.serialize_markdown();
+        let num_own_lines = best.own_end_line.saturating_sub(best.own_start_line);
+        let own_line_offset = target_line
+            .saturating_sub(best.own_start_line)
+            .min(num_own_lines.saturating_sub(1));
+        let doc_line = (best.own_start_line + own_line_offset).min(lines.len().saturating_sub(1));
+        let line_str = &lines[doc_line];
+
+        let text_line_idx = if block_ref.kind().is_code_block() {
+            own_line_offset.saturating_sub(1)
+        } else {
+            own_line_offset
+        };
+
+        let text_lines: Vec<&str> = markdown_text.split('\n').collect();
+        let text_line = text_lines.get(text_line_idx).copied().unwrap_or("");
+        let prefix_bytes = if line_str.ends_with(text_line) {
+            line_str.len() - text_line.len()
+        } else {
+            markdown_parser::inline::serialize::clamp_to_char_boundary(
+                line_str,
+                line_str.len().saturating_sub(text_line.len()),
+            )
+        };
+        let prefix_chars = line_str[..prefix_bytes].chars().count();
+        let col_in_text_line = target_col
+            .saturating_sub(prefix_chars)
+            .min(text_line.chars().count());
+
+        let mut source_offset = 0usize;
+        for &prev in &text_lines[..text_line_idx.min(text_lines.len())] {
+            source_offset += prev.len() + 1;
+        }
+        for ch in text_line.chars().take(col_in_text_line) {
+            source_offset += ch.len_utf8();
+        }
+        let source_offset = markdown_parser::inline::serialize::clamp_to_char_boundary(
+            &markdown_text,
+            source_offset.min(markdown_text.len()),
+        );
+
+        self.active_entity = Some(target_entity.clone());
+        target_entity.update(cx, |b, cx| {
+            let display = b.source_range_to_display_range(source_offset..source_offset);
             let caret = display.start.min(b.display_len());
             b.selected_range = caret..caret;
             b.selection_reversed = false;
