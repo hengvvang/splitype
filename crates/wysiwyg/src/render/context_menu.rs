@@ -46,14 +46,15 @@ pub fn render_wysiwyg_context_menu(
             .into_any_element()
     };
 
-    let make_item = |id: &'static str,
-                     label: &'static str,
-                     shortcut: Option<&'static str>,
-                     enabled: bool,
-                     danger: bool,
-                     on_click: ContextMenuActionHandler| {
+    let make_item_base = |id: &'static str,
+                          label: &'static str,
+                          shortcut: Option<&'static str>,
+                          enabled: bool,
+                          danger: bool,
+                          closes_submenu: bool,
+                          on_click: ContextMenuActionHandler| {
         if enabled {
-            menu_item(id, c, d)
+            let mut el = menu_item(id, c, d)
                 .justify_between()
                 .child(
                     div()
@@ -70,20 +71,22 @@ pub fn render_wysiwyg_context_menu(
                         .text_size(px(t.text_size * 0.75))
                         .text_color(c.dialog_muted)
                         .child(s)
-                }))
-                .on_hover(cx.listener(|this, hovered, _window, cx| {
+                }));
+            if closes_submenu {
+                el = el.on_hover(cx.listener(|this, hovered, _window, cx| {
                     if *hovered {
                         this.set_context_menu_submenu(None, cx);
                     }
-                }))
-                .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event, window, cx| {
-                    cx.stop_propagation();
-                    on_click(this, window, cx);
-                    this.close_context_menu(cx);
-                }))
-                .into_any_element()
+                }));
+            }
+            el.on_mouse_down(MouseButton::Left, cx.listener(move |this, _event, window, cx| {
+                cx.stop_propagation();
+                on_click(this, window, cx);
+                this.close_context_menu(cx);
+            }))
+            .into_any_element()
         } else {
-            div()
+            let mut el = div()
                 .id(id)
                 .h(px(d.menu_item_height))
                 .px(px(d.menu_item_padding_x))
@@ -99,9 +102,34 @@ pub fn render_wysiwyg_context_menu(
                         .text_size(px(t.text_size * 0.75))
                         .text_color(c.dialog_muted)
                         .child(s)
-                }))
-                .into_any_element()
+                }));
+            if closes_submenu {
+                el = el.on_hover(cx.listener(|this, hovered, _window, cx| {
+                    if *hovered {
+                        this.set_context_menu_submenu(None, cx);
+                    }
+                }));
+            }
+            el.into_any_element()
         }
+    };
+
+    let make_item = |id: &'static str,
+                     label: &'static str,
+                     shortcut: Option<&'static str>,
+                     enabled: bool,
+                     danger: bool,
+                     on_click: ContextMenuActionHandler| {
+        make_item_base(id, label, shortcut, enabled, danger, false, on_click)
+    };
+
+    let make_main_item = |id: &'static str,
+                          label: &'static str,
+                          shortcut: Option<&'static str>,
+                          enabled: bool,
+                          danger: bool,
+                          on_click: ContextMenuActionHandler| {
+        make_item_base(id, label, shortcut, enabled, danger, true, on_click)
     };
 
     let make_submenu_trigger = |id: &'static str,
@@ -563,21 +591,29 @@ pub fn render_wysiwyg_context_menu(
                 } else {
                     panel_left + px(panel_width) + px(d.context_menu_submenu_gap.max(4.0))
                 };
-                let submenu_top =
-                    (panel_top + y_offset).min(px((pane_height - 350.0).max(8.0)));
+                let submenu_top = (panel_top + y_offset)
+                    .max(px(8.0))
+                    .min(px((pane_height - 350.0).max(8.0)));
 
                 let bridge_left = if is_overflowing_right {
                     panel_left - px(d.context_menu_submenu_gap.max(4.0) + 4.0)
                 } else {
                     panel_left + px(panel_width) - px(4.0)
                 };
+                let bridge_top = (panel_top.min(submenu_top) - px(8.0)).max(px(0.0));
+                let bridge_height =
+                    (panel_top.max(submenu_top) - bridge_top + px(350.0)).max(px(320.0));
                 let bridge_el = div()
                     .id("editor-context-menu-submenu-bridge")
                     .absolute()
                     .left(bridge_left)
-                    .top(panel_top)
+                    .top(bridge_top)
                     .w(px(d.context_menu_submenu_gap.max(4.0) + 8.0))
-                    .h(px(320.0));
+                    .h(bridge_height)
+                    .occlude()
+                    .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                        cx.stop_propagation()
+                    });
 
                 let panel_el = menu_panel(c, d)
                     .id("editor-context-menu-submenu")
@@ -594,7 +630,7 @@ pub fn render_wysiwyg_context_menu(
             });
 
             let main_menu_items = vec![
-                make_item(
+                make_main_item(
                     "context-menu-cut",
                     tr("剪切", "Cut"),
                     Some("Ctrl+X"),
@@ -604,7 +640,7 @@ pub fn render_wysiwyg_context_menu(
                         this.cut_active_selection(cx);
                     }),
                 ),
-                make_item(
+                make_main_item(
                     "context-menu-copy",
                     tr("复制", "Copy"),
                     Some("Ctrl+C"),
@@ -614,7 +650,7 @@ pub fn render_wysiwyg_context_menu(
                         this.copy_active_selection(cx);
                     }),
                 ),
-                make_item(
+                make_main_item(
                     "context-menu-paste",
                     tr("粘贴", "Paste"),
                     Some("Ctrl+V"),
@@ -624,7 +660,7 @@ pub fn render_wysiwyg_context_menu(
                         this.paste_into_active(window, cx);
                     }),
                 ),
-                make_item(
+                make_main_item(
                     "context-menu-paste-plain",
                     tr("纯文本粘贴", "Paste Plain"),
                     None,
@@ -634,7 +670,7 @@ pub fn render_wysiwyg_context_menu(
                         this.paste_plain_into_active(window, cx);
                     }),
                 ),
-                make_item(
+                make_main_item(
                     "context-menu-select-all",
                     tr("全选", "Select All"),
                     Some("Ctrl+A"),
@@ -664,7 +700,7 @@ pub fn render_wysiwyg_context_menu(
                     *active_submenu == Some(ContextSubmenu::Insert),
                 ),
                 make_separator(),
-                make_item(
+                make_main_item(
                     "context-menu-delete-block",
                     tr("删除块", "Delete Block"),
                     None,
