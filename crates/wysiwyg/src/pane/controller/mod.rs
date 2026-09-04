@@ -82,12 +82,14 @@ pub struct WysiwygDocumentController {
     pub references: ReferenceRegistries,
     pub footnote_tooltip: Option<FootnoteTooltipState>,
     pub context_menu: Option<WysiwygContextMenuState>,
-    /// Text of the document after the previous commit, used to detect
-    /// typing-run continuations (single-character insertions at the same
-    /// position) for undo grouping.
-    last_committed_text: Option<String>,
+    /// Serialization of the document after the previous commit, used as
+    /// the diff baseline for the next commit (which therefore carries
+    /// only the changed bytes) and to detect typing-run continuations
+    /// (single-character insertions at the same position) for undo
+    /// grouping.
+    last_committed: Option<crate::pane::controller::sync_commit::Serialization>,
     /// Byte length of the last snapshot synced from the buffer; the
-    /// full-text replacement commit uses it as the replaced range.
+    /// first commit after a sync replaces that whole range.
     last_synced_len: usize,
     /// Insert position of the previous typing commit, when it was a
     /// single-character insertion.
@@ -116,7 +118,7 @@ impl WysiwygDocumentController {
             },
             footnote_tooltip: None,
             context_menu: None,
-            last_committed_text: None,
+            last_committed: None,
             last_synced_len: 0,
             last_typing_insert_at: None,
             typing_run_start_hint: None,
@@ -264,7 +266,7 @@ impl WysiwygDocumentController {
         self.document = Some(doc);
         self.synced_revision = Some(revision);
         self.pending_edit = false;
-        self.last_committed_text = None;
+        self.last_committed = None;
         self.last_synced_len = text_len;
         self.last_typing_insert_at = None;
         self.typing_run_start_hint = None;
