@@ -43,8 +43,10 @@ struct Layer {
     query: Arc<Query>,
     injection_query: Option<Arc<Query>>,
     tree: Tree,
-    /// Document byte ranges this layer covers, sorted.
-    ranges: Vec<Range<usize>>,
+    /// Document byte ranges this layer covers, sorted, chunked so an edit
+    /// touches O(chunk) ranges and shifts every following chunk by one base
+    /// adjustment — apply_edit is O(edit + chunks), never O(ranges).
+    chunks: RangeChunks,
 }
 
 /// Incremental highlight state for one document. The map does not own the
@@ -107,11 +109,11 @@ impl HighlightMap {
 
     /// Records an edit into the map's internal state. `rope` is the text
     /// before the edit; `range` is replaced by `inserted`. Cheap: O(edit)
-    /// tree edits + O(layers). The span list is deliberately left alone:
-    /// it is rebuilt by the next [`HighlightMap::refresh`], and every
-    /// consumer gates on the refresh version (stale-while-revalidate), so
-    /// maintaining offset-correct spans between refreshes would be pure
-    /// waste on the keystroke path.
+    /// tree edits + O(edit + chunks) range maintenance. The span list is
+    /// deliberately left alone: it is rebuilt by the next
+    /// [`HighlightMap::refresh`], and every consumer gates on the refresh
+    /// version (stale-while-revalidate), so maintaining offset-correct
+    /// spans between refreshes would be pure waste on the keystroke path.
     pub fn apply_edit(&mut self, rope: &Rope, range: Range<usize>, inserted: &str) {
         self.version = self.version.wrapping_add(1);
         let start = range.start.min(rope.len());
@@ -134,22 +136,11 @@ impl HighlightMap {
         let mut dropped: Option<Range<usize>> = None;
         let mut idx = 0;
         while idx < self.layers.len() {
-            for layer_range in &mut self.layers[idx].ranges {
-                if layer_range.start >= end {
-                    shift_range(layer_range, delta);
-                } else if layer_range.end > start {
-                    if let Some(span) = &mut dropped {
-                        span.start = span.start.min(layer_range.start);
-                        span.end = span.end.max(layer_range.end);
-                    } else {
-                        dropped = Some(layer_range.clone());
-                    }
-                    layer_range.start = layer_range.end; // mark for removal
-                }
-            }
-            self.layers[idx].ranges.retain(|r| r.start < r.end);
+            self.layers[idx]
+                .chunks
+                .apply_edit(start, end, delta, &mut dropped);
             self.layers[idx].tree.edit(&edit);
-            if self.layers[idx].ranges.is_empty() {
+            if self.layers[idx].chunks.is_empty() {
                 self.layers.remove(idx);
             } else {
                 idx += 1;
@@ -284,19 +275,20 @@ impl HighlightMap {
             new_ranges.sort_by_key(|r| r.start);
             new_ranges.dedup_by(|a, b| a.start == b.start && a.end == b.end);
             if let Some(layer) = self.layers.iter_mut().find(|layer| layer.key == key) {
-                layer
-                    .ranges
-                    .retain(|r| r.start >= recover.end || r.end <= recover.start);
-                layer.ranges.extend(new_ranges);
-                layer.ranges.sort_by_key(|r| r.start);
-                if !layer.ranges.is_empty() {
+                let mut ranges = layer.chunks.materialize();
+                ranges.retain(|r| r.start >= recover.end || r.end <= recover.start);
+                ranges.extend(new_ranges);
+                if !ranges.is_empty() {
+                    let chunks = RangeChunks::from_sorted(ranges);
+                    let included = chunks.materialize();
                     layer.tree = parse(
                         &(config.grammar)(),
                         text,
-                        &layer.ranges,
+                        &included,
                         rope,
                         Some(&layer.tree),
                     );
+                    layer.chunks = chunks;
                 }
             } else {
                 let Some(query) = Query::new(&(config.grammar)(), config.highlights_query).ok()
@@ -313,11 +305,11 @@ impl HighlightMap {
                     query: Arc::new(query),
                     injection_query,
                     tree,
-                    ranges: new_ranges,
+                    chunks: RangeChunks::from_sorted(new_ranges),
                 });
             }
         }
-        self.layers.retain(|layer| !layer.ranges.is_empty());
+        self.layers.retain(|layer| !layer.chunks.is_empty());
 
         // Nested injections of the affected layers, restricted to their
         // ranges inside the recover region.
@@ -330,10 +322,10 @@ impl HighlightMap {
                 continue;
             };
             let ranges: Vec<Range<usize>> = layer
-                .ranges
-                .iter()
+                .chunks
+                .materialize()
+                .into_iter()
                 .filter(|r| r.start < recover.end && r.end > recover.start)
-                .cloned()
                 .collect();
             if ranges.is_empty() {
                 continue;
@@ -363,6 +355,335 @@ impl HighlightMap {
             std::slice::from_ref(&range),
             found,
         );
+    }
+}
+
+/// Sorted document byte ranges of one injection layer, stored in fixed-size
+/// chunks with per-chunk coordinate bases: an edit rebuilds only the chunk
+/// it touches and shifts every following chunk by one base adjustment, so
+/// per-edit cost is O(edit + chunks) instead of O(ranges). Refresh paths
+/// materialize the absolute list in O(ranges).
+#[derive(Clone, Default)]
+struct RangeChunks {
+    /// Sorted by absolute coordinates; a chunk's stored ranges are relative
+    /// to its base (absolute = stored + base).
+    chunks: Vec<RangeChunk>,
+}
+
+const RANGE_CHUNK_TARGET: usize = 4096;
+const RANGE_CHUNK_MAX: usize = RANGE_CHUNK_TARGET * 2;
+/// Coalescing threshold for nearly adjacent injection ranges.
+const RANGE_MERGE_GAP: usize = 8;
+
+#[derive(Clone)]
+struct RangeChunk {
+    /// Coordinate offset: absolute = stored + base. Stored coordinates are
+    /// always non-negative (base <= the chunk's first range start).
+    base: isize,
+    /// Sorted, non-overlapping ranges in coordinates relative to `base`.
+    ranges: Vec<Range<usize>>,
+}
+
+impl RangeChunks {
+    fn is_empty(&self) -> bool {
+        self.chunks.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.chunks.iter().map(|chunk| chunk.ranges.len()).sum()
+    }
+
+    /// The absolute range list (refresh paths only; O(ranges)).
+    fn materialize(&self) -> Vec<Range<usize>> {
+        let mut out = Vec::with_capacity(self.len());
+        for chunk in &self.chunks {
+            out.extend(
+                chunk
+                    .ranges
+                    .iter()
+                    .map(|range| shifted_range(range, chunk.base)),
+            );
+        }
+        out
+    }
+
+    /// Re-chunks a sorted absolute range list, first coalescing nearly
+    /// adjacent ranges (gaps up to a few separator bytes — e.g. the blank
+    /// line between blocks) so the layer tree carries far fewer included
+    /// ranges: tree-sitter's per-edit cost scales with them.
+    fn from_sorted(mut ranges: Vec<Range<usize>>) -> Self {
+        ranges.sort_by_key(|range| range.start);
+        ranges.dedup_by(|a, b| a.start == b.start && a.end == b.end);
+        let mut coalesced: Vec<Range<usize>> = Vec::with_capacity(ranges.len());
+        for range in ranges {
+            if let Some(previous) = coalesced.last_mut()
+                && range.start.saturating_sub(previous.end) <= RANGE_MERGE_GAP
+            {
+                previous.end = previous.end.max(range.end);
+            } else {
+                coalesced.push(range);
+            }
+        }
+        Self::chunked(coalesced)
+    }
+
+    /// Chunks an already-sorted, non-overlapping absolute range list
+    /// without coalescing (used by the re-chunk guard, which must preserve
+    /// the exact range set).
+    fn chunked(ranges: Vec<Range<usize>>) -> Self {
+        let mut chunks = Vec::with_capacity(ranges.len() / RANGE_CHUNK_TARGET + 1);
+        for group in ranges.chunks(RANGE_CHUNK_TARGET) {
+            let base = group[0].start as isize;
+            chunks.push(RangeChunk {
+                base,
+                ranges: group
+                    .iter()
+                    .map(|range| shifted_range(range, -base))
+                    .collect(),
+            });
+        }
+        Self { chunks }
+    }
+
+    /// Applies one edit: drops ranges intersecting `[start, end)` (their
+    /// absolute span is unioned into `dropped`), leaves the earlier ones
+    /// alone, and shifts the later ones by `delta` through their chunks'
+    /// bases.
+    fn apply_edit(
+        &mut self,
+        start: usize,
+        end: usize,
+        delta: isize,
+        dropped: &mut Option<Range<usize>>,
+    ) {
+        // First chunk whose absolute end exceeds `start`.
+        let first = self
+            .chunks
+            .partition_point(|chunk| chunk.absolute_end() <= start);
+        let mut index = first;
+        let mut rebuilt = Vec::new();
+        while index < self.chunks.len() {
+            let chunk = &self.chunks[index];
+            if chunk.absolute_start() >= end {
+                break;
+            }
+            let mut prefix = Vec::new();
+            let mut suffix = Vec::new();
+            for range in &chunk.ranges {
+                let absolute = shifted_range(range, chunk.base);
+                if absolute.end <= start {
+                    prefix.push(range.clone());
+                } else if absolute.start >= end {
+                    // Stored coordinates are base-relative, so the shifted
+                    // range keeps the same storage under base + delta.
+                    suffix.push(range.clone());
+                } else {
+                    union_range(dropped, absolute);
+                }
+            }
+            if !prefix.is_empty() {
+                rebuilt.push(RangeChunk {
+                    base: chunk.base,
+                    ranges: prefix,
+                });
+            }
+            if !suffix.is_empty() {
+                rebuilt.push(RangeChunk {
+                    base: chunk.base + delta,
+                    ranges: suffix,
+                });
+            }
+            index += 1;
+        }
+        for chunk in &mut self.chunks[index..] {
+            chunk.base += delta;
+        }
+        self.chunks.splice(first..index, rebuilt);
+        self.merge();
+        // Guard against pathological chunk growth: re-chunk when the count
+        // drifts past the target density (amortized O(ranges), preserving
+        // the exact range set).
+        let ideal = self.len() / RANGE_CHUNK_TARGET + 1;
+        if self.chunks.len() > ideal * 2 {
+            *self = Self::chunked(self.materialize());
+        }
+    }
+
+    /// Coalesces adjacent chunks sharing a base, bounding the chunk count.
+    fn merge(&mut self) {
+        let mut merged: Vec<RangeChunk> = Vec::with_capacity(self.chunks.len());
+        for chunk in self.chunks.drain(..) {
+            if let Some(previous) = merged.last_mut()
+                && previous.base == chunk.base
+                && previous.ranges.len() + chunk.ranges.len() <= RANGE_CHUNK_MAX
+            {
+                previous.ranges.extend(chunk.ranges);
+            } else {
+                merged.push(chunk);
+            }
+        }
+        self.chunks = merged;
+    }
+}
+
+impl RangeChunk {
+    fn absolute_start(&self) -> usize {
+        self.ranges
+            .first()
+            .map(|range| shift_usize(range.start, self.base))
+            .unwrap_or(0)
+    }
+
+    fn absolute_end(&self) -> usize {
+        self.ranges
+            .last()
+            .map(|range| shift_usize(range.end, self.base))
+            .unwrap_or(0)
+    }
+}
+
+fn shifted_range(range: &Range<usize>, delta: isize) -> Range<usize> {
+    shift_usize(range.start, delta)..shift_usize(range.end, delta)
+}
+
+fn union_range(union: &mut Option<Range<usize>>, range: Range<usize>) {
+    match union {
+        Some(existing) => {
+            existing.start = existing.start.min(range.start);
+            existing.end = existing.end.max(range.end);
+        }
+        None => *union = Some(range),
+    }
+}
+
+#[cfg(test)]
+mod chunked_range_tests {
+    use super::*;
+
+    #[test]
+    fn chunked_ranges_match_flat_maintenance() {
+        // A reference flat list maintained the old way must equal the
+        // chunked store's materialization after every edit, including
+        // multi-chunk documents and the dropped-range union.
+        let mut reference: Vec<Range<usize>> = (0..20_000).map(|i| i * 20..i * 20 + 4).collect();
+        // Gaps exceed the coalescing threshold so the reference model and
+        // the chunked store start from identical content.
+        let mut chunked = RangeChunks::from_sorted(reference.clone());
+        let edits: &[(usize, usize, &str)] = &[
+            (50_000, 50_000, "x"),   // insert before a range
+            (50_001, 50_003, ""),    // delete inside a range
+            (0, 0, "\n\n"),          // insert at the start
+            (399_990, 400_004, "z"), // replace the tail
+            (60_000, 120_000, ""),   // delete across many ranges
+            (30_000, 30_000, "y"),   // insert inside a gap
+            (100_200, 100_204, ""),  // delete one range exactly
+        ];
+        for (start, end, inserted) in edits {
+            let start = *start;
+            let end = *end;
+            let delta = inserted.len() as isize - (end - start) as isize;
+
+            let mut expected_dropped: Option<Range<usize>> = None;
+            let mut next: Vec<Range<usize>> = Vec::with_capacity(reference.len());
+            for range in &reference {
+                if range.end <= start {
+                    next.push(range.clone());
+                } else if range.start >= end {
+                    next.push(shift_usize(range.start, delta)..shift_usize(range.end, delta));
+                } else {
+                    match &mut expected_dropped {
+                        Some(existing) => {
+                            existing.start = existing.start.min(range.start);
+                            existing.end = existing.end.max(range.end);
+                        }
+                        None => expected_dropped = Some(range.clone()),
+                    }
+                }
+            }
+            let mut actual_dropped = None;
+            chunked.apply_edit(start, end, delta, &mut actual_dropped);
+            assert_eq!(
+                chunked.materialize(),
+                next,
+                "edit ({start}..{end}, {inserted:?}) diverged"
+            );
+            assert_eq!(
+                actual_dropped, expected_dropped,
+                "dropped union diverged for edit ({start}..{end}, {inserted:?})"
+            );
+            reference = next;
+        }
+    }
+
+    /// Randomized fuzz of the chunked range maintenance against the flat
+    /// reference model.
+    #[test]
+    fn random_edits_keep_chunked_ranges_consistent() {
+        struct Lcg(u64);
+        impl Lcg {
+            fn next(&mut self) -> u64 {
+                self.0 = self
+                    .0
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                self.0 >> 33
+            }
+        }
+        let mut rng = Lcg(0x9e37_79b9_7f4a_7c15);
+        let mut reference: Vec<Range<usize>> = Vec::new();
+        let mut cursor = 0usize;
+        for _ in 0..12_000 {
+            cursor += 12 + (rng.next() as usize) % 7;
+            reference.push(cursor..cursor + 1 + (rng.next() as usize) % 5);
+            cursor += 12 + (rng.next() as usize) % 5;
+        }
+        let mut chunked = RangeChunks::from_sorted(reference.clone());
+        for step in 0..400 {
+            let len = reference.last().map(|r| r.end).unwrap_or(0);
+            let at = (rng.next() as usize) % (len + 1);
+            let removed = (rng.next() as usize) % 30;
+            let end = (at + removed).min(len);
+            let inserted = ["", "x", "\n", "content", "中"][(rng.next() as usize) % 5];
+            let delta = inserted.len() as isize - (end - at) as isize;
+
+            let mut expected_dropped: Option<Range<usize>> = None;
+            let mut next: Vec<Range<usize>> = Vec::with_capacity(reference.len());
+            for range in &reference {
+                if range.end <= at {
+                    next.push(range.clone());
+                } else if range.start >= end {
+                    next.push(shift_usize(range.start, delta)..shift_usize(range.end, delta));
+                } else {
+                    match &mut expected_dropped {
+                        Some(existing) => {
+                            existing.start = existing.start.min(range.start);
+                            existing.end = existing.end.max(range.end);
+                        }
+                        None => expected_dropped = Some(range.clone()),
+                    }
+                }
+            }
+            let mut actual_dropped = None;
+            chunked.apply_edit(at, end, delta, &mut actual_dropped);
+            let actual = chunked.materialize();
+            if actual != next {
+                let mismatch = actual
+                    .iter()
+                    .zip(next.iter())
+                    .position(|(a, b)| a != b)
+                    .or_else(|| Some(actual.len().min(next.len())));
+                panic!(
+                    "step {step}: edit ({at}..{end}, {inserted:?}) diverged at {mismatch:?}\nactual:   {:?}\nexpected: {:?}",
+                    actual.get(mismatch.unwrap_or(0)),
+                    next.get(mismatch.unwrap_or(0)),
+                );
+            }
+            assert_eq!(
+                actual_dropped, expected_dropped,
+                "step {step}: dropped union diverged"
+            );
+            reference = next;
+        }
     }
 }
 
@@ -439,11 +760,6 @@ fn shift_usize(offset: usize, delta: isize) -> usize {
     } else {
         offset.saturating_sub((-delta) as usize)
     }
-}
-
-fn shift_range(range: &mut Range<usize>, delta: isize) {
-    range.start = shift_usize(range.start, delta);
-    range.end = shift_usize(range.end, delta);
 }
 
 /// Clamps a byte range outward to the nearest UTF-8 character boundaries.
@@ -792,10 +1108,10 @@ mod tests {
         eprintln!("incremental 200 edits: {incremental:?}; full rebuild 200x: {full_rebuild:?}");
     }
 
-    /// Measures the per-edit cost of [`HighlightMap::apply_edit`] alone
-    /// (the spans rebuild) on a markdown document, at several sizes. Run
-    /// with `cargo test -p syntax_highlighter --release -- --ignored
-    /// spans_apply_edit_benchmark`.
+    /// Measures the per-edit cost of [`HighlightMap::apply_edit`] (tree
+    /// edits plus injection-range maintenance) on a markdown document, at
+    /// several sizes. Run with `cargo test -p syntax_highlighter
+    /// --release -- --ignored spans_apply_edit_benchmark`.
     #[test]
     #[ignore = "perf benchmark"]
     fn spans_apply_edit_benchmark() {
@@ -810,14 +1126,22 @@ mod tests {
             }
             text.truncate(size_kb * 1024);
             let map = HighlightMap::new(CodeLanguageKey::Markdown, &text).expect("map");
+            let mut map = map;
             let mut rope = Rope::new(&text);
             let edits = 120;
+            // Warm-up: the first few edits pay for CPU frequency ramp and
+            // allocator settling; only the steady state is reported.
+            for _ in 0..10 {
+                let at = rope.len() / 2;
+                let old_rope = rope.clone();
+                map.apply_edit(&old_rope, at..at, "x");
+                rope = rope.edit(at..at, "x");
+            }
             let start = Instant::now();
             for i in 0..edits {
                 let at = rope.len() / 2;
                 let old_rope = rope.clone();
                 let inserted = if i % 2 == 0 { "x" } else { "y\n" };
-                let mut map = map.clone();
                 map.apply_edit(&old_rope, at..at, inserted);
                 rope = rope.edit(at..at, inserted);
             }
@@ -827,7 +1151,7 @@ mod tests {
                 elapsed.as_micros() / edits as u128,
                 map.spans().len(),
                 map.layers.len(),
-                map.layers.iter().map(|l| l.ranges.len()).sum::<usize>()
+                map.layers.iter().map(|l| l.chunks.len()).sum::<usize>()
             );
         }
     }

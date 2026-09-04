@@ -20,11 +20,14 @@ use std::sync::Arc;
 const CHUNK_TARGET: usize = 4096;
 
 /// One immutable text chunk: whole lines plus their relative line starts.
+/// The line index is shared (`Arc<[u32]>`), so cloning a rope — which every
+/// edit does for its untouched chunks — is a refcount bump, not a per-line
+/// copy.
 #[derive(Clone)]
 struct Chunk {
     text: Arc<str>,
     /// Byte offset of each line start within the chunk (always starts at 0).
-    line_starts: Vec<u32>,
+    line_starts: Arc<[u32]>,
 }
 
 /// An immutable, persistent rope of UTF-8 text.
@@ -330,7 +333,7 @@ impl Chunk {
         }
         Self {
             text: Arc::from(text),
-            line_starts,
+            line_starts: Arc::from(line_starts),
         }
     }
 }
