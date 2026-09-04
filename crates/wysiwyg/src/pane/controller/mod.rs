@@ -158,41 +158,98 @@ impl WysiwygDocumentController {
         text_len: usize,
         cx: &mut Context<Self>,
     ) {
-        let block_count = parsed.len();
-        let mut entities: std::collections::HashMap<uuid::Uuid, Entity<Block>> =
-            std::collections::HashMap::with_capacity(block_count);
+        self.apply_block_projection(parsed, revision, text_len, false, cx);
+    }
 
-        for block_data in parsed {
-            let entity = Self::new_block(cx, block_data.clone());
-            entities.insert(block_data.id.0, entity);
+    /// Applies a new block projection to the existing entity tree by
+    /// content-addressed diffing: entities whose content is unchanged at
+    /// the same DFS position are reused (keeping their view state); only
+    /// the changed middle segment is rebuilt. Falls back to a full rebuild
+    /// when there is no previous tree.
+    fn patch_from_blocks(
+        &mut self,
+        parsed: &[markdown_parser::parse::BlockData],
+        revision: u64,
+        text_len: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.apply_block_projection(parsed, revision, text_len, true, cx);
+    }
+
+    /// Shared implementation of the projection application. `patch`
+    /// enables the content-addressed reuse of unchanged entities.
+    fn apply_block_projection(
+        &mut self,
+        parsed: &[markdown_parser::parse::BlockData],
+        revision: u64,
+        text_len: usize,
+        patch: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let old_entries: Vec<Entity<Block>> = match (&self.document, patch) {
+            (Some(doc), true) => doc.index.entries.iter().map(|e| e.entity.clone()).collect(),
+            _ => Vec::new(),
+        };
+        let old_datas: Vec<markdown_parser::parse::BlockData> = old_entries
+            .iter()
+            .map(|entity| entity.read(cx).data.clone())
+            .collect();
+
+        // Content-addressed diff: match unchanged blocks at both ends of the
+        // DFS sequence; the middle segment is rebuilt from scratch.
+        let (prefix, suffix) = diff_block_sequences(&old_datas, parsed);
+
+        let mut entities: Vec<Entity<Block>> = Vec::with_capacity(parsed.len());
+        // Unchanged prefix: reuse entities, adopt the new ids.
+        for (entity, data) in old_entries[..prefix].iter().zip(&parsed[..prefix]) {
+            entity.update(cx, |block, _cx| {
+                block.data = data.clone();
+                block.children.clear();
+            });
+            entities.push(entity.clone());
+        }
+        // Changed middle: build fresh entities.
+        for data in &parsed[prefix..parsed.len() - suffix] {
+            entities.push(Self::new_block(cx, data.clone()));
+        }
+        // Unchanged suffix: reuse, adopt ids.
+        for (entity, data) in old_entries[old_entries.len() - suffix..]
+            .iter()
+            .zip(&parsed[parsed.len() - suffix..])
+        {
+            entity.update(cx, |block, _cx| {
+                block.data = data.clone();
+                block.children.clear();
+            });
+            entities.push(entity.clone());
         }
 
-        for block_data in parsed {
-            if block_data.children.is_empty() {
+        // Reassemble the tree from the new projection's ids.
+        let entities_by_id: std::collections::HashMap<uuid::Uuid, Entity<Block>> = entities
+            .iter()
+            .map(|entity| (entity.read(cx).data.id.0, entity.clone()))
+            .collect();
+        for data in parsed {
+            if data.children.is_empty() {
                 continue;
             }
-            if let Some(parent_entity) = entities.get(&block_data.id.0) {
-                let mut child_entities: Vec<Entity<Block>> =
-                    Vec::with_capacity(block_data.children.len());
-                for child_id in &block_data.children {
-                    if let Some(child_entity) = entities.get(&child_id.0) {
-                        child_entities.push(child_entity.clone());
-                    }
-                }
-                if !child_entities.is_empty() {
-                    parent_entity.update(cx, |parent, _cx| {
-                        parent.children.extend(child_entities);
-                    });
-                }
+            let Some(parent) = entities_by_id.get(&data.id.0) else {
+                continue;
+            };
+            let children: Vec<Entity<Block>> = data
+                .children
+                .iter()
+                .filter_map(|child_id| entities_by_id.get(&child_id.0).cloned())
+                .collect();
+            if !children.is_empty() {
+                parent.update(cx, |parent, _cx| parent.children.extend(children));
             }
         }
-
         let mut roots: Vec<Entity<Block>> = parsed
             .iter()
             .filter(|block| block.parent.is_none())
-            .filter_map(|block| entities.get(&block.id.0).cloned())
+            .filter_map(|block| entities_by_id.get(&block.id.0).cloned())
             .collect();
-
         if roots.is_empty() {
             let empty_block = Self::new_block(
                 cx,
@@ -203,7 +260,14 @@ impl WysiwygDocumentController {
 
         let mut doc = Document::new(roots);
         doc.rebuild_metadata_and_snapshot(cx);
-        self.active_entity = doc.blocks().first().map(|b| b.entity.clone());
+        // Keep the active entity when its block survived the patch.
+        let active_survived = self
+            .active_entity
+            .as_ref()
+            .is_some_and(|active| entities_by_id.contains_key(&active.read(cx).data.id.0));
+        if !active_survived {
+            self.active_entity = doc.blocks().first().map(|b| b.entity.clone());
+        }
         self.document = Some(doc);
         self.synced_revision = Some(revision);
         self.pending_edit = false;
@@ -484,5 +548,99 @@ impl WysiwygDocumentController {
         } else {
             div().into_any_element()
         }
+    }
+}
+
+/// Structural equality of two block projections, ignoring parse-generated
+/// ids (which are random per parse) and parent links (which the tree
+/// assembly recomputes). Two equal blocks at the same DFS position can
+/// share one view entity across projection patches.
+fn block_content_eq(
+    a: &markdown_parser::parse::BlockData,
+    b: &markdown_parser::parse::BlockData,
+) -> bool {
+    a.kind == b.kind
+        && a.text == b.text
+        && a.table == b.table
+        && a.html == b.html
+        && a.raw_source == b.raw_source
+        && a.children.len() == b.children.len()
+}
+
+/// Content-addressed diff of two DFS-ordered block sequences: the count of
+/// equal blocks at the start and the end. Everything between the matched
+/// prefix and suffix is rebuilt.
+fn diff_block_sequences(
+    old: &[markdown_parser::parse::BlockData],
+    new: &[markdown_parser::parse::BlockData],
+) -> (usize, usize) {
+    let mut prefix = 0usize;
+    while prefix < old.len() && prefix < new.len() && block_content_eq(&old[prefix], &new[prefix]) {
+        prefix += 1;
+    }
+    let mut suffix = 0usize;
+    while suffix < old.len().saturating_sub(prefix)
+        && suffix < new.len().saturating_sub(prefix)
+        && block_content_eq(&old[old.len() - 1 - suffix], &new[new.len() - 1 - suffix])
+    {
+        suffix += 1;
+    }
+    (prefix, suffix)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use markdown_parser::inline::text::BlockText;
+    use markdown_parser::parse::{BlockData, BlockKind};
+
+    fn plain(kind: BlockKind, text: &str) -> BlockData {
+        BlockData::with_plain_text(kind, text)
+    }
+
+    #[test]
+    fn block_content_eq_ignores_ids_and_parents() {
+        let mut a = plain(BlockKind::Paragraph, "same");
+        let mut b = plain(BlockKind::Paragraph, "same");
+        assert_ne!(a.id, b.id);
+        a.parent = Some(b.id);
+        assert!(block_content_eq(&a, &b), "ids and parents must not matter");
+        b.text = BlockText::plain("different".to_string());
+        assert!(!block_content_eq(&a, &b));
+    }
+
+    #[test]
+    fn diff_matches_unchanged_ends_only() {
+        let old = vec![
+            plain(BlockKind::Paragraph, "a"),
+            plain(BlockKind::Paragraph, "b"),
+            plain(BlockKind::Paragraph, "c"),
+        ];
+        // b edited, c unchanged; a unchanged.
+        let new = vec![
+            plain(BlockKind::Paragraph, "a"),
+            plain(BlockKind::Paragraph, "b2"),
+            plain(BlockKind::Paragraph, "c"),
+        ];
+        assert_eq!(diff_block_sequences(&old, &new), (1, 1));
+        // Append at the end: prefix everything.
+        let new = vec![
+            plain(BlockKind::Paragraph, "a"),
+            plain(BlockKind::Paragraph, "b"),
+            plain(BlockKind::Paragraph, "c"),
+            plain(BlockKind::Paragraph, "d"),
+        ];
+        assert_eq!(diff_block_sequences(&old, &new), (3, 0));
+        // Insert at the top: suffix everything.
+        let new = vec![
+            plain(BlockKind::Paragraph, "x"),
+            plain(BlockKind::Paragraph, "a"),
+            plain(BlockKind::Paragraph, "b"),
+            plain(BlockKind::Paragraph, "c"),
+        ];
+        assert_eq!(diff_block_sequences(&old, &new), (0, 3));
+        // Full rewrite: nothing matches.
+        let new = vec![plain(BlockKind::Paragraph, "x")];
+        assert_eq!(diff_block_sequences(&old, &new), (0, 0));
     }
 }
