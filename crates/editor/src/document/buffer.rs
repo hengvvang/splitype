@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui::{Context, Task};
 
@@ -123,7 +124,7 @@ impl DocumentBuffer {
         let text = self.text_arc();
         let highlights = Some(Arc::new(HighlightSnapshot {
             version: self.highlight.refreshed_version,
-            spans: self.highlight.spans().into(),
+            spans: self.highlight.spans_arc(),
         }));
         DocumentSnapshot::with_all(
             self.id,
@@ -266,30 +267,52 @@ impl DocumentBuffer {
         Some(restored_cursor)
     }
 
-    /// Kicks off a background highlight refresh. The map is cloned (its
-    /// trees and queries are shared), so the main thread keeps applying
-    /// edits while the stale clone re-parses; the result is discarded when
-    /// newer edits landed meanwhile (version mismatch).
+    /// Kicks off (or extends) the debounced background highlight refresh.
+    /// While a task is running, newer edits only bump the map's version;
+    /// the running task notices the mismatch and re-runs after another
+    /// debounce, so the last edit of a typing burst always lands.
     fn schedule_highlight_refresh(&mut self, cx: &mut Context<Self>) {
-        let map = self.highlight.clone();
-        let rope = self.text.clone();
-        let task = cx.background_executor().spawn(async move {
-            let mut map = map;
-            map.refresh(&rope);
-            map
-        });
+        if self.highlight_task.is_some() {
+            return;
+        }
         let weak = cx.weak_entity();
-        let refresh = cx.spawn(
-            async move |_this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-                let map = task.await;
-                let _ = weak.update(cx, |buffer, cx| {
-                    if buffer.highlight.adopt_refresh(map) {
+        let task = cx.spawn(async move |_this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
+            loop {
+                cx.background_executor()
+                    .timer(Duration::from_millis(150))
+                    .await;
+                let Some((mut map, rope)) = weak
+                    .update(cx, |buffer, _| {
+                        (buffer.highlight.clone(), buffer.text.clone())
+                    })
+                    .ok()
+                else {
+                    return;
+                };
+                let computed = cx
+                    .background_executor()
+                    .spawn(async move {
+                        map.refresh(&rope);
+                        map
+                    })
+                    .await;
+                let Ok(done) = weak.update(cx, |buffer, cx| {
+                    if buffer.highlight.adopt_refresh(computed) {
+                        buffer.highlight_task = None;
                         cx.notify();
+                        true
+                    } else {
+                        false
                     }
-                });
-            },
-        );
-        self.highlight_task = Some(refresh);
+                }) else {
+                    return;
+                };
+                if done {
+                    break;
+                }
+            }
+        });
+        self.highlight_task = Some(task);
     }
 
     /// Closes the in-flight transaction and records it on the undo stack.

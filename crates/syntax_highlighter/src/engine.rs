@@ -158,17 +158,18 @@ impl HighlightMap {
 
         // Spans: drop those intersecting the edit, shift those after it.
         // Until the next refresh the edited region renders unhighlighted
-        // (stale-while-revalidate).
-        let mut spans: Vec<CodeHighlightSpan> = Vec::with_capacity(self.spans.len());
-        for span in self.spans.iter() {
-            if span.range.end <= start {
-                spans.push(span.clone());
-            } else if span.range.start >= end {
-                spans.push(CodeHighlightSpan {
-                    range: shift_usize(span.range.start, delta)..shift_usize(span.range.end, delta),
-                    class: span.class,
-                });
-            }
+        // (stale-while-revalidate). The spans are sorted, so binary search
+        // locates the affected window; the untouched prefix is bulk-copied.
+        let cut_start = self.spans.partition_point(|span| span.range.end <= start);
+        let cut_end = self.spans.partition_point(|span| span.range.start < end);
+        let mut spans: Vec<CodeHighlightSpan> =
+            Vec::with_capacity(cut_start + (self.spans.len() - cut_end));
+        spans.extend_from_slice(&self.spans[..cut_start]);
+        for span in &self.spans[cut_end..] {
+            spans.push(CodeHighlightSpan {
+                range: shift_usize(span.range.start, delta)..shift_usize(span.range.end, delta),
+                class: span.class,
+            });
         }
         self.spans = Arc::from(spans);
 
@@ -224,6 +225,12 @@ impl HighlightMap {
     /// The flat span list, in document coordinates.
     pub fn spans(&self) -> &[CodeHighlightSpan] {
         &self.spans
+    }
+
+    /// The shared span list (reference-counted; snapshots hand it to panes
+    /// without copying).
+    pub fn spans_arc(&self) -> Arc<[CodeHighlightSpan]> {
+        self.spans.clone()
     }
 
     /// All spans intersecting `range`, in document coordinates.
