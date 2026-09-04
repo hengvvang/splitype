@@ -24,7 +24,7 @@ use crate::block::table::{
     parse_table_region,
 };
 use crate::parse::data::BlockData;
-use crate::parse::indent::{is_quote_start, strip_indented_code_prefix};
+use crate::parse::indent::{common_affix, is_quote_start, strip_indented_code_prefix};
 use crate::parse::kind::BlockKind;
 
 /// The parsed block tree of a document at one text revision, together with
@@ -360,24 +360,6 @@ fn region_is_blank(blocks: &[BlockData], regions: &[RegionSpan], index: usize) -
         && blocks
             .get(region.flat_start)
             .is_some_and(|block| block.kind == BlockKind::Paragraph && block.text.plain_len() == 0)
-}
-
-/// Longest common byte prefix and suffix of `a` and `b`.
-fn common_affix(a: &str, b: &str) -> (usize, usize) {
-    let a = a.as_bytes();
-    let b = b.as_bytes();
-    let mut prefix = 0usize;
-    while prefix < a.len() && prefix < b.len() && a[prefix] == b[prefix] {
-        prefix += 1;
-    }
-    let mut suffix = 0usize;
-    while suffix < a.len() - prefix
-        && suffix < b.len() - prefix
-        && a[a.len() - 1 - suffix] == b[b.len() - 1 - suffix]
-    {
-        suffix += 1;
-    }
-    (prefix, suffix)
 }
 
 /// Line index (0-based) of `byte`, i.e. the number of line breaks before it.

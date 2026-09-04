@@ -89,6 +89,59 @@ pub fn strip_leading_columns(line: &str, columns: usize) -> Option<&str> {
     None
 }
 
+/// Longest common byte prefix and suffix of `a` and `b`, snapped to UTF-8
+/// character boundaries on both sides. Raw byte equality can diverge (or
+/// resume matching) inside a multi-byte character — e.g. `E4 B8 AD` vs
+/// `E4 B8 AE` — so the byte-level scan alone does not yield sliceable
+/// positions; both results are stepped back until each input's cut point
+/// falls on a character boundary. The unstripped middle therefore covers
+/// every differing byte, possibly plus one partially shared character per
+/// side.
+pub fn common_affix(a: &str, b: &str) -> (usize, usize) {
+    let a_bytes = a.as_bytes();
+    let b_bytes = b.as_bytes();
+    let mut prefix = 0usize;
+    while prefix < a_bytes.len() && prefix < b_bytes.len() && a_bytes[prefix] == b_bytes[prefix] {
+        prefix += 1;
+    }
+    while prefix > 0 && !(a.is_char_boundary(prefix) && b.is_char_boundary(prefix)) {
+        prefix -= 1;
+    }
+    let mut suffix = 0usize;
+    while suffix < a_bytes.len() - prefix
+        && suffix < b_bytes.len() - prefix
+        && a_bytes[a_bytes.len() - 1 - suffix] == b_bytes[b_bytes.len() - 1 - suffix]
+    {
+        suffix += 1;
+    }
+    while suffix > 0
+        && !(a.is_char_boundary(a.len() - suffix) && b.is_char_boundary(b.len() - suffix))
+    {
+        suffix -= 1;
+    }
+    (prefix, suffix)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::common_affix;
+
+    #[test]
+    fn snapshots_prefix_and_suffix_to_char_boundaries() {
+        // '中' = E4 B8 AD; U+4E2E = E4 B8 AE. The bytes diverge at index 2,
+        // inside the character: the prefix must snap back to 0.
+        assert_eq!(common_affix("中", "\u{4E2E}"), (0, 0));
+        // Shared suffix where the cut would land inside a character.
+        assert_eq!(common_affix("x中", "y中"), (0, 3));
+        // Ordinary ASCII case.
+        assert_eq!(common_affix("abXcd", "abYcd"), (2, 2));
+        // Identical inputs: full prefix, no suffix.
+        assert_eq!(common_affix("same", "same"), (4, 0));
+        // One input a prefix of the other.
+        assert_eq!(common_affix("ab", "abc"), (2, 0));
+    }
+}
+
 /// Dedent every line by at least `columns` display columns.
 ///
 /// Lines with insufficient leading whitespace are passed through unchanged.

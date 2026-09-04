@@ -11,7 +11,7 @@ use gpui::{Context, Task};
 use editor_contracts::{
     CursorHint, DocumentId, DocumentSnapshot, EditTransaction, HighlightSnapshot, Rope,
 };
-use markdown_parser::parse::BlockProjection;
+use markdown_parser::parse::{BlockProjection, common_affix};
 use syntax_highlighter::engine::HighlightMap;
 use syntax_highlighter::language::CodeLanguageKey;
 
@@ -170,16 +170,40 @@ impl DocumentBuffer {
 
     /// The edit application itself, context-free so it is unit-testable.
     /// Returns whether the document changed.
+    ///
+    /// Every replacement is first compressed to its true diff: the byte
+    /// prefix and suffix shared with the old text are stripped, so a pane
+    /// that reserializes the whole document (wysiwyg) still costs O(edit)
+    /// for the rope rebuild, the syntax invalidation, and the undo payload.
     fn apply_edit_core(&mut self, edit: EditTransaction) -> bool {
+        // One materialization serves the whole batch: all ranges are in
+        // this revision's coordinates, and a full-document replacement can
+        // reuse the cached mirror without slicing the rope.
+        let full = self.text_arc();
+        let whole_document = edit.edits.len() == 1;
         let mut operations: Vec<Operation> = Vec::with_capacity(edit.edits.len());
         for (range, inserted) in edit.edits {
             let start = clamp_to_char_boundary(&self.text, range.start.min(self.text.len()));
             let end = clamp_to_char_boundary(&self.text, range.end.min(self.text.len()).max(start));
+            // Normalize before diffing: a "\r\n" pair may straddle the
+            // compressed middle/suffix seam, so normalization must happen
+            // on the whole input to stay equivalent. The memchr-style
+            // scan is O(document) but negligible next to the affix scan,
+            // and both disappear once panes serialize incrementally.
             let inserted = normalize_arc(inserted);
-            let old: Arc<str> = Arc::from(self.text.slice_owned(start..end));
+            let old: Arc<str> = if whole_document && start == 0 && end == full.len() {
+                full.clone()
+            } else {
+                Arc::from(self.text.slice_owned(start..end))
+            };
             if old.as_ref() == inserted.as_ref() {
                 continue;
             }
+            let (prefix, suffix) = common_affix(old.as_ref(), inserted.as_ref());
+            let start = start + prefix;
+            let end = end - suffix;
+            let inserted = Arc::from(&inserted[prefix..inserted.len() - suffix]);
+            let old = Arc::from(&old[prefix..old.len() - suffix]);
             self.highlight.apply_edit(&self.text, start..end, &inserted);
             let edited = self.text.edit(start..end, &inserted);
             *Arc::make_mut(&mut self.text) = edited;
@@ -409,9 +433,8 @@ fn normalize_arc(text: Arc<str>) -> Arc<str> {
     }
 }
 
-/// Snaps an offset inward to the nearest UTF-8 character boundary
-/// (downward for starts, upward for ends), so pane-supplied ranges can
-/// never split a multi-byte character.
+/// Snaps an offset inward to the nearest UTF-8 character boundary, so
+/// pane-supplied ranges can never split a multi-byte character.
 fn clamp_to_char_boundary(rope: &Rope, mut offset: usize) -> usize {
     while offset > 0 && !rope.is_char_boundary(offset) {
         offset -= 1;
@@ -446,6 +469,111 @@ mod tests {
         assert_eq!(buffer.text_arc().as_ref(), "one TWO\nthree\n");
         assert_eq!(buffer.revision, 2);
         assert!(buffer.dirty);
+    }
+
+    #[test]
+    fn full_document_replacement_compresses_to_the_true_diff() {
+        let mut buffer = DocumentBuffer::new("aaBBcc".to_string(), None);
+        buffer.apply_edit_core(edit(
+            0..6,
+            "aaXXcc",
+            false,
+            CursorHint::new(1, 3),
+            CursorHint::new(1, 5),
+        ));
+        assert_eq!(buffer.text_arc().as_ref(), "aaXXcc");
+        let operations = &buffer.pending.as_ref().expect("pending").operations;
+        assert_eq!(operations.len(), 1);
+        assert_eq!(operations[0].range, 2..4);
+        assert_eq!(operations[0].old.as_ref(), "BB");
+        assert_eq!(operations[0].new.as_ref(), "XX");
+    }
+
+    #[test]
+    fn compressed_replacement_undoes_and_redoes() {
+        let mut buffer = DocumentBuffer::new("aaBBcc".to_string(), None);
+        buffer.apply_edit_core(edit(
+            0..6,
+            "aaXXcc",
+            false,
+            CursorHint::new(1, 3),
+            CursorHint::new(1, 5),
+        ));
+        buffer.flush_pending();
+        assert_eq!(buffer.undo_core(), Some(CursorHint::new(1, 3)));
+        assert_eq!(buffer.text_arc().as_ref(), "aaBBcc");
+        assert_eq!(buffer.redo_core(), Some(CursorHint::new(1, 5)));
+        assert_eq!(buffer.text_arc().as_ref(), "aaXXcc");
+    }
+
+    #[test]
+    fn compressed_replacement_respects_char_boundaries() {
+        let mut buffer = DocumentBuffer::new("中a".to_string(), None);
+        buffer.apply_edit_core(edit(
+            0..4,
+            "中b",
+            false,
+            CursorHint::new(1, 2),
+            CursorHint::new(1, 2),
+        ));
+        assert_eq!(buffer.text_arc().as_ref(), "中b");
+        let operations = &buffer.pending.as_ref().expect("pending").operations;
+        assert_eq!(operations.len(), 1);
+        assert_eq!(operations[0].range, 3..4);
+        assert_eq!(operations[0].old.as_ref(), "a");
+        assert_eq!(operations[0].new.as_ref(), "b");
+    }
+
+    #[test]
+    fn whole_document_replacement_with_multibyte_suffix_is_compressed() {
+        // A trailing multi-byte change: the shared suffix scan must snap
+        // to a character boundary instead of cutting '中' in half.
+        let mut buffer = DocumentBuffer::new("x中".to_string(), None);
+        buffer.apply_edit_core(edit(
+            0..4,
+            "y中",
+            false,
+            CursorHint::new(1, 1),
+            CursorHint::new(1, 1),
+        ));
+        assert_eq!(buffer.text_arc().as_ref(), "y中");
+        let operations = &buffer.pending.as_ref().expect("pending").operations;
+        assert_eq!(operations.len(), 1);
+        assert_eq!(operations[0].range, 0..1);
+        assert_eq!(operations[0].old.as_ref(), "x");
+        assert_eq!(operations[0].new.as_ref(), "y");
+    }
+
+    #[test]
+    fn crlf_replacement_normalizes_before_diffing() {
+        // A "\r\n" pair may straddle the compressed middle/suffix seam, so
+        // normalization must run on the whole input: the "\r" insertion
+        // collapses to a no-op, and a real change still applies correctly.
+        let mut buffer = DocumentBuffer::new("a\nb".to_string(), None);
+        assert!(!buffer.apply_edit_core(edit(
+            0..3,
+            "a\r\nb",
+            false,
+            CursorHint::new(1, 1),
+            CursorHint::new(1, 1),
+        )));
+        assert_eq!(buffer.revision, 1);
+        assert_eq!(buffer.text_arc().as_ref(), "a\nb");
+
+        let mut buffer = DocumentBuffer::new("x".to_string(), None);
+        buffer.apply_edit_core(edit(
+            0..1,
+            "a\r\nb",
+            false,
+            CursorHint::new(1, 1),
+            CursorHint::new(1, 1),
+        ));
+        assert_eq!(buffer.text_arc().as_ref(), "a\nb");
+        let operations = &buffer.pending.as_ref().expect("pending").operations;
+        assert_eq!(operations.len(), 1);
+        assert_eq!(operations[0].range, 0..1);
+        assert_eq!(operations[0].old.as_ref(), "x");
+        assert_eq!(operations[0].new.as_ref(), "a\nb");
     }
 
     #[test]
@@ -594,9 +722,11 @@ mod tests {
     }
 
     mod bench {
+        use std::sync::Arc;
         use std::time::Instant;
 
         use super::DocumentBuffer;
+        use crate::document::buffer::CursorHint;
 
         fn bench_snapshot(name: &str, size_kb: usize) {
             let text = "line of markdown text\n".repeat(size_kb * 1024 / 22);
@@ -627,6 +757,59 @@ mod tests {
         fn bench_snapshot_clone_per_frame() {
             bench_snapshot("64KB", 64);
             bench_snapshot("1MB", 1024);
+        }
+
+        /// A wysiwyg-style full-document replacement commit that changes
+        /// one character, measured in three phases: pane-side
+        /// reserialization, the buffer apply (compression + rope + syntax
+        /// invalidation), and the synchronous block-projection refresh
+        /// (isolated by editing the rope directly).
+        #[test]
+        #[ignore = "perf benchmark"]
+        fn bench_apply_edit_compresses_whole_document_replacement() {
+            for size_kb in [64usize, 1024, 4096] {
+                let mut text = "line of markdown text\n".repeat(size_kb * 1024 / 22);
+                text.push_str("tail");
+                let mut buffer = DocumentBuffer::new(text, None);
+                let edits = 120;
+                let mut serialize = std::time::Duration::ZERO;
+                let mut apply = std::time::Duration::ZERO;
+                let mut projection = std::time::Duration::ZERO;
+                for i in 0..edits {
+                    let start = Instant::now();
+                    let mut new = buffer.text_arc().to_string();
+                    let at = new.len() / 2;
+                    new.replace_range(at..at + 1, &format!("{}", i % 10));
+                    serialize += start.elapsed();
+                    let start = Instant::now();
+                    buffer.apply_edit_core(crate::document::buffer::tests::edit(
+                        0..buffer.text_arc().len(),
+                        &new,
+                        false,
+                        CursorHint::new(1, 1),
+                        CursorHint::new(1, 1),
+                    ));
+                    apply += start.elapsed();
+
+                    // Isolate the projection refresh: apply the same edit
+                    // straight to the rope, then re-time just the refresh.
+                    let start = Instant::now();
+                    let at = buffer.text.len() / 2;
+                    let edited = buffer.text.edit(at..at + 1, "x");
+                    *Arc::make_mut(&mut buffer.text) = edited;
+                    buffer.revision = buffer.revision.wrapping_add(1);
+                    projection += start.elapsed();
+                    let start = Instant::now();
+                    buffer.refresh_projection();
+                    projection += start.elapsed();
+                }
+                println!(
+                    "bench_apply_edit[{size_kb}KB]: {edits} commits: serialize {}us, apply {}us, projection {}us per edit",
+                    serialize.as_micros() / edits as u128,
+                    apply.as_micros() / edits as u128,
+                    projection.as_micros() / edits as u128,
+                );
+            }
         }
     }
 }

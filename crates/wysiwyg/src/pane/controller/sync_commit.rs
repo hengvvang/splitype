@@ -277,15 +277,19 @@ impl WysiwygDocumentController {
         }
 
         self.last_cursor_hint = Some(cursor_after);
-        self.last_committed_text = Some(text.clone());
-        // The wysiwyg reserializes the whole document; report the edit as
-        // one full-text replacement (the buffer applies it as a degenerate
-        // whole-range edit).
+        // The buffer's current length is the previous committed text (or the
+        // last synced snapshot when another pane edited in between): read it
+        // before overwriting, then record the new text as the next commit's
+        // baseline.
         let old_len = self
             .last_committed_text
             .as_ref()
             .map(|text| text.len())
             .unwrap_or(self.last_synced_len);
+        self.last_committed_text = Some(text.clone());
+        // The wysiwyg reserializes the whole document; report the edit as
+        // one full-text replacement (the buffer compresses it down to the
+        // true diff).
         Some(EditTransaction::new(
             0..old_len,
             Arc::from(text),

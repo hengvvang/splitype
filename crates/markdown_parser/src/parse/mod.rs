@@ -25,6 +25,7 @@ pub mod quotes;
 pub use data::{BlockData, blocks_content_eq};
 pub use fence::{safe_code_fence, safe_code_fence_with_info};
 pub use id::BlockId;
+pub use indent::common_affix;
 pub use kind::BlockKind;
 pub use pipeline::{ParseMode, parse_preview_document};
 pub use projection::BlockProjection;
