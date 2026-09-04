@@ -122,8 +122,13 @@ impl WysiwygDocumentController {
             typing_run_start_hint: None,
             last_cursor_hint: None,
         };
-        controller.rebuild_from_markdown(&document.text, document.revision, cx);
-        controller.last_synced_len = document.text.len();
+        // Prefer the buffer's shared block projection when it matches the
+        // revision; otherwise parse the text once at creation.
+        if let Some(blocks) = &document.blocks {
+            controller.rebuild_from_blocks(blocks, document.revision, document.text.len(), cx);
+        } else {
+            controller.rebuild_from_markdown(&document.text, document.revision, cx);
+        }
         controller
     }
 
@@ -134,19 +139,35 @@ impl WysiwygDocumentController {
         block
     }
 
-    /// Rebuilds document tree and event subscriptions from raw Markdown text.
+    /// Rebuilds document tree and event subscriptions from raw Markdown
+    /// text (fallback path when the buffer's shared block projection lags
+    /// behind the text revision).
     pub fn rebuild_from_markdown(&mut self, text: &str, revision: u64, cx: &mut Context<Self>) {
         let parsed = markdown_parser::parse::parse_wysiwyg_document(text);
+        self.rebuild_from_blocks(&parsed, revision, text.len(), cx);
+    }
+
+    /// Rebuilds the view's block entity tree from the document-level block
+    /// projection: the buffer parses the Markdown once and every structured
+    /// pane derives its view entities from the same data — per-pane view
+    /// state (carets, focus, expansion) is the only thing each pane owns.
+    pub fn rebuild_from_blocks(
+        &mut self,
+        parsed: &[markdown_parser::parse::BlockData],
+        revision: u64,
+        text_len: usize,
+        cx: &mut Context<Self>,
+    ) {
         let block_count = parsed.len();
         let mut entities: std::collections::HashMap<uuid::Uuid, Entity<Block>> =
             std::collections::HashMap::with_capacity(block_count);
 
-        for block_data in &parsed {
+        for block_data in parsed {
             let entity = Self::new_block(cx, block_data.clone());
             entities.insert(block_data.id.0, entity);
         }
 
-        for block_data in &parsed {
+        for block_data in parsed {
             if block_data.children.is_empty() {
                 continue;
             }
@@ -187,7 +208,7 @@ impl WysiwygDocumentController {
         self.synced_revision = Some(revision);
         self.pending_edit = false;
         self.last_committed_text = None;
-        self.last_synced_len = text.len();
+        self.last_synced_len = text_len;
         self.last_typing_insert_at = None;
         self.typing_run_start_hint = None;
         self.last_cursor_hint = None;

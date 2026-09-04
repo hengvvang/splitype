@@ -17,6 +17,7 @@ platform_contracts = { path = "../platform_contracts" }
 splitter = { path = "../splitter" }
 config = { path = "../config" }
 gpui = { workspace = true }
+markdown_parser = { path = "../markdown_parser" }
 theme = { path = "../theme" }
 regex = "1.10"
 uuid = { workspace = true }

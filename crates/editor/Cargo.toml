@@ -19,6 +19,7 @@ editor_contracts = { path = "../editor_contracts" }
 platform_contracts = { path = "../platform_contracts" }
 futures = "0.3"
 gpui = { workspace = true }
+markdown_parser = { path = "../markdown_parser" }
 syntax_highlighter = { path = "../syntax_highlighter" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }

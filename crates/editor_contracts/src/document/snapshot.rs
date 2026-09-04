@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use markdown_parser::parse::BlockData;
+
 use crate::edit::CursorHint;
 use crate::highlight::HighlightSnapshot;
 use crate::text::Rope;
@@ -30,6 +32,11 @@ pub struct DocumentSnapshot {
     /// Latest computed highlights; may lag a few revisions while the
     /// background refresh runs (stale-while-revalidate).
     pub highlights: Option<Arc<HighlightSnapshot>>,
+    /// Document-level block projection: the parsed Markdown block tree for
+    /// the current revision, shared by every structured (wysiwyg) pane.
+    /// `None` while the background re-parse lags behind the text revision;
+    /// panes then fall back to parsing the text themselves.
+    pub blocks: Option<Arc<Vec<BlockData>>>,
 }
 
 impl DocumentSnapshot {
@@ -65,6 +72,29 @@ impl DocumentSnapshot {
         restore_cursor: Option<CursorHint>,
         highlights: Option<Arc<HighlightSnapshot>>,
     ) -> Self {
+        Self::with_all_full(
+            id,
+            revision,
+            rope,
+            text,
+            path,
+            restore_cursor,
+            highlights,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_all_full(
+        id: DocumentId,
+        revision: u64,
+        rope: impl Into<Arc<Rope>>,
+        text: impl Into<Arc<str>>,
+        path: Option<PathBuf>,
+        restore_cursor: Option<CursorHint>,
+        highlights: Option<Arc<HighlightSnapshot>>,
+        blocks: Option<Arc<Vec<BlockData>>>,
+    ) -> Self {
         let path = path.map(Arc::<Path>::from);
         let base_dir = path
             .as_deref()
@@ -79,6 +109,7 @@ impl DocumentSnapshot {
             base_dir,
             restore_cursor,
             highlights,
+            blocks,
         }
     }
 

@@ -33,7 +33,14 @@ impl WysiwygDocumentController {
             }
             return;
         }
-        self.rebuild_from_markdown(&document.text, document.revision, cx);
+        // Prefer the buffer's shared block projection (parsed once per
+        // document, not once per pane); fall back to parsing the text
+        // while the background projection lags behind the revision.
+        if let Some(blocks) = &document.blocks {
+            self.rebuild_from_blocks(blocks, document.revision, document.text.len(), cx);
+        } else {
+            self.rebuild_from_markdown(&document.text, document.revision, cx);
+        }
         if let Some(hint) = document.restore_cursor {
             self.restore_cursor_hint(hint, cx);
         }
