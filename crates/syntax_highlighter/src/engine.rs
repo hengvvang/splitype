@@ -823,9 +823,11 @@ mod tests {
             }
             let elapsed = start.elapsed();
             eprintln!(
-                "apply_edit[{size_kb}KB]: {edits} edits = {elapsed:?} ({}us/edit, {} spans)",
+                "apply_edit[{size_kb}KB]: {edits} edits = {elapsed:?} ({}us/edit, {} spans, {} layers, {} layer ranges)",
                 elapsed.as_micros() / edits as u128,
-                map.spans().len()
+                map.spans().len(),
+                map.layers.len(),
+                map.layers.iter().map(|l| l.ranges.len()).sum::<usize>()
             );
         }
     }

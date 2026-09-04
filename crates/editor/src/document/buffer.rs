@@ -850,5 +850,40 @@ mod tests {
                 );
             }
         }
+
+        /// A wysiwyg-style commit in its post-diff shape: one small
+        /// precise replacement mid-document. Measures the full buffer-side
+        /// keystroke cost (compression, rope edit, syntax invalidation,
+        /// projection refresh).
+        #[test]
+        #[ignore = "perf benchmark"]
+        fn bench_apply_edit_precise_keystroke() {
+            for size_kb in [64usize, 1024, 4096] {
+                let mut text =
+                    "# Heading\n\nSome **bold** and `code`.\n\n- item one\n- item two\n\n"
+                        .repeat(4);
+                while text.len() < size_kb * 1024 {
+                    text.push_str("plain line of markdown text\n");
+                }
+                let mut buffer = DocumentBuffer::new(text, None);
+                let edits = 240;
+                let start = Instant::now();
+                for _ in 0..edits {
+                    let at = buffer.text.len() / 2;
+                    buffer.apply_edit_core(crate::document::buffer::tests::edit(
+                        at..at + 1,
+                        "X",
+                        false,
+                        CursorHint::new(1, 1),
+                        CursorHint::new(1, 1),
+                    ));
+                }
+                let elapsed = start.elapsed();
+                println!(
+                    "bench_precise_keystroke[{size_kb}KB]: {edits} edits = {}us/edit",
+                    elapsed.as_micros() / edits as u128
+                );
+            }
+        }
     }
 }
