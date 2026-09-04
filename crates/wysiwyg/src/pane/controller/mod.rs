@@ -122,13 +122,14 @@ impl WysiwygDocumentController {
             typing_run_start_hint: None,
             last_cursor_hint: None,
         };
-        // Prefer the buffer's shared block projection when it matches the
-        // revision; otherwise parse the text once at creation.
-        if let Some(blocks) = &document.blocks {
-            controller.rebuild_from_blocks(blocks, document.revision, document.text.len(), cx);
-        } else {
-            controller.rebuild_from_markdown(&document.text, document.revision, cx);
-        }
+        // The buffer's block projection always matches the revision; the
+        // pane derives its view entities from it without parsing.
+        controller.rebuild_from_blocks(
+            document.blocks.as_slice(),
+            document.revision,
+            document.text.len(),
+            cx,
+        );
         controller
     }
 
@@ -137,14 +138,6 @@ impl WysiwygDocumentController {
         let block = cx.new(|cx| Block::with_data(cx, data));
         cx.subscribe(&block, Self::on_block_event).detach();
         block
-    }
-
-    /// Rebuilds document tree and event subscriptions from raw Markdown
-    /// text (fallback path when the buffer's shared block projection lags
-    /// behind the text revision).
-    pub fn rebuild_from_markdown(&mut self, text: &str, revision: u64, cx: &mut Context<Self>) {
-        let parsed = markdown_parser::parse::parse_wysiwyg_document(text);
-        self.rebuild_from_blocks(&parsed, revision, text.len(), cx);
     }
 
     /// Rebuilds the view's block entity tree from the document-level block
@@ -551,37 +544,23 @@ impl WysiwygDocumentController {
     }
 }
 
-/// Structural equality of two block projections, ignoring parse-generated
-/// ids (which are random per parse) and parent links (which the tree
-/// assembly recomputes). Two equal blocks at the same DFS position can
-/// share one view entity across projection patches.
-fn block_content_eq(
-    a: &markdown_parser::parse::BlockData,
-    b: &markdown_parser::parse::BlockData,
-) -> bool {
-    a.kind == b.kind
-        && a.text == b.text
-        && a.table == b.table
-        && a.html == b.html
-        && a.raw_source == b.raw_source
-        && a.children.len() == b.children.len()
-}
-
 /// Content-addressed diff of two DFS-ordered block sequences: the count of
 /// equal blocks at the start and the end. Everything between the matched
-/// prefix and suffix is rebuilt.
+/// prefix and suffix is rebuilt. Equality uses
+/// [`markdown_parser::parse::BlockData::content_eq`], which ignores
+/// parse-generated ids and parent links.
 fn diff_block_sequences(
     old: &[markdown_parser::parse::BlockData],
     new: &[markdown_parser::parse::BlockData],
 ) -> (usize, usize) {
     let mut prefix = 0usize;
-    while prefix < old.len() && prefix < new.len() && block_content_eq(&old[prefix], &new[prefix]) {
+    while prefix < old.len() && prefix < new.len() && old[prefix].content_eq(&new[prefix]) {
         prefix += 1;
     }
     let mut suffix = 0usize;
     while suffix < old.len().saturating_sub(prefix)
         && suffix < new.len().saturating_sub(prefix)
-        && block_content_eq(&old[old.len() - 1 - suffix], &new[new.len() - 1 - suffix])
+        && old[old.len() - 1 - suffix].content_eq(&new[new.len() - 1 - suffix])
     {
         suffix += 1;
     }
@@ -599,14 +578,14 @@ mod tests {
     }
 
     #[test]
-    fn block_content_eq_ignores_ids_and_parents() {
+    fn content_eq_ignores_ids_and_parents() {
         let mut a = plain(BlockKind::Paragraph, "same");
         let mut b = plain(BlockKind::Paragraph, "same");
         assert_ne!(a.id, b.id);
         a.parent = Some(b.id);
-        assert!(block_content_eq(&a, &b), "ids and parents must not matter");
+        assert!(a.content_eq(&b), "ids and parents must not matter");
         b.text = BlockText::plain("different".to_string());
-        assert!(!block_content_eq(&a, &b));
+        assert!(!a.content_eq(&b));
     }
 
     #[test]

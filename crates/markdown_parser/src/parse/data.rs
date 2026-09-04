@@ -116,6 +116,21 @@ impl BlockData {
         data
     }
 
+    /// Structural equality ignoring identity and tree links: two blocks
+    /// with the same kind, content, and payloads but different parse-
+    /// generated ids compare equal. Block sequences built by two parses of
+    /// the same Markdown (or by one incremental re-parse and one full parse)
+    /// are interchangeable under this relation, which is what lets view
+    /// entities survive projection patches.
+    pub fn content_eq(&self, other: &BlockData) -> bool {
+        self.kind == other.kind
+            && self.text == other.text
+            && self.table == other.table
+            && self.html == other.html
+            && self.raw_source == other.raw_source
+            && self.children.len() == other.children.len()
+    }
+
     /// Replace the block text.
     pub fn set_text(&mut self, text: BlockText) {
         self.text = text;
@@ -285,6 +300,18 @@ impl BlockData {
             self.html = None;
         }
     }
+}
+
+/// DFS-order structural equality of two block sequences, ignoring ids and
+/// parent links (which tree assembly recomputes). Two sequences are equal
+/// when every block at the same DFS position carries the same content, so a
+/// full parse and an incremental re-parse of the same text always compare
+/// equal.
+pub fn blocks_content_eq(a: &[BlockData], b: &[BlockData]) -> bool {
+    a.len() == b.len()
+        && a.iter().zip(b).all(|(left, right)| {
+            left.content_eq(right) && left.parent.is_some() == right.parent.is_some()
+        })
 }
 
 fn indent_multiline(content: &str, indentation: &str) -> String {

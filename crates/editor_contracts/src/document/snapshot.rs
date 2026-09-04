@@ -16,8 +16,8 @@ pub use platform_contracts::DocumentId;
 /// or resource context from process globals.
 ///
 /// `rope` is the structured text editors edit against (shared per revision,
-/// O(1) clone); `text` is the lazily materialized full-text mirror for
-/// full-text consumers (wysiwyg re-serialization, preview, search).
+/// O(1) clone); `text` is the materialized full-text mirror for full-text
+/// consumers (search, export).
 #[derive(Clone, Debug)]
 pub struct DocumentSnapshot {
     pub id: DocumentId,
@@ -32,68 +32,23 @@ pub struct DocumentSnapshot {
     /// Latest computed highlights; may lag a few revisions while the
     /// background refresh runs (stale-while-revalidate).
     pub highlights: Option<Arc<HighlightSnapshot>>,
-    /// Document-level block projection: the parsed Markdown block tree for
-    /// the current revision, shared by every structured (wysiwyg) pane.
-    /// `None` while the background re-parse lags behind the text revision;
-    /// panes then fall back to parsing the text themselves.
-    pub blocks: Option<Arc<Vec<BlockData>>>,
+    /// Document-level block projection for this revision, shared by every
+    /// structured (wysiwyg) pane. The buffer maintains it incrementally on
+    /// each edit, so it never lags behind the text.
+    pub blocks: Arc<Vec<BlockData>>,
 }
 
 impl DocumentSnapshot {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: DocumentId,
         revision: u64,
         rope: impl Into<Arc<Rope>>,
-        path: Option<PathBuf>,
-    ) -> Self {
-        let rope: Arc<Rope> = rope.into();
-        let text: Arc<str> = Arc::from(rope.materialize());
-        Self::with_restore_cursor(id, revision, rope, text, path, None)
-    }
-
-    pub fn with_restore_cursor(
-        id: DocumentId,
-        revision: u64,
-        rope: impl Into<Arc<Rope>>,
-        text: impl Into<Arc<str>>,
-        path: Option<PathBuf>,
-        restore_cursor: Option<CursorHint>,
-    ) -> Self {
-        Self::with_all(id, revision, rope, text, path, restore_cursor, None)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_all(
-        id: DocumentId,
-        revision: u64,
-        rope: impl Into<Arc<Rope>>,
         text: impl Into<Arc<str>>,
         path: Option<PathBuf>,
         restore_cursor: Option<CursorHint>,
         highlights: Option<Arc<HighlightSnapshot>>,
-    ) -> Self {
-        Self::with_all_full(
-            id,
-            revision,
-            rope,
-            text,
-            path,
-            restore_cursor,
-            highlights,
-            None,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn with_all_full(
-        id: DocumentId,
-        revision: u64,
-        rope: impl Into<Arc<Rope>>,
-        text: impl Into<Arc<str>>,
-        path: Option<PathBuf>,
-        restore_cursor: Option<CursorHint>,
-        highlights: Option<Arc<HighlightSnapshot>>,
-        blocks: Option<Arc<Vec<BlockData>>>,
+        blocks: Arc<Vec<BlockData>>,
     ) -> Self {
         let path = path.map(Arc::<Path>::from);
         let base_dir = path
@@ -114,7 +69,16 @@ impl DocumentSnapshot {
     }
 
     pub fn empty() -> Self {
-        Self::new(DocumentId::nil(), 0, Rope::new(""), None)
+        Self::new(
+            DocumentId::nil(),
+            0,
+            Rope::new(""),
+            "",
+            None,
+            None,
+            None,
+            Arc::new(Vec::new()),
+        )
     }
 }
 
@@ -128,7 +92,11 @@ mod tests {
             DocumentId::new(),
             7,
             Rope::new("![image](asset.png)"),
+            "![image](asset.png)",
             Some(PathBuf::from("workspace/docs/readme.md")),
+            None,
+            None,
+            Arc::new(Vec::new()),
         );
 
         assert_eq!(

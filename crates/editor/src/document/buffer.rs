@@ -11,7 +11,7 @@ use gpui::{Context, Task};
 use editor_contracts::{
     CursorHint, DocumentId, DocumentSnapshot, EditTransaction, HighlightSnapshot, Rope,
 };
-use markdown_parser::parse::BlockData;
+use markdown_parser::parse::BlockProjection;
 use syntax_highlighter::engine::HighlightMap;
 use syntax_highlighter::language::CodeLanguageKey;
 
@@ -81,13 +81,13 @@ pub struct DocumentBuffer {
     restore_cursor: Option<CursorHint>,
     /// Incremental highlight engine (Markdown root + injections).
     highlight: HighlightMap,
-    /// In-flight background refresh; superseded tasks drop their result
-    /// because its version no longer matches.
+    /// In-flight background highlight refresh; superseded tasks drop their
+    /// result because its version no longer matches.
     highlight_task: Option<Task<()>>,
     /// Document-level block projection: the parsed Markdown block tree for
-    /// the text revision it was computed from. Shared with every structured
-    /// pane, so the whole document is parsed once, not once per pane.
-    blocks: Option<(u64, Arc<Vec<BlockData>>)>,
+    /// the current text revision. Maintained incrementally on every edit,
+    /// so it never lags and every structured pane shares the same parse.
+    projection: BlockProjection,
 }
 
 #[derive(Clone, Debug)]
@@ -107,11 +107,11 @@ impl DocumentBuffer {
         let text = normalize_line_endings(text);
         let highlight = HighlightMap::new(CodeLanguageKey::Markdown, &text)
             .expect("markdown language configuration");
-        let blocks = Arc::new(markdown_parser::parse::parse_wysiwyg_document(&text));
+        let source: Arc<str> = Arc::from(text);
         Self {
             id,
-            text: Arc::new(Rope::new(&text)),
-            materialized: RefCell::new(Some((1, Arc::from(text)))),
+            text: Arc::new(Rope::new(&source)),
+            materialized: RefCell::new(Some((1, source.clone()))),
             revision: 1,
             path,
             dirty,
@@ -123,7 +123,7 @@ impl DocumentBuffer {
             restore_cursor: None,
             highlight,
             highlight_task: None,
-            blocks: Some((1, blocks)),
+            projection: BlockProjection::parse(source),
         }
     }
 
@@ -133,14 +133,7 @@ impl DocumentBuffer {
             version: self.highlight.refreshed_version,
             spans: self.highlight.spans_arc(),
         }));
-        // The block projection is shared only when it matches the current
-        // text revision; panes fall back to their own parse while it lags.
-        let blocks = self
-            .blocks
-            .as_ref()
-            .filter(|(version, _)| *version == self.revision)
-            .map(|(_, blocks)| blocks.clone());
-        DocumentSnapshot::with_all_full(
+        DocumentSnapshot::new(
             self.id,
             self.revision,
             self.text.clone(),
@@ -148,7 +141,7 @@ impl DocumentBuffer {
             self.path.clone(),
             self.restore_cursor,
             highlights,
-            blocks,
+            self.projection.blocks.clone(),
         )
     }
 
@@ -222,7 +215,20 @@ impl DocumentBuffer {
         self.revision = self.revision.wrapping_add(1);
         self.dirty = true;
         self.cached_word_count = None;
+        self.refresh_projection();
         true
+    }
+
+    /// Recomputes the block projection incrementally against the current
+    /// text. Cost is O(edited region): the re-parse narrows its window to
+    /// the lines that actually changed and splices the block list in place,
+    /// so per-keystroke work is independent of document size. The
+    /// projection's source doubles as the per-revision materialized mirror,
+    /// so snapshots stay O(1).
+    fn refresh_projection(&mut self) {
+        let new_text: Arc<str> = Arc::from(self.text.materialize());
+        BlockProjection::reparse(&mut self.projection, new_text.clone());
+        *self.materialized.borrow_mut() = Some((self.revision, new_text));
     }
 
     /// Undoes the most recent transaction by replaying its operations
@@ -253,6 +259,7 @@ impl DocumentBuffer {
         self.redo_stack.push(entry);
         self.revision = self.revision.wrapping_add(1);
         self.cached_word_count = None;
+        self.refresh_projection();
         Some(restored_cursor)
     }
 
@@ -279,15 +286,16 @@ impl DocumentBuffer {
         self.undo_stack.push(entry);
         self.revision = self.revision.wrapping_add(1);
         self.cached_word_count = None;
+        self.refresh_projection();
         Some(restored_cursor)
     }
 
     /// Kicks off (or extends) the debounced background highlight refresh.
     /// While a task is running, newer edits only bump the map's version;
     /// the running task notices the mismatch and re-runs after another
-    /// debounce, so the last edit of a typing burst always lands. The same
-    /// background run refreshes the block projection, so one parse pass
-    /// serves every structured pane.
+    /// debounce, so the last edit of a typing burst always lands. The block
+    /// projection needs no background refresh: it is maintained
+    /// synchronously with every edit.
     fn schedule_highlight_refresh(&mut self, cx: &mut Context<Self>) {
         if self.highlight_task.is_some() {
             return;
@@ -299,13 +307,9 @@ impl DocumentBuffer {
                     cx.background_executor()
                         .timer(Duration::from_millis(150))
                         .await;
-                    let Some((mut map, rope, version)) = weak
+                    let Some((mut map, rope)) = weak
                         .update(cx, |buffer, _| {
-                            (
-                                buffer.highlight.clone(),
-                                buffer.text.clone(),
-                                buffer.revision,
-                            )
+                            (buffer.highlight.clone(), buffer.text.clone())
                         })
                         .ok()
                     else {
@@ -315,14 +319,11 @@ impl DocumentBuffer {
                         .background_executor()
                         .spawn(async move {
                             map.refresh(&rope);
-                            let text = rope.materialize();
-                            let blocks = markdown_parser::parse::parse_wysiwyg_document(&text);
-                            (map, blocks)
+                            map
                         })
                         .await;
                     let Ok(done) = weak.update(cx, |buffer, cx| {
-                        if buffer.highlight.adopt_refresh(computed.0) {
-                            buffer.blocks = Some((version, Arc::new(computed.1)));
+                        if buffer.highlight.adopt_refresh(computed) {
                             buffer.highlight_task = None;
                             cx.notify();
                             true
@@ -531,14 +532,13 @@ mod tests {
     }
 
     #[test]
-    fn block_projection_tracks_revision_and_lags_after_edit() {
-        let buffer = DocumentBuffer::new("# Title\n\nBody.\n".to_string(), None);
-        let snapshot = buffer.snapshot();
-        // Fresh at open: the projection matches the revision.
-        let blocks = snapshot.blocks.expect("blocks at open");
-        assert!(blocks.len() >= 2); // heading + paragraph(s)
+    fn block_projection_stays_in_sync_after_edit() {
+        use markdown_parser::parse::blocks_content_eq;
 
-        let mut buffer = buffer;
+        let mut buffer = DocumentBuffer::new("# Title\n\nBody.\n".to_string(), None);
+        let snapshot = buffer.snapshot();
+        assert_eq!(snapshot.blocks.len(), 3); // heading + blank + paragraph
+
         buffer.apply_edit_core(edit(
             9..9,
             "x",
@@ -546,8 +546,45 @@ mod tests {
             CursorHint::new(2, 6),
             CursorHint::new(2, 7),
         ));
-        // After an edit the cached projection lags; the snapshot omits it.
-        assert!(buffer.snapshot().blocks.is_none());
+        // The projection is maintained synchronously with the edit, so the
+        // snapshot always carries blocks for the current revision.
+        let snapshot = buffer.snapshot();
+        assert_eq!(snapshot.revision, 2);
+        assert!(
+            blocks_content_eq(
+                &snapshot.blocks,
+                &markdown_parser::parse::BlockProjection::parse(snapshot.text.clone()).blocks,
+            ),
+            "projection must equal a full parse of the current text"
+        );
+    }
+
+    #[test]
+    fn undo_and_redo_keep_the_projection_in_sync() {
+        use markdown_parser::parse::blocks_content_eq;
+
+        let mut buffer = DocumentBuffer::new("a\nb\n".to_string(), None);
+        buffer.apply_edit_core(edit(
+            2..2,
+            "X",
+            false,
+            CursorHint::new(2, 1),
+            CursorHint::new(2, 2),
+        ));
+        buffer.undo_core();
+        let snapshot = buffer.snapshot();
+        assert_eq!(snapshot.text.as_ref(), "a\nb\n");
+        assert!(blocks_content_eq(
+            &snapshot.blocks,
+            &markdown_parser::parse::BlockProjection::parse(snapshot.text.clone()).blocks,
+        ));
+        buffer.redo_core();
+        let snapshot = buffer.snapshot();
+        assert_eq!(snapshot.text.as_ref(), "a\nXb\n");
+        assert!(blocks_content_eq(
+            &snapshot.blocks,
+            &markdown_parser::parse::BlockProjection::parse(snapshot.text.clone()).blocks,
+        ));
     }
 
     #[test]

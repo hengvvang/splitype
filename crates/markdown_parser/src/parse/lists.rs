@@ -16,12 +16,15 @@ use crate::parse::indent::{
 };
 use crate::parse::kind::BlockKind;
 
-pub(crate) fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<BlockData>, usize) {
+pub(crate) fn collect_list_blocks<S: AsRef<str>>(
+    lines: &[S],
+    start: usize,
+) -> (Vec<BlockData>, usize) {
     let mut roots = Vec::new();
     let mut index = start;
 
     while index < lines.len() {
-        let Some(marker) = parse_list_marker(&lines[index]) else {
+        let Some(marker) = parse_list_marker(lines[index].as_ref()) else {
             break;
         };
 
@@ -34,7 +37,7 @@ pub(crate) fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<BlockD
         let mut item_children: Vec<BlockData> = Vec::new();
 
         while body_index < item_end {
-            let line = &lines[body_index];
+            let line = lines[body_index].as_ref();
             if line.trim().is_empty() {
                 pending_blank_lines += 1;
                 body_index += 1;
@@ -230,7 +233,13 @@ pub(crate) fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<BlockD
         }
 
         if fallback_raw {
-            roots.push(raw_block(lines[index..item_end].join("\n")));
+            roots.push(raw_block(
+                lines[index..item_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
         } else {
             roots.push(block);
             roots.append(&mut item_children);

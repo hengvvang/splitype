@@ -8,11 +8,11 @@ use crate::parse::data::BlockData;
 use crate::parse::indent::strip_leading_columns;
 use crate::parse::kind::BlockKind;
 
-pub(crate) fn build_native_footnote_definition_block(
-    lines: &[String],
+pub(crate) fn build_native_footnote_definition_block<S: AsRef<str>>(
+    lines: &[S],
     mode: crate::parse::ParseMode,
 ) -> Option<Vec<BlockData>> {
-    let (id, first_line) = parse_footnote_definition_head(lines.first()?)?;
+    let (id, first_line) = parse_footnote_definition_head(lines.first()?.as_ref())?;
     // A definition line can carry several `[^id]:` heads on one line
     // (e.g. `[^a]: x [^b]: y`); split them into separate definitions. The
     // first content line of each lives in its block text as `id: content`,
@@ -22,17 +22,14 @@ pub(crate) fn build_native_footnote_definition_block(
     let mut body_lines = Vec::new();
     let mut seen_non_blank = false;
     for line in lines.iter().skip(1) {
+        let line = line.as_ref();
         if line.trim().is_empty() {
             if seen_non_blank {
                 body_lines.push(String::new());
             }
         } else {
             seen_non_blank = true;
-            body_lines.push(
-                strip_leading_columns(line, 4)
-                    .unwrap_or(line.as_str())
-                    .to_string(),
-            );
+            body_lines.push(strip_leading_columns(line, 4).unwrap_or(line).to_string());
         }
     }
 

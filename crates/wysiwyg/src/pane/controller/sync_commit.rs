@@ -33,14 +33,15 @@ impl WysiwygDocumentController {
             }
             return;
         }
-        // Prefer the buffer's shared block projection (parsed once per
-        // document, not once per pane); fall back to parsing the text
-        // while the background projection lags behind the revision.
-        if let Some(blocks) = &document.blocks {
-            self.patch_from_blocks(blocks, document.revision, document.text.len(), cx);
-        } else {
-            self.rebuild_from_markdown(&document.text, document.revision, cx);
-        }
+        // The buffer's shared block projection always matches the
+        // revision (it is maintained synchronously with each edit), so the
+        // pane patches its entities against it without ever parsing.
+        self.patch_from_blocks(
+            document.blocks.as_slice(),
+            document.revision,
+            document.text.len(),
+            cx,
+        );
         if let Some(hint) = document.restore_cursor {
             self.restore_cursor_hint(hint, cx);
         }

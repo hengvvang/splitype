@@ -14,9 +14,9 @@ pub fn strip_fence_indent(line: &str) -> Option<&str> {
 /// Advance from `start` until the first blank line (or end of input).
 ///
 /// Returns the index of the first blank line (or `lines.len()`).
-pub fn collect_until_blank_line(lines: &[String], start: usize) -> usize {
+pub fn collect_until_blank_line<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
     let mut index = start + 1;
-    while index < lines.len() && !lines[index].trim().is_empty() {
+    while index < lines.len() && !lines[index].as_ref().trim().is_empty() {
         index += 1;
     }
     index
@@ -92,12 +92,13 @@ pub fn strip_leading_columns(line: &str, columns: usize) -> Option<&str> {
 /// Dedent every line by at least `columns` display columns.
 ///
 /// Lines with insufficient leading whitespace are passed through unchanged.
-pub fn dedent_lines(lines: &[String], columns: usize) -> Vec<String> {
+pub fn dedent_lines<S: AsRef<str>>(lines: &[S], columns: usize) -> Vec<String> {
     lines
         .iter()
         .map(|line| {
+            let line = line.as_ref();
             strip_leading_columns(line, columns)
-                .unwrap_or(line.as_str())
+                .unwrap_or(line)
                 .to_string()
         })
         .collect()

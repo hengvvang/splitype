@@ -593,22 +593,22 @@ pub fn is_table_row_candidate(line: &str) -> bool {
 
 /// Collects a contiguous table-candidate region in the current container
 /// scope.
-pub fn collect_table_candidate_region(lines: &[String], start: usize) -> usize {
+pub fn collect_table_candidate_region<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
     let mut index = start + 1;
-    while index < lines.len() && is_table_candidate_line(&lines[index]) {
+    while index < lines.len() && is_table_candidate_line(lines[index].as_ref()) {
         index += 1;
     }
     index
 }
 
 /// Parses a pipe-table region into native table data.
-pub fn parse_table_region(lines: &[String]) -> Option<TableData> {
+pub fn parse_table_region<S: AsRef<str>>(lines: &[S]) -> Option<TableData> {
     if lines.len() < 2 {
         return None;
     }
 
-    let header = split_table_cells(&lines[0])?;
-    let alignment_cells = split_table_cells(&lines[1])?;
+    let header = split_table_cells(lines[0].as_ref())?;
+    let alignment_cells = split_table_cells(lines[1].as_ref())?;
     if header.is_empty() || alignment_cells.len() != header.len() {
         return None;
     }
@@ -623,7 +623,7 @@ pub fn parse_table_region(lines: &[String]) -> Option<TableData> {
         // GFM normalizes body rows to the header width: short rows are padded
         // with empty cells and long rows drop their trailing cells, instead of
         // invalidating the whole table.
-        let mut cells = split_table_cells(line)?;
+        let mut cells = split_table_cells(line.as_ref())?;
         cells.resize(header.len(), String::new());
         rows.push(
             cells
@@ -660,17 +660,17 @@ fn is_delimiter_row(line: &str, columns: usize) -> bool {
 /// blank line, matching GFM. Returns `None` for ordinary prose so a stray `|`
 /// is never mistaken for a table; single-column pipeless candidates are also
 /// rejected because they are ambiguous with setext headings.
-pub fn collect_pipeless_table_region(lines: &[String], start: usize) -> Option<usize> {
-    let header = split_table_cells(lines.get(start)?)?;
+pub fn collect_pipeless_table_region<S: AsRef<str>>(lines: &[S], start: usize) -> Option<usize> {
+    let header = split_table_cells(lines.get(start)?.as_ref())?;
     if header.len() < 2 {
         return None;
     }
-    if !is_delimiter_row(lines.get(start + 1)?, header.len()) {
+    if !is_delimiter_row(lines.get(start + 1)?.as_ref(), header.len()) {
         return None;
     }
 
     let mut end = start + 2;
-    while end < lines.len() && !lines[end].trim().is_empty() {
+    while end < lines.len() && !lines[end].as_ref().trim().is_empty() {
         end += 1;
     }
     Some(end)

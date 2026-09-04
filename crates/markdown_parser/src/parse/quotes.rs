@@ -15,34 +15,52 @@ use crate::parse::data::BlockData;
 use crate::parse::indent::{is_quote_start, strip_indented_code_prefix, strip_one_quote_level};
 use crate::parse::kind::BlockKind;
 
-pub(crate) fn collect_quote_block(lines: &[String], start: usize) -> (Vec<BlockData>, usize) {
+pub(crate) fn collect_quote_block<S: AsRef<str>>(
+    lines: &[S],
+    start: usize,
+) -> (Vec<BlockData>, usize) {
     let end = collect_quote_raw_region(lines, start);
     let region = &lines[start..end];
     let mut dequoted = Vec::with_capacity(region.len());
     for line in region {
+        let line = line.as_ref();
         if line.trim().is_empty() {
             dequoted.push(String::new());
             continue;
         }
 
         let Some(content) = strip_one_quote_level(line) else {
-            let raw_block = raw_block(region.join("\n"));
+            let raw_block = raw_block(
+                region
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            );
             return (vec![raw_block], end);
         };
         dequoted.push(content);
     }
 
     let Some(result) = build_native_quote_block(&dequoted) else {
-        let raw_block = raw_block(region.join("\n"));
+        let raw_block = raw_block(
+            region
+                .iter()
+                .map(|line| line.as_ref())
+                .collect::<Vec<_>>()
+                .join("\n"),
+        );
         return (vec![raw_block], end);
     };
 
     (result, end)
 }
 
-pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
-    if let Some(header_index) = lines.iter().position(|line| !line.trim().is_empty())
-        && let Some((variant, text)) = CalloutKind::parse_header_line(&lines[header_index])
+pub(crate) fn build_native_quote_block<S: AsRef<str>>(lines: &[S]) -> Option<Vec<BlockData>> {
+    if let Some(header_index) = lines
+        .iter()
+        .position(|line| !line.as_ref().trim().is_empty())
+        && let Some((variant, text)) = CalloutKind::parse_header_line(lines[header_index].as_ref())
     {
         return build_native_callout_block(&lines[header_index + 1..], variant, text);
     }
@@ -54,7 +72,7 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
     let mut saw_child = false;
 
     while index < lines.len() {
-        let line = &lines[index];
+        let line = lines[index].as_ref();
         if line.trim().is_empty() {
             pending_blank_lines += 1;
             index += 1;
@@ -70,7 +88,13 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
             if let Some(table) = parse_table_region(table_region) {
                 child_blocks.push(BlockData::table(table));
             } else {
-                child_blocks.push(raw_block(table_region.join("\n")));
+                child_blocks.push(raw_block(
+                    table_region
+                        .iter()
+                        .map(|line| line.as_ref())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                ));
             }
             saw_child = true;
             pending_blank_lines = 0;
@@ -111,7 +135,13 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
                 append_separator_children(&mut child_blocks, pending_blank_lines);
             }
             let html_end = collect_block_html_region(lines, index);
-            child_blocks.push(html_or_raw_block(lines[index..html_end].join("\n")));
+            child_blocks.push(html_or_raw_block(
+                lines[index..html_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
             saw_child = true;
             pending_blank_lines = 0;
             index = html_end;
@@ -123,7 +153,13 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
                 append_separator_children(&mut child_blocks, pending_blank_lines);
             }
             let math_end = collect_display_math_region(lines, index);
-            child_blocks.push(math_or_raw_block(lines[index..math_end].join("\n")));
+            child_blocks.push(math_or_raw_block(
+                lines[index..math_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
             saw_child = true;
             pending_blank_lines = 0;
             index = math_end;
@@ -134,7 +170,13 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
             if pending_blank_lines > 0 && (!own_text.is_empty() || !child_blocks.is_empty()) {
                 append_separator_children(&mut child_blocks, pending_blank_lines);
             }
-            child_blocks.push(raw_block(lines[index..unsupported_end].join("\n")));
+            child_blocks.push(raw_block(
+                lines[index..unsupported_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
             saw_child = true;
             pending_blank_lines = 0;
             index = unsupported_end;
@@ -213,10 +255,10 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
             continue;
         }
 
-        let mut paragraph_lines = vec![line.clone()];
+        let mut paragraph_lines = vec![line];
         index += 1;
         while index < lines.len() {
-            let next = &lines[index];
+            let next = lines[index].as_ref();
             if next.trim().is_empty()
                 || is_quote_start(next)
                 || parse_list_marker(next).is_some()
@@ -227,7 +269,7 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
                 break;
             }
 
-            paragraph_lines.push(next.clone());
+            paragraph_lines.push(next);
             index += 1;
         }
 
@@ -276,8 +318,8 @@ pub(crate) fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData
     Some(result)
 }
 
-pub(crate) fn build_native_callout_block(
-    lines: &[String],
+pub(crate) fn build_native_callout_block<S: AsRef<str>>(
+    lines: &[S],
     variant: CalloutKind,
     text: String,
 ) -> Option<Vec<BlockData>> {
@@ -286,7 +328,7 @@ pub(crate) fn build_native_callout_block(
     let mut pending_blank_lines = 0usize;
 
     while index < lines.len() {
-        let line = &lines[index];
+        let line = lines[index].as_ref();
         if line.trim().is_empty() {
             pending_blank_lines += 1;
             index += 1;
@@ -304,7 +346,13 @@ pub(crate) fn build_native_callout_block(
             if let Some(table) = parse_table_region(table_region) {
                 child_blocks.push(BlockData::table(table));
             } else {
-                child_blocks.push(raw_block(table_region.join("\n")));
+                child_blocks.push(raw_block(
+                    table_region
+                        .iter()
+                        .map(|line| line.as_ref())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                ));
             }
             index = table_end;
             continue;
@@ -330,20 +378,38 @@ pub(crate) fn build_native_callout_block(
 
         if is_block_html_start(line) {
             let html_end = collect_block_html_region(lines, index);
-            child_blocks.push(html_or_raw_block(lines[index..html_end].join("\n")));
+            child_blocks.push(html_or_raw_block(
+                lines[index..html_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
             index = html_end;
             continue;
         }
 
         if is_display_math_start(line) {
             let math_end = collect_display_math_region(lines, index);
-            child_blocks.push(math_or_raw_block(lines[index..math_end].join("\n")));
+            child_blocks.push(math_or_raw_block(
+                lines[index..math_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
             index = math_end;
             continue;
         }
 
         if let Some(unsupported_end) = collect_unsupported_quote_region(lines, index) {
-            child_blocks.push(raw_block(lines[index..unsupported_end].join("\n")));
+            child_blocks.push(raw_block(
+                lines[index..unsupported_end]
+                    .iter()
+                    .map(|line| line.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+            ));
             index = unsupported_end;
             continue;
         }
@@ -395,10 +461,10 @@ pub(crate) fn build_native_callout_block(
             continue;
         }
 
-        let mut paragraph_lines = vec![line.clone()];
+        let mut paragraph_lines = vec![line];
         index += 1;
         while index < lines.len() {
-            let next = &lines[index];
+            let next = lines[index].as_ref();
             if next.trim().is_empty()
                 || is_quote_start(next)
                 || parse_list_marker(next).is_some()
@@ -409,7 +475,7 @@ pub(crate) fn build_native_callout_block(
                 break;
             }
 
-            paragraph_lines.push(next.clone());
+            paragraph_lines.push(next);
             index += 1;
         }
 
