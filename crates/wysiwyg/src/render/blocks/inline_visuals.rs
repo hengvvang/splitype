@@ -403,19 +403,26 @@ impl Block {
         let runtime_for_fallback = runtime.clone();
         let runtime_for_loading = runtime.clone();
 
-        let image = match source {
-            ImageResolvedSource::Local(path) => img(path),
-            ImageResolvedSource::Remote(uri) => img(uri),
-        }
-        .max_w(max_width)
-        .max_h(max_height)
-        .object_fit(ObjectFit::Contain)
-        .with_fallback(move || {
-            render_image_placeholder(&runtime_for_fallback, max_width, &placeholder_theme)
-        })
-        .with_loading(move || {
-            render_loading_placeholder(&runtime_for_loading, max_width, &loading_theme)
-        });
+        // Missing local files render their placeholder immediately instead
+        // of firing a doomed async load that logs an asset error.
+        let image: AnyElement = if !source.is_loadable() {
+            render_image_placeholder(runtime, max_width, theme)
+        } else {
+            (match source {
+                ImageResolvedSource::Local(path) => img(path),
+                ImageResolvedSource::Remote(uri) => img(uri),
+            })
+            .max_w(max_width)
+            .max_h(max_height)
+            .object_fit(ObjectFit::Contain)
+            .with_fallback(move || {
+                render_image_placeholder(&runtime_for_fallback, max_width, &placeholder_theme)
+            })
+            .with_loading(move || {
+                render_loading_placeholder(&runtime_for_loading, max_width, &loading_theme)
+            })
+            .into_any_element()
+        };
 
         div()
             .flex()

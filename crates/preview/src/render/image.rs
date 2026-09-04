@@ -34,6 +34,11 @@ pub(crate) fn render_preview_image(
         (preview_centered_column_width(viewport_width, d) - d.block_padding_x * 2.0).max(160.0);
 
     let source = handle.resolved_source.clone();
+    // Missing local files render the placeholder immediately instead of
+    // firing a doomed async load that logs an asset error.
+    if !source.is_loadable() {
+        return render_preview_image_placeholder(&alt, &plain, base, theme);
+    }
     let image = match source {
         ImageResolvedSource::Local(path) => img(path),
         ImageResolvedSource::Remote(uri) => img(uri),

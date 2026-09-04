@@ -3,6 +3,8 @@
 //! state (details always follows its `open` attribute, images render
 //! directly, no hover or toggle handlers).
 
+use std::path::Path;
+
 use gpui::*;
 
 use crate::block::PreviewBlock;
@@ -59,11 +61,14 @@ pub(crate) fn render_preview_html_block(
         .flex()
         .flex_col()
         .gap(px(d.block_gap * 0.4))
-        .children(
-            html.nodes
-                .iter()
-                .map(|node| render_preview_html_node(node, theme, HtmlComputedStyle::root(theme))),
-        )
+        .children(html.nodes.iter().map(|node| {
+            render_preview_html_node(
+                node,
+                theme,
+                HtmlComputedStyle::root(theme),
+                block.base_dir.as_deref(),
+            )
+        }))
         .into_any_element()
 }
 
@@ -71,6 +76,7 @@ fn render_preview_html_node(
     node: &HtmlNode,
     theme: &Theme,
     inherited: HtmlComputedStyle,
+    base_dir: Option<&Path>,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
@@ -99,13 +105,21 @@ fn render_preview_html_node(
 
     let node_style = html_node_visual_style(node, inherited, theme);
     match node.tag_name.as_str() {
-        "strong" | "b" => {
-            render_preview_html_inline_container(node, theme, node_style, FontWeight::BOLD)
-        }
+        "strong" | "b" => render_preview_html_inline_container(
+            node,
+            theme,
+            node_style,
+            FontWeight::BOLD,
+            base_dir,
+        ),
         "em" | "i" | "span" | "abbr" | "dfn" | "time" | "u" | "ins" | "del" | "small" | "sup"
-        | "sub" | "a" | "mark" => {
-            render_preview_html_inline_container(node, theme, node_style, FontWeight::NORMAL)
-        }
+        | "sub" | "a" | "mark" => render_preview_html_inline_container(
+            node,
+            theme,
+            node_style,
+            FontWeight::NORMAL,
+            base_dir,
+        ),
         "code" | "kbd" => {
             let mut element = div()
                 .flex()
@@ -113,11 +127,9 @@ fn render_preview_html_node(
                 .px(px(4.0))
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -132,7 +144,7 @@ fn render_preview_html_node(
                     div().child("\u{201C}").into_any_element(),
                     div()
                         .children(node.children.iter().map(|child| {
-                            render_preview_html_node(child, theme, node_style.computed)
+                            render_preview_html_node(child, theme, node_style.computed, base_dir)
                         }))
                         .into_any_element(),
                     div().child("\u{201D}").into_any_element(),
@@ -161,11 +173,9 @@ fn render_preview_html_node(
                 .border_color(c.border_quote)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -185,7 +195,7 @@ fn render_preview_html_node(
             }
             element.into_any_element()
         }
-        "img" => render_preview_html_image(node, theme, node_style),
+        "img" => render_preview_html_image(node, theme, node_style, base_dir),
         "table" => {
             let mut element = div()
                 .w_full()
@@ -193,11 +203,9 @@ fn render_preview_html_node(
                 .border_color(theme.colors.table_border)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -210,11 +218,9 @@ fn render_preview_html_node(
                 .flex_col()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -226,11 +232,9 @@ fn render_preview_html_node(
                 .flex()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -251,28 +255,24 @@ fn render_preview_html_node(
                 } else {
                     FontWeight::NORMAL
                 })
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
             element.into_any_element()
         }
-        "details" => render_preview_html_details(node, theme, node_style),
+        "details" => render_preview_html_details(node, theme, node_style, base_dir),
         "summary" => {
             let mut element = div()
                 .w_full()
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -284,11 +284,9 @@ fn render_preview_html_node(
                 .text_center()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -299,11 +297,9 @@ fn render_preview_html_node(
                 .w_full()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(
-                    node.children
-                        .iter()
-                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                );
+                .children(node.children.iter().map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                }));
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -317,18 +313,18 @@ fn render_preview_html_inline_container(
     theme: &Theme,
     node_style: HtmlNodeVisualStyle,
     weight: FontWeight,
+    base_dir: Option<&Path>,
 ) -> AnyElement {
-    let mut element = div()
-        .flex()
-        .min_w(px(0.0))
-        .text_size(px(node_style.computed.font_size))
-        .text_color(node_style.computed.color)
-        .font_weight(weight)
-        .children(
-            node.children
-                .iter()
-                .map(|child| render_preview_html_node(child, theme, node_style.computed)),
-        );
+    let mut element =
+        div()
+            .flex()
+            .min_w(px(0.0))
+            .text_size(px(node_style.computed.font_size))
+            .text_color(node_style.computed.color)
+            .font_weight(weight)
+            .children(node.children.iter().map(|child| {
+                render_preview_html_node(child, theme, node_style.computed, base_dir)
+            }));
     if let Some(bg) = node_style.background {
         element = element
             .bg(bg)
@@ -355,6 +351,7 @@ fn render_preview_html_image(
     node: &HtmlNode,
     theme: &Theme,
     node_style: HtmlNodeVisualStyle,
+    base_dir: Option<&Path>,
 ) -> AnyElement {
     let parsed_image = parse_html_image_block(&node.raw_source);
     let src = parsed_image
@@ -364,22 +361,22 @@ fn render_preview_html_image(
         .filter(|src| !src.trim().is_empty());
 
     let Some(src) = src else {
-        let mut element = div()
-            .text_size(px(node_style.computed.font_size))
-            .text_color(node_style.computed.color)
-            .child(SharedString::from(node.raw_source.clone()));
-        if let Some(bg) = node_style.background {
-            element = element.bg(bg);
-        }
-        return element.into_any_element();
+        return render_preview_html_image_fallback(node, node_style);
     };
+
+    let source = resolve_image_source(src, base_dir);
+    // Missing local files fall back to the raw `<img>` source text instead
+    // of firing a doomed async load that logs an asset error.
+    if !source.is_loadable() {
+        return render_preview_html_image_fallback(node, node_style);
+    }
 
     let zoom = parsed_image
         .as_ref()
         .map(|image| image.zoom_factor())
         .unwrap_or(1.0);
 
-    let image = match resolve_image_source(src, None) {
+    let image = match source {
         markdown_parser::block::image::ImageResolvedSource::Local(path) => img(path),
         markdown_parser::block::image::ImageResolvedSource::Remote(uri) => img(uri),
     }
@@ -394,10 +391,26 @@ fn render_preview_html_image(
     }
 }
 
+/// Renders the raw `<img>` source text in place of an unloadable image.
+fn render_preview_html_image_fallback(
+    node: &HtmlNode,
+    node_style: HtmlNodeVisualStyle,
+) -> AnyElement {
+    let mut element = div()
+        .text_size(px(node_style.computed.font_size))
+        .text_color(node_style.computed.color)
+        .child(SharedString::from(node.raw_source.clone()));
+    if let Some(bg) = node_style.background {
+        element = element.bg(bg);
+    }
+    element.into_any_element()
+}
+
 fn render_preview_html_details(
     node: &HtmlNode,
     theme: &Theme,
     node_style: HtmlNodeVisualStyle,
+    base_dir: Option<&Path>,
 ) -> AnyElement {
     let is_open = attr_value(node, "open").is_some();
     let summary = node
@@ -409,27 +422,26 @@ fn render_preview_html_details(
         .iter()
         .filter(|child| child.tag_name != "summary");
 
-    let mut container =
-        div()
-            .w_full()
-            .rounded(px(theme.dimensions.code_block_radius))
-            .border(px(1.0))
-            .border_color(theme.colors.table_border)
-            .px(px(theme.dimensions.block_padding_x))
-            .py(px(theme.dimensions.block_padding_y))
-            .text_size(px(node_style.computed.font_size))
-            .text_color(node_style.computed.color)
-            .child(
-                div()
-                    .w_full()
-                    .flex()
-                    .gap(px(theme.dimensions.list_marker_gap))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .child(if is_open { "\u{25BE}" } else { "\u{25B8}" })
-                    .children(summary.into_iter().map(|summary| {
-                        render_preview_html_node(summary, theme, node_style.computed)
-                    })),
-            );
+    let mut container = div()
+        .w_full()
+        .rounded(px(theme.dimensions.code_block_radius))
+        .border(px(1.0))
+        .border_color(theme.colors.table_border)
+        .px(px(theme.dimensions.block_padding_x))
+        .py(px(theme.dimensions.block_padding_y))
+        .text_size(px(node_style.computed.font_size))
+        .text_color(node_style.computed.color)
+        .child(
+            div()
+                .w_full()
+                .flex()
+                .gap(px(theme.dimensions.list_marker_gap))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(if is_open { "\u{25BE}" } else { "\u{25B8}" })
+                .children(summary.into_iter().map(|summary| {
+                    render_preview_html_node(summary, theme, node_style.computed, base_dir)
+                })),
+        );
     if let Some(bg) = node_style.background {
         container = container.bg(bg);
     }
@@ -439,9 +451,9 @@ fn render_preview_html_details(
             div()
                 .w_full()
                 .pt(px(theme.dimensions.block_padding_y))
-                .children(
-                    body.map(|child| render_preview_html_node(child, theme, node_style.computed)),
-                ),
+                .children(body.map(|child| {
+                    render_preview_html_node(child, theme, node_style.computed, base_dir)
+                })),
         );
     }
 

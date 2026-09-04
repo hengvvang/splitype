@@ -56,6 +56,20 @@ pub enum ImageResolvedSource {
     Remote(String),
 }
 
+impl ImageResolvedSource {
+    /// Whether this source can be loaded right now: remote URLs are always
+    /// attempted; local paths only when the file currently exists. Renderers
+    /// gate `img(...)` element creation on this so missing files show their
+    /// placeholder immediately instead of firing a doomed async load that
+    /// logs one asset error per missing file. Read-only stat, no side effects.
+    pub fn is_loadable(&self) -> bool {
+        match self {
+            ImageResolvedSource::Remote(_) => true,
+            ImageResolvedSource::Local(path) => path.is_file(),
+        }
+    }
+}
+
 /// Cached standalone image presentation state for a block.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImageHandle {
