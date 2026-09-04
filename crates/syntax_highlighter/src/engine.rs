@@ -106,8 +106,12 @@ impl HighlightMap {
     }
 
     /// Records an edit into the map's internal state. `rope` is the text
-    /// before the edit; `range` is replaced by `inserted`. Cheap: O(edit) +
-    /// O(layers) + O(spans intersecting the edit).
+    /// before the edit; `range` is replaced by `inserted`. Cheap: O(edit)
+    /// tree edits + O(layers). The span list is deliberately left alone:
+    /// it is rebuilt by the next [`HighlightMap::refresh`], and every
+    /// consumer gates on the refresh version (stale-while-revalidate), so
+    /// maintaining offset-correct spans between refreshes would be pure
+    /// waste on the keystroke path.
     pub fn apply_edit(&mut self, rope: &Rope, range: Range<usize>, inserted: &str) {
         self.version = self.version.wrapping_add(1);
         let start = range.start.min(rope.len());
@@ -155,23 +159,6 @@ impl HighlightMap {
             (Some(a), Some(b)) => Some(a.start.min(b.start)..a.end.max(b.end)),
             (a, b) => a.or(b),
         };
-
-        // Spans: drop those intersecting the edit, shift those after it.
-        // Until the next refresh the edited region renders unhighlighted
-        // (stale-while-revalidate). The spans are sorted, so binary search
-        // locates the affected window; the untouched prefix is bulk-copied.
-        let cut_start = self.spans.partition_point(|span| span.range.end <= start);
-        let cut_end = self.spans.partition_point(|span| span.range.start < end);
-        let mut spans: Vec<CodeHighlightSpan> =
-            Vec::with_capacity(cut_start + (self.spans.len() - cut_end));
-        spans.extend_from_slice(&self.spans[..cut_start]);
-        for span in &self.spans[cut_end..] {
-            spans.push(CodeHighlightSpan {
-                range: shift_usize(span.range.start, delta)..shift_usize(span.range.end, delta),
-                class: span.class,
-            });
-        }
-        self.spans = Arc::from(spans);
 
         // Merge the dirty region.
         let dirty = start..start + inserted.len();
@@ -803,5 +790,43 @@ mod tests {
         let full_rebuild = start.elapsed();
 
         eprintln!("incremental 200 edits: {incremental:?}; full rebuild 200x: {full_rebuild:?}");
+    }
+
+    /// Measures the per-edit cost of [`HighlightMap::apply_edit`] alone
+    /// (the spans rebuild) on a markdown document, at several sizes. Run
+    /// with `cargo test -p syntax_highlighter --release -- --ignored
+    /// spans_apply_edit_benchmark`.
+    #[test]
+    #[ignore = "perf benchmark"]
+    fn spans_apply_edit_benchmark() {
+        use std::time::Instant;
+
+        for size_kb in [64usize, 256, 1024] {
+            let mut text = String::new();
+            while text.len() < size_kb * 1024 {
+                text.push_str(
+                    "# Heading\n\nSome **bold** and `code` text.\n\n- item one\n- item two\n\n",
+                );
+            }
+            text.truncate(size_kb * 1024);
+            let map = HighlightMap::new(CodeLanguageKey::Markdown, &text).expect("map");
+            let mut rope = Rope::new(&text);
+            let edits = 120;
+            let start = Instant::now();
+            for i in 0..edits {
+                let at = rope.len() / 2;
+                let old_rope = rope.clone();
+                let inserted = if i % 2 == 0 { "x" } else { "y\n" };
+                let mut map = map.clone();
+                map.apply_edit(&old_rope, at..at, inserted);
+                rope = rope.edit(at..at, inserted);
+            }
+            let elapsed = start.elapsed();
+            eprintln!(
+                "apply_edit[{size_kb}KB]: {edits} edits = {elapsed:?} ({}us/edit, {} spans)",
+                elapsed.as_micros() / edits as u128,
+                map.spans().len()
+            );
+        }
     }
 }
