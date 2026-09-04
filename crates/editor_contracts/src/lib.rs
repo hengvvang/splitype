@@ -13,14 +13,17 @@
 pub mod document;
 pub mod edit;
 pub mod export;
+pub mod highlight;
 pub mod outline;
 pub mod pane;
 pub mod panel;
 pub mod search;
+pub mod text;
 
 pub use document::{DocumentHost, DocumentId, DocumentSnapshot, TabKind};
 pub use edit::{CursorHint, EditTransaction};
 pub use export::ExportFormat;
+pub use highlight::{CodeHighlightClass, CodeHighlightSpan, HighlightSnapshot};
 pub use outline::{OutlineHost, OutlineHudState, OutlineNode};
 pub use pane::{
     PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost, PaneRegistry,
@@ -31,3 +34,4 @@ pub use search::{
     SearchActiveField, SearchHost, SearchIme, SearchInputSnapshot, SearchMatch, SearchPanelState,
     SearchQuery, SearchScope, SearchStateView, SearchTextInput, compute_preserve_case_replacement,
 };
+pub use text::Rope;

@@ -94,6 +94,13 @@ impl Rope {
         self.total_bytes == 0
     }
 
+    /// Whether the text ends with a newline (which, per the rope's line
+    /// convention, does not start a trailing line).
+    #[inline]
+    pub fn ends_with_newline(&self) -> bool {
+        self.ends_with_newline
+    }
+
     #[inline]
     pub fn line_count(&self) -> usize {
         let lines = self.line_offsets.last().copied().unwrap_or(0) as usize;

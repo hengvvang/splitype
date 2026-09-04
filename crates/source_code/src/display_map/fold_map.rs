@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::text::Rope;
+use crate::Rope;
 
 /// A fold region from `start_row` (visible header) to `end_row` (last
 /// hidden row), inclusive.

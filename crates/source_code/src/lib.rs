@@ -14,9 +14,9 @@ pub mod selection;
 pub mod settings;
 pub mod state;
 pub mod syntax;
-pub mod text;
 
 pub use builder::*;
+pub use editor_contracts::text::Rope;
 pub use settings::SourceCodeSettings;
 
 #[cfg(test)]

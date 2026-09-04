@@ -134,10 +134,6 @@ mod tests {
 
         fn sync_document(&mut self, _document: &DocumentSnapshot, _cx: &mut App) {}
 
-        fn document_text(&self, _cx: &App) -> Option<String> {
-            None
-        }
-
         fn render(
             &mut self,
             _ctx: &PaneRenderContext,

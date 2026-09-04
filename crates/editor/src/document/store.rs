@@ -189,7 +189,7 @@ impl DocumentStore {
                 let buffer = buffer.read(cx);
                 PersistedDocument {
                     id: buffer.id,
-                    text: buffer.text.clone(),
+                    text: buffer.snapshot().text.to_string(),
                     path: buffer.path.clone(),
                     dirty: buffer.dirty,
                 }

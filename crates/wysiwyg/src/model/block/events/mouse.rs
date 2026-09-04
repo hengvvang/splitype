@@ -51,7 +51,9 @@ impl Block {
         let offset = self.index_for_mouse_position(event.position);
 
         // Thematic break: clicking on the divider places cursor at the end to facilitate editing.
-        if self.kind() == markdown_parser::parse::BlockKind::ThematicBreak && (!was_focused || offset == 0) {
+        if self.kind() == markdown_parser::parse::BlockKind::ThematicBreak
+            && (!was_focused || offset == 0)
+        {
             self.is_selecting = false;
             let end_offset = self.display_text().len();
             self.move_to(end_offset, cx);

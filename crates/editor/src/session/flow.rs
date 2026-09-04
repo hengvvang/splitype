@@ -37,7 +37,7 @@ impl Editor {
     pub fn active_document_text(&self, cx: &App) -> String {
         self.session
             .active_tab()
-            .map(|tab| tab.buffer.read(cx).text.clone())
+            .map(|tab| tab.buffer.read(cx).snapshot().text.to_string())
             .unwrap_or_default()
     }
 
@@ -247,7 +247,7 @@ impl Editor {
             return true;
         }
         if let Some(path) = path {
-            let text = buffer.read(cx).text.clone();
+            let text = buffer.read(cx).snapshot().text.to_string();
             if std::fs::write(&path, text).is_ok() {
                 buffer.update(cx, |buffer, cx| buffer.mark_saved(path, cx));
                 if let Some(tab) = self.session.tab_mut(index) {

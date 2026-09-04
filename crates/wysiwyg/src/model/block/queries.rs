@@ -107,7 +107,9 @@ impl Block {
         if let Some(projection) = self.projection.as_ref() {
             // Prefer matching both id and occurrence_index
             for span in &projection.footnote_spans {
-                if span.footnote.id == footnote_id && span.footnote.occurrence_index == occurrence_index {
+                if span.footnote.id == footnote_id
+                    && span.footnote.occurrence_index == occurrence_index
+                {
                     let start = span.display_range.start + 2; // skip "[^"
                     let end = span.display_range.end.saturating_sub(1); // skip "]"
                     if start <= end {

@@ -63,12 +63,6 @@ impl PaneView for SourceCodeState {
         self.latest_snapshot = Some(document.clone());
     }
 
-    fn document_text(&self, cx: &App) -> Option<String> {
-        self.controller
-            .as_ref()
-            .map(|controller| controller.read(cx).document_text())
-    }
-
     fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
         self.controller
             .as_ref()

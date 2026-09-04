@@ -72,12 +72,6 @@ impl PaneView for PreviewState {
         self.synced_revision = Some(revision);
     }
 
-    fn document_text(&self, _cx: &App) -> Option<String> {
-        // The preview is read-only: it never produces document text for the
-        // host to commit.
-        None
-    }
-
     fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
         crate::outline::extract_preview_headings(&self.blocks)
     }

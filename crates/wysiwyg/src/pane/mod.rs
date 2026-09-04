@@ -41,12 +41,6 @@ impl PaneView for WysiwygPaneState {
         self.latest_snapshot = Some(document.clone());
     }
 
-    fn document_text(&self, cx: &App) -> Option<String> {
-        self.controller
-            .as_ref()
-            .and_then(|c| c.read(cx).document_text(cx))
-    }
-
     fn focus_handle(&self, cx: &App) -> Option<FocusHandle> {
         self.controller
             .as_ref()

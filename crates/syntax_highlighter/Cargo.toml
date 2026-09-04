@@ -30,6 +30,7 @@ code-highlight-config = [
 workspace = true
 
 [dependencies]
+editor_contracts = { path = "../editor_contracts" }
 gpui = { workspace = true }
 theme = { path = "../theme" }
 markdown_parser = { path = "../markdown_parser" }
@@ -41,7 +42,6 @@ directories = "6"
 anyhow = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-html = { workspace = true, optional = true }
-tree-sitter-highlight = "0.26.9"
 
 # Code-block syntax highlighting languages
 tree-sitter-bash = { version = "0.25", optional = true }

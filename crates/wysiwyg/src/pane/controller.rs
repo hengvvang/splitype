@@ -85,6 +85,9 @@ pub struct WysiwygDocumentController {
     /// typing-run continuations (single-character insertions at the same
     /// position) for undo grouping.
     last_committed_text: Option<String>,
+    /// Byte length of the last snapshot synced from the buffer; the
+    /// full-text replacement commit uses it as the replaced range.
+    last_synced_len: usize,
     /// Insert position of the previous typing commit, when it was a
     /// single-character insertion.
     last_typing_insert_at: Option<usize>,
@@ -113,11 +116,13 @@ impl WysiwygDocumentController {
             footnote_tooltip: None,
             context_menu: None,
             last_committed_text: None,
+            last_synced_len: 0,
             last_typing_insert_at: None,
             typing_run_start_hint: None,
             last_cursor_hint: None,
         };
         controller.rebuild_from_markdown(&document.text, document.revision, cx);
+        controller.last_synced_len = document.text.len();
         controller
     }
 
@@ -181,6 +186,7 @@ impl WysiwygDocumentController {
         self.synced_revision = Some(revision);
         self.pending_edit = false;
         self.last_committed_text = None;
+        self.last_synced_len = text.len();
         self.last_typing_insert_at = None;
         self.typing_run_start_hint = None;
         self.last_cursor_hint = None;
@@ -198,7 +204,9 @@ impl WysiwygDocumentController {
         };
         let mut tables_to_install = Vec::new();
         for entry in doc.blocks() {
-            entry.entity.update(cx, |block, _cx| block.clear_table_grid());
+            entry
+                .entity
+                .update(cx, |block, _cx| block.clear_table_grid());
             let block = entry.entity.read(cx);
             if block.kind() == BlockKind::Table
                 && let Some(table) = block.data.table.clone()
@@ -249,7 +257,8 @@ impl WysiwygDocumentController {
                                 row: body_row_index + 1,
                                 column,
                             };
-                            let cell = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
+                            let cell =
+                                Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
                             cell.update(cx, |b, _cx| b.set_table_cell_mode(position, alignment));
                             bindings.push(TableCellBinding {
                                 table_block: table_block.clone(),
@@ -277,8 +286,9 @@ impl WysiwygDocumentController {
         let Some(document) = &self.document else {
             return;
         };
-        self.references.footnotes =
-            Arc::new(crate::model::references::rebuild_footnote_registry(document, cx));
+        self.references.footnotes = Arc::new(crate::model::references::rebuild_footnote_registry(
+            document, cx,
+        ));
         for entry in document.blocks() {
             crate::model::references::sync_reference_context_for_block(
                 &entry.entity,
@@ -658,7 +668,11 @@ impl WysiwygDocumentController {
                     cx.notify();
                 }
             }
-            BlockEvent::RequestTableAxisPreview { kind, index, hovered } => {
+            BlockEvent::RequestTableAxisPreview {
+                kind,
+                index,
+                hovered,
+            } => {
                 let target_entity = block.entity_id();
                 if let Some(doc) = &self.document {
                     for entry in doc.blocks() {
@@ -748,7 +762,11 @@ impl WysiwygDocumentController {
                             .iter()
                             .find(|e| e.entity.read(cx).data.id == binding.definition_block_id)?;
                         let plain = def_entry.entity.read(cx).data.text.plain_text();
-                        let text = markdown_parser::block::footnote::split_footnote_definition_text(&plain).1;
+                        let text =
+                            markdown_parser::block::footnote::split_footnote_definition_text(
+                                &plain,
+                            )
+                            .1;
                         Some(SharedString::from(text.trim().to_string()))
                     });
                     if let Some(content) = resolved_content {
@@ -895,7 +913,12 @@ impl WysiwygDocumentController {
             cx,
             BlockData::new(BlockKind::Blockquote, BlockText::plain("[!NOTE]\n")),
         );
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -918,7 +941,12 @@ impl WysiwygDocumentController {
                 BlockText::plain("graph TD\n    A --> B"),
             ),
         );
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -931,8 +959,12 @@ impl WysiwygDocumentController {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
                 crate::table::columns::insert_table_column_at(table, index);
@@ -950,8 +982,12 @@ impl WysiwygDocumentController {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
                 crate::table::columns::duplicate_table_column(table, index);
@@ -970,8 +1006,12 @@ impl WysiwygDocumentController {
         alignment: TableColumnAlignment,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
                 crate::table::columns::set_table_column_alignment(table, index, alignment);
@@ -989,8 +1029,12 @@ impl WysiwygDocumentController {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         let mut deleted = false;
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
@@ -1011,8 +1055,12 @@ impl WysiwygDocumentController {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
                 crate::table::rows::insert_table_row_at(table, index);
@@ -1030,8 +1078,12 @@ impl WysiwygDocumentController {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
                 crate::table::rows::duplicate_table_row(table, index);
@@ -1049,8 +1101,12 @@ impl WysiwygDocumentController {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         let mut deleted = false;
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
@@ -1127,8 +1183,12 @@ impl WysiwygDocumentController {
         target_cols: usize,
         cx: &mut Context<Self>,
     ) {
-        let Some(doc) = &self.document else { return; };
-        let Some(target) = doc.block_entity_by_id(table_block_id) else { return; };
+        let Some(doc) = &self.document else {
+            return;
+        };
+        let Some(target) = doc.block_entity_by_id(table_block_id) else {
+            return;
+        };
         target.update(cx, |b, _cx| {
             if let Some(table) = b.data.table.as_mut() {
                 table.resize_shape(target_rows, target_cols);
@@ -1209,7 +1269,9 @@ impl WysiwygDocumentController {
                     .and_then(|e| doc.find_block_location(e.entity_id()))
             })
             .or_else(|| {
-                doc.blocks().last().and_then(|b| doc.find_block_location(b.entity.entity_id()))
+                doc.blocks()
+                    .last()
+                    .and_then(|b| doc.find_block_location(b.entity.entity_id()))
             });
         let Some(location) = location else {
             return;
@@ -1229,7 +1291,12 @@ impl WysiwygDocumentController {
         let mut data = BlockData::new(BlockKind::Table, BlockText::plain(""));
         data.table = Some(table_data);
         let new_block = Self::new_block(cx, data);
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.rebuild_table_grids(cx);
         self.active_entity = Some(new_block);
         self.pending_edit = true;
@@ -1373,8 +1440,16 @@ impl WysiwygDocumentController {
                 BlockText::plain("Col 3"),
             ],
             rows: vec![
-                vec![BlockText::plain(""), BlockText::plain(""), BlockText::plain("")],
-                vec![BlockText::plain(""), BlockText::plain(""), BlockText::plain("")],
+                vec![
+                    BlockText::plain(""),
+                    BlockText::plain(""),
+                    BlockText::plain(""),
+                ],
+                vec![
+                    BlockText::plain(""),
+                    BlockText::plain(""),
+                    BlockText::plain(""),
+                ],
             ],
             alignments: vec![
                 TableColumnAlignment::Default,
@@ -1385,7 +1460,12 @@ impl WysiwygDocumentController {
         let mut data = BlockData::new(BlockKind::Table, BlockText::plain(""));
         data.table = Some(table_data);
         let new_block = Self::new_block(cx, data);
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.rebuild_table_grids(cx);
         self.active_entity = Some(new_block);
         self.pending_edit = true;
@@ -1402,9 +1482,17 @@ impl WysiwygDocumentController {
         };
         let new_block = Self::new_block(
             cx,
-            BlockData::new(BlockKind::CodeBlock { language: None }, BlockText::plain("")),
+            BlockData::new(
+                BlockKind::CodeBlock { language: None },
+                BlockText::plain(""),
+            ),
         );
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -1422,7 +1510,12 @@ impl WysiwygDocumentController {
             cx,
             BlockData::new(BlockKind::MathBlock, BlockText::plain("")),
         );
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -1444,7 +1537,12 @@ impl WysiwygDocumentController {
                 BlockText::plain(format!("{fn_id}: ")),
             ),
         );
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.sync_reference_context(cx);
         self.active_entity = Some(new_block);
         self.pending_edit = true;
@@ -1463,7 +1561,12 @@ impl WysiwygDocumentController {
             cx,
             BlockData::new(BlockKind::ThematicBreak, BlockText::plain("---")),
         );
-        doc.insert_blocks_at(location.parent, location.index + 1, vec![new_block.clone()], cx);
+        doc.insert_blocks_at(
+            location.parent,
+            location.index + 1,
+            vec![new_block.clone()],
+            cx,
+        );
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -1700,8 +1803,17 @@ impl WysiwygDocumentController {
 
         self.last_cursor_hint = Some(cursor_after);
         self.last_committed_text = Some(text.clone());
+        // The wysiwyg reserializes the whole document; report the edit as
+        // one full-text replacement (the buffer applies it as a degenerate
+        // whole-range edit).
+        let old_len = self
+            .last_committed_text
+            .as_ref()
+            .map(|text| text.len())
+            .unwrap_or(self.last_synced_len);
         Some(EditTransaction::new(
-            text,
+            0..old_len,
+            Arc::from(text),
             merge,
             cursor_before,
             cursor_after,
@@ -2098,9 +2210,12 @@ impl WysiwygDocumentController {
                         .track_scroll(ctx.scroll)
                         .p(px(d.editor_padding))
                         .pb(px(d.editor_padding + 200.0))
-                        .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
-                            this.clear_all_table_axis_selections(cx);
-                        }))
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(|this, _event, _window, cx| {
+                                this.clear_all_table_axis_selections(cx);
+                            }),
+                        )
                         .children(row_elements),
                 )
                 .child(outline_hud)

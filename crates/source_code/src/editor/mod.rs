@@ -21,6 +21,7 @@ pub mod mouse;
 pub mod movement;
 pub mod render;
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
@@ -28,14 +29,16 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use config::settings::PluginSettings;
-use editor_contracts::{CursorHint, DocumentSnapshot, EditTransaction, OutlineNode, PaneHost};
+use editor_contracts::{
+    CursorHint, DocumentSnapshot, EditTransaction, HighlightSnapshot, OutlineNode, PaneHost,
+};
 use gpui::*;
-use syntax_highlighter::highlight::{CodeHighlightSpan, highlight_code_block};
+use syntax_highlighter::highlight::CodeHighlightSpan;
 
+use crate::Rope;
 use crate::display_map::{DisplaySnapshot, FoldMap, FoldRange, RowIndex, TabMap, WrapState};
 use crate::selection::Selections;
 use crate::settings::SourceCodeSettings;
-use crate::text::Rope;
 
 /// A continuous typing run, used to group consecutive insertions/deletions
 /// into one buffer-level undo transaction.
@@ -47,17 +50,18 @@ pub struct TypingRun {
     pub start_hint: CursorHint,
 }
 
-/// Background syntax-highlighting pipeline: recomputes Markdown spans and
-/// outline headings after an idle debounce, keeping the previous result
-/// visible while typing (stale-while-revalidate).
+/// Per-line span index keyed by the highlight version it was built from.
+type SpanIndexCache = (u64, Arc<Vec<Vec<CodeHighlightSpan>>>);
+
+/// Background outline/folds pipeline: recomputes outline headings and
+/// foldable regions after an idle debounce, keeping the previous result
+/// visible while typing (stale-while-revalidate). Highlight spans arrive
+/// through the document snapshot instead — the buffer's engine owns them.
 struct HighlightState {
-    /// Highlight spans bucketed per buffer line (doc coordinates
-    /// preserved), so a visual row looks up its spans in O(1).
-    spans_by_line: Option<Arc<Vec<Vec<CodeHighlightSpan>>>>,
-    /// Outline headings computed alongside the last highlight run.
+    /// Outline headings computed alongside the last run.
     outline: Option<Arc<Vec<OutlineNode>>>,
     /// Foldable regions (fences and heading sections) from the last
-    /// highlight run, sorted by header row.
+    /// run, sorted by header row.
     folds: Option<Arc<Vec<FoldRange>>>,
     /// Bumped on every schedule; guards stale completions.
     generation: u64,
@@ -68,7 +72,6 @@ struct HighlightState {
 impl HighlightState {
     fn new() -> Self {
         Self {
-            spans_by_line: None,
             outline: None,
             folds: None,
             generation: 0,
@@ -93,6 +96,15 @@ pub struct SourceCodeEditor {
     synced_revision: Option<u64>,
     /// A local edit exists that the host's next snapshot has not echoed yet.
     pending_edit: bool,
+    /// Replacements of the local edits awaiting commit, in application
+    /// (back-to-front) order with each range in the coordinates preceding
+    /// that edit.
+    commit_edits: Vec<(Range<usize>, Arc<str>)>,
+    /// Latest highlights from the document snapshot; may lag a few
+    /// revisions (stale-while-revalidate).
+    highlights: Option<Arc<HighlightSnapshot>>,
+    /// Per-line span index built from `highlights`, keyed by its version.
+    spans_by_line_cache: RefCell<Option<SpanIndexCache>>,
 
     // ── Editing state ────────────────────────────────────────────────────
     selections: Selections,
@@ -157,6 +169,9 @@ impl SourceCodeEditor {
             text_version: 0,
             synced_revision: None,
             pending_edit: false,
+            commit_edits: Vec::new(),
+            highlights: None,
+            spans_by_line_cache: RefCell::new(None),
             selections: Selections::new(0),
             marked_range: None,
             is_dragging: false,
@@ -182,19 +197,22 @@ impl SourceCodeEditor {
             frame_rows: Vec::new(),
             deferred_commit: None,
         };
-        editor.apply_document_text(&document.text, document.revision, cx);
+        editor.apply_document(document.rope.clone(), document.revision, cx);
+        editor.highlights = document.highlights.clone();
         editor
     }
 
     // ── Document synchronization ─────────────────────────────────────────
 
-    /// Replaces the local text with a document snapshot, rebuilding derived
+    /// Replaces the local text with the document rope, rebuilding derived
     /// state. Folds are pruned to the new line count.
-    fn apply_document_text(&mut self, text: &str, revision: u64, cx: &mut Context<Self>) {
-        self.text = Rope::new(&normalize_line_endings(text));
+    fn apply_document(&mut self, rope: Arc<Rope>, revision: u64, cx: &mut Context<Self>) {
+        self.text = rope.as_ref().clone();
         self.selections.clamp_and_sort(self.text.len());
         self.edit_span = None;
         self.edit_inserted = 0;
+        self.commit_edits.clear();
+        *self.spans_by_line_cache.borrow_mut() = None;
         self.after_text_change();
         self.schedule_highlight(cx);
         self.synced_revision = Some(revision);
@@ -214,6 +232,14 @@ impl SourceCodeEditor {
             self.settings = settings;
             self.invalidate_wrap();
         }
+        // Highlights track the buffer's engine; adopt every broadcast.
+        if let Some(highlights) = &document.highlights {
+            if self.highlights.as_ref().map(|h| h.version) != Some(highlights.version) {
+                self.highlights = Some(highlights.clone());
+                *self.spans_by_line_cache.borrow_mut() = None;
+                cx.notify();
+            }
+        }
         if self.pending_edit {
             self.synced_revision = Some(document.revision);
             self.pending_edit = false;
@@ -227,7 +253,7 @@ impl SourceCodeEditor {
             return;
         }
         let had_text = !self.text.is_empty();
-        self.apply_document_text(&document.text, document.revision, cx);
+        self.apply_document(document.rope.clone(), document.revision, cx);
         if let Some(hint) = document.restore_cursor {
             self.restore_cursor_hint(hint);
         }
@@ -247,12 +273,11 @@ impl SourceCodeEditor {
     }
 
     pub fn cursor_hint(&self) -> CursorHint {
-        CursorHint::from_offset(&self.text.materialize(), self.cursor())
+        CursorHint::from_rope(&self.text, self.cursor())
     }
 
     pub fn restore_cursor_hint(&mut self, hint: CursorHint) {
-        let text = self.text.materialize();
-        let offset = hint.to_offset(&text);
+        let offset = hint.to_rope_offset(&self.text);
         self.selections.set_single_point(offset);
     }
 
@@ -323,7 +348,8 @@ impl SourceCodeEditor {
     /// must follow up with `after_text_change` + `schedule_highlight` once
     /// per logical edit. Edits are applied back-to-front, so each edit's
     /// coordinates are also original-text coordinates; the accumulated
-    /// span drives incremental wrap/row-index patching.
+    /// span drives incremental wrap/row-index patching, and the same
+    /// replacements are handed to the buffer on commit.
     pub(crate) fn replace_local(&mut self, range: Range<usize>, replacement: &str) {
         let (start, end) = (
             range.start.min(self.text.len()),
@@ -337,6 +363,7 @@ impl SourceCodeEditor {
             }
         }
         self.edit_inserted += replacement.len();
+        self.commit_edits.push((start..end, Arc::from(replacement)));
         self.text = self.text.edit(start..end, replacement);
     }
 
@@ -431,10 +458,13 @@ impl SourceCodeEditor {
         cursor_before: CursorHint,
     ) -> Option<EditTransaction> {
         self.pending_edit = true;
-        let text = self.text.materialize();
-        let cursor_after = CursorHint::from_offset(&text, self.cursor());
-        Some(EditTransaction::new(
-            text,
+        let cursor_after = CursorHint::from_rope(&self.text, self.cursor());
+        if self.commit_edits.is_empty() {
+            return None;
+        }
+        let edits = std::mem::take(&mut self.commit_edits);
+        Some(EditTransaction::from_edits(
+            edits,
             merge,
             cursor_before,
             cursor_after,
@@ -734,7 +764,7 @@ impl SourceCodeEditor {
 
     // ── Highlight pipeline ────────────────────────────────────────────────
 
-    /// Schedules a background highlight refresh after an idle debounce.
+    /// Schedules a background outline/folds refresh after an idle debounce.
     /// The current (possibly stale) result keeps rendering while the task
     /// runs; completions whose generation moved are discarded and the
     /// debounce restarts.
@@ -756,22 +786,17 @@ impl SourceCodeEditor {
                 let computed = cx
                     .background_executor()
                     .spawn(async move {
-                        let highlight = highlight_code_block(Some("markdown"), &text);
                         let outline = crate::outline::extract_outline_headings(&text);
                         let rope = Rope::new(&text);
                         let mut folds = FoldMap::discover_markdown_folds(&rope);
                         folds.sort_by_key(|range| range.start_row);
-                        let spans_by_line = highlight
-                            .as_ref()
-                            .map(|result| index_spans_by_line(&rope, &result.spans));
-                        (spans_by_line, outline, folds)
+                        (outline, folds)
                     })
                     .await;
                 let Ok(done) = entity.update(cx, |editor, cx| {
                     if editor.highlight.generation == generation {
-                        editor.highlight.spans_by_line = computed.0.map(Arc::new);
-                        editor.highlight.outline = Some(Arc::new(computed.1));
-                        editor.highlight.folds = Some(Arc::new(computed.2));
+                        editor.highlight.outline = Some(Arc::new(computed.0));
+                        editor.highlight.folds = Some(Arc::new(computed.1));
                         editor.highlight.task = None;
                         cx.notify();
                         true
@@ -789,10 +814,19 @@ impl SourceCodeEditor {
         self.highlight.task = Some(task);
     }
 
-    /// Highlight spans bucketed per buffer line, from the last background
-    /// refresh (stale-while-typing, like Zed's async highlighting).
+    /// Highlight spans bucketed per buffer line, from the document's
+    /// highlight engine (stale-while-typing, like Zed's async
+    /// highlighting). The per-line index is cached by highlight version.
     pub fn highlight_spans_by_line(&self) -> Option<Arc<Vec<Vec<CodeHighlightSpan>>>> {
-        self.highlight.spans_by_line.clone()
+        let highlights = self.highlights.as_ref()?;
+        if let Some((version, cached)) = self.spans_by_line_cache.borrow().as_ref() {
+            if *version == highlights.version {
+                return Some(cached.clone());
+            }
+        }
+        let by_line = Arc::new(index_spans_by_line(&self.text, &highlights.spans));
+        *self.spans_by_line_cache.borrow_mut() = Some((highlights.version, by_line.clone()));
+        Some(by_line)
     }
 
     /// Cached outline headings from the last background refresh. Empty
@@ -846,16 +880,6 @@ impl SourceCodeEditor {
         let result = crate::syntax::find_matching_bracket(&text, cursor);
         self.bracket_cache = Some((self.text_version, cursor, result));
         result
-    }
-}
-
-/// Normalizes CRLF / CR line endings to LF so pane text always matches what
-/// the shared buffer stores.
-pub fn normalize_line_endings(text: &str) -> String {
-    if text.contains('\r') {
-        text.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        text.to_string()
     }
 }
 

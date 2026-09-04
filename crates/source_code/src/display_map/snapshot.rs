@@ -7,11 +7,11 @@
 
 use std::sync::Arc;
 
+use crate::Rope;
 use crate::display_map::display_point::DisplayPoint;
 use crate::display_map::fold_map::FoldMap;
 use crate::display_map::tab_map::TabMap;
 use crate::display_map::wrap_map::WrapState;
-use crate::text::Rope;
 
 /// Immutable, frame-stable snapshot of all display transformation state.
 #[derive(Clone, Debug)]

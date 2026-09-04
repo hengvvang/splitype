@@ -1,28 +1,39 @@
 //! The authoritative in-memory state of one open document.
 
+use std::cell::RefCell;
+use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use gpui::Context;
+use gpui::{Context, Task};
 
-use editor_contracts::{CursorHint, DocumentId, DocumentSnapshot, EditTransaction};
+use editor_contracts::{
+    CursorHint, DocumentId, DocumentSnapshot, EditTransaction, HighlightSnapshot, Rope,
+};
+use syntax_highlighter::engine::HighlightMap;
+use syntax_highlighter::highlight::CodeLanguageKey;
 
 /// Maximum retained undo steps per document.
 pub const MAX_UNDO_DEPTH: usize = 100;
 
-/// One undoable document state transition.
-///
-/// `before` / `after` hold full-text snapshots of the document around one
-/// user-level transaction (a typing run, a paste, a cut, ...). Full-text
-/// snapshots keep the model simple: Markdown documents are small, the depth
-/// is bounded by [`MAX_UNDO_DEPTH`], and panes reserialize the whole
-/// document on every commit anyway.
+/// One replace operation in pre-edit coordinates: `range` was replaced by
+/// `new` (and `old` is the replaced text, restored by undo).
+#[derive(Clone, Debug)]
+struct Operation {
+    range: Range<usize>,
+    old: Arc<str>,
+    new: Arc<str>,
+}
+
+/// One undoable document state transition: a run of operations applied in
+/// order (a typing run, a paste, a cut, ...). Undo replays them backwards,
+/// redo forwards, so only the edited bytes are ever stored — never a
+/// full-text snapshot.
 #[derive(Clone, Debug)]
 pub struct DocumentEditEntry {
-    pub before: Arc<str>,
-    pub after: Arc<str>,
-    pub cursor_before: CursorHint,
-    pub cursor_after: CursorHint,
+    operations: Vec<Operation>,
+    cursor_before: CursorHint,
+    cursor_after: CursorHint,
 }
 
 /// The process-level single source of truth for one document.
@@ -36,13 +47,17 @@ pub struct DocumentEditEntry {
 /// The buffer also owns the document's undo history: history is an asset of
 /// the document, not of any pane view, so it survives pane-kind switches and
 /// is shared by every editor showing this document.
+///
+/// The text is a persistent chunk rope: edits rebuild only the affected
+/// chunks and share the rest, so per-keystroke cost is O(edit) rather than
+/// O(document).
 pub struct DocumentBuffer {
     pub id: DocumentId,
-    /// Authoritative Markdown text.
-    pub text: String,
-    /// Cheap-to-clone mirror of `text`, so `snapshot()` stays O(1) even
-    /// though it is built per pane per frame.
-    text_arc: Arc<str>,
+    /// Authoritative text as a persistent rope.
+    text: Arc<Rope>,
+    /// Lazily materialized full-text mirror, cached per revision so
+    /// `snapshot()` stays O(1) even though it is built per pane per frame.
+    materialized: RefCell<Option<(u64, Arc<str>)>>,
     /// Bumped whenever the document text changes.
     pub revision: u64,
     /// Backing path on disk; `None` for untitled documents.
@@ -57,20 +72,23 @@ pub struct DocumentBuffer {
     undo_stack: Vec<DocumentEditEntry>,
     /// Undone transactions, in redo order.
     redo_stack: Vec<DocumentEditEntry>,
-    /// Text snapshot at the start of the in-flight transaction, plus its
-    /// bookkeeping; flushed into `undo_stack` by the next non-merged edit,
-    /// undo, or redo.
+    /// Operations of the in-flight transaction, grouped by `merge`.
     pending: Option<PendingEdit>,
     /// Cursor the next snapshot should carry when this revision was
     /// produced by undo/redo; cleared by the next regular edit.
     restore_cursor: Option<CursorHint>,
+    /// Incremental highlight engine (Markdown root + injections).
+    highlight: HighlightMap,
+    /// In-flight background refresh; superseded tasks drop their result
+    /// because its version no longer matches.
+    highlight_task: Option<Task<()>>,
 }
 
 #[derive(Clone, Debug)]
 struct PendingEdit {
-    before: Arc<str>,
     cursor_before: CursorHint,
     cursor_after: CursorHint,
+    operations: Vec<Operation>,
 }
 
 impl DocumentBuffer {
@@ -81,10 +99,12 @@ impl DocumentBuffer {
     /// Rebuilds a buffer from a persisted snapshot, preserving identity.
     pub fn restore(id: DocumentId, text: String, path: Option<PathBuf>, dirty: bool) -> Self {
         let text = normalize_line_endings(text);
+        let highlight = HighlightMap::new(CodeLanguageKey::Markdown, &text)
+            .expect("markdown language configuration");
         Self {
             id,
-            text_arc: Arc::from(text.clone()),
-            text,
+            text: Arc::new(Rope::new(&text)),
+            materialized: RefCell::new(Some((1, Arc::from(text)))),
             revision: 1,
             path,
             dirty,
@@ -94,33 +114,74 @@ impl DocumentBuffer {
             redo_stack: Vec::new(),
             pending: None,
             restore_cursor: None,
+            highlight,
+            highlight_task: None,
         }
     }
 
     pub fn snapshot(&self) -> DocumentSnapshot {
-        DocumentSnapshot::with_restore_cursor(
+        let text = self.text_arc();
+        let highlights = Some(Arc::new(HighlightSnapshot {
+            version: self.highlight.refreshed_version,
+            spans: self.highlight.spans().into(),
+        }));
+        DocumentSnapshot::with_all(
             self.id,
             self.revision,
-            self.text_arc.clone(),
+            self.text.clone(),
+            text,
             self.path.clone(),
             self.restore_cursor,
+            highlights,
         )
     }
 
-    /// Replaces the authoritative text and refreshes the Arc mirror.
-    fn set_text(&mut self, text: String) {
-        self.text_arc = Arc::from(text.clone());
-        self.text = text;
+    /// The full text, materialized once per revision and then shared.
+    fn text_arc(&self) -> Arc<str> {
+        if let Some((revision, text)) = self.materialized.borrow().as_ref() {
+            if *revision == self.revision {
+                return text.clone();
+            }
+        }
+        let text: Arc<str> = Arc::from(self.text.materialize());
+        *self.materialized.borrow_mut() = Some((self.revision, text.clone()));
+        text
     }
 
     /// Applies a pane-produced edit: normalizes line endings, records it as
-    /// one undo transaction, bumps the revision, and marks the document
+    /// one undo operation, bumps the revision, and marks the document
     /// dirty. Unchanged text is a no-op so echo writes from observers
     /// cannot loop.
     pub fn apply_edit(&mut self, edit: EditTransaction, cx: &mut Context<Self>) {
-        let text = normalize_line_endings(edit.text);
-        if text == self.text {
-            return;
+        if self.apply_edit_core(edit) {
+            self.schedule_highlight_refresh(cx);
+            cx.notify();
+        }
+    }
+
+    /// The edit application itself, context-free so it is unit-testable.
+    /// Returns whether the document changed.
+    fn apply_edit_core(&mut self, edit: EditTransaction) -> bool {
+        let mut operations: Vec<Operation> = Vec::with_capacity(edit.edits.len());
+        for (range, inserted) in edit.edits {
+            let start = range.start.min(self.text.len());
+            let end = range.end.min(self.text.len()).max(start);
+            let inserted = normalize_arc(inserted);
+            let old: Arc<str> = Arc::from(self.text.slice_owned(start..end));
+            if old.as_ref() == inserted.as_ref() {
+                continue;
+            }
+            self.highlight.apply_edit(&self.text, start..end, &inserted);
+            let edited = self.text.edit(start..end, &inserted);
+            *Arc::make_mut(&mut self.text) = edited;
+            operations.push(Operation {
+                range: start..end,
+                old,
+                new: inserted,
+            });
+        }
+        if operations.is_empty() {
+            return false;
         }
 
         // A regular edit invalidates any pending undo/redo cursor restore.
@@ -129,54 +190,106 @@ impl DocumentBuffer {
         if !edit.merge || self.pending.is_none() {
             self.flush_pending();
             self.pending = Some(PendingEdit {
-                before: Arc::from(self.text.clone()),
                 cursor_before: edit.cursor_before,
                 cursor_after: edit.cursor_after,
+                operations: Vec::new(),
             });
         } else if let Some(pending) = &mut self.pending {
             pending.cursor_after = edit.cursor_after;
         }
+        self.pending
+            .as_mut()
+            .expect("pending")
+            .operations
+            .extend(operations);
 
-        self.set_text(text);
         self.revision = self.revision.wrapping_add(1);
         self.dirty = true;
         self.cached_word_count = None;
-        cx.notify();
+        true
     }
 
-    /// Undoes the most recent transaction, restoring the document text that
-    /// preceded it and the caret that was active before the edit. The
-    /// resulting snapshot carries `restore_cursor` so every pane converges
-    /// on the same position.
+    /// Undoes the most recent transaction by replaying its operations
+    /// backwards, and restores the caret that was active before the edit.
+    /// The resulting snapshot carries `restore_cursor` so every pane
+    /// converges on the same position.
     pub fn undo(&mut self, cx: &mut Context<Self>) {
+        if self.undo_core().is_some() {
+            self.schedule_highlight_refresh(cx);
+            cx.notify();
+        }
+    }
+
+    /// The undo application itself, context-free so it is unit-testable.
+    fn undo_core(&mut self) -> Option<CursorHint> {
         self.flush_pending();
-        let Some(entry) = self.undo_stack.pop() else {
-            return;
-        };
+        let entry = self.undo_stack.pop()?;
         let restored_cursor = entry.cursor_before;
-        self.set_text(entry.before.to_string());
+        for operation in entry.operations.iter().rev() {
+            // Undo replaces `new` (now at range.start) back with `old`.
+            let range = operation.range.start..operation.range.start + operation.new.len();
+            self.highlight
+                .apply_edit(&self.text, range.clone(), &operation.old);
+            let edited = self.text.edit(range, &operation.old);
+            *Arc::make_mut(&mut self.text) = edited;
+        }
         self.restore_cursor = Some(restored_cursor);
         self.redo_stack.push(entry);
-        self.finish_history_step(cx);
+        self.revision = self.revision.wrapping_add(1);
+        self.cached_word_count = None;
+        Some(restored_cursor)
     }
 
     /// Reapplies the most recently undone transaction.
     pub fn redo(&mut self, cx: &mut Context<Self>) {
-        self.flush_pending();
-        let Some(entry) = self.redo_stack.pop() else {
-            return;
-        };
-        let restored_cursor = entry.cursor_after;
-        self.set_text(entry.after.to_string());
-        self.restore_cursor = Some(restored_cursor);
-        self.undo_stack.push(entry);
-        self.finish_history_step(cx);
+        if self.redo_core().is_some() {
+            self.schedule_highlight_refresh(cx);
+            cx.notify();
+        }
     }
 
-    fn finish_history_step(&mut self, cx: &mut Context<Self>) {
+    /// The redo application itself, context-free so it is unit-testable.
+    fn redo_core(&mut self) -> Option<CursorHint> {
+        self.flush_pending();
+        let entry = self.redo_stack.pop()?;
+        let restored_cursor = entry.cursor_after;
+        for operation in &entry.operations {
+            self.highlight
+                .apply_edit(&self.text, operation.range.clone(), &operation.new);
+            let edited = self.text.edit(operation.range.clone(), &operation.new);
+            *Arc::make_mut(&mut self.text) = edited;
+        }
+        self.restore_cursor = Some(restored_cursor);
+        self.undo_stack.push(entry);
         self.revision = self.revision.wrapping_add(1);
         self.cached_word_count = None;
-        cx.notify();
+        Some(restored_cursor)
+    }
+
+    /// Kicks off a background highlight refresh. The map is cloned (its
+    /// trees and queries are shared), so the main thread keeps applying
+    /// edits while the stale clone re-parses; the result is discarded when
+    /// newer edits landed meanwhile (version mismatch).
+    fn schedule_highlight_refresh(&mut self, cx: &mut Context<Self>) {
+        let map = self.highlight.clone();
+        let rope = self.text.clone();
+        let task = cx.background_executor().spawn(async move {
+            let mut map = map;
+            map.refresh(&rope);
+            map
+        });
+        let weak = cx.weak_entity();
+        let refresh = cx.spawn(
+            async move |_this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
+                let map = task.await;
+                let _ = weak.update(cx, |buffer, cx| {
+                    if buffer.highlight.adopt_refresh(map) {
+                        cx.notify();
+                    }
+                });
+            },
+        );
+        self.highlight_task = Some(refresh);
     }
 
     /// Closes the in-flight transaction and records it on the undo stack.
@@ -184,12 +297,11 @@ impl DocumentBuffer {
         let Some(pending) = self.pending.take() else {
             return;
         };
-        if pending.before.as_ref() == self.text.as_str() {
+        if pending.operations.is_empty() {
             return;
         }
         self.undo_stack.push(DocumentEditEntry {
-            before: pending.before,
-            after: Arc::from(self.text.clone()),
+            operations: pending.operations,
             cursor_before: pending.cursor_before,
             cursor_after: pending.cursor_after,
         });
@@ -224,7 +336,8 @@ impl DocumentBuffer {
                 return count;
             }
         }
-        let count = crate::view::words::count_words(&self.text);
+        let text = self.text_arc();
+        let count = crate::view::words::count_words(&text);
         self.cached_word_count = Some((self.revision, count));
         count
     }
@@ -238,40 +351,166 @@ fn normalize_line_endings(text: String) -> String {
     }
 }
 
+fn normalize_arc(text: Arc<str>) -> Arc<str> {
+    if text.contains('\r') {
+        Arc::from(normalize_line_endings(text.to_string()))
+    } else {
+        text
+    }
+}
+
 #[cfg(test)]
-mod bench {
-    use std::time::Instant;
+mod tests {
+    use super::*;
 
-    use super::DocumentBuffer;
-
-    fn bench_snapshot(name: &str, size_kb: usize) {
-        let text = "line of markdown text\n".repeat(size_kb * 1024 / 22);
-        let buffer = DocumentBuffer::new(text, None);
-
-        // Warm-up.
-        for _ in 0..3 {
-            std::hint::black_box(buffer.snapshot());
-        }
-
-        let frames = 120; // two seconds of 60fps frames
-        let start = Instant::now();
-        for _ in 0..frames {
-            std::hint::black_box(buffer.snapshot());
-        }
-        let elapsed = start.elapsed();
-        println!(
-            "bench_snapshot[{name}]: {size_kb}KB x{frames} frames = {elapsed:?} ({}us/frame)",
-            elapsed.as_micros() / frames as u128
-        );
+    fn edit(
+        range: Range<usize>,
+        inserted: &str,
+        merge: bool,
+        before: CursorHint,
+        after: CursorHint,
+    ) -> EditTransaction {
+        EditTransaction::new(range, inserted, merge, before, after)
     }
 
-    /// `render_pane` builds a fresh snapshot per pane per frame via
-    /// `buffer.read(cx).snapshot()`. The buffer keeps an `Arc<str>` mirror
-    /// so this is a refcount bump, not a full-text copy.
     #[test]
-    #[ignore = "perf benchmark"]
-    fn bench_snapshot_clone_per_frame() {
-        bench_snapshot("64KB", 64);
-        bench_snapshot("1MB", 1024);
+    fn apply_edit_replaces_range_incrementally() {
+        let mut buffer = DocumentBuffer::new("one two\nthree\n".to_string(), None);
+        assert!(buffer.apply_edit_core(edit(
+            4..7,
+            "TWO",
+            false,
+            CursorHint::new(1, 5),
+            CursorHint::new(1, 8)
+        )));
+        assert_eq!(buffer.text_arc().as_ref(), "one TWO\nthree\n");
+        assert_eq!(buffer.revision, 2);
+        assert!(buffer.dirty);
+    }
+
+    #[test]
+    fn no_op_edits_do_not_bump_revision() {
+        let mut buffer = DocumentBuffer::new("same".to_string(), None);
+        assert!(!buffer.apply_edit_core(edit(
+            0..0,
+            "",
+            false,
+            CursorHint::new(1, 1),
+            CursorHint::new(1, 1)
+        )));
+        assert_eq!(buffer.revision, 1);
+    }
+
+    #[test]
+    fn undo_redo_replay_operations() {
+        let mut buffer = DocumentBuffer::new("abc".to_string(), None);
+        // Typing run: insert 'X' then 'Y' merged into one transaction.
+        buffer.apply_edit_core(edit(
+            1..1,
+            "X",
+            false,
+            CursorHint::new(1, 2),
+            CursorHint::new(1, 3),
+        ));
+        buffer.apply_edit_core(edit(
+            2..2,
+            "Y",
+            true,
+            CursorHint::new(1, 3),
+            CursorHint::new(1, 4),
+        ));
+        assert_eq!(buffer.text_arc().as_ref(), "aXYbc");
+        assert_eq!(buffer.undo_core(), Some(CursorHint::new(1, 2)));
+        assert_eq!(buffer.text_arc().as_ref(), "abc");
+        assert_eq!(buffer.restore_cursor, Some(CursorHint::new(1, 2)));
+        assert_eq!(buffer.redo_core(), Some(CursorHint::new(1, 4)));
+        assert_eq!(buffer.text_arc().as_ref(), "aXYbc");
+        assert_eq!(buffer.restore_cursor, Some(CursorHint::new(1, 4)));
+    }
+
+    #[test]
+    fn undo_restores_deleted_text_and_cursor() {
+        let mut buffer = DocumentBuffer::new("keep remove keep\n".to_string(), None);
+        buffer.apply_edit_core(edit(
+            5..11,
+            "",
+            false,
+            CursorHint::new(1, 6),
+            CursorHint::new(1, 6),
+        ));
+        assert_eq!(buffer.text_arc().as_ref(), "keep  keep\n");
+        buffer.undo_core();
+        assert_eq!(buffer.text_arc().as_ref(), "keep remove keep\n");
+    }
+
+    #[test]
+    fn merged_typing_run_is_one_undo_entry() {
+        let mut buffer = DocumentBuffer::new("".to_string(), None);
+        for (i, ch) in ['a', 'b', 'c'].into_iter().enumerate() {
+            let s = ch.to_string();
+            buffer.apply_edit_core(edit(
+                i..i,
+                &s,
+                i > 0,
+                CursorHint::new(1, i as u32 + 1),
+                CursorHint::new(1, i as u32 + 2),
+            ));
+        }
+        assert_eq!(buffer.undo_stack.len(), 0);
+        buffer.flush_pending();
+        assert_eq!(buffer.undo_stack.len(), 1);
+        buffer.undo_core();
+        assert_eq!(buffer.text_arc().as_ref(), "");
+    }
+
+    #[test]
+    fn snapshot_rope_is_shared_and_consistent() {
+        let buffer = DocumentBuffer::new("a\nb\n".to_string(), None);
+        let snapshot = buffer.snapshot();
+        assert_eq!(snapshot.rope.materialize(), "a\nb\n");
+        assert_eq!(snapshot.text.as_ref(), "a\nb\n");
+    }
+
+    #[test]
+    fn materialized_cache_invalidates_on_edit() {
+        let buffer = DocumentBuffer::new("hello".to_string(), None);
+        assert_eq!(buffer.text_arc().as_ref(), "hello");
+    }
+
+    mod bench {
+        use std::time::Instant;
+
+        use super::DocumentBuffer;
+
+        fn bench_snapshot(name: &str, size_kb: usize) {
+            let text = "line of markdown text\n".repeat(size_kb * 1024 / 22);
+            let buffer = DocumentBuffer::new(text, None);
+
+            // Warm-up.
+            for _ in 0..3 {
+                std::hint::black_box(buffer.snapshot());
+            }
+
+            let frames = 120; // two seconds of 60fps frames
+            let start = Instant::now();
+            for _ in 0..frames {
+                std::hint::black_box(buffer.snapshot());
+            }
+            let elapsed = start.elapsed();
+            println!(
+                "bench_snapshot[{name}]: {size_kb}KB x{frames} frames = {elapsed:?} ({}us/frame)",
+                elapsed.as_micros() / frames as u128
+            );
+        }
+
+        /// `render_pane` builds a fresh snapshot per pane per frame via
+        /// `buffer.read(cx).snapshot()`. The buffer keeps a per-revision
+        /// materialized mirror, so this is a refcount bump, not a copy.
+        #[test]
+        #[ignore = "perf benchmark"]
+        fn bench_snapshot_clone_per_frame() {
+            bench_snapshot("64KB", 64);
+            bench_snapshot("1MB", 1024);
+        }
     }
 }

@@ -1,11 +1,18 @@
 //! Edit transaction vocabulary shared by panes and the document buffer.
 //!
 //! Every pane-produced text change travels as an [`EditTransaction`]: the
-//! full new document text plus the bookkeeping the shared buffer needs to
-//! maintain a single, document-level undo history. Undo/redo therefore
-//! lives in the document buffer (the single source of truth), never in an
-//! individual pane view — switching pane kinds or editors never loses
-//! history, and an undo performed anywhere is observed everywhere.
+//! replaced byte range plus the inserted text. The shared buffer applies it
+//! to its persistent rope in O(edit), records one undo operation, bumps its
+//! revision, and notifies every observing editor, which re-syncs all of its
+//! panes. Undo/redo therefore lives in the document buffer (the single
+//! source of truth), never in an individual pane view — switching pane
+//! kinds or editors never loses history, and an undo performed anywhere is
+//! observed everywhere.
+
+use std::ops::Range;
+use std::sync::Arc;
+
+use crate::text::Rope;
 
 /// A 1-based cursor position in the document, used to restore the caret
 /// after undo/redo. Mirrors the [`crate::PaneView::cursor_position`]
@@ -42,6 +49,22 @@ impl CursorHint {
         Self { line, column }
     }
 
+    /// Computes the hint of a byte offset in `rope` without materializing
+    /// the document: O(log m) point lookup plus one line scan.
+    pub fn from_rope(rope: &Rope, mut offset: usize) -> Self {
+        offset = offset.min(rope.len());
+        let (row, byte_col) = rope.offset_to_point(offset);
+        let line = rope.line_str(row);
+        let mut col = byte_col.min(line.len());
+        while !line.is_char_boundary(col) {
+            col -= 1;
+        }
+        Self {
+            line: row as u32 + 1,
+            column: line[..col].chars().count() as u32 + 1,
+        }
+    }
+
     /// Converts the hint back to a byte offset in `text`, clamping to the
     /// document end and to the line's extent.
     pub fn to_offset(&self, text: &str) -> usize {
@@ -74,18 +97,37 @@ impl CursorHint {
         }
         (line_start + byte_col).min(text.len())
     }
+
+    /// Converts the hint to a byte offset in `rope`, clamping to the
+    /// document end and to the line's extent. O(log m) row lookup plus one
+    /// line scan.
+    pub fn to_rope_offset(&self, rope: &Rope) -> usize {
+        let row = (self.line.saturating_sub(1) as usize).min(rope.line_count().saturating_sub(1));
+        let line = rope.line_str(row);
+        let target_chars = self.column.saturating_sub(1) as usize;
+        let mut byte_col = line.len();
+        for (chars_seen, (idx, _)) in line.char_indices().enumerate() {
+            if chars_seen == target_chars {
+                byte_col = idx;
+                break;
+            }
+        }
+        rope.point_to_offset(row, byte_col)
+    }
 }
 
 /// One pane-produced document edit.
 ///
-/// `text` is the complete document after the edit. `merge` marks
-/// continuation of the previous undo transaction (e.g. subsequent
-/// characters of one typing run), so the shared buffer can group them into
-/// a single undo step. The cursor hints anchor the caret for undo (back to
-/// `cursor_before`) and redo (forward to `cursor_after`).
+/// `edits` is a list of replacements applied in order, each `range` in the
+/// coordinates preceding that edit (back-to-front batches come sorted that
+/// way, so ranges stay valid throughout). `merge` marks continuation of the
+/// previous undo transaction (e.g. subsequent characters of one typing
+/// run), so the shared buffer can group them into a single undo step. The
+/// cursor hints anchor the caret for undo (back to `cursor_before`) and
+/// redo (forward to `cursor_after`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EditTransaction {
-    pub text: String,
+    pub edits: Vec<(Range<usize>, Arc<str>)>,
     pub merge: bool,
     pub cursor_before: CursorHint,
     pub cursor_after: CursorHint,
@@ -93,13 +135,30 @@ pub struct EditTransaction {
 
 impl EditTransaction {
     pub fn new(
-        text: impl Into<String>,
+        range: Range<usize>,
+        inserted: impl Into<Arc<str>>,
+        merge: bool,
+        cursor_before: CursorHint,
+        cursor_after: CursorHint,
+    ) -> Self {
+        Self::from_edits(
+            vec![(range, inserted.into())],
+            merge,
+            cursor_before,
+            cursor_after,
+        )
+    }
+
+    /// A batch of replacements applied in list order (each range in the
+    /// coordinates preceding that edit).
+    pub fn from_edits(
+        edits: Vec<(Range<usize>, Arc<str>)>,
         merge: bool,
         cursor_before: CursorHint,
         cursor_after: CursorHint,
     ) -> Self {
         Self {
-            text: text.into(),
+            edits,
             merge,
             cursor_before,
             cursor_after,
@@ -108,8 +167,12 @@ impl EditTransaction {
 
     /// A single, self-contained edit at `cursor` (for command-driven
     /// edits like paste, cut, or a one-shot replacement).
-    pub fn one_shot(text: impl Into<String>, cursor: CursorHint) -> Self {
-        Self::new(text, false, cursor, cursor)
+    pub fn one_shot(
+        range: Range<usize>,
+        inserted: impl Into<Arc<str>>,
+        cursor: CursorHint,
+    ) -> Self {
+        Self::new(range, inserted, false, cursor, cursor)
     }
 }
 
@@ -146,5 +209,23 @@ mod tests {
         let hint = CursorHint::from_offset(text, offset);
         assert_eq!(hint, CursorHint::new(2, 4));
     }
-}
 
+    #[test]
+    fn cursor_hint_rope_matches_str() {
+        let text = "# 第一行内容\n- 第二行列表\n> 第三行引用";
+        let rope = Rope::new(text);
+        for offset in [0, 1, 3, 10, text.len()] {
+            assert_eq!(
+                CursorHint::from_rope(&rope, offset),
+                CursorHint::from_offset(text, offset),
+                "offset {offset}"
+            );
+            let hint = CursorHint::from_offset(text, offset);
+            assert_eq!(
+                hint.to_rope_offset(&rope),
+                hint.to_offset(text),
+                "hint {hint:?}"
+            );
+        }
+    }
+}

@@ -1,5 +1,6 @@
 //! Unified syntax parsing, tree-sitter highlighting, LaTeX math, and Mermaid diagrams.
 
+pub mod engine;
 pub mod graphics;
 pub mod highlight;
 pub mod language;

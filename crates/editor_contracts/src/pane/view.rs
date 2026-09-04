@@ -47,10 +47,6 @@ pub trait PaneView: Any + 'static {
     /// re-receives its own edit this way and simply records the revision).
     fn sync_document(&mut self, document: &DocumentSnapshot, cx: &mut App);
 
-    /// The pane's current text of the document. The host commits it into the
-    /// shared buffer after pane-driven edits; read-only panes return `None`.
-    fn document_text(&self, cx: &App) -> Option<String>;
-
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement;
 
     /// The pane's keyboard focus handle, when it owns one.

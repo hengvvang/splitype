@@ -12,8 +12,9 @@ use crate::pane::controller::{ContextSubmenu, WysiwygContextMenuState, WysiwygDo
 use markdown_parser::block::table::{TableAxis, TableColumnAlignment};
 use markdown_parser::parse::BlockKind;
 
-type ContextMenuActionHandler =
-    Box<dyn Fn(&mut WysiwygDocumentController, &mut Window, &mut Context<WysiwygDocumentController>)>;
+type ContextMenuActionHandler = Box<
+    dyn Fn(&mut WysiwygDocumentController, &mut Window, &mut Context<WysiwygDocumentController>),
+>;
 
 pub fn render_wysiwyg_context_menu(
     controller: &WysiwygDocumentController,
@@ -80,13 +81,16 @@ pub fn render_wysiwyg_context_menu(
                     }
                 }));
             }
-            el.on_mouse_down(MouseButton::Left, cx.listener(move |this, _event, window, cx| {
-                cx.stop_propagation();
-                on_click(this, window, cx);
-                if auto_close_menu {
-                    this.close_context_menu(cx);
-                }
-            }))
+            el.on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _event, window, cx| {
+                    cx.stop_propagation();
+                    on_click(this, window, cx);
+                    if auto_close_menu {
+                        this.close_context_menu(cx);
+                    }
+                }),
+            )
             .into_any_element()
         } else {
             let mut el = div()
@@ -144,36 +148,34 @@ pub fn render_wysiwyg_context_menu(
         make_item_base(id, label, shortcut, enabled, danger, false, false, on_click)
     };
 
-    let make_submenu_trigger = |id: &'static str,
-                                label: &'static str,
-                                submenu_kind: ContextSubmenu,
-                                is_active: bool| {
-        menu_item(id, c, d)
-            .justify_between()
-            .bg(if is_active {
-                c.panel_row_hover
-            } else {
-                c.dialog_surface
-            })
-            .child(
-                div()
-                    .text_size(px(t.text_size * 0.85))
-                    .text_color(c.text_default)
-                    .child(label),
-            )
-            .child(
-                svg()
-                    .path("icons/editor/context_menu/chevron-right.svg")
-                    .size(px(14.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_hover(cx.listener(move |this, hovered, _window, cx| {
-                if *hovered {
-                    this.set_context_menu_submenu(Some(submenu_kind), cx);
-                }
-            }))
-            .into_any_element()
-    };
+    let make_submenu_trigger =
+        |id: &'static str, label: &'static str, submenu_kind: ContextSubmenu, is_active: bool| {
+            menu_item(id, c, d)
+                .justify_between()
+                .bg(if is_active {
+                    c.panel_row_hover
+                } else {
+                    c.dialog_surface
+                })
+                .child(
+                    div()
+                        .text_size(px(t.text_size * 0.85))
+                        .text_color(c.text_default)
+                        .child(label),
+                )
+                .child(
+                    svg()
+                        .path("icons/editor/context_menu/chevron-right.svg")
+                        .size(px(14.0))
+                        .text_color(c.dialog_muted),
+                )
+                .on_hover(cx.listener(move |this, hovered, _window, cx| {
+                    if *hovered {
+                        this.set_context_menu_submenu(Some(submenu_kind), cx);
+                    }
+                }))
+                .into_any_element()
+        };
 
     let make_check_item = |id: &'static str,
                            label: &'static str,
@@ -206,11 +208,14 @@ pub fn render_wysiwyg_context_menu(
                             .text_color(c.dialog_primary_button_bg)
                     })),
             )
-            .on_mouse_down(MouseButton::Left, cx.listener(move |this, _event, window, cx| {
-                cx.stop_propagation();
-                on_click(this, window, cx);
-                this.close_context_menu(cx);
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _event, window, cx| {
+                    cx.stop_propagation();
+                    on_click(this, window, cx);
+                    this.close_context_menu(cx);
+                }),
+            )
             .into_any_element()
     };
 
@@ -247,7 +252,8 @@ pub fn render_wysiwyg_context_menu(
             let is_h6 = matches!(active_kind, Some(BlockKind::Heading { level: 6 }));
             let is_p = matches!(active_kind, Some(BlockKind::Paragraph)) || active_kind.is_none();
 
-            let target_entity = target_id.or_else(|| controller.active_entity.as_ref().map(|b| b.entity_id()));
+            let target_entity =
+                target_id.or_else(|| controller.active_entity.as_ref().map(|b| b.entity_id()));
             let pos = *position;
 
             let submenu_rendered = active_submenu.map(|sub| {
@@ -349,7 +355,11 @@ pub fn render_wysiwyg_context_menu(
                                 false,
                                 Box::new(move |this, _window, cx| {
                                     if let Some(id) = target_entity {
-                                        this.convert_target_block(id, BlockKind::BulletListItem, cx);
+                                        this.convert_target_block(
+                                            id,
+                                            BlockKind::BulletListItem,
+                                            cx,
+                                        );
                                     }
                                 }),
                             ),
@@ -728,12 +738,18 @@ pub fn render_wysiwyg_context_menu(
             let mut container = overlay()
                 .id("editor-context-menu-overlay")
                 .occlude()
-                .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
-                .on_mouse_down(MouseButton::Right, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
                 .child(
                     menu_panel(c, d)
                         .id("editor-context-menu-panel")
@@ -760,10 +776,10 @@ pub fn render_wysiwyg_context_menu(
             let panel_x = position.x - origin.x;
             let panel_y = position.y - origin.y;
             let panel_width = 175.0_f32;
-            let panel_left = px(f32::from(panel_x)
-                .clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
-            let panel_top = px(f32::from(panel_y)
-                .clamp(8.0, (pane_height - 240.0 - 16.0).max(8.0)));
+            let panel_left =
+                px(f32::from(panel_x).clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
+            let panel_top =
+                px(f32::from(panel_y).clamp(8.0, (pane_height - 240.0 - 16.0).max(8.0)));
 
             let table_block_id = selection.table_block_id;
             let axis_index = selection.index;
@@ -929,12 +945,18 @@ pub fn render_wysiwyg_context_menu(
             overlay()
                 .id("editor-table-axis-menu-overlay")
                 .occlude()
-                .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
-                .on_mouse_down(MouseButton::Right, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
                 .child(
                     menu_panel(c, d)
                         .id("editor-table-axis-menu-panel")
@@ -971,10 +993,10 @@ pub fn render_wysiwyg_context_menu(
             let panel_y = position.y - origin.y;
             let panel_width = 224.0_f32;
             let panel_height = 250.0_f32;
-            let panel_left = px(f32::from(panel_x)
-                .clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
-            let panel_top = px(f32::from(panel_y)
-                .clamp(8.0, (pane_height - panel_height - 16.0).max(8.0)));
+            let panel_left =
+                px(f32::from(panel_x).clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
+            let panel_top =
+                px(f32::from(panel_y).clamp(8.0, (pane_height - panel_height - 16.0).max(8.0)));
 
             let table_id = *table_block_id;
             let cur_r = *current_rows;
@@ -982,7 +1004,7 @@ pub fn render_wysiwyg_context_menu(
             let hov_r = *hovered_rows;
             let hov_c = *hovered_cols;
 
-            use ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+            use ui::table_matrix_picker::{MatrixCellColors, render_matrix_dimension_indicator};
             let top_indicator = render_matrix_dimension_indicator(
                 display_rows,
                 display_cols,
@@ -1014,7 +1036,9 @@ pub fn render_wysiwyg_context_menu(
                     };
 
                     let cell = div()
-                        .id(ElementId::Name(format!("table-resize-cell-{}-{}", r, col).into()))
+                        .id(ElementId::Name(
+                            format!("table-resize-cell-{}-{}", r, col).into(),
+                        ))
                         .size(px(20.0))
                         .rounded(px(3.0))
                         .bg(cell_bg)
@@ -1034,12 +1058,7 @@ pub fn render_wysiwyg_context_menu(
                         );
                     row_cells.push(cell);
                 }
-                grid_rows.push(
-                    div()
-                        .flex()
-                        .gap(px(3.0))
-                        .children(row_cells),
-                );
+                grid_rows.push(div().flex().gap(px(3.0)).children(row_cells));
             }
 
             let matrix_grid = div()
@@ -1060,12 +1079,18 @@ pub fn render_wysiwyg_context_menu(
             overlay()
                 .id("editor-table-resize-overlay")
                 .occlude()
-                .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
-                .on_mouse_down(MouseButton::Right, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
                 .child(
                     div()
                         .id("editor-table-resize-panel")
@@ -1105,16 +1130,16 @@ pub fn render_wysiwyg_context_menu(
             let panel_y = position.y - origin.y;
             let panel_width = 224.0_f32;
             let panel_height = 250.0_f32;
-            let panel_left = px(f32::from(panel_x)
-                .clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
-            let panel_top = px(f32::from(panel_y)
-                .clamp(8.0, (pane_height - panel_height - 16.0).max(8.0)));
+            let panel_left =
+                px(f32::from(panel_x).clamp(8.0, (pane_width - panel_width - 16.0).max(8.0)));
+            let panel_top =
+                px(f32::from(panel_y).clamp(8.0, (pane_height - panel_height - 16.0).max(8.0)));
 
             let target_id = *target_entity_id;
             let hov_r = *hovered_rows;
             let hov_c = *hovered_cols;
 
-            use ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+            use ui::table_matrix_picker::{MatrixCellColors, render_matrix_dimension_indicator};
             let top_indicator = render_matrix_dimension_indicator(
                 display_rows,
                 display_cols,
@@ -1144,7 +1169,9 @@ pub fn render_wysiwyg_context_menu(
                     };
 
                     let cell = div()
-                        .id(ElementId::Name(format!("table-insert-cell-{}-{}", r, col).into()))
+                        .id(ElementId::Name(
+                            format!("table-insert-cell-{}-{}", r, col).into(),
+                        ))
                         .size(px(20.0))
                         .rounded(px(3.0))
                         .bg(cell_bg)
@@ -1164,12 +1191,7 @@ pub fn render_wysiwyg_context_menu(
                         );
                     row_cells.push(cell);
                 }
-                grid_rows.push(
-                    div()
-                        .flex()
-                        .gap(px(3.0))
-                        .children(row_cells),
-                );
+                grid_rows.push(div().flex().gap(px(3.0)).children(row_cells));
             }
 
             let matrix_grid = div()
@@ -1190,12 +1212,18 @@ pub fn render_wysiwyg_context_menu(
             overlay()
                 .id("editor-table-insert-overlay")
                 .occlude()
-                .on_mouse_down(MouseButton::Left, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
-                .on_mouse_down(MouseButton::Right, cx.listener(|this, _event, _window, cx| {
-                    this.close_context_menu(cx);
-                }))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(|this, _event, _window, cx| {
+                        this.close_context_menu(cx);
+                    }),
+                )
                 .child(
                     div()
                         .id("editor-table-insert-panel")

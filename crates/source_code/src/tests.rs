@@ -4,9 +4,9 @@
 //! tests cover the pure data structures underneath it. Rope line indexing
 //! is covered by the tests in `text.rs`.
 
+use crate::Rope;
 use crate::display_map::{DisplayPoint, DisplaySnapshot, FoldMap, FoldRange, TabMap, WrapState};
 use crate::selection::Selections;
-use crate::text::Rope;
 
 #[test]
 fn tab_map_expansion() {
@@ -91,8 +91,8 @@ fn snapshot_maps_offsets_through_wraps() {
 mod bench {
     use std::time::Instant;
 
+    use crate::Rope;
     use crate::display_map::{DisplaySnapshot, FoldMap, TabMap, WrapState};
-    use crate::text::Rope;
 
     fn frame_cost(name: &str, size_kb: usize) {
         let text = "# Heading\n\nA paragraph of markdown text.\n".repeat(size_kb * 1024 / 40);

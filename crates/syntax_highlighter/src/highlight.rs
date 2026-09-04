@@ -1,14 +1,12 @@
 //! Code-block syntax highlighting support.
 
-#[cfg(feature = "code-highlight-core")]
-use std::collections::HashMap;
 use std::ops::Range;
 #[cfg(feature = "code-highlight-core")]
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{Arc, LazyLock};
 
 use gpui::{Font, FontStyle, FontWeight, Hsla, TextRun, UnderlineStyle, px};
-#[cfg(feature = "code-highlight-core")]
-use tree_sitter_highlight::{Highlight, HighlightConfiguration, HighlightEvent, Highlighter};
+
+use crate::engine::{HighlightMap, LanguageConfig};
 
 use theme::ThemeColors;
 
@@ -29,6 +27,8 @@ pub enum CodeLanguageKey {
     Json,
     /// Markdown source.
     Markdown,
+    /// Markdown inline content (injection-only language).
+    MarkdownInline,
     /// POSIX-like shell scripts.
     Bash,
     /// C source code.
@@ -63,58 +63,9 @@ pub enum CodeLanguageKey {
     Latex,
 }
 
-/// Token class category for code highlighting.
-#[cfg_attr(not(feature = "code-highlight-core"), allow(dead_code))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum CodeHighlightClass {
-    /// Source code comment.
-    Comment,
-    /// Language keyword.
-    Keyword,
-    /// String literal.
-    String,
-    /// Numeric literal.
-    Number,
-    /// Type identifier.
-    Type,
-    /// Function or callable identifier.
-    Function,
-    /// Constant identifier.
-    Constant,
-    /// Variable identifier.
-    Variable,
-    /// Object or record property.
-    Property,
-    /// Operator token.
-    Operator,
-    /// Punctuation token.
-    Punctuation,
-    /// Markdown heading text (level 1..=6).
-    MarkupHeading(u8),
-    /// Markdown strong emphasis: rendered bold.
-    MarkupBold,
-    /// Markdown emphasis: rendered italic.
-    MarkupItalic,
-    /// Markdown inline code span: tinted background.
-    MarkupCode,
-    /// Markdown link text: colored and underlined.
-    MarkupLink,
-    /// Markdown link destination / autolink URI.
-    MarkupUri,
-    /// Markdown list markers and thematic breaks.
-    MarkupList,
-    /// Markdown block-quote markers.
-    MarkupQuote,
-    /// Backslash escapes and hard line breaks.
-    MarkupEscape,
-}
-
-/// Highlighted byte range inside a code block.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CodeHighlightSpan {
-    pub range: Range<usize>,
-    pub class: CodeHighlightClass,
-}
+/// Token class and span vocabulary, owned by the document contracts and
+/// re-exported here for consumers of the highlighter.
+pub use editor_contracts::{CodeHighlightClass, CodeHighlightSpan};
 
 /// Highlight result cached on a code block.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -158,6 +109,10 @@ const LANGUAGE_DESCRIPTORS: &[LanguageDescriptor] = &[
     LanguageDescriptor {
         key: CodeLanguageKey::Markdown,
         aliases: &["markdown", "md"],
+    },
+    LanguageDescriptor {
+        key: CodeLanguageKey::MarkdownInline,
+        aliases: &["markdown_inline", "markdown-inline"],
     },
     LanguageDescriptor {
         key: CodeLanguageKey::Bash,
@@ -225,262 +180,276 @@ const LANGUAGE_DESCRIPTORS: &[LanguageDescriptor] = &[
     },
 ];
 
+/// Builds a language configuration from its grammar and queries.
 #[cfg(feature = "code-highlight-core")]
-const HIGHLIGHT_NAMES: &[&str] = &[
-    "attribute",
-    "comment",
-    "constant",
-    "constant.builtin",
-    "constructor",
-    "embedded",
-    "function",
-    "function.builtin",
-    "keyword",
-    "module",
-    "number",
-    "operator",
-    "property",
-    "property.builtin",
-    "punctuation",
-    "punctuation.bracket",
-    "punctuation.delimiter",
-    "punctuation.special",
-    "string",
-    "string.special",
-    "tag",
-    "type",
-    "type.builtin",
-    "variable",
-    "variable.builtin",
-    "variable.parameter",
-    "markup.heading.1",
-    "markup.heading.2",
-    "markup.heading.3",
-    "markup.heading.4",
-    "markup.heading.5",
-    "markup.heading.6",
-    "markup.bold",
-    "markup.italic",
-    "markup.code",
-    "markup.link",
-    "markup.uri",
-    "markup.list",
-    "markup.quote",
-    "markup.escape",
-    "string.escape",
-    "text.literal",
-    "text.emphasis",
-    "text.strong",
-    "text.uri",
-    "text.reference",
-];
-
-/// Lazily built tree-sitter highlighter registry.
-#[cfg(feature = "code-highlight-core")]
-struct CodeHighlightRegistry {
-    configs: RwLock<HashMap<CodeLanguageKey, Arc<HighlightConfiguration>>>,
-}
-
-#[cfg(feature = "code-highlight-core")]
-static CODE_HIGHLIGHT_REGISTRY: LazyLock<CodeHighlightRegistry> =
-    LazyLock::new(CodeHighlightRegistry::new);
-
-#[cfg(feature = "code-highlight-core")]
-impl CodeHighlightRegistry {
-    fn new() -> Self {
-        Self {
-            configs: RwLock::new(HashMap::new()),
-        }
-    }
-
-    fn config_for(&self, key: CodeLanguageKey) -> Option<Arc<HighlightConfiguration>> {
-        if let Ok(read_guard) = self.configs.read() {
-            if let Some(config) = read_guard.get(&key) {
-                return Some(Arc::clone(config));
-            }
-        }
-
-        let config = build_config_for(key)?;
-        let arc_config = Arc::new(config);
-
-        if let Ok(mut write_guard) = self.configs.write() {
-            write_guard.insert(key, Arc::clone(&arc_config));
-        }
-
-        Some(arc_config)
-    }
-
-    fn prewarm_all(&self) {
-        const ALL_KEYS: &[CodeLanguageKey] = &[
-            CodeLanguageKey::Rust,
-            CodeLanguageKey::JavaScript,
-            CodeLanguageKey::JavaScriptJsx,
-            CodeLanguageKey::TypeScript,
-            CodeLanguageKey::TypeScriptTsx,
-            CodeLanguageKey::Json,
-            CodeLanguageKey::Markdown,
-            CodeLanguageKey::Bash,
-            CodeLanguageKey::Python,
-            CodeLanguageKey::C,
-            CodeLanguageKey::Cpp,
-            CodeLanguageKey::CSharp,
-            CodeLanguageKey::Css,
-            CodeLanguageKey::Go,
-            CodeLanguageKey::Html,
-            CodeLanguageKey::Java,
-            CodeLanguageKey::Php,
-            CodeLanguageKey::Ruby,
-            CodeLanguageKey::Yaml,
-            CodeLanguageKey::Toml,
-        ];
-
-        for &key in ALL_KEYS {
-            let _ = self.config_for(key);
-        }
+fn language_config_of(
+    name: &'static str,
+    grammar: fn() -> tree_sitter::Language,
+    highlights_query: &'static str,
+    injections_query: &'static str,
+) -> LanguageConfig {
+    LanguageConfig {
+        name,
+        grammar,
+        highlights_query,
+        injections_query,
     }
 }
 
 #[cfg(feature = "code-highlight-core")]
-pub fn prewarm_code_highlight_registry() {
-    CODE_HIGHLIGHT_REGISTRY.prewarm_all();
+fn build_language_config(key: CodeLanguageKey) -> Option<LanguageConfig> {
+    Some(match key {
+        CodeLanguageKey::Rust => language_config_of(
+            "rust",
+            || tree_sitter_rust::LANGUAGE.into(),
+            tree_sitter_rust::HIGHLIGHTS_QUERY,
+            tree_sitter_rust::INJECTIONS_QUERY,
+        ),
+        CodeLanguageKey::JavaScript => language_config_of(
+            "javascript",
+            || tree_sitter_javascript::LANGUAGE.into(),
+            tree_sitter_javascript::HIGHLIGHT_QUERY,
+            tree_sitter_javascript::INJECTIONS_QUERY,
+        ),
+        CodeLanguageKey::JavaScriptJsx => {
+            static JSX_QUERY: LazyLock<String> = LazyLock::new(|| {
+                format!(
+                    "{}\n{}",
+                    tree_sitter_javascript::HIGHLIGHT_QUERY,
+                    tree_sitter_javascript::JSX_HIGHLIGHT_QUERY
+                )
+            });
+            language_config_of(
+                "javascript",
+                || tree_sitter_javascript::LANGUAGE.into(),
+                JSX_QUERY.as_str(),
+                tree_sitter_javascript::INJECTIONS_QUERY,
+            )
+        }
+        CodeLanguageKey::TypeScript => language_config_of(
+            "typescript",
+            || tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+            tree_sitter_typescript::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        CodeLanguageKey::TypeScriptTsx => language_config_of(
+            "tsx",
+            || tree_sitter_typescript::LANGUAGE_TSX.into(),
+            tree_sitter_typescript::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        CodeLanguageKey::Json => language_config_of(
+            "json",
+            || tree_sitter_json::LANGUAGE.into(),
+            tree_sitter_json::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Markdown => language_config_of(
+            "markdown",
+            || tree_sitter_md::LANGUAGE.into(),
+            MARKDOWN_HIGHLIGHT_QUERY,
+            MARKDOWN_INJECTION_QUERY,
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::MarkdownInline => language_config_of(
+            "markdown_inline",
+            || tree_sitter_md::INLINE_LANGUAGE.into(),
+            tree_sitter_md::HIGHLIGHT_QUERY_INLINE,
+            tree_sitter_md::INJECTION_QUERY_INLINE,
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Bash => language_config_of(
+            "bash",
+            || tree_sitter_bash::LANGUAGE.into(),
+            tree_sitter_bash::HIGHLIGHT_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::C => language_config_of(
+            "c",
+            || tree_sitter_c::LANGUAGE.into(),
+            tree_sitter_c::HIGHLIGHT_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Cpp => language_config_of(
+            "cpp",
+            || tree_sitter_cpp::LANGUAGE.into(),
+            tree_sitter_cpp::HIGHLIGHT_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::CSharp => language_config_of(
+            "c_sharp",
+            || tree_sitter_c_sharp::LANGUAGE.into(),
+            tree_sitter_c_sharp::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Css => language_config_of(
+            "css",
+            || tree_sitter_css::LANGUAGE.into(),
+            tree_sitter_css::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Go => language_config_of(
+            "go",
+            || tree_sitter_go::LANGUAGE.into(),
+            tree_sitter_go::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Html => language_config_of(
+            "html",
+            || tree_sitter_html::LANGUAGE.into(),
+            tree_sitter_html::HIGHLIGHTS_QUERY,
+            tree_sitter_html::INJECTIONS_QUERY,
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Java => language_config_of(
+            "java",
+            || tree_sitter_java::LANGUAGE.into(),
+            tree_sitter_java::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Php => language_config_of(
+            "php",
+            || tree_sitter_php::LANGUAGE_PHP.into(),
+            tree_sitter_php::HIGHLIGHTS_QUERY,
+            tree_sitter_php::INJECTIONS_QUERY,
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Python => language_config_of(
+            "python",
+            || tree_sitter_python::LANGUAGE.into(),
+            tree_sitter_python::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Ruby => language_config_of(
+            "ruby",
+            || tree_sitter_ruby::LANGUAGE.into(),
+            tree_sitter_ruby::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-config")]
+        CodeLanguageKey::Yaml => language_config_of(
+            "yaml",
+            || tree_sitter_yaml::LANGUAGE.into(),
+            tree_sitter_yaml::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        #[cfg(feature = "code-highlight-config")]
+        CodeLanguageKey::Toml => language_config_of(
+            "toml",
+            || tree_sitter_toml::LANGUAGE.into(),
+            tree_sitter_toml::HIGHLIGHTS_QUERY,
+            "",
+        ),
+        _ => return None,
+    })
 }
 
+/// Lazily-built, per-language cached configuration.
 #[cfg(feature = "code-highlight-core")]
-fn build_config_for(key: CodeLanguageKey) -> Option<HighlightConfiguration> {
+pub fn language_config(key: CodeLanguageKey) -> Option<Arc<LanguageConfig>> {
+    macro_rules! cached {
+        ($key:expr) => {{
+            static CONFIG: LazyLock<Option<Arc<LanguageConfig>>> =
+                LazyLock::new(|| build_language_config($key).map(Arc::new));
+            CONFIG.clone()
+        }};
+    }
     match key {
+        CodeLanguageKey::Rust => cached!(CodeLanguageKey::Rust),
+        CodeLanguageKey::JavaScript => cached!(CodeLanguageKey::JavaScript),
+        CodeLanguageKey::JavaScriptJsx => cached!(CodeLanguageKey::JavaScriptJsx),
+        CodeLanguageKey::TypeScript => cached!(CodeLanguageKey::TypeScript),
+        CodeLanguageKey::TypeScriptTsx => cached!(CodeLanguageKey::TypeScriptTsx),
+        CodeLanguageKey::Json => cached!(CodeLanguageKey::Json),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Rust => build_rust_config(),
+        CodeLanguageKey::Markdown => cached!(CodeLanguageKey::Markdown),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::JavaScript => build_javascript_config(),
+        CodeLanguageKey::MarkdownInline => cached!(CodeLanguageKey::MarkdownInline),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::JavaScriptJsx => build_jsx_config(),
+        CodeLanguageKey::Bash => cached!(CodeLanguageKey::Bash),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::TypeScript => build_typescript_config(),
+        CodeLanguageKey::C => cached!(CodeLanguageKey::C),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::TypeScriptTsx => build_tsx_config(),
+        CodeLanguageKey::Cpp => cached!(CodeLanguageKey::Cpp),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Json => build_json_config(),
+        CodeLanguageKey::CSharp => cached!(CodeLanguageKey::CSharp),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Markdown => build_markdown_config(),
+        CodeLanguageKey::Css => cached!(CodeLanguageKey::Css),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Bash => build_bash_config(),
+        CodeLanguageKey::Go => cached!(CodeLanguageKey::Go),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::C => build_c_config(),
+        CodeLanguageKey::Html => cached!(CodeLanguageKey::Html),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Cpp => build_cpp_config(),
+        CodeLanguageKey::Java => cached!(CodeLanguageKey::Java),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::CSharp => build_csharp_config(),
+        CodeLanguageKey::Php => cached!(CodeLanguageKey::Php),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Css => build_css_config(),
+        CodeLanguageKey::Python => cached!(CodeLanguageKey::Python),
         #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Go => build_go_config(),
-        #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Html => build_html_config(),
-        #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Java => build_java_config(),
-        #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Php => build_php_config(),
-        #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Python => build_python_config(),
-        #[cfg(feature = "code-highlight-official")]
-        CodeLanguageKey::Ruby => build_ruby_config(),
+        CodeLanguageKey::Ruby => cached!(CodeLanguageKey::Ruby),
         #[cfg(feature = "code-highlight-config")]
-        CodeLanguageKey::Yaml => build_yaml_config(),
+        CodeLanguageKey::Yaml => cached!(CodeLanguageKey::Yaml),
         #[cfg(feature = "code-highlight-config")]
-        CodeLanguageKey::Toml => build_toml_config(),
+        CodeLanguageKey::Toml => cached!(CodeLanguageKey::Toml),
         _ => None,
     }
 }
 
-#[cfg(all(feature = "code-highlight-core", feature = "code-highlight-official"))]
-fn configure_highlights(
-    language: tree_sitter::Language,
-    name: &'static str,
-    highlights_query: &str,
-    injections_query: &str,
-    locals_query: &str,
-) -> Option<HighlightConfiguration> {
-    let mut config = HighlightConfiguration::new(
-        language,
-        name,
-        highlights_query,
-        injections_query,
-        locals_query,
-    )
-    .ok()?;
-    config.configure(HIGHLIGHT_NAMES);
-    Some(config)
-}
-
-#[cfg(all(feature = "code-highlight-core", feature = "code-highlight-official"))]
-fn build_rust_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_rust::LANGUAGE.into(),
-        "rust",
-        tree_sitter_rust::HIGHLIGHTS_QUERY,
-        tree_sitter_rust::INJECTIONS_QUERY,
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_javascript_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_javascript::LANGUAGE.into(),
-        "javascript",
-        tree_sitter_javascript::HIGHLIGHT_QUERY,
-        tree_sitter_javascript::INJECTIONS_QUERY,
-        tree_sitter_javascript::LOCALS_QUERY,
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_jsx_config() -> Option<HighlightConfiguration> {
-    let query = format!(
-        "{}\n{}",
-        tree_sitter_javascript::HIGHLIGHT_QUERY,
-        tree_sitter_javascript::JSX_HIGHLIGHT_QUERY
-    );
-    configure_highlights(
-        tree_sitter_javascript::LANGUAGE.into(),
-        "javascript",
-        &query,
-        tree_sitter_javascript::INJECTIONS_QUERY,
-        tree_sitter_javascript::LOCALS_QUERY,
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_typescript_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-        "typescript",
-        tree_sitter_typescript::HIGHLIGHTS_QUERY,
-        "",
-        tree_sitter_typescript::LOCALS_QUERY,
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_tsx_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_typescript::LANGUAGE_TSX.into(),
-        "tsx",
-        tree_sitter_typescript::HIGHLIGHTS_QUERY,
-        "",
-        tree_sitter_typescript::LOCALS_QUERY,
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_json_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_json::LANGUAGE.into(),
-        "json",
-        tree_sitter_json::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
+/// Eagerly compiles every language's grammar queries, so the first edit
+/// does not pay their lazy-initialization cost. Called once from a
+/// background thread at startup.
+#[cfg(feature = "code-highlight-core")]
+pub fn prewarm_code_highlight_registry() {
+    let keys = [
+        CodeLanguageKey::Rust,
+        CodeLanguageKey::JavaScript,
+        CodeLanguageKey::JavaScriptJsx,
+        CodeLanguageKey::TypeScript,
+        CodeLanguageKey::TypeScriptTsx,
+        CodeLanguageKey::Json,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Markdown,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::MarkdownInline,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Bash,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::C,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Cpp,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::CSharp,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Css,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Go,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Html,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Java,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Php,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Python,
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Ruby,
+        #[cfg(feature = "code-highlight-config")]
+        CodeLanguageKey::Yaml,
+        #[cfg(feature = "code-highlight-config")]
+        CodeLanguageKey::Toml,
+    ];
+    for key in keys {
+        let _ = language_config(key);
+    }
 }
 
 #[cfg(feature = "code-highlight-official")]
@@ -542,162 +511,6 @@ const MARKDOWN_INJECTION_QUERY: &str = r#"
   (#set! injection.include-children))
 "#;
 
-#[cfg(feature = "code-highlight-official")]
-fn build_markdown_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_md::LANGUAGE.into(),
-        "markdown",
-        MARKDOWN_HIGHLIGHT_QUERY,
-        MARKDOWN_INJECTION_QUERY,
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_bash_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_bash::LANGUAGE.into(),
-        "bash",
-        tree_sitter_bash::HIGHLIGHT_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_c_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_c::LANGUAGE.into(),
-        "c",
-        tree_sitter_c::HIGHLIGHT_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_cpp_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_cpp::LANGUAGE.into(),
-        "cpp",
-        tree_sitter_cpp::HIGHLIGHT_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_csharp_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_c_sharp::LANGUAGE.into(),
-        "c_sharp",
-        tree_sitter_c_sharp::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_css_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_css::LANGUAGE.into(),
-        "css",
-        tree_sitter_css::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_go_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_go::LANGUAGE.into(),
-        "go",
-        tree_sitter_go::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_html_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_html::LANGUAGE.into(),
-        "html",
-        tree_sitter_html::HIGHLIGHTS_QUERY,
-        tree_sitter_html::INJECTIONS_QUERY,
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_java_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_java::LANGUAGE.into(),
-        "java",
-        tree_sitter_java::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_php_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_php::LANGUAGE_PHP.into(),
-        "php",
-        tree_sitter_php::HIGHLIGHTS_QUERY,
-        tree_sitter_php::INJECTIONS_QUERY,
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_python_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_python::LANGUAGE.into(),
-        "python",
-        tree_sitter_python::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(feature = "code-highlight-official")]
-fn build_ruby_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_ruby::LANGUAGE.into(),
-        "ruby",
-        tree_sitter_ruby::HIGHLIGHTS_QUERY,
-        "",
-        tree_sitter_ruby::LOCALS_QUERY,
-    )
-}
-
-#[cfg(all(feature = "code-highlight-core", feature = "code-highlight-config"))]
-#[cfg(feature = "code-highlight-config")]
-fn build_yaml_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_yaml::LANGUAGE.into(),
-        "yaml",
-        tree_sitter_yaml::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
-#[cfg(all(feature = "code-highlight-core", feature = "code-highlight-config"))]
-#[cfg(feature = "code-highlight-config")]
-fn build_toml_config() -> Option<HighlightConfiguration> {
-    configure_highlights(
-        tree_sitter_toml::LANGUAGE.into(),
-        "toml",
-        tree_sitter_toml::HIGHLIGHTS_QUERY,
-        "",
-        "",
-    )
-}
-
 fn descriptor_for_language(language: &str) -> Option<&'static LanguageDescriptor> {
     LANGUAGE_DESCRIPTORS.iter().find(|descriptor| {
         descriptor
@@ -720,26 +533,14 @@ pub fn resolve_code_language_key(language: Option<&str>) -> Option<CodeLanguageK
 pub fn highlight_code_block(language: Option<&str>, source: &str) -> Option<CodeHighlightResult> {
     let key = resolve_code_language_key(language)?;
 
+    // One-shot full parse through the incremental engine: the same code
+    // path the live editors use, just without edit reuse.
     #[cfg(feature = "code-highlight-core")]
-    {
-        // Markdown runs two passes: a base pass for block structure and an
-        // overlay pass with injections (inline markup, fenced code
-        // languages), merged so heading colors show through between
-        // emphasized runs.
-        #[cfg(feature = "code-highlight-official")]
-        if key == CodeLanguageKey::Markdown {
-            return Some(CodeHighlightResult {
-                language: key,
-                spans: highlight_markdown(source),
-            });
-        }
-        if let Some(config) = CODE_HIGHLIGHT_REGISTRY.config_for(key) {
-            let spans = collect_highlight_spans(&config, source, &HashMap::new());
-            return Some(CodeHighlightResult {
-                language: key,
-                spans,
-            });
-        }
+    if let Some(map) = HighlightMap::new(key, source) {
+        return Some(CodeHighlightResult {
+            language: key,
+            spans: map.into_flat_spans(),
+        });
     }
 
     // Languages without a tree-sitter grammar (LaTeX, Mermaid) fall back to
@@ -756,176 +557,6 @@ pub fn highlight_code_block(language: Option<&str>, source: &str) -> Option<Code
         language: key,
         spans: Vec::new(),
     })
-}
-
-/// Runs the highlighter over `source`, resolving injections against the
-/// given configuration map (language name → configuration).
-#[cfg(feature = "code-highlight-core")]
-fn collect_highlight_spans(
-    config: &HighlightConfiguration,
-    source: &str,
-    injections: &HashMap<String, Arc<HighlightConfiguration>>,
-) -> Vec<CodeHighlightSpan> {
-    let mut highlighter = Highlighter::new();
-    let events = match highlighter.highlight(config, source.as_bytes(), None, |name| {
-        injections.get(name).map(|arc| arc.as_ref())
-    }) {
-        Ok(events) => events,
-        Err(_) => return Vec::new(),
-    };
-
-    let mut spans = Vec::new();
-    let mut active = Vec::new();
-    for event in events {
-        let Ok(event) = event else {
-            return Vec::new();
-        };
-
-        match event {
-            HighlightEvent::Source { start, end } => {
-                if let Some(class) = active.last().copied() {
-                    push_highlight_span(&mut spans, start..end, class);
-                }
-            }
-            HighlightEvent::HighlightStart(highlight) => {
-                if let Some(class) = class_for_highlight(highlight) {
-                    active.push(class);
-                }
-            }
-            HighlightEvent::HighlightEnd => {
-                active.pop();
-            }
-        }
-    }
-
-    spans
-}
-
-/// The `markdown_inline` grammar configuration, built once. Its capture
-/// names share the global `HIGHLIGHT_NAMES` list, so highlight indices are
-/// compatible across injected configurations.
-#[cfg(feature = "code-highlight-official")]
-fn markdown_inline_config() -> Option<Arc<HighlightConfiguration>> {
-    static INLINE_CONFIG: LazyLock<Option<Arc<HighlightConfiguration>>> = LazyLock::new(|| {
-        configure_highlights(
-            tree_sitter_md::INLINE_LANGUAGE.into(),
-            "markdown_inline",
-            tree_sitter_md::HIGHLIGHT_QUERY_INLINE,
-            tree_sitter_md::INJECTION_QUERY_INLINE,
-            "",
-        )
-        .map(Arc::new)
-    });
-    INLINE_CONFIG.clone()
-}
-
-/// Highlight Markdown with block structure and inline markup combined:
-/// the base pass colors headings, list and quote markers, and fences; the
-/// overlay pass adds emphasis, links, inline code, and fenced-code
-/// languages through injections.
-#[cfg(feature = "code-highlight-official")]
-fn highlight_markdown(source: &str) -> Vec<CodeHighlightSpan> {
-    let Some(config) = CODE_HIGHLIGHT_REGISTRY.config_for(CodeLanguageKey::Markdown) else {
-        return Vec::new();
-    };
-
-    // Base pass without injections: heading color spans cover their full
-    // inline content.
-    let base = collect_highlight_spans(&config, source, &HashMap::new());
-
-    // Overlay pass: inline markup plus fenced-code languages.
-    let mut injections: HashMap<String, Arc<HighlightConfiguration>> = HashMap::new();
-    if let Some(cfg) = markdown_inline_config() {
-        injections.insert("markdown_inline".to_string(), cfg);
-    }
-    for name in ["html", "yaml", "toml"] {
-        if let Some(key) = resolve_code_language_key(Some(name))
-            && let Some(cfg) = CODE_HIGHLIGHT_REGISTRY.config_for(key)
-        {
-            injections.insert(name.to_string(), cfg);
-        }
-    }
-    for lang in fence_languages(source) {
-        if injections.contains_key(lang) {
-            continue;
-        }
-        if let Some(key) = resolve_code_language_key(Some(lang))
-            && let Some(cfg) = CODE_HIGHLIGHT_REGISTRY.config_for(key)
-        {
-            injections.insert(lang.to_string(), cfg);
-        }
-    }
-    let overlay = collect_highlight_spans(&config, source, &injections);
-
-    merge_span_layers(base, overlay)
-}
-
-/// Language tags of fenced code blocks (` ```rust ` → "rust"), driving the
-/// dynamic injection lookup.
-#[cfg(feature = "code-highlight-official")]
-fn fence_languages(source: &str) -> Vec<&str> {
-    source
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim_start();
-            let fence = line
-                .strip_prefix("```")
-                .or_else(|| line.strip_prefix("~~~"))?;
-            let lang = fence.split_whitespace().next()?;
-            (!lang.is_empty()).then_some(lang)
-        })
-        .collect()
-}
-
-/// Merges a base span layer with an overlay layer: overlay spans win where
-/// they exist, base spans fill the gaps. Both layers are sorted by range
-/// start and non-overlapping within themselves, so this is one linear
-/// pass.
-#[cfg(feature = "code-highlight-core")]
-fn merge_span_layers(
-    mut base: Vec<CodeHighlightSpan>,
-    overlay: Vec<CodeHighlightSpan>,
-) -> Vec<CodeHighlightSpan> {
-    let mut merged = Vec::with_capacity(base.len() + overlay.len());
-    let mut base_idx = 0usize;
-    for span in overlay {
-        // Base spans entirely before the overlay span.
-        while base_idx < base.len() && base[base_idx].range.end <= span.range.start {
-            merged.push(base[base_idx].clone());
-            base_idx += 1;
-        }
-        // The head of the base span straddling the overlay start.
-        if base_idx < base.len() && base[base_idx].range.start < span.range.start {
-            let head = CodeHighlightSpan {
-                range: base[base_idx].range.start..span.range.start,
-                class: base[base_idx].class,
-            };
-            if head.range.start < head.range.end {
-                merged.push(head);
-            }
-            base[base_idx].range.start = span.range.start;
-        }
-        // The overlay span itself.
-        if span.range.start < span.range.end {
-            merged.push(span.clone());
-        }
-        // Skip base spans fully covered by the overlay; trim the one
-        // straddling the overlay end.
-        while base_idx < base.len() && base[base_idx].range.start < span.range.end {
-            if base[base_idx].range.end <= span.range.end {
-                base_idx += 1;
-            } else {
-                base[base_idx].range.start = span.range.end;
-                break;
-            }
-        }
-    }
-    // Base spans after the last overlay span.
-    while base_idx < base.len() {
-        merged.push(base[base_idx].clone());
-        base_idx += 1;
-    }
-    merged
 }
 
 /// Lightweight rule-based highlighting for languages without a tree-sitter
@@ -1076,10 +707,11 @@ fn push_highlight_span(
     spans.push(CodeHighlightSpan { range, class });
 }
 
+/// Maps a tree-sitter capture name to a highlight class. Unknown captures
+/// are ignored, so grammars' extra captures stay uncolored.
 #[cfg(feature = "code-highlight-core")]
-fn class_for_highlight(highlight: Highlight) -> Option<CodeHighlightClass> {
-    let name = HIGHLIGHT_NAMES.get(highlight.0)?;
-    Some(match *name {
+pub fn class_for_highlight(name: &str) -> Option<CodeHighlightClass> {
+    Some(match name {
         "comment" => CodeHighlightClass::Comment,
         "keyword" | "tag" => CodeHighlightClass::Keyword,
         "string" | "string.special" | "embedded" => CodeHighlightClass::String,
