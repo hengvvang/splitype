@@ -470,4 +470,98 @@ mod tests {
         assert_eq!(multi.line_count(), 5000);
         assert_eq!(multi.line_str(4999), "x");
     }
+
+    /// Fuzz-style stress: every edit must keep line starts strictly
+    /// increasing and every `line_str` call panic-free (the reported
+    /// "byte range starts at N but ends at N-1" crash came from a
+    /// corrupted line table after edits).
+    #[test]
+    fn edits_never_corrupt_line_starts() {
+        let mut rope = Rope::new("a\n\nb\n\nc\n");
+        let edits: &[(Range<usize>, &str)] = &[
+            (0..0, "line\n"),
+            (2..2, "x\n\n"),
+            (0..1, ""),
+            (3..5, ""),
+            (6..6, "tail\n"),
+            (0..0, "\n"),
+            (4..7, ""),
+            (0..0, ""),
+        ];
+        for (range, inserted) in edits {
+            rope = rope.edit(range.clone(), inserted);
+            // Invariant: line starts strictly increase and stay in bounds.
+            let materialized = rope.materialize();
+            let mut prev: Option<usize> = None;
+            for row in 0..rope.line_count() {
+                let line = rope.line_str(row);
+                assert!(!line.contains('\n'), "line_str must exclude newlines");
+                let start = rope.line_start(row);
+                if let Some(p) = prev {
+                    assert!(start > p, "line starts must increase (row {row})");
+                }
+                prev = Some(start);
+            }
+            // And the reconstructed text matches a fresh rope of the same
+            // content.
+            assert_eq!(rope, Rope::new(&materialized));
+        }
+    }
+
+    /// Random fuzz: hundreds of pseudo-random edits across chunk
+    /// boundaries, checking the line table and text after every step.
+    #[test]
+    fn random_edits_keep_line_table_consistent() {
+        let mut rope = Rope::new(
+            &"lorem ipsum dolor\n\nsit amet\nconsectetur adipiscing elit\n\nfin\n".repeat(20),
+        );
+        let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let tokens = ["", "a", "\n", "\n\n", "word\n", "tab\t\n", "中\n文"];
+        for step in 0..400 {
+            let len = rope.len();
+            let a = (next() as usize) % (len + 1);
+            let b = (next() as usize) % (len + 1);
+            // Editors only ever place carets on char boundaries.
+            let clamp = |offset: usize| {
+                let mut offset = offset.min(len);
+                while !rope.materialize().is_char_boundary(offset) {
+                    offset -= 1;
+                }
+                offset
+            };
+            let (start, end) = (clamp(a.min(b)), clamp(a.max(b)));
+            let inserted = tokens[(next() as usize) % tokens.len()];
+            rope = rope.edit(start..end, inserted);
+
+            for row in 0..rope.line_count() {
+                let line = rope.line_str(row);
+                assert!(
+                    !line.contains('\n'),
+                    "step {step} row {row}: line_str contains newline"
+                );
+                if row > 0 {
+                    assert!(
+                        rope.line_start(row) > rope.line_start(row - 1),
+                        "step {step}: line starts not increasing at row {row}"
+                    );
+                }
+            }
+            let materialized = rope.materialize();
+            let fresh = Rope::new(&materialized);
+            assert_eq!(rope.line_count(), fresh.line_count(), "step {step}");
+            for row in 0..rope.line_count() {
+                assert_eq!(
+                    rope.line_str(row),
+                    fresh.line_str(row),
+                    "step {step} row {row}"
+                );
+            }
+        }
+    }
 }

@@ -154,7 +154,7 @@ impl Block {
     }
 
     /// Starts the cursor blink loop: a repeating background timer every 33ms
-    /// that calls `cx.notify()` to repaint the cursor — but only while the
+    /// that refreshes the window to repaint the cursor — but only while the
     /// cursor opacity is actually animating. During the first 0.5 s after
     /// each `cursor_blink_epoch` reset (which arrow keys / typing trigger),
     /// opacity is pinned to 1.0, so a repaint would just re-do the full
@@ -163,26 +163,26 @@ impl Block {
     /// The blink task is automatically cancelled when the block loses focus
     /// (the task handle is dropped in [`Block::render`]).
     ///
-    /// Repaints go through `window_handle.update` (`AnyWindowHandle::update`
-    /// uses `try_borrow_mut`): a tick that lands while a frame is being
-    /// rendered is skipped instead of panicking with "RefCell already
-    /// borrowed".
+    /// Repaints go through `AnyWindowHandle::update`, which uses
+    /// `try_borrow_mut`: a tick that lands while a frame is being rendered
+    /// is skipped instead of panicking with "RefCell already borrowed".
     pub fn start_cursor_blink(&mut self, cx: &mut Context<Self>) {
         self.cursor_blink_epoch = Instant::now();
+        let Some(window) = self.window_handle else {
+            return;
+        };
         self.cursor_blink_task = Some(cx.spawn(
-            async move |this: WeakEntity<Block>, cx: &mut AsyncApp| loop {
+            async move |_this: WeakEntity<Block>, cx: &mut AsyncApp| {
+                // Opacity is pinned to 1.0 for the first 0.5s after the
+                // epoch reset; sleep through it instead of repainting.
                 cx.background_executor()
-                    .timer(Duration::from_millis(33))
+                    .timer(Duration::from_millis(500))
                     .await;
-                if this
-                    .update(cx, |this: &mut Block, cx: &mut Context<Block>| {
-                        if this.cursor_blink_epoch.elapsed().as_secs_f32() >= 0.5 {
-                            cx.notify();
-                        }
-                    })
-                    .is_err()
-                {
-                    break;
+                loop {
+                    cx.background_executor()
+                        .timer(Duration::from_millis(33))
+                        .await;
+                    let _ = window.update(cx, |_, window, _| window.refresh());
                 }
             },
         ));

@@ -160,6 +160,7 @@ impl Focusable for Block {
 /// - The [`BlockTextElement`] handles text layout, selection, and cursor.
 impl Render for Block {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.window_handle = Some(window.window_handle());
         let focused = self.focus_handle.is_focused(window);
         let code_language_focused = self.code_language_focus_handle.is_focused(window);
         let input_active = focused || code_language_focused;

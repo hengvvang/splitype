@@ -276,42 +276,44 @@ impl DocumentBuffer {
             return;
         }
         let weak = cx.weak_entity();
-        let task = cx.spawn(async move |_this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
-            loop {
-                cx.background_executor()
-                    .timer(Duration::from_millis(150))
-                    .await;
-                let Some((mut map, rope)) = weak
-                    .update(cx, |buffer, _| {
-                        (buffer.highlight.clone(), buffer.text.clone())
-                    })
-                    .ok()
-                else {
-                    return;
-                };
-                let computed = cx
-                    .background_executor()
-                    .spawn(async move {
-                        map.refresh(&rope);
-                        map
-                    })
-                    .await;
-                let Ok(done) = weak.update(cx, |buffer, cx| {
-                    if buffer.highlight.adopt_refresh(computed) {
-                        buffer.highlight_task = None;
-                        cx.notify();
-                        true
-                    } else {
-                        false
+        let task = cx.spawn(
+            async move |_this: gpui::WeakEntity<Self>, cx: &mut gpui::AsyncApp| {
+                loop {
+                    cx.background_executor()
+                        .timer(Duration::from_millis(150))
+                        .await;
+                    let Some((mut map, rope)) = weak
+                        .update(cx, |buffer, _| {
+                            (buffer.highlight.clone(), buffer.text.clone())
+                        })
+                        .ok()
+                    else {
+                        return;
+                    };
+                    let computed = cx
+                        .background_executor()
+                        .spawn(async move {
+                            map.refresh(&rope);
+                            map
+                        })
+                        .await;
+                    let Ok(done) = weak.update(cx, |buffer, cx| {
+                        if buffer.highlight.adopt_refresh(computed) {
+                            buffer.highlight_task = None;
+                            cx.notify();
+                            true
+                        } else {
+                            false
+                        }
+                    }) else {
+                        return;
+                    };
+                    if done {
+                        break;
                     }
-                }) else {
-                    return;
-                };
-                if done {
-                    break;
                 }
-            }
-        });
+            },
+        );
         self.highlight_task = Some(task);
     }
 

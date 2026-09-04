@@ -410,11 +410,7 @@ impl WysiwygDocumentController {
         match event {
             BlockEvent::Changed => {
                 self.pending_edit = true;
-                let merge = self
-                    .document_text(cx)
-                    .map(|text| self.is_typing_continuation(&text, cx))
-                    .unwrap_or(false);
-                self.commit_document_edit(merge, cx);
+                self.commit_typing_edit(cx);
                 cx.notify();
             }
             BlockEvent::RequestFocus => {
@@ -1630,10 +1626,21 @@ impl WysiwygDocumentController {
         let Some(doc) = &self.document else {
             return CursorHint::new(1, 1);
         };
+        let (lines, mappings) = doc.serialize_markdown_lines_with_mapping(cx);
+        self.cursor_hint_from(&lines, &mappings, cx)
+    }
+
+    /// Cursor hint from an already-serialized document, so commits pay for
+    /// one serialization instead of two.
+    fn cursor_hint_from(
+        &self,
+        lines: &[String],
+        mappings: &[crate::model::serialize::BlockLineMapping],
+        cx: &App,
+    ) -> CursorHint {
         let Some(active) = &self.active_entity else {
             return CursorHint::new(1, 1);
         };
-        let (lines, mappings) = doc.serialize_markdown_lines_with_mapping(cx);
         if lines.is_empty() || mappings.is_empty() {
             return CursorHint::new(1, 1);
         }
@@ -1779,12 +1786,49 @@ impl WysiwygDocumentController {
         }
     }
 
+    /// Commits a block-level text change, deriving the typing-run merge
+    /// flag from the serialized text. One serialization serves the merge
+    /// check, the caret hint, and the transaction itself.
+    pub fn commit_typing_edit(&mut self, cx: &mut App) {
+        let Some((lines, mappings)) = self
+            .document
+            .as_ref()
+            .map(|doc| doc.serialize_markdown_lines_with_mapping(cx))
+        else {
+            return;
+        };
+        let text = lines.join("\n");
+        let merge = self.is_typing_continuation(&text, cx);
+        if let Some(edit) = self.build_transaction(merge, text, &lines, &mappings, cx) {
+            if let Some(host) = self.host.clone() {
+                host.commit_edit(edit, cx);
+            }
+        }
+    }
+
     /// Builds the edit transaction for the current document state and
     /// updates the typing-run bookkeeping. Used both by direct commits and
     /// by contract methods that hand the transaction to the editor.
     pub fn take_edit_transaction(&mut self, merge: bool, cx: &App) -> Option<EditTransaction> {
-        let text = self.document_text(cx)?;
-        let cursor_after = self.cursor_hint(cx);
+        let (lines, mappings) = self
+            .document
+            .as_ref()?
+            .serialize_markdown_lines_with_mapping(cx);
+        let text = lines.join("\n");
+        self.build_transaction(merge, text, &lines, &mappings, cx)
+    }
+
+    /// Assembles the transaction from one already-performed serialization:
+    /// the caret hint reuses `lines`/`mappings` instead of re-serializing.
+    fn build_transaction(
+        &mut self,
+        merge: bool,
+        text: String,
+        lines: &[String],
+        mappings: &[crate::model::serialize::BlockLineMapping],
+        cx: &App,
+    ) -> Option<EditTransaction> {
+        let cursor_after = self.cursor_hint_from(lines, mappings, cx);
         let cursor_before = if merge {
             self.typing_run_start_hint.unwrap_or(cursor_after)
         } else {

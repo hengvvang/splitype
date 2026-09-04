@@ -82,6 +82,9 @@ pub struct Block {
     pub cursor_blink_epoch: Instant,
     pub vertical_motion_x: Option<Pixels>,
     pub cursor_blink_task: Option<Task<()>>,
+    /// The window this block last rendered in, used by the cursor blink
+    /// timer to request repaints through the try-borrow path.
+    pub window_handle: Option<AnyWindowHandle>,
     /// Cached projection used to show editable inline delimiters for the
     /// currently touched inline span(s).
     pub projection: Option<ExpandedInlineProjection>,
@@ -167,6 +170,7 @@ impl Block {
             cursor_blink_epoch: Instant::now(),
             vertical_motion_x: None,
             cursor_blink_task: None,
+            window_handle: None,
             projection: None,
             projection_cache_key: None,
             cached_display_text: SharedString::default(),
