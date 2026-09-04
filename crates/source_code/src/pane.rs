@@ -16,13 +16,13 @@ use editor_contracts::{
 
 /// View state specific to a Source Code editor pane.
 #[derive(Default)]
-pub struct SourceCodeState {
+pub struct SourceCodePane {
     controller: Option<Entity<SourceCodeEditor>>,
     /// The most recent document snapshot, seeding a lazily created editor.
     latest_snapshot: Option<DocumentSnapshot>,
 }
 
-impl SourceCodeState {
+impl SourceCodePane {
     pub(crate) fn ensure_controller(&mut self, cx: &mut App) -> Entity<SourceCodeEditor> {
         if let Some(controller) = &self.controller {
             return controller.clone();
@@ -37,7 +37,7 @@ impl SourceCodeState {
     }
 }
 
-impl PaneView for SourceCodeState {
+impl PaneView for SourceCodePane {
     fn kind(&self) -> PaneKind {
         PaneKind::from_static(crate::builder::PANE_KIND)
     }

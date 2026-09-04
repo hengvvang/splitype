@@ -6,14 +6,14 @@
 //! with the cached candidate set.
 
 use std::collections::{HashMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use gpui::{App, Entity, EntityId};
 
 use crate::model::Document;
 use crate::model::block::Block;
-use crate::pane::state::TableGrids;
+use crate::table::grid::TableGrids;
 use markdown_parser::block::footnote::split_footnote_definition_text;
 use markdown_parser::block::image::ImageReferenceDefinitions;
 use markdown_parser::block::link::LinkReferenceDefinitions;
@@ -21,6 +21,26 @@ use markdown_parser::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 use markdown_parser::parse::{BlockId, BlockKind};
+
+/// Document-wide reference registries (images, links, footnotes).
+#[derive(Default)]
+pub struct ReferenceRegistries {
+    pub image: Arc<ImageReferenceDefinitions>,
+    pub link: Arc<LinkReferenceDefinitions>,
+    pub footnotes: Arc<FootnoteMap>,
+    /// Base directory the registries were last synced against; blocks
+    /// re-resolve image sources whenever this changes.
+    pub base_dir: Option<PathBuf>,
+    /// Document structure version at the time every current block last
+    /// received its reference context. A mismatch means blocks were added
+    /// or replaced since, so the per-block sync cannot be skipped.
+    pub synced_structure_version: u64,
+    /// Blocks and table cells that could contribute reference definitions,
+    /// footnote content, or standalone-image syntax, cached at the last full
+    /// registry sync. A block edit outside this set cannot change the
+    /// registries, so the per-keystroke rebuild is skipped.
+    pub candidate_blocks: HashSet<EntityId>,
+}
 
 /// Rebuild the document-wide footnote registry (definitions bound to
 /// their first inline reference, plus per-block occurrence lists).

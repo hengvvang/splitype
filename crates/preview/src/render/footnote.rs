@@ -4,7 +4,7 @@ use gpui::*;
 
 use theme::Theme;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 
 /// Renders a footnote definition block read-only.
 pub(crate) fn render_preview_footnote_definition(

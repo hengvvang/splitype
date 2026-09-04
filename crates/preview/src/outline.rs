@@ -1,7 +1,7 @@
 //! Preview pane outline extraction and heading navigation.
 
-use crate::node::PreviewBlock;
-use crate::pane::PreviewState;
+use crate::block::PreviewBlock;
+use crate::pane::PreviewPane;
 use editor_contracts::OutlineNode;
 use markdown_parser::parse::BlockKind;
 
@@ -31,7 +31,7 @@ pub fn extract_preview_headings(blocks: &[PreviewBlock]) -> Vec<OutlineNode> {
 
 /// Calculates approximate scroll Y offset for the given outline node in the Preview render tree.
 pub fn calculate_scroll_offset_for_node(
-    state: &PreviewState,
+    state: &PreviewPane,
     node: &OutlineNode,
     line_height: f32,
 ) -> f32 {
@@ -41,7 +41,7 @@ pub fn calculate_scroll_offset_for_node(
 /// Approximate scroll Y offset of the start of `block_index` in the Preview
 /// render tree, estimated from per-block-kind heights.
 pub fn calculate_scroll_offset_for_block_index(
-    state: &PreviewState,
+    state: &PreviewPane,
     block_index: usize,
     line_height: f32,
 ) -> f32 {

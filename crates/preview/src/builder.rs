@@ -1,4 +1,4 @@
-use crate::pane::PreviewState;
+use crate::pane::PreviewPane;
 use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 
@@ -25,6 +25,6 @@ impl PaneDescriptor for PreviewDescriptor {
     }
 
     fn create_pane(&self) -> Box<dyn PaneView> {
-        Box::new(PreviewState::default())
+        Box::new(PreviewPane::default())
     }
 }

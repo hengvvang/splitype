@@ -1,8 +1,8 @@
 //! Preview pane search matching, highlight distribution, and navigation.
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use crate::outline::calculate_scroll_offset_for_block_index;
-use crate::pane::PreviewState;
+use crate::pane::PreviewPane;
 use editor_contracts::{SearchMatch, SearchQuery};
 
 /// Searches within the Markdown text source of the Preview pane.
@@ -29,7 +29,7 @@ pub fn search_in_preview(markdown: &str, query: &SearchQuery) -> Vec<SearchMatch
 }
 
 /// The separator used when joining block texts into the searchable document
-/// text; must match [`PreviewState::search_matches`] joining.
+/// text; must match [`PreviewPane::search_matches`] joining.
 const BLOCK_JOIN_SEPARATOR_LEN: usize = 2;
 
 /// Locates the root block containing a document-text byte offset using the
@@ -82,7 +82,7 @@ pub fn distribute_search_highlights(
 
 /// Calculates the scroll Y offset of the block containing the match.
 pub fn calculate_scroll_offset_for_match(
-    state: &PreviewState,
+    state: &PreviewPane,
     match_item: &SearchMatch,
     line_height: f32,
 ) -> Option<f32> {

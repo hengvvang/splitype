@@ -1,4 +1,4 @@
-use crate::pane::state::WysiwygPaneState;
+use crate::pane::shell::WysiwygPane;
 use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 
@@ -25,6 +25,6 @@ impl PaneDescriptor for WysiwygDescriptor {
     }
 
     fn create_pane(&self) -> Box<dyn PaneView> {
-        Box::new(WysiwygPaneState::default())
+        Box::new(WysiwygPane::default())
     }
 }

@@ -4,7 +4,7 @@
 
 use gpui::*;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use crate::render::inline;
 use crate::render::preview_centered_column_width;
 use crate::settings::PreviewSettings;

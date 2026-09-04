@@ -3,8 +3,15 @@
 use gpui::*;
 
 use crate::model::block::Block;
-use crate::pane::state::TableAxisSelection;
 use markdown_parser::block::table::{TableAxis, TableAxisMarker};
+
+/// Selected row or column in a rendered native table.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TableAxisSelection {
+    pub table_block_id: EntityId,
+    pub kind: TableAxis,
+    pub index: usize,
+}
 
 /// Converts a selection into an axis marker.
 pub fn table_axis_marker(selection: TableAxisSelection) -> TableAxisMarker {

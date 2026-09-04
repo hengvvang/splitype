@@ -1,4 +1,4 @@
-use crate::pane::SourceCodeState;
+use crate::pane::SourceCodePane;
 use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 
@@ -25,6 +25,6 @@ impl PaneDescriptor for SourceCodeDescriptor {
     }
 
     fn create_pane(&self) -> Box<dyn PaneView> {
-        Box::new(SourceCodeState::default())
+        Box::new(SourceCodePane::default())
     }
 }

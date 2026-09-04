@@ -4,10 +4,10 @@
 //! with dual-direction text projection, syntax highlighting, LaTeX math,
 //! Mermaid diagrams, native table editing, and Outline/Search capabilities.
 //!
-//! The pane's contract adapter lives in [`pane`] ([`pane::WysiwygPaneState`]
+//! The pane's contract adapter lives in [`pane`] ([`pane::WysiwygPane`]
 //! implements [`editor_contracts::PaneView`]).
 //!
-//! [`pane::WysiwygPaneState`]: pane::state::WysiwygPaneState
+//! [`pane::WysiwygPane`]: pane::shell::WysiwygPane
 
 pub mod builder;
 pub mod input;

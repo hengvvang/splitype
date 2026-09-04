@@ -5,7 +5,7 @@
 
 use gpui::*;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use markdown_parser::block::html::{
     HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };

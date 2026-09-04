@@ -9,9 +9,9 @@
 //! crate only refreshes the tree, routes focus and hands over the scroll
 //! shell through [`editor_contracts::PaneRenderContext`].
 
+pub mod block;
 pub mod builder;
 mod context;
-pub mod node;
 pub mod outline;
 pub mod pane;
 pub mod render;

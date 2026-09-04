@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use crate::render::inline;
 use markdown_parser::block::CalloutKind;
 use theme::Theme;

@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use crate::render::{paragraph, preview_centered_column_width};
 use markdown_parser::block::image::{ImageResolvedSource, parse_standalone_image};
 use theme::Theme;

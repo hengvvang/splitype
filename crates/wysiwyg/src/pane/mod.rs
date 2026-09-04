@@ -4,7 +4,7 @@ pub mod actions;
 pub mod controller;
 pub mod outline;
 pub mod search;
-pub mod state;
+pub mod shell;
 
 use editor_contracts::OutlineNode;
 use editor_contracts::{EditTransaction, PaneCapabilities, PaneRenderContext, PaneView};
@@ -13,9 +13,9 @@ use gpui::{AnyElement, App, AppContext, FocusHandle, Window};
 use theme::Theme;
 
 use crate::pane::controller::WysiwygDocumentController;
-use crate::pane::state::WysiwygPaneState;
+use crate::pane::shell::WysiwygPane;
 
-impl PaneView for WysiwygPaneState {
+impl PaneView for WysiwygPane {
     fn kind(&self) -> editor_contracts::PaneKind {
         editor_contracts::PaneKind::from_static(crate::builder::PANE_KIND)
     }

@@ -14,7 +14,7 @@ use markdown_parser::footnotes::{
 };
 use markdown_parser::parse::{BlockId, BlockKind};
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 
 /// Builds a footnote registry for the preview tree, mirroring the document
 /// registry but walking the preview snapshot blocks (whose entity and block

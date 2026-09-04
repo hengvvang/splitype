@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use syntax_highlighter::highlight::{code_highlight_color, highlight_code_block};
 use theme::Theme;
 

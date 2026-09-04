@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 use markdown_parser::block::math::parse_display_math_source;
 use syntax_highlighter::graphics::latex::{display_math_font_size, render_display_math_svg};
 use theme::Theme;

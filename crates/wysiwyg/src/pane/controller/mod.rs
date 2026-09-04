@@ -18,7 +18,9 @@ use gpui::{
 
 use crate::model::Document;
 use crate::model::block::Block;
-use crate::pane::state::{ReferenceRegistries, TableAxisSelection, TableCellBinding, TableGrids};
+use crate::model::references::ReferenceRegistries;
+use crate::table::axis::TableAxisSelection;
+use crate::table::grid::{TableCellBinding, TableGrids};
 use markdown_parser::block::table::{TableCellPosition, TableColumnAlignment};
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::{BlockData, BlockKind};

@@ -4,7 +4,7 @@ use gpui::{Context, Entity, EntityId, Pixels, Point, SharedString, Window, px};
 
 use crate::model::block::{Block, CollapsedCaretAffinity};
 use crate::model::protocol::BlockEvent;
-use crate::pane::state::TableAxisSelection;
+use crate::table::axis::TableAxisSelection;
 use markdown_parser::block::table::{TableAxis, TableAxisMarker, TableCellPosition};
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::{BlockData, BlockKind};

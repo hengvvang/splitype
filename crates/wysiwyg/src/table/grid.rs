@@ -1,11 +1,30 @@
 //! TableGrid matrix structure and entity lifecycle binding.
 
+use std::collections::HashMap;
+
 use gpui::*;
 
 use crate::model::block::Block;
-use crate::pane::state::TableCellBinding;
 use crate::table::TableGrid;
+use crate::table::axis::TableAxisSelection;
 use markdown_parser::block::table::{TableCellPosition, TableColumnAlignment, TableData};
+
+/// Native table cell bindings and axis selections.
+#[derive(Default)]
+pub struct TableGrids {
+    pub cells: HashMap<EntityId, TableCellBinding>,
+    pub axis_preview: Option<TableAxisSelection>,
+    pub axis_selection: Option<TableAxisSelection>,
+}
+
+/// One bound native table cell: the owning table block plus the cell
+/// entity at a grid position.
+#[derive(Clone)]
+pub struct TableCellBinding {
+    pub table_block: Entity<Block>,
+    pub cell: Entity<Block>,
+    pub position: TableCellPosition,
+}
 
 /// Installs the table grid structure onto a Table block entity.
 pub fn install_table_grid_for_block(

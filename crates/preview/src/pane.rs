@@ -8,11 +8,11 @@ use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use theme::Theme;
 
-use crate::node::PreviewBlock;
+use crate::block::PreviewBlock;
 
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]
-pub struct PreviewState {
+pub struct PreviewPane {
     pub blocks: Vec<PreviewBlock>,
     pub source_hash: u64,
     /// Document revision the preview tree was last synced at; `None` until
@@ -20,7 +20,7 @@ pub struct PreviewState {
     pub synced_revision: Option<u64>,
 }
 
-impl PaneView for PreviewState {
+impl PaneView for PreviewPane {
     fn kind(&self) -> PaneKind {
         PaneKind::from_static(crate::builder::PANE_KIND)
     }
@@ -54,7 +54,7 @@ impl PaneView for PreviewState {
             return;
         }
         let data = markdown_parser::parse::parse_preview_document(text);
-        let mut roots = crate::node::blocks_to_preview_tree(data);
+        let mut roots = crate::block::blocks_to_preview_tree(data);
         if roots.is_empty() {
             roots.push(PreviewBlock::new(
                 markdown_parser::parse::BlockData::paragraph(String::new()),

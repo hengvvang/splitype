@@ -32,8 +32,8 @@ use editor_contracts::PaneRenderContext;
 use markdown_parser::parse::BlockKind;
 use theme::Theme;
 
-use crate::node::PreviewBlock;
-use crate::pane::PreviewState;
+use crate::block::PreviewBlock;
+use crate::pane::PreviewPane;
 use crate::settings::PreviewSettings;
 use config::settings::PluginSettings;
 
@@ -42,7 +42,7 @@ use config::settings::PluginSettings;
 /// refreshes the preview tree and applies pending focus/autoscroll before
 /// calling this.
 pub fn render_preview_pane(
-    state: &PreviewState,
+    state: &PreviewPane,
     view: &PaneRenderContext,
     theme: &Theme,
     _strings: &I18nStrings,
