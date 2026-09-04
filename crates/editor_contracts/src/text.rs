@@ -101,6 +101,19 @@ impl Rope {
         self.ends_with_newline
     }
 
+    /// Whether `offset` falls on a UTF-8 character boundary (offsets 0 and
+    /// `len()` are always boundaries).
+    pub fn is_char_boundary(&self, offset: usize) -> bool {
+        if offset == 0 || offset >= self.total_bytes {
+            return true;
+        }
+        let chunk_idx = self.chunk_index_for_byte(offset);
+        let relative = offset - self.byte_offsets[chunk_idx];
+        let byte = self.chunks[chunk_idx].text.as_bytes()[relative];
+        // A continuation byte (0b10xxxxxx) means the offset splits a char.
+        byte & 0b1100_0000 != 0b1000_0000
+    }
+
     #[inline]
     pub fn line_count(&self) -> usize {
         let lines = self.line_offsets.last().copied().unwrap_or(0) as usize;

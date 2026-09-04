@@ -415,17 +415,19 @@ fn parse(
 /// column is the byte distance from the line start. Offsets pointing at a
 /// newline resolve to the start of the next line, and the end of a
 /// newline-terminated document resolves to its trailing line — matching
-/// tree-sitter's own point convention.
+/// tree-sitter's own point convention. Offsets inside a multi-byte
+/// character resolve to the character's start (points are only hints for
+/// tree-sitter; the byte offsets stay authoritative).
 fn ts_point(rope: &Rope, offset: usize) -> Point {
     let offset = offset.min(rope.len());
-    let (row, col) = rope.offset_to_point(offset);
-    if rope.slice(offset..offset.saturating_add(1)) == "\n" {
-        Point::new(row + 1, 0)
-    } else if offset == rope.len() && rope.ends_with_newline() {
-        Point::new(row + 1, 0)
-    } else {
-        Point::new(row, col)
+    if rope.char_after(offset) == Some('\n') {
+        return Point::new(rope.offset_to_point(offset).0 + 1, 0);
     }
+    if offset == rope.len() && rope.ends_with_newline() {
+        return Point::new(rope.offset_to_point(offset).0 + 1, 0);
+    }
+    let (row, col) = rope.offset_to_point(offset);
+    Point::new(row, col)
 }
 
 /// `point` advanced by `text`: rows increase per newline, the column resets
@@ -457,6 +459,22 @@ fn shift_range(range: &mut Range<usize>, delta: isize) {
     range.end = shift_usize(range.end, delta);
 }
 
+/// Clamps a byte range outward to the nearest UTF-8 character boundaries.
+/// tree-sitter's byte-level lexers can report node edges inside multi-byte
+/// characters (notably tree-sitter-md); every range that later feeds string
+/// slicing or tree-sitter includes must be boundary-aligned.
+fn clamp_to_char_boundaries(text: &str, range: Range<usize>) -> Range<usize> {
+    let mut start = range.start.min(text.len());
+    while start > 0 && !text.is_char_boundary(start) {
+        start -= 1;
+    }
+    let mut end = range.end.min(text.len());
+    while end < text.len() && !text.is_char_boundary(end) {
+        end += 1;
+    }
+    start..end
+}
+
 /// Collects injections (language, content range) from a layer's tree over
 /// `ranges`.
 fn collect_injections(
@@ -477,9 +495,12 @@ fn collect_injections(
                 let name = injection_query.capture_names()[capture.index as usize];
                 match name {
                     "injection.language" => {
-                        language = Some(text[capture.node.byte_range()].to_string());
+                        let range = clamp_to_char_boundaries(text, capture.node.byte_range());
+                        language = Some(text[range].to_string());
                     }
-                    "injection.content" => content = Some(capture.node.byte_range()),
+                    "injection.content" => {
+                        content = Some(clamp_to_char_boundaries(text, capture.node.byte_range()));
+                    }
                     _ => {}
                 }
             }
@@ -518,7 +539,7 @@ fn collect_spans(
             let name = query.capture_names()[capture.index as usize];
             if let Some(class) = class_for_highlight(name) {
                 captures.push(CodeHighlightSpan {
-                    range: capture.node.byte_range(),
+                    range: clamp_to_char_boundaries(text, capture.node.byte_range()),
                     class,
                 });
             }
@@ -719,6 +740,25 @@ mod tests {
             classes.contains(&CodeHighlightClass::Keyword),
             "rust keyword"
         );
+    }
+
+    #[test]
+    fn multibyte_markdown_never_panics() {
+        // tree-sitter-md can report node edges inside multi-byte characters;
+        // the engine must clamp them instead of panicking on string slicing.
+        let samples = [
+            "# 标题二\n\n正文内容。\n",
+            "## 第二章\n\n一段中文正文。\n\n```rust\nfn main() {}\n```\n",
+            "### 三\n\n文字 `code` 和链接 [x](y)。\n",
+            "一二三四五六七八九十\n",
+            "# 标题\n\n段落文本内容\n\n```python\nprint('你好')\n```\n\n结尾。\n",
+        ];
+        for text in samples {
+            // The point is crash-freedom, not highlight density: plain-text
+            // paragraphs legitimately produce no markup spans.
+            let map = HighlightMap::new(CodeLanguageKey::Markdown, text).expect("markdown map");
+            let _ = map.spans().len();
+        }
     }
 
     /// Compares per-keystroke `apply_edit + refresh` (incremental) against

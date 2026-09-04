@@ -165,8 +165,8 @@ impl DocumentBuffer {
     fn apply_edit_core(&mut self, edit: EditTransaction) -> bool {
         let mut operations: Vec<Operation> = Vec::with_capacity(edit.edits.len());
         for (range, inserted) in edit.edits {
-            let start = range.start.min(self.text.len());
-            let end = range.end.min(self.text.len()).max(start);
+            let start = clamp_to_char_boundary(&self.text, range.start.min(self.text.len()));
+            let end = clamp_to_char_boundary(&self.text, range.end.min(self.text.len()).max(start));
             let inserted = normalize_arc(inserted);
             let old: Arc<str> = Arc::from(self.text.slice_owned(start..end));
             if old.as_ref() == inserted.as_ref() {
@@ -382,6 +382,16 @@ fn normalize_arc(text: Arc<str>) -> Arc<str> {
     } else {
         text
     }
+}
+
+/// Snaps an offset inward to the nearest UTF-8 character boundary
+/// (downward for starts, upward for ends), so pane-supplied ranges can
+/// never split a multi-byte character.
+fn clamp_to_char_boundary(rope: &Rope, mut offset: usize) -> usize {
+    while offset > 0 && !rope.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    offset
 }
 
 #[cfg(test)]
