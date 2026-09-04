@@ -10,7 +10,7 @@ use gpui::*;
 use markdown_parser::inline::render_cache::InlineSpan;
 use markdown_parser::inline::style::InlineScript;
 use markdown_parser::inline::text::BlockText;
-use syntax_highlighter::latex::{inline_math_font_size, render_inline_math_svg};
+use syntax_highlighter::graphics::latex::{inline_math_font_size, render_inline_math_svg};
 use theme::Theme;
 
 use std::ops::Range;
@@ -169,7 +169,7 @@ pub(crate) fn render_preview_span(
     if let Some(style) = span.html_style
         && let Some(html_color) = style.color
     {
-        color = syntax_highlighter::render_helpers::html_css_color_to_hsla(html_color, color);
+        color = syntax_highlighter::graphics::markup::html_css_color_to_hsla(html_color, color);
     }
 
     let display_font_size = if span.style.has_script() || span.footnote.is_some() {
@@ -228,9 +228,8 @@ pub(crate) fn render_preview_span(
     } else if let Some(style) = span.html_style
         && let Some(bg_color) = style.background_color
     {
-        element = element.bg(syntax_highlighter::render_helpers::html_css_color_to_hsla(
-            bg_color, color,
-        ));
+        element = element
+            .bg(syntax_highlighter::graphics::markup::html_css_color_to_hsla(bg_color, color));
     }
 
     if let Some(link) = &span.link {

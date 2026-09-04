@@ -1,4 +1,4 @@
-use crate::state::PreviewState;
+use crate::pane::PreviewState;
 use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 

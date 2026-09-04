@@ -2,7 +2,7 @@
 
 use crate::node::PreviewBlock;
 use crate::outline::calculate_scroll_offset_for_block_index;
-use crate::state::PreviewState;
+use crate::pane::PreviewState;
 use editor_contracts::{SearchMatch, SearchQuery};
 
 /// Searches within the Markdown text source of the Preview pane.

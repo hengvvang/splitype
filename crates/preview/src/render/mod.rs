@@ -33,8 +33,8 @@ use markdown_parser::parse::BlockKind;
 use theme::Theme;
 
 use crate::node::PreviewBlock;
+use crate::pane::PreviewState;
 use crate::settings::PreviewSettings;
-use crate::state::PreviewState;
 use config::settings::PluginSettings;
 
 /// Renders the preview pane for `state` inside the view shell described by
@@ -227,7 +227,7 @@ pub(crate) fn render_preview_block(
         .into_any_element();
 
     if let BlockKind::Callout(variant) = block.kind() {
-        let (accent, _) = syntax_highlighter::render_helpers::callout_colors(variant, theme);
+        let (accent, _) = syntax_highlighter::graphics::markup::callout_colors(variant, theme);
         div()
             .w_full()
             .relative()

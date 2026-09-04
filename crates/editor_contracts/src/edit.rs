@@ -164,16 +164,6 @@ impl EditTransaction {
             cursor_after,
         }
     }
-
-    /// A single, self-contained edit at `cursor` (for command-driven
-    /// edits like paste, cut, or a one-shot replacement).
-    pub fn one_shot(
-        range: Range<usize>,
-        inserted: impl Into<Arc<str>>,
-        cursor: CursorHint,
-    ) -> Self {
-        Self::new(range, inserted, false, cursor, cursor)
-    }
 }
 
 #[cfg(test)]

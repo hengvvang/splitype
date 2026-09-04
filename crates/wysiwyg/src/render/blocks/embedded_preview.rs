@@ -6,11 +6,13 @@ use crate::model::block::Block;
 use crate::render::media_placeholder::effective_image_width;
 use markdown_parser::block::math::parse_display_math_source;
 use markdown_parser::block::mermaid::parse_mermaid_fence_source;
+use syntax_highlighter::graphics::latex::{display_math_font_size, render_display_math_svg};
+use syntax_highlighter::graphics::mermaid::{
+    mermaid_content_fingerprint, render_mermaid_svg_for_display,
+};
 use syntax_highlighter::graphics::{
     GraphicKind, render_empty_graphic_placeholder, render_graphic_error_card,
 };
-use syntax_highlighter::latex::{display_math_font_size, render_display_math_svg};
-use syntax_highlighter::mermaid::{mermaid_content_fingerprint, render_mermaid_svg_for_display};
 use theme::{Theme, ThemeDimensions};
 
 impl Block {
@@ -143,7 +145,7 @@ impl Block {
     }
 
     pub fn render_mermaid_svg_element(
-        rendered: syntax_highlighter::mermaid::MermaidSvgRender,
+        rendered: syntax_highlighter::graphics::mermaid::MermaidSvgRender,
         available_width: f32,
         block: &Block,
         d: &ThemeDimensions,

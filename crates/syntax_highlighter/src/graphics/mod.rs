@@ -1,3 +1,10 @@
+//! Rendered graphics embedded in documents: LaTeX math, Mermaid diagrams,
+//! and shared markup helpers (HTML colors, callout styling).
+
+pub mod latex;
+pub mod markup;
+pub mod mermaid;
+
 use gpui::*;
 use theme::{Theme, TypographyScope, TypographyStore};
 

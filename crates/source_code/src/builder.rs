@@ -1,4 +1,4 @@
-use crate::state::SourceCodeState;
+use crate::pane::SourceCodeState;
 use editor_contracts::{PaneDescriptor, PaneKind, PaneView};
 use gpui::SharedString;
 

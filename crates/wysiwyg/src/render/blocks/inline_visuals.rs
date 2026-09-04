@@ -14,7 +14,7 @@ use markdown_parser::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
 use markdown_parser::inline::style::InlineScript;
-use syntax_highlighter::latex::{inline_math_font_size, render_inline_math_svg};
+use syntax_highlighter::graphics::latex::{inline_math_font_size, render_inline_math_svg};
 use theme::Theme;
 
 impl Block {

@@ -6,7 +6,7 @@ use gpui::*;
 use crate::node::PreviewBlock;
 use crate::render::preview_centered_column_width;
 use markdown_parser::block::mermaid::parse_mermaid_fence_source;
-use syntax_highlighter::mermaid::render_mermaid_svg_for_display;
+use syntax_highlighter::graphics::mermaid::render_mermaid_svg_for_display;
 use theme::Theme;
 
 /// Renders a Mermaid diagram block read-only.

@@ -12,7 +12,7 @@ use editor_contracts::{
     CursorHint, DocumentId, DocumentSnapshot, EditTransaction, HighlightSnapshot, Rope,
 };
 use syntax_highlighter::engine::HighlightMap;
-use syntax_highlighter::highlight::CodeLanguageKey;
+use syntax_highlighter::language::CodeLanguageKey;
 
 /// Maximum retained undo steps per document.
 pub const MAX_UNDO_DEPTH: usize = 100;

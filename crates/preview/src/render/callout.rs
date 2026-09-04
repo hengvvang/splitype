@@ -15,7 +15,7 @@ pub(crate) fn render_preview_callout(
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
-    let style = syntax_highlighter::render_helpers::callout_style(variant, theme);
+    let style = syntax_highlighter::graphics::markup::callout_style(variant, theme);
     let accent = style.border_color;
     let text_is_empty = block.data.text.plain_text().is_empty();
     let header_label = SharedString::from(variant.label());

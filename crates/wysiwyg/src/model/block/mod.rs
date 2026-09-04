@@ -37,8 +37,8 @@ use markdown_parser::block::table::{TableAxisMarker, TableCellPosition, TableCol
 use markdown_parser::inline::render_cache::InlineRenderCache;
 use markdown_parser::parse::BlockId;
 use markdown_parser::parse::{BlockData, BlockKind};
+use syntax_highlighter::graphics::mermaid::MermaidSvgRender;
 use syntax_highlighter::highlight::CodeHighlightResult;
-use syntax_highlighter::mermaid::MermaidSvgRender;
 
 impl EventEmitter<BlockEvent> for Block {}
 

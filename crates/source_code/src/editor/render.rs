@@ -18,7 +18,7 @@ use gpui::{
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::editor::SourceCodeEditor;
-use crate::syntax::indent_guides::compute_indent_guide_columns;
+use crate::indent_guides::compute_indent_guide_columns;
 use editor_contracts::{OutlineHost, PaneId, PaneOutlineHost, PaneRenderContext};
 use syntax_highlighter::highlight::build_line_text_runs;
 

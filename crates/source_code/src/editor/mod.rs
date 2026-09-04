@@ -877,7 +877,7 @@ impl SourceCodeEditor {
             }
         }
         let text = self.text.materialize();
-        let result = crate::syntax::find_matching_bracket(&text, cursor);
+        let result = crate::brackets::find_matching_bracket(&text, cursor);
         self.bracket_cache = Some((self.text_version, cursor, result));
         result
     }

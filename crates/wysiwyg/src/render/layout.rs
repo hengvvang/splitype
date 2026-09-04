@@ -100,7 +100,7 @@ pub fn footnote_row_top_gap(previous: Option<RowSpacingInfo>, default_gap: f32) 
 }
 
 pub fn callout_colors(variant: markdown_parser::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
-    syntax_highlighter::render_helpers::callout_colors(variant, theme)
+    syntax_highlighter::graphics::markup::callout_colors(variant, theme)
 }
 
 /// Linearly interpolates the editor content width ratio based on viewport

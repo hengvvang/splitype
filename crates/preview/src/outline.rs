@@ -1,7 +1,7 @@
 //! Preview pane outline extraction and heading navigation.
 
 use crate::node::PreviewBlock;
-use crate::state::PreviewState;
+use crate::pane::PreviewState;
 use editor_contracts::OutlineNode;
 use markdown_parser::parse::BlockKind;
 

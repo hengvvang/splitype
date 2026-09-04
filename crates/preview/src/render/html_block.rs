@@ -10,7 +10,7 @@ use markdown_parser::block::html::{
     HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };
 use markdown_parser::block::image::resolve_image_source;
-use syntax_highlighter::render_helpers::{
+use syntax_highlighter::graphics::markup::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
 use theme::Theme;

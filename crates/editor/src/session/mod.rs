@@ -2,7 +2,7 @@
 //! split topology. The authoritative document state lives in
 //! [`crate::document::DocumentBuffer`].
 
-pub mod flow;
+pub mod lifecycle;
 pub mod ops;
 pub mod pane_state;
 pub mod tab;

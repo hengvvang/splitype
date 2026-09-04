@@ -1,4 +1,5 @@
-//! Code-block syntax highlighting support.
+//! Code-block syntax highlighting support: the language registry, grammar
+//! queries, highlight classes, and line-run building.
 
 use std::ops::Range;
 #[cfg(feature = "code-highlight-core")]
@@ -7,61 +8,9 @@ use std::sync::{Arc, LazyLock};
 use gpui::{Font, FontStyle, FontWeight, Hsla, TextRun, UnderlineStyle, px};
 
 use crate::engine::{HighlightMap, LanguageConfig};
+use crate::language::CodeLanguageKey;
 
 use theme::ThemeColors;
-
-/// Canonical language key used by the syntax-highlighting registry.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum CodeLanguageKey {
-    /// Rust source code.
-    Rust,
-    /// JavaScript without JSX.
-    JavaScript,
-    /// JavaScript with JSX syntax.
-    JavaScriptJsx,
-    /// TypeScript without TSX.
-    TypeScript,
-    /// TypeScript with TSX syntax.
-    TypeScriptTsx,
-    /// JSON data.
-    Json,
-    /// Markdown source.
-    Markdown,
-    /// Markdown inline content (injection-only language).
-    MarkdownInline,
-    /// POSIX-like shell scripts.
-    Bash,
-    /// C source code.
-    C,
-    /// C++ source code.
-    Cpp,
-    /// C# source code.
-    CSharp,
-    /// CSS stylesheets.
-    Css,
-    /// Go source code.
-    Go,
-    /// HTML markup.
-    Html,
-    /// Java source code.
-    Java,
-    /// PHP source code.
-    Php,
-    /// Python source code.
-    Python,
-    /// Ruby source code.
-    Ruby,
-    /// YAML structured data.
-    Yaml,
-    /// TOML configuration data.
-    Toml,
-    /// Plain text without syntax highlighting.
-    PlainText,
-    /// Mermaid diagram source.
-    Mermaid,
-    /// LaTeX math expression source.
-    Latex,
-}
 
 /// Token class and span vocabulary, owned by the document contracts and
 /// re-exported here for consumers of the highlighter.

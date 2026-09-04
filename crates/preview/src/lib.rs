@@ -13,9 +13,8 @@ pub mod builder;
 mod context;
 pub mod node;
 pub mod outline;
+pub mod pane;
 pub mod render;
 pub mod search;
 pub mod settings;
-mod state;
-
 pub use builder::*;

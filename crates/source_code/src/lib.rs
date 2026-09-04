@@ -4,16 +4,17 @@
 //! display maps (Tab/Fold/Wrap), multi-cursor selection collection,
 //! syntax highlighting, indent guides, and virtualized viewport rendering.
 
+pub mod brackets;
 pub mod builder;
 pub mod display_map;
 pub mod editor;
 pub mod gutter;
+pub mod indent_guides;
 pub mod outline;
+pub mod pane;
 pub mod search;
 pub mod selection;
 pub mod settings;
-pub mod state;
-pub mod syntax;
 
 pub use builder::*;
 pub use editor_contracts::text::Rope;

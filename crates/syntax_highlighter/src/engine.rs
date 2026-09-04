@@ -20,9 +20,9 @@ use tree_sitter::{InputEdit, Parser, Point, Query, QueryCursor, StreamingIterato
 use editor_contracts::Rope;
 
 use crate::highlight::{
-    CodeHighlightSpan, CodeLanguageKey, class_for_highlight, language_config,
-    resolve_code_language_key,
+    CodeHighlightSpan, class_for_highlight, language_config, resolve_code_language_key,
 };
+use crate::language::CodeLanguageKey;
 
 /// A language's grammar and queries. Configs are `Send + Sync` (the grammar
 /// is a function), so they live in a process-global registry; each
