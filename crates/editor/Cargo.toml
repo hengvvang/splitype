@@ -13,6 +13,7 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
+rope = { workspace = true }
 anyhow = { workspace = true }
 config = { path = "../config" }
 editor_contracts = { path = "../editor_contracts" }

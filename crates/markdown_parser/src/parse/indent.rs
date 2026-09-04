@@ -3,6 +3,8 @@
 //! These helpers are extracted from the parser module and operate on raw
 //! string slices — they carry no dependency on GPUI or the runtime editor.
 
+use crate::parse::lines::Lines;
+
 /// Strip up to 3 leading spaces from a code-fence candidate line.
 ///
 /// Returns `None` if the indent exceeds 3 spaces, per CommonMark §4.5.
@@ -13,10 +15,10 @@ pub fn strip_fence_indent(line: &str) -> Option<&str> {
 
 /// Advance from `start` until the first blank line (or end of input).
 ///
-/// Returns the index of the first blank line (or `lines.len()`).
-pub fn collect_until_blank_line<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
+/// Returns the index of the first blank line (or `lines.line_count()`).
+pub fn collect_until_blank_line<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
     let mut index = start + 1;
-    while index < lines.len() && !lines[index].as_ref().trim().is_empty() {
+    while index < lines.line_count() && !lines.line(index).trim().is_empty() {
         index += 1;
     }
     index
@@ -122,34 +124,13 @@ pub fn common_affix(a: &str, b: &str) -> (usize, usize) {
     (prefix, suffix)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::common_affix;
-
-    #[test]
-    fn snapshots_prefix_and_suffix_to_char_boundaries() {
-        // '中' = E4 B8 AD; U+4E2E = E4 B8 AE. The bytes diverge at index 2,
-        // inside the character: the prefix must snap back to 0.
-        assert_eq!(common_affix("中", "\u{4E2E}"), (0, 0));
-        // Shared suffix where the cut would land inside a character.
-        assert_eq!(common_affix("x中", "y中"), (0, 3));
-        // Ordinary ASCII case.
-        assert_eq!(common_affix("abXcd", "abYcd"), (2, 2));
-        // Identical inputs: full prefix, no suffix.
-        assert_eq!(common_affix("same", "same"), (4, 0));
-        // One input a prefix of the other.
-        assert_eq!(common_affix("ab", "abc"), (2, 0));
-    }
-}
-
 /// Dedent every line by at least `columns` display columns.
 ///
 /// Lines with insufficient leading whitespace are passed through unchanged.
-pub fn dedent_lines<S: AsRef<str>>(lines: &[S], columns: usize) -> Vec<String> {
-    lines
-        .iter()
-        .map(|line| {
-            let line = line.as_ref();
+pub fn dedent_lines<L: Lines + ?Sized>(lines: &L, columns: usize) -> Vec<String> {
+    (0..lines.line_count())
+        .map(|index| {
+            let line = lines.line(index);
             strip_leading_columns(line, columns)
                 .unwrap_or(line)
                 .to_string()
@@ -196,4 +177,24 @@ pub fn strip_one_quote_level(line: &str) -> Option<String> {
             .unwrap_or(&rest[1..])
             .to_string(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::common_affix;
+
+    #[test]
+    fn snapshots_prefix_and_suffix_to_char_boundaries() {
+        // '中' = E4 B8 AD; U+4E2E = E4 B8 AE. The bytes diverge at index 2,
+        // inside the character: the prefix must snap back to 0.
+        assert_eq!(common_affix("中", "\u{4E2E}"), (0, 0));
+        // Shared suffix where the cut would land inside a character.
+        assert_eq!(common_affix("x中", "y中"), (0, 3));
+        // Ordinary ASCII case.
+        assert_eq!(common_affix("abXcd", "abYcd"), (2, 2));
+        // Identical inputs: full prefix, no suffix.
+        assert_eq!(common_affix("same", "same"), (4, 0));
+        // One input a prefix of the other.
+        assert_eq!(common_affix("ab", "abc"), (2, 0));
+    }
 }

@@ -1,10 +1,12 @@
 //! Persistent chunk rope with incremental line indexing.
 //!
-//! This is the source editor's text layer, mirroring the architectural
-//! properties of Zed's `text` crate: edits are O(log m) in the number of
-//! chunks (m = len / chunk size) instead of O(n) in the document, chunks
-//! are shared across edits (`Arc<str>`), and line indexing is maintained
-//! incrementally as part of the chunk summaries — never rebuilt per edit.
+//! This is the shared text primitive of the editing ecosystem — the same
+//! data structure every pane edits against and the block projection parses
+//! from, mirroring the architectural properties of Zed's `text` crate:
+//! edits are O(log m) in the number of chunks (m = len / chunk size) instead
+//! of O(n) in the document, chunks are shared across edits (`Arc<str>`), and
+//! line indexing is maintained incrementally as part of the chunk summaries
+//! — never rebuilt per edit.
 //!
 //! Chunks always split at line boundaries, so a line lives entirely within
 //! one chunk and `line_str` can borrow without allocating. A single line

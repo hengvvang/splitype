@@ -17,7 +17,7 @@ pub mod selection;
 pub mod settings;
 
 pub use builder::*;
-pub use editor_contracts::text::Rope;
+pub use rope::Rope;
 pub use settings::SourceCodeSettings;
 
 #[cfg(test)]

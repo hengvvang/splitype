@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use tree_sitter::{InputEdit, Parser, Point, Query, QueryCursor, StreamingIterator, Tree};
 
-use editor_contracts::Rope;
+use rope::Rope;
 
 use crate::highlight::{
     CodeHighlightSpan, class_for_highlight, language_config, resolve_code_language_key,

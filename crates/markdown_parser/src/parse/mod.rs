@@ -17,6 +17,7 @@ pub mod helpers;
 pub mod id;
 pub mod indent;
 pub mod kind;
+pub mod lines;
 pub mod lists;
 pub mod pipeline;
 pub mod projection;

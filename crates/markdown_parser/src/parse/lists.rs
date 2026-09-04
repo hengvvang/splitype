@@ -5,6 +5,7 @@ use super::code_and_text::{
     collect_paragraph_block,
 };
 use super::helpers::*;
+use super::lines::Lines;
 use super::quotes::collect_quote_block;
 use crate::block::image::parse_standalone_image;
 use crate::block::table::{
@@ -16,15 +17,15 @@ use crate::parse::indent::{
 };
 use crate::parse::kind::BlockKind;
 
-pub(crate) fn collect_list_blocks<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn collect_list_blocks<L: Lines + ?Sized>(
+    lines: &L,
     start: usize,
 ) -> (Vec<BlockData>, usize) {
     let mut roots = Vec::new();
     let mut index = start;
 
-    while index < lines.len() {
-        let Some(marker) = parse_list_marker(lines[index].as_ref()) else {
+    while index < lines.line_count() {
+        let Some(marker) = parse_list_marker(lines.line(index)) else {
             break;
         };
 
@@ -37,7 +38,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
         let mut item_children: Vec<BlockData> = Vec::new();
 
         while body_index < item_end {
-            let line = lines[body_index].as_ref();
+            let line = lines.line(body_index);
             if line.trim().is_empty() {
                 pending_blank_lines += 1;
                 body_index += 1;
@@ -47,10 +48,10 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
             let (line_indent_columns, _) = leading_indent_columns_and_bytes(line);
             if line_indent_columns > marker.indent_columns {
                 let anchor_dedented =
-                    dedent_lines(&lines[body_index..item_end], line_indent_columns);
+                    dedent_lines(&lines.slice(body_index, item_end), line_indent_columns);
 
                 if parse_list_marker(&anchor_dedented[0]).is_some() {
-                    let (mut children, consumed) = collect_list_blocks(&anchor_dedented, 0);
+                    let (mut children, consumed) = collect_list_blocks(&anchor_dedented[..], 0);
                     attach_child_blocks(&mut block, &mut children);
                     item_children.append(&mut children);
                     body_index += consumed;
@@ -60,7 +61,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if is_quote_start(&anchor_dedented[0]) {
-                    let (mut quote_blocks, consumed) = collect_quote_block(&anchor_dedented, 0);
+                    let (mut quote_blocks, consumed) = collect_quote_block(&anchor_dedented[..], 0);
                     if !quote_blocks.is_empty() && quote_blocks[0].kind == BlockKind::RawMarkdown {
                         fallback_raw = true;
                         break;
@@ -76,7 +77,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
 
                 if parse_opening_fence(&anchor_dedented[0]).is_some()
                     && let Some((mut code_block, consumed)) =
-                        collect_fenced_code_block(&anchor_dedented, 0)
+                        collect_fenced_code_block(&anchor_dedented[..], 0)
                 {
                     attach_child_block(&mut block, &mut code_block);
                     item_children.push(code_block);
@@ -87,7 +88,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if is_table_candidate_line(&anchor_dedented[0]) {
-                    let table_end = collect_table_candidate_region(&anchor_dedented, 0);
+                    let table_end = collect_table_candidate_region(&anchor_dedented[..], 0);
                     let table_region = &anchor_dedented[..table_end];
                     let mut child = if let Some(table) = parse_table_region(table_region) {
                         BlockData::table(table)
@@ -102,7 +103,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                     continue;
                 }
 
-                if starts_with_standalone_image_child_paragraph(&anchor_dedented) {
+                if starts_with_standalone_image_child_paragraph(&anchor_dedented[..]) {
                     let mut child = standalone_image_block(anchor_dedented[0].clone());
                     attach_child_block(&mut block, &mut child);
                     item_children.push(child);
@@ -113,11 +114,13 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if line_indent_columns >= marker.content_indent_columns {
-                    let content_dedented =
-                        dedent_lines(&lines[body_index..item_end], marker.content_indent_columns);
+                    let content_dedented = dedent_lines(
+                        &lines.slice(body_index, item_end),
+                        marker.content_indent_columns,
+                    );
                     if strip_indented_code_prefix(&content_dedented[0]).is_some() {
                         let Some((mut code_block, consumed)) =
-                            collect_indented_code_block(&content_dedented, 0)
+                            collect_indented_code_block(&content_dedented[..], 0)
                         else {
                             unreachable!("indented code prefix disappeared after child detection");
                         };
@@ -132,7 +135,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if is_reference_definition_start(&anchor_dedented[0]) {
-                    let consumed = collect_reference_definition_region(&anchor_dedented, 0);
+                    let consumed = collect_reference_definition_region(&anchor_dedented[..], 0);
                     let mut child = raw_block(anchor_dedented[..consumed].join("\n"));
                     attach_child_block(&mut block, &mut child);
                     item_children.push(child);
@@ -142,7 +145,9 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                     continue;
                 }
 
-                if let Some((mut comment, consumed)) = collect_comment_block(&anchor_dedented, 0) {
+                if let Some((mut comment, consumed)) =
+                    collect_comment_block(&anchor_dedented[..], 0)
+                {
                     attach_child_block(&mut block, &mut comment);
                     item_children.push(comment);
                     body_index += consumed;
@@ -152,7 +157,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if is_block_html_start(&anchor_dedented[0]) {
-                    let consumed = collect_block_html_region(&anchor_dedented, 0);
+                    let consumed = collect_block_html_region(&anchor_dedented[..], 0);
                     let mut child = html_or_raw_block(anchor_dedented[..consumed].join("\n"));
                     attach_child_block(&mut block, &mut child);
                     item_children.push(child);
@@ -163,7 +168,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if is_footnote_definition_start(&anchor_dedented[0]) {
-                    let consumed = collect_footnote_definition_region(&anchor_dedented, 0);
+                    let consumed = collect_footnote_definition_region(&anchor_dedented[..], 0);
                     let mut child = raw_block(anchor_dedented[..consumed].join("\n"));
                     attach_child_block(&mut block, &mut child);
                     item_children.push(child);
@@ -174,7 +179,7 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                 }
 
                 if is_display_math_start(&anchor_dedented[0]) {
-                    let consumed = collect_display_math_region(&anchor_dedented, 0);
+                    let consumed = collect_display_math_region(&anchor_dedented[..], 0);
                     let mut child = math_or_raw_block(anchor_dedented[..consumed].join("\n"));
                     attach_child_block(&mut block, &mut child);
                     item_children.push(child);
@@ -189,7 +194,8 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
                     || block.text.plain_text().is_empty()
                     || parse_standalone_image(&block.text.serialize_markdown()).is_some();
                 if should_promote_plain_child {
-                    let (mut paragraph, consumed) = collect_paragraph_block(&anchor_dedented, 0);
+                    let (mut paragraph, consumed) =
+                        collect_paragraph_block(&anchor_dedented[..], 0);
                     attach_child_block(&mut block, &mut paragraph);
                     item_children.push(paragraph);
                     body_index += consumed;
@@ -200,11 +206,13 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
             }
 
             if line_indent_columns >= marker.content_indent_columns {
-                let content_dedented =
-                    dedent_lines(&lines[body_index..item_end], marker.content_indent_columns);
+                let content_dedented = dedent_lines(
+                    &lines.slice(body_index, item_end),
+                    marker.content_indent_columns,
+                );
                 if strip_indented_code_prefix(&content_dedented[0]).is_some() {
                     let Some((mut code_block, consumed)) =
-                        collect_indented_code_block(&content_dedented, 0)
+                        collect_indented_code_block(&content_dedented[..], 0)
                     else {
                         unreachable!("indented code prefix disappeared after detection");
                     };
@@ -234,9 +242,8 @@ pub(crate) fn collect_list_blocks<S: AsRef<str>>(
 
         if fallback_raw {
             roots.push(raw_block(
-                lines[index..item_end]
-                    .iter()
-                    .map(|line| line.as_ref())
+                (index..item_end)
+                    .map(|i| lines.line(i))
                     .collect::<Vec<_>>()
                     .join("\n"),
             ));

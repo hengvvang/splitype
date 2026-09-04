@@ -6,6 +6,7 @@ use super::code_and_text::{
 };
 use super::footnotes::build_native_footnote_definition_block;
 use super::helpers::*;
+use super::lines::Lines;
 use super::lists::collect_list_blocks;
 use super::quotes::collect_quote_block;
 use crate::block::image::parse_standalone_image;
@@ -58,13 +59,13 @@ pub(crate) fn parse_document_with_mode(markdown: &str, mode: ParseMode) -> Vec<B
         return Vec::new();
     }
     let lines = markdown.lines().collect::<Vec<_>>();
-    build_blocks_from_lines_internal(&lines, mode, true)
+    build_blocks_from_lines_internal(&lines[..], mode, true)
 }
 
 /// Internal dispatch: walk every line and emit native blocks or raw
 /// fallbacks, recording the span of every top-level region alongside.
-pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn build_blocks_from_lines_with_regions<L: Lines + ?Sized>(
+    lines: &L,
     mode: ParseMode,
     allow_root_footnote_definitions: bool,
 ) -> (Vec<BlockData>, Vec<RegionSpan>) {
@@ -72,8 +73,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
     let mut regions = Vec::new();
     let mut index = 0;
 
-    while index < lines.len() {
-        let line = lines[index].as_ref();
+    while index < lines.line_count() {
+        let line = lines.line(index);
         if line.trim().is_empty() {
             if mode == ParseMode::Linewise {
                 push_region(
@@ -108,9 +109,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
                 &mut roots,
                 &mut regions,
                 vec![html_or_raw_block(
-                    lines[index..end]
-                        .iter()
-                        .map(|line| line.as_ref())
+                    (index..end)
+                        .map(|i| lines.line(i))
                         .collect::<Vec<_>>()
                         .join("\n"),
                 )],
@@ -125,23 +125,21 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
             let end = collect_footnote_definition_region(lines, index);
             let blocks = if allow_root_footnote_definitions {
                 if let Some(blocks) =
-                    build_native_footnote_definition_block(&lines[index..end], mode)
+                    build_native_footnote_definition_block(&lines.slice(index, end), mode)
                 {
                     blocks
                 } else {
                     vec![raw_block(
-                        lines[index..end]
-                            .iter()
-                            .map(|line| line.as_ref())
+                        (index..end)
+                            .map(|i| lines.line(i))
                             .collect::<Vec<_>>()
                             .join("\n"),
                     )]
                 }
             } else {
                 vec![raw_block(
-                    lines[index..end]
-                        .iter()
-                        .map(|line| line.as_ref())
+                    (index..end)
+                        .map(|i| lines.line(i))
                         .collect::<Vec<_>>()
                         .join("\n"),
                 )]
@@ -157,9 +155,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
                 &mut roots,
                 &mut regions,
                 vec![raw_block(
-                    lines[index..end]
-                        .iter()
-                        .map(|line| line.as_ref())
+                    (index..end)
+                        .map(|i| lines.line(i))
                         .collect::<Vec<_>>()
                         .join("\n"),
                 )],
@@ -234,8 +231,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
 
         if is_table_candidate_line(line) {
             let end = collect_table_candidate_region(lines, index);
-            let region = &lines[index..end];
-            if let Some(table) = parse_table_region(region) {
+            let region = lines.slice(index, end);
+            if let Some(table) = parse_table_region(&region) {
                 push_region(
                     &mut roots,
                     &mut regions,
@@ -247,9 +244,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
                 push_region(
                     &mut roots,
                     &mut regions,
-                    region
-                        .iter()
-                        .map(|line| plain_text_paragraph_block(line.as_ref().to_string()))
+                    (0..region.line_count())
+                        .map(|i| plain_text_paragraph_block(region.line(i).to_string()))
                         .collect(),
                     index,
                     end,
@@ -260,7 +256,7 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
         }
 
         if let Some(end) = collect_pipeless_table_region(lines, index)
-            && let Some(table) = parse_table_region(&lines[index..end])
+            && let Some(table) = parse_table_region(&lines.slice(index, end))
         {
             push_region(
                 &mut roots,
@@ -279,9 +275,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
                 &mut roots,
                 &mut regions,
                 vec![math_or_raw_block(
-                    lines[index..end]
-                        .iter()
-                        .map(|line| line.as_ref())
+                    (index..end)
+                        .map(|i| lines.line(i))
                         .collect::<Vec<_>>()
                         .join("\n"),
                 )],
@@ -292,7 +287,7 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
             continue;
         }
 
-        if let Some(next) = lines.get(index + 1).map(|next| next.as_ref())
+        if let Some(next) = lines.get(index + 1)
             && parse_list_marker(next).is_none()
             && let Some(level) = BlockKind::parse_setext_underline(next)
         {
@@ -336,8 +331,8 @@ pub(crate) fn build_blocks_from_lines_with_regions<S: AsRef<str>>(
 }
 
 /// Block-only variant for callers that don't need region spans.
-pub(crate) fn build_blocks_from_lines_internal<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn build_blocks_from_lines_internal<L: Lines + ?Sized>(
+    lines: &L,
     mode: ParseMode,
     allow_root_footnote_definitions: bool,
 ) -> Vec<BlockData> {

@@ -12,7 +12,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::text::Rope;
+use rope::Rope;
 
 /// A 1-based cursor position in the document, used to restore the caret
 /// after undo/redo. Mirrors the [`crate::PaneView::cursor_position`]

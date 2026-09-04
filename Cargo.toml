@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/rope",
     "crates/splitter",
     "crates/splitype_installer",
     "crates/splitype_cli",
@@ -32,6 +33,7 @@ rust-version = "1.91"
 
 [workspace.dependencies]
 # Member crates
+rope = { path = "crates/rope" }
 platform_contracts = { path = "crates/platform_contracts" }
 editor_contracts = { path = "crates/editor_contracts" }
 markdown_parser = { path = "crates/markdown_parser" }

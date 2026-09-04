@@ -1,5 +1,6 @@
 //! Parser helper functions: fence matching, HTML/math regions, and block factories.
 
+use super::lines::Lines;
 use crate::block::html::{HtmlBlockStart, HtmlSafetyClass, parse_html_document};
 use crate::block::image::parse_standalone_image;
 use crate::block::math::parse_display_math_source;
@@ -26,10 +27,10 @@ pub(crate) struct ListMarker {
 // Utility / preamble helpers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn collect_html_fallback_region<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
+pub(crate) fn collect_html_fallback_region<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
     let mut index = start + 1;
-    while index < lines.len() {
-        let line = lines[index].as_ref();
+    while index < lines.line_count() {
+        let line = lines.line(index);
         if line.trim().is_empty()
             || looks_like_root_block_start(lines, index)
             || parse_standalone_image(line).is_some()
@@ -92,9 +93,9 @@ pub(crate) fn line_contains_matching_backtick_run(line: &str, run_len: usize) ->
     false
 }
 
-pub(crate) fn paragraph_can_continue_through_boundary<S: AsRef<str>, P: AsRef<str>>(
+pub(crate) fn paragraph_can_continue_through_boundary<P: AsRef<str>, L: Lines + ?Sized>(
     paragraph_lines: &[P],
-    lines: &[S],
+    lines: &L,
     boundary_index: usize,
 ) -> bool {
     let joined = paragraph_lines
@@ -106,9 +107,12 @@ pub(crate) fn paragraph_can_continue_through_boundary<S: AsRef<str>, P: AsRef<st
         return false;
     };
 
-    lines[boundary_index..]
-        .iter()
-        .any(|line| line_contains_matching_backtick_run(line.as_ref(), run_len))
+    for index in boundary_index..lines.line_count() {
+        if line_contains_matching_backtick_run(lines.line(index), run_len) {
+            return true;
+        }
+    }
+    false
 }
 
 pub(crate) fn parse_opening_fence(line: &str) -> Option<CodeFenceOpening> {
@@ -129,13 +133,13 @@ pub(crate) fn is_closing_fence(line: &str, opener: &CodeFenceOpening) -> bool {
     trimmed[opener.ch.len_utf8() * run_len..].trim().is_empty()
 }
 
-pub(crate) fn find_matching_closing_fence<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn find_matching_closing_fence<L: Lines + ?Sized>(
+    lines: &L,
     start_index: usize,
     opener: &CodeFenceOpening,
 ) -> Option<usize> {
-    for index in (start_index + 1)..lines.len() {
-        let line = lines[index].as_ref();
+    for index in (start_index + 1)..lines.line_count() {
+        let line = lines.line(index);
         if is_closing_fence(line, opener) {
             return Some(index);
         }
@@ -259,22 +263,22 @@ pub(crate) fn is_block_html_start(line: &str) -> bool {
     parse_html_block_start(line).is_some()
 }
 
-pub(crate) fn collect_closed_html_comment_region<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn collect_closed_html_comment_region<L: Lines + ?Sized>(
+    lines: &L,
     start: usize,
 ) -> Option<usize> {
-    match parse_html_block_start(lines[start].as_ref())? {
+    match parse_html_block_start(lines.line(start))? {
         HtmlBlockStart::Comment => {}
         HtmlBlockStart::Tag { .. } => return None,
     }
 
-    if lines[start].as_ref().contains("-->") {
+    if lines.line(start).contains("-->") {
         return Some(start + 1);
     }
 
     let mut index = start + 1;
-    while index < lines.len() {
-        if lines[index].as_ref().contains("-->") {
+    while index < lines.line_count() {
+        if lines.line(index).contains("-->") {
             return Some(index + 1);
         }
         index += 1;
@@ -283,8 +287,8 @@ pub(crate) fn collect_closed_html_comment_region<S: AsRef<str>>(
     None
 }
 
-pub(crate) fn collect_block_html_region<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
-    match parse_html_block_start(lines[start].as_ref()) {
+pub(crate) fn collect_block_html_region<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
+    match parse_html_block_start(lines.line(start)) {
         Some(HtmlBlockStart::Comment) => collect_closed_html_comment_region(lines, start)
             .unwrap_or_else(|| collect_html_fallback_region(lines, start)),
         Some(HtmlBlockStart::Tag {
@@ -298,8 +302,8 @@ pub(crate) fn collect_block_html_region<S: AsRef<str>>(lines: &[S], start: usize
 
             let mut depth = 1usize;
             let mut index = start + 1;
-            while index < lines.len() {
-                let line = lines[index].as_ref();
+            while index < lines.line_count() {
+                let line = lines.line(index);
                 if let Some(HtmlBlockStart::Tag {
                     name: nested_name,
                     self_closing,
@@ -329,25 +333,27 @@ pub(crate) fn collect_block_html_region<S: AsRef<str>>(lines: &[S], start: usize
     }
 }
 
-pub(crate) fn collect_reference_definition_region<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn collect_reference_definition_region<L: Lines + ?Sized>(
+    lines: &L,
     start: usize,
 ) -> usize {
     let mut index = start + 1;
-    while index < lines.len() && is_reference_definition_title_continuation(lines[index].as_ref()) {
+    while index < lines.line_count()
+        && is_reference_definition_title_continuation(lines.line(index))
+    {
         index += 1;
     }
     index
 }
 
-pub(crate) fn collect_footnote_definition_region<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn collect_footnote_definition_region<L: Lines + ?Sized>(
+    lines: &L,
     start: usize,
 ) -> usize {
     let mut last_valid_end = start + 1;
     let mut index = start + 1;
-    while index < lines.len() {
-        let line = lines[index].as_ref();
+    while index < lines.line_count() {
+        let line = lines.line(index);
         if line.trim().is_empty() {
             index += 1;
             continue;
@@ -371,8 +377,8 @@ pub(crate) fn is_display_math_start(line: &str) -> bool {
         .is_some_and(|rest| rest.starts_with("$$"))
 }
 
-pub(crate) fn collect_display_math_region<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
-    let opener = strip_fence_indent(lines[start].as_ref())
+pub(crate) fn collect_display_math_region<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
+    let opener = strip_fence_indent(lines.line(start))
         .map(str::trim_end)
         .unwrap_or_default();
     if opener != "$$" && opener[2..].contains("$$") {
@@ -380,18 +386,18 @@ pub(crate) fn collect_display_math_region<S: AsRef<str>>(lines: &[S], start: usi
     }
 
     let mut index = start + 1;
-    while index < lines.len() {
-        if lines[index].as_ref().trim() == "$$" {
+    while index < lines.line_count() {
+        if lines.line(index).trim() == "$$" {
             return index + 1;
         }
 
-        if lines[index].as_ref().trim().is_empty() {
+        if lines.line(index).trim().is_empty() {
             let mut lookahead = index + 1;
-            while lookahead < lines.len() && lines[lookahead].as_ref().trim().is_empty() {
+            while lookahead < lines.line_count() && lines.line(lookahead).trim().is_empty() {
                 lookahead += 1;
             }
 
-            if lookahead >= lines.len() || looks_like_root_block_start(lines, lookahead) {
+            if lookahead >= lines.line_count() || looks_like_root_block_start(lines, lookahead) {
                 return lookahead;
             }
         }
@@ -399,7 +405,7 @@ pub(crate) fn collect_display_math_region<S: AsRef<str>>(lines: &[S], start: usi
         index += 1;
     }
 
-    lines.len()
+    lines.line_count()
 }
 
 pub(crate) fn parse_html_block_start(line: &str) -> Option<HtmlBlockStart> {
@@ -460,10 +466,10 @@ pub(crate) fn parse_html_close_tag_name(line: &str) -> Option<String> {
     Some(name.to_string())
 }
 
-pub(crate) fn collect_quote_raw_region<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
+pub(crate) fn collect_quote_raw_region<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
     let mut index = start;
-    while index < lines.len() {
-        let line = lines[index].as_ref();
+    while index < lines.line_count() {
+        let line = lines.line(index);
         if line.trim().is_empty() || !is_quote_start(line) {
             break;
         }
@@ -472,8 +478,8 @@ pub(crate) fn collect_quote_raw_region<S: AsRef<str>>(lines: &[S], start: usize)
     index
 }
 
-pub(crate) fn quote_content_starts_unsupported<S: AsRef<str>>(lines: &[S], index: usize) -> bool {
-    let line = lines[index].as_ref();
+pub(crate) fn quote_content_starts_unsupported<L: Lines + ?Sized>(lines: &L, index: usize) -> bool {
+    let line = lines.line(index);
     is_block_html_start(line)
         || is_footnote_definition_start(line)
         || is_reference_definition_start(line)
@@ -483,19 +489,19 @@ pub(crate) fn quote_content_starts_unsupported<S: AsRef<str>>(lines: &[S], index
         || BlockKind::parse_thematic_break_line(line)
         || lines
             .get(index + 1)
-            .and_then(|next| BlockKind::parse_setext_underline(next.as_ref()))
+            .and_then(BlockKind::parse_setext_underline)
             .is_some()
 }
 
-pub(crate) fn collect_unsupported_quote_region<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn collect_unsupported_quote_region<L: Lines + ?Sized>(
+    lines: &L,
     start: usize,
 ) -> Option<usize> {
-    if start >= lines.len() {
+    if start >= lines.line_count() {
         return None;
     }
 
-    let line = lines[start].as_ref();
+    let line = lines.line(start);
     if is_block_html_start(line) {
         return Some(collect_block_html_region(lines, start));
     }
@@ -518,24 +524,24 @@ pub(crate) fn collect_unsupported_quote_region<S: AsRef<str>>(
     }
     if lines
         .get(start + 1)
-        .and_then(|next| BlockKind::parse_setext_underline(next.as_ref()))
+        .and_then(BlockKind::parse_setext_underline)
         .is_some()
     {
-        return Some((start + 2).min(lines.len()));
+        return Some((start + 2).min(lines.line_count()));
     }
 
     None
 }
 
-pub(crate) fn collect_list_item_region<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn collect_list_item_region<L: Lines + ?Sized>(
+    lines: &L,
     start: usize,
     marker_indent_columns: usize,
 ) -> usize {
     let mut index = start + 1;
     let mut pending_blank_lines = 0usize;
-    while index < lines.len() {
-        let line = lines[index].as_ref();
+    while index < lines.line_count() {
+        let line = lines.line(index);
         if line.trim().is_empty() {
             pending_blank_lines += 1;
             index += 1;
@@ -566,8 +572,8 @@ pub(crate) fn collect_list_item_region<S: AsRef<str>>(
     index
 }
 
-pub(crate) fn looks_like_root_block_start<S: AsRef<str>>(lines: &[S], index: usize) -> bool {
-    let line = lines[index].as_ref();
+pub(crate) fn looks_like_root_block_start<L: Lines + ?Sized>(lines: &L, index: usize) -> bool {
+    let line = lines.line(index);
     if line.trim().is_empty() {
         return true;
     }
@@ -583,7 +589,7 @@ pub(crate) fn looks_like_root_block_start<S: AsRef<str>>(lines: &[S], index: usi
         || BlockKind::parse_thematic_break_line(line)
         || lines
             .get(index + 1)
-            .and_then(|next| BlockKind::parse_setext_underline(next.as_ref()))
+            .and_then(BlockKind::parse_setext_underline)
             .is_some()
         || is_table_candidate_line(line)
         || is_display_math_start(line)
@@ -660,17 +666,16 @@ pub(crate) fn standalone_image_block(markdown: String) -> BlockData {
     native_block(BlockKind::Paragraph, markdown.trim())
 }
 
-pub(crate) fn is_standalone_image_paragraph<S: AsRef<str>>(lines: &[S]) -> bool {
-    lines.len() == 1 && parse_standalone_image(lines[0].as_ref()).is_some()
+pub(crate) fn is_standalone_image_paragraph<L: Lines + ?Sized>(lines: &L) -> bool {
+    lines.line_count() == 1 && parse_standalone_image(lines.line(0)).is_some()
 }
 
-pub(crate) fn starts_with_standalone_image_child_paragraph<S: AsRef<str>>(lines: &[S]) -> bool {
-    if lines.is_empty() || !is_standalone_image_paragraph(&lines[..1]) {
+pub(crate) fn starts_with_standalone_image_child_paragraph<L: Lines + ?Sized>(lines: &L) -> bool {
+    if lines.line_count() == 0 || !is_standalone_image_paragraph(&lines.slice(0, 1)) {
         return false;
     }
 
     lines.get(1).is_none_or(|next| {
-        let next = next.as_ref();
         next.trim().is_empty()
             || parse_list_marker(next).is_some()
             || is_quote_start(next)

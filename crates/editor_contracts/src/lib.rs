@@ -18,7 +18,6 @@ pub mod outline;
 pub mod pane;
 pub mod panel;
 pub mod search;
-pub mod text;
 
 pub use document::{DocumentHost, DocumentId, DocumentSnapshot, TabKind};
 pub use edit::{CursorHint, EditTransaction};
@@ -30,8 +29,8 @@ pub use pane::{
     PaneRegistryError, PaneRenderContext, PaneView,
 };
 pub use panel::DocumentPanel;
+pub use rope::Rope;
 pub use search::{
     SearchActiveField, SearchHost, SearchIme, SearchInputSnapshot, SearchMatch, SearchPanelState,
     SearchQuery, SearchScope, SearchStateView, SearchTextInput, compute_preserve_case_replacement,
 };
-pub use text::Rope;

@@ -17,6 +17,7 @@ html-native = ["tree-sitter-html"]
 workspace = true
 
 [dependencies]
+rope = { workspace = true }
 url = "2"
 unicode-segmentation = "1.13"
 regex = "1.10"

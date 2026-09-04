@@ -30,6 +30,7 @@ code-highlight-config = [
 workspace = true
 
 [dependencies]
+rope = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
 gpui = { workspace = true }
 theme = { path = "../theme" }

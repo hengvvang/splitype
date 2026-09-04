@@ -1,17 +1,21 @@
 //! Document-level block projection with incremental re-parse.
 //!
-//! A [`BlockProjection`] is the parsed block tree of a document at one text
-//! revision, together with the span of every top-level parse region. The
-//! buffer keeps one projection per document and updates it synchronously
-//! with each edit: [`BlockProjection::reparse`] narrows the affected area
-//! to the edited lines via a byte-level common-affix diff, re-parses only
-//! that window — expanding it to the enclosing block constructs on both
-//! sides — and splices the result into the previous tree. Per-edit cost is
-//! O(edited region), independent of document size, and the result is
-//! structurally identical to a full parse: blocks outside the edited window
-//! keep their identity, so view entities survive projection patches.
+//! A [`BlockProjection`] is the parsed block tree of a document, together
+//! with the span of every top-level parse region. The buffer keeps one
+//! projection per document and updates it synchronously with each edit:
+//! [`BlockProjection::reparse`] re-parses only the window around the lines
+//! the edit touched — expanding it to the enclosing block constructs on
+//! both sides — and splices the result into the previous tree. Per-edit
+//! cost is O(edited region), independent of document size, and the result
+//! is structurally identical to a full parse: blocks outside the edited
+//! window keep their identity, so view entities survive projection patches.
+//!
+//! The projection reads lines directly from the shared [`Rope`]: no
+//! full-text materialization or revision diff happens on the edit path.
 
 use std::sync::Arc;
+
+use rope::Rope;
 
 use super::code_and_text::{collect_comment_block, collect_indented_code_block};
 use super::helpers::*;
@@ -24,16 +28,14 @@ use crate::block::table::{
     parse_table_region,
 };
 use crate::parse::data::BlockData;
-use crate::parse::indent::{common_affix, is_quote_start, strip_indented_code_prefix};
+use crate::parse::indent::{is_quote_start, strip_indented_code_prefix};
 use crate::parse::kind::BlockKind;
+use crate::parse::lines::{Lines, RopeLines};
 
-/// The parsed block tree of a document at one text revision, together with
-/// the region layout that makes re-parsing incremental.
+/// The parsed block tree of a document, together with the region layout
+/// that makes re-parsing incremental.
 #[derive(Clone, Debug)]
 pub struct BlockProjection {
-    /// Exact text the projection was parsed from; `reparse` diffs against
-    /// this to locate the edited region.
-    pub source: Arc<str>,
     /// The block tree in DFS order (roots interleaved with their children).
     pub blocks: Arc<Vec<BlockData>>,
     /// Line and flat-list spans of every top-level parse region, sorted by
@@ -42,29 +44,37 @@ pub struct BlockProjection {
 }
 
 impl BlockProjection {
-    /// Full parse of `source` in Linewise (editing) mode with the region
-    /// layout recorded.
-    pub fn parse(source: Arc<str>) -> BlockProjection {
-        let lines = source.lines().collect::<Vec<_>>();
+    /// Full parse of `rope` in Linewise (editing) mode with the region
+    /// layout recorded. Lines are read straight from the rope: O(lines)
+    /// lookups, no text materialization.
+    pub fn parse(rope: &Rope) -> BlockProjection {
+        let lines = RopeLines::new(rope);
         let (blocks, regions) =
             build_blocks_from_lines_with_regions(&lines, ParseMode::Linewise, true);
         BlockProjection {
-            source,
             blocks: Arc::new(blocks),
             regions,
         }
     }
 
-    /// Incremental re-parse in place: re-parses only the window around what
-    /// changed relative to `source` and splices the result into this
-    /// projection. Structurally identical to [`BlockProjection::parse`] of
-    /// `new_text`; blocks outside the edited window keep their identity so
-    /// view entities survive projection patches. When no snapshot shares the
+    /// Incremental re-parse in place: re-parses only the window around the
+    /// changed lines and splices the result into this projection.
+    /// Structurally identical to [`BlockProjection::parse`] of the same
+    /// rope; blocks outside the edited window keep their identity so view
+    /// entities survive projection patches. When no snapshot shares the
     /// block list (the normal editing case), the splice is in-place — the
     /// untouched tail is moved, not cloned — so per-edit cost is
     /// O(edited region).
-    pub fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
-        reparse(projection, new_text);
+    ///
+    /// `first_changed`/`last_changed` are the edited lines in the document
+    /// coordinates the projection was last parsed from (inclusive).
+    pub fn reparse(
+        projection: &mut BlockProjection,
+        rope: &Rope,
+        first_changed: usize,
+        last_changed: usize,
+    ) {
+        reparse(projection, rope, first_changed, last_changed);
     }
 
     /// Index of the region containing `line` (0-based source line).
@@ -80,56 +90,40 @@ impl BlockProjection {
     }
 }
 
-fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
-    if new_text == projection.source {
-        projection.source = new_text;
-        return;
-    }
+fn reparse(
+    projection: &mut BlockProjection,
+    rope: &Rope,
+    first_changed: usize,
+    last_changed: usize,
+) {
     // No layout to patch against (empty document): full parse.
     if projection.regions.is_empty() {
-        *projection = BlockProjection::parse(new_text);
+        *projection = BlockProjection::parse(rope);
         return;
     }
 
-    let old: &str = &projection.source;
-    let new: &str = &new_text;
-
-    // 1. Common affix of the two revisions: everything outside
-    //    [prefix, len - suffix) is byte-identical and unchanged.
-    let (prefix, suffix) = common_affix(old, new);
-    let changed_start = prefix;
-    let changed_end = old.len() - suffix;
-
-    // 2. The changed byte range as a changed line range in old coordinates.
     let old_line_count = projection
         .regions
         .last()
         .expect("non-empty region layout")
         .line_end;
-    let first_changed_line = line_of_byte(old, changed_start).min(old_line_count - 1);
-    let last_changed_line = if changed_end > changed_start {
-        // `changed_end` may sit exactly on a line start (a deleted newline
-        // merges its line into the next one); the line starting there is
-        // affected too. Clamping handles a change running to EOF.
-        line_of_byte(old, changed_end)
-            .min(old_line_count - 1)
-            .max(line_of_byte(old, changed_end - 1))
-    } else {
-        first_changed_line
-    };
+    let first_changed_line = first_changed.min(old_line_count - 1);
+    let last_changed_line = last_changed.min(old_line_count - 1).max(first_changed_line);
 
-    let new_lines = new.lines().collect::<Vec<_>>();
-    let new_line_count = new_lines.len();
+    // Direct rope access: every line read is an O(log m) chunk lookup, so
+    // no line list and no full-text materialization exists on this path.
+    let new_lines = RopeLines::new(rope);
+    let new_line_count = new_lines.line_count();
     let delta = new_line_count as isize - old_line_count as isize;
 
-    // 3. Initial window: the whole old regions containing the changed
+    // 2. Initial window: the whole old regions containing the changed
     //    lines. Both boundaries sit on old region edges; the fixpoint
     //    loops below keep that invariant.
     let mut window_start =
         projection.regions[projection.region_index_of(first_changed_line)].line_start;
     let mut window_end = projection.regions[projection.region_index_of(last_changed_line)].line_end;
 
-    // 4. Backward fixpoint: while the construct ending at window_start
+    // 3. Backward fixpoint: while the construct ending at window_start
     //    extends past it in the new text (an edit can turn the window's
     //    first line into a continuation, a fence content line, a setext
     //    underline, ...), pull the window start back to that construct's
@@ -139,7 +133,7 @@ fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
     while window_start > 0 {
         steps += 1;
         if steps > 256 {
-            *projection = BlockProjection::parse(new_text);
+            *projection = BlockProjection::parse(rope);
             return;
         }
         let mut probe = projection.region_index_of(window_start - 1);
@@ -154,7 +148,7 @@ fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
         break;
     }
 
-    // 5. Forward fixpoint: parse the window; while its last construct
+    // 4. Forward fixpoint: parse the window; while its last construct
     //    extends past the window end in the new text (a fence opened at the
     //    window tail, a list or quote growing into the following lines, a
     //    paragraph turned setext heading), grow the window to the
@@ -166,7 +160,7 @@ fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
     let mut stable = false;
     for _ in 0..64 {
         let new_window_end = ((window_end as isize) + delta).max(window_start as isize) as usize;
-        let window = new_lines[window_start..new_window_end].to_vec();
+        let window = new_lines.slice(window_start, new_window_end);
         let (blocks, regions) =
             build_blocks_from_lines_with_regions(&window, ParseMode::Linewise, true);
 
@@ -197,13 +191,12 @@ fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
         window_end = projection.regions[enclosing].line_end.max(window_end + 1);
     }
     if !stable {
-        *projection = BlockProjection::parse(new_text);
+        *projection = BlockProjection::parse(rope);
         return;
     }
 
     splice(
         projection,
-        new_text,
         delta,
         window_start,
         window_end,
@@ -220,7 +213,6 @@ fn reparse(projection: &mut BlockProjection, new_text: Arc<str>) {
 #[allow(clippy::too_many_arguments)]
 fn splice(
     projection: &mut BlockProjection,
-    new_text: Arc<str>,
     delta: isize,
     window_start: usize,
     window_end: usize,
@@ -274,7 +266,6 @@ fn splice(
         });
     }
 
-    projection.source = new_text;
     projection.regions = regions;
 }
 
@@ -282,8 +273,8 @@ fn splice(
 /// `start` in `lines`, mirroring the pipeline's dispatch order exactly.
 /// This is the boundary oracle of the incremental re-parse: a window edge is
 /// stable iff the construct on either side ends exactly at it.
-fn construct_extent<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
-    let Some(line) = lines.get(start).map(|line| line.as_ref()) else {
+fn construct_extent<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
+    let Some(line) = lines.get(start) else {
         return start;
     };
     if line.trim().is_empty() {
@@ -292,7 +283,7 @@ fn construct_extent<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
     if let Some(fence) = parse_opening_fence(line) {
         return match find_matching_closing_fence(lines, start, &fence) {
             Some(close) => close + 1,
-            None => lines.len(),
+            None => lines.line_count(),
         };
     }
     if let Some((_, end)) = collect_comment_block(lines, start) {
@@ -335,14 +326,14 @@ fn construct_extent<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
         return collect_table_candidate_region(lines, start);
     }
     if let Some(end) = collect_pipeless_table_region(lines, start)
-        && parse_table_region(&lines[start..end]).is_some()
+        && parse_table_region(&lines.slice(start, end)).is_some()
     {
         return end;
     }
     if is_display_math_start(line) {
         return collect_display_math_region(lines, start);
     }
-    if let Some(next) = lines.get(start + 1).map(|next| next.as_ref())
+    if let Some(next) = lines.get(start + 1)
         && parse_list_marker(next).is_none()
         && BlockKind::parse_setext_underline(next).is_some()
     {
@@ -362,18 +353,37 @@ fn region_is_blank(blocks: &[BlockData], regions: &[RegionSpan], index: usize) -
             .is_some_and(|block| block.kind == BlockKind::Paragraph && block.text.plain_len() == 0)
 }
 
-/// Line index (0-based) of `byte`, i.e. the number of line breaks before it.
-fn line_of_byte(text: &str, byte: usize) -> usize {
-    text.as_bytes()[..byte.min(text.len())]
-        .iter()
-        .filter(|&&b| b == b'\n')
-        .count()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::parse::data::blocks_content_eq;
+
+    /// The changed line range in old coordinates, derived from the byte
+    /// diff the way the buffer derives it from its edit ranges.
+    fn changed_lines(old: &str, new: &str) -> (usize, usize) {
+        let (prefix, suffix) = crate::parse::common_affix(old, new);
+        let changed_start = prefix;
+        let changed_end = old.len() - suffix;
+        let line_of = |byte: usize| {
+            old.as_bytes()[..byte.min(old.len())]
+                .iter()
+                .filter(|&&b| b == b'\n')
+                .count()
+        };
+        let old_line_count = old.lines().count().max(1);
+        let first = line_of(changed_start).min(old_line_count - 1);
+        let last = if changed_end > changed_start {
+            // `changed_end` may sit exactly on a line start (a deleted
+            // newline merges its line into the next one); the line
+            // starting there is affected too.
+            line_of(changed_end)
+                .min(old_line_count - 1)
+                .max(line_of(changed_end - 1))
+        } else {
+            first
+        };
+        (first, last)
+    }
 
     /// Every construct-extent answer must agree with the pipeline: parsing
     /// from a line and looking at the first region's span gives the same
@@ -419,7 +429,7 @@ mod tests {
                 .first()
                 .map_or(lines.len(), |region| start + region.line_end);
                 assert_eq!(
-                    construct_extent(&lines, start),
+                    construct_extent(&lines[..], start),
                     expected,
                     "construct_extent diverged for {text:?} at line {start}"
                 );
@@ -429,9 +439,12 @@ mod tests {
 
     /// One incremental re-parse after one small edit equals a full parse.
     fn check_reparse(old: &str, new: &str) {
-        let mut projection = BlockProjection::parse(Arc::from(old));
-        BlockProjection::reparse(&mut projection, Arc::from(new));
-        let full = BlockProjection::parse(Arc::from(new));
+        let old_rope = Rope::new(old);
+        let new_rope = Rope::new(new);
+        let mut projection = BlockProjection::parse(&old_rope);
+        let (first, last) = changed_lines(old, new);
+        BlockProjection::reparse(&mut projection, &new_rope, first, last);
+        let full = BlockProjection::parse(&new_rope);
         assert!(
             blocks_content_eq(&projection.blocks, &full.blocks),
             "incremental diverged from full parse:\nold: {old:?}\nnew: {new:?}"
@@ -529,25 +542,17 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_text_returns_the_same_projection() {
-        let mut projection = BlockProjection::parse(Arc::from("same\ntext"));
-        let blocks_before = projection.blocks.clone();
-        BlockProjection::reparse(&mut projection, Arc::from("same\ntext"));
-        assert!(std::ptr::eq(
-            projection.blocks.as_ref(),
-            blocks_before.as_ref()
-        ));
-    }
-
-    #[test]
     fn preserved_regions_keep_their_ids() {
-        let mut projection = BlockProjection::parse(Arc::from("# A\n\nbody\n\n# C"));
+        let old_rope = Rope::new("# A\n\nbody\n\n# C");
+        let new_rope = Rope::new("# A\n\nchanged\n\n# C");
+        let mut projection = BlockProjection::parse(&old_rope);
         let before_ids: Vec<_> = projection
             .blocks
             .iter()
             .map(|block| (block.id, block.kind.clone()))
             .collect();
-        BlockProjection::reparse(&mut projection, Arc::from("# A\n\nchanged\n\n# C"));
+        let (first, last) = changed_lines("# A\n\nbody\n\n# C", "# A\n\nchanged\n\n# C");
+        BlockProjection::reparse(&mut projection, &new_rope, first, last);
         assert_eq!(
             projection.blocks[0].id, before_ids[0].0,
             "leading unchanged blocks must keep their ids"
@@ -556,23 +561,25 @@ mod tests {
             projection.blocks[3].id, before_ids[3].0,
             "trailing unchanged blocks must keep their ids"
         );
-        assert!(blocks_content_eq(
-            &projection.blocks,
-            &BlockProjection::parse(Arc::from("# A\n\nchanged\n\n# C")).blocks
-        ));
+        let full = BlockProjection::parse(&new_rope);
+        assert!(blocks_content_eq(&projection.blocks, &full.blocks));
     }
 
     #[test]
     fn shared_block_list_is_rebuilt_by_copy_without_mutating_snapshots() {
-        let mut projection = BlockProjection::parse(Arc::from("# A\n\nbody\n\n# C"));
+        let old_rope = Rope::new("# A\n\nbody\n\n# C");
+        let new_rope = Rope::new("# A\n\nchanged\n\n# C");
+        let mut projection = BlockProjection::parse(&old_rope);
         // A pane snapshot keeps the old block list alive; the re-parse must
         // not mutate it in place.
         let snapshot_blocks = projection.blocks.clone();
-        let snapshot_text = projection.source.clone();
-        BlockProjection::reparse(&mut projection, Arc::from("# A\n\nchanged\n\n# C"));
-        assert_eq!(snapshot_text.as_ref(), "# A\n\nbody\n\n# C");
+        let (first, last) = changed_lines("# A\n\nbody\n\n# C", "# A\n\nchanged\n\n# C");
+        BlockProjection::reparse(&mut projection, &new_rope, first, last);
         assert_eq!(snapshot_blocks.len(), 5);
-        let full = BlockProjection::parse(Arc::from("# A\n\nchanged\n\n# C"));
+        // The snapshot still carries the old content, untouched.
+        let old_full = BlockProjection::parse(&old_rope);
+        assert!(blocks_content_eq(&snapshot_blocks, &old_full.blocks));
+        let full = BlockProjection::parse(&new_rope);
         assert!(blocks_content_eq(&projection.blocks, &full.blocks));
     }
 
@@ -617,7 +624,8 @@ mod tests {
             }
         }
 
-        let mut projection = BlockProjection::parse(Arc::from(text.clone()));
+        let old_rope = Rope::new(&text);
+        let mut projection = BlockProjection::parse(&old_rope);
         for _ in 0..120 {
             let mut edited = text.clone();
             let edits = 1 + (rng.next() % 3) as usize;
@@ -636,8 +644,10 @@ mod tests {
                 ][(rng.next() as usize) % 9];
                 edited.replace_range(at..end, insert);
             }
-            BlockProjection::reparse(&mut projection, Arc::from(edited.clone()));
-            let full = BlockProjection::parse(Arc::from(edited.clone()));
+            let new_rope = Rope::new(&edited);
+            let (first, last) = changed_lines(&text, &edited);
+            BlockProjection::reparse(&mut projection, &new_rope, first, last);
+            let full = BlockProjection::parse(&new_rope);
             assert!(
                 blocks_content_eq(&projection.blocks, &full.blocks),
                 "incremental diverged from full parse.\nbefore: {text:?}\nafter:  {edited:?}"

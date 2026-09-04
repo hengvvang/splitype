@@ -1,6 +1,7 @@
 //! Footnote definition and inline footnote head parser.
 
 use super::helpers::*;
+use super::lines::Lines;
 use super::pipeline::build_blocks_from_lines_internal;
 use crate::block::footnote::{is_valid_footnote_id, parse_footnote_definition_head};
 use crate::inline::text::BlockText;
@@ -8,11 +9,11 @@ use crate::parse::data::BlockData;
 use crate::parse::indent::strip_leading_columns;
 use crate::parse::kind::BlockKind;
 
-pub(crate) fn build_native_footnote_definition_block<S: AsRef<str>>(
-    lines: &[S],
+pub(crate) fn build_native_footnote_definition_block<L: Lines + ?Sized>(
+    lines: &L,
     mode: crate::parse::ParseMode,
 ) -> Option<Vec<BlockData>> {
-    let (id, first_line) = parse_footnote_definition_head(lines.first()?.as_ref())?;
+    let (id, first_line) = parse_footnote_definition_head(lines.get(0)?)?;
     // A definition line can carry several `[^id]:` heads on one line
     // (e.g. `[^a]: x [^b]: y`); split them into separate definitions. The
     // first content line of each lives in its block text as `id: content`,
@@ -21,8 +22,8 @@ pub(crate) fn build_native_footnote_definition_block<S: AsRef<str>>(
     let heads = split_inline_footnote_heads(id, &first_line);
     let mut body_lines = Vec::new();
     let mut seen_non_blank = false;
-    for line in lines.iter().skip(1) {
-        let line = line.as_ref();
+    for index in 1..lines.line_count() {
+        let line = lines.line(index);
         if line.trim().is_empty() {
             if seen_non_blank {
                 body_lines.push(String::new());
@@ -33,7 +34,7 @@ pub(crate) fn build_native_footnote_definition_block<S: AsRef<str>>(
         }
     }
 
-    let mut children = build_blocks_from_lines_internal(&body_lines, mode, false);
+    let mut children = build_blocks_from_lines_internal(&body_lines[..], mode, false);
     let head_count = heads.len();
     let mut result = Vec::new();
     for (index, (head_id, head_content)) in heads.into_iter().enumerate() {

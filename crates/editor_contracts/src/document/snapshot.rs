@@ -5,7 +5,7 @@ use markdown_parser::parse::BlockData;
 
 use crate::edit::CursorHint;
 use crate::highlight::HighlightSnapshot;
-use crate::text::Rope;
+use rope::Rope;
 
 pub use platform_contracts::DocumentId;
 

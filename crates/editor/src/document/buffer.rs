@@ -9,9 +9,10 @@ use std::time::Duration;
 use gpui::{Context, Task};
 
 use editor_contracts::{
-    CursorHint, DocumentId, DocumentSnapshot, EditTransaction, HighlightSnapshot, Rope,
+    CursorHint, DocumentId, DocumentSnapshot, EditTransaction, HighlightSnapshot,
 };
 use markdown_parser::parse::{BlockProjection, common_affix};
+use rope::Rope;
 use syntax_highlighter::engine::HighlightMap;
 use syntax_highlighter::language::CodeLanguageKey;
 
@@ -108,10 +109,11 @@ impl DocumentBuffer {
         let highlight = HighlightMap::new(CodeLanguageKey::Markdown, &text)
             .expect("markdown language configuration");
         let source: Arc<str> = Arc::from(text);
+        let rope = Arc::new(Rope::new(&source));
         Self {
             id,
-            text: Arc::new(Rope::new(&source)),
-            materialized: RefCell::new(Some((1, source.clone()))),
+            text: rope.clone(),
+            materialized: RefCell::new(Some((1, source))),
             revision: 1,
             path,
             dirty,
@@ -123,7 +125,7 @@ impl DocumentBuffer {
             restore_cursor: None,
             highlight,
             highlight_task: None,
-            projection: BlockProjection::parse(source),
+            projection: BlockProjection::parse(&rope),
         }
     }
 
@@ -182,6 +184,8 @@ impl DocumentBuffer {
         let full = self.text_arc();
         let whole_document = edit.edits.len() == 1;
         let mut operations: Vec<Operation> = Vec::with_capacity(edit.edits.len());
+        let mut first_changed = usize::MAX;
+        let mut last_changed = 0usize;
         for (range, inserted) in edit.edits {
             let start = clamp_to_char_boundary(&self.text, range.start.min(self.text.len()));
             let end = clamp_to_char_boundary(&self.text, range.end.min(self.text.len()).max(start));
@@ -204,6 +208,17 @@ impl DocumentBuffer {
             let end = end - suffix;
             let inserted = Arc::from(&inserted[prefix..inserted.len() - suffix]);
             let old = Arc::from(&old[prefix..old.len() - suffix]);
+            // Changed rows in the coordinates the projection was parsed
+            // from, computed before the rope edit lands. Ranges that end
+            // exactly on a line start still cover the merged line.
+            let first = self.text.offset_to_point(start).0;
+            let last = self
+                .text
+                .offset_to_point(end.saturating_sub(1))
+                .0
+                .max(self.text.offset_to_point(end).0);
+            first_changed = first_changed.min(first);
+            last_changed = last_changed.max(last);
             self.highlight.apply_edit(&self.text, start..end, &inserted);
             let edited = self.text.edit(start..end, &inserted);
             *Arc::make_mut(&mut self.text) = edited;
@@ -239,20 +254,23 @@ impl DocumentBuffer {
         self.revision = self.revision.wrapping_add(1);
         self.dirty = true;
         self.cached_word_count = None;
-        self.refresh_projection();
+        self.refresh_projection(first_changed, last_changed);
         true
     }
 
     /// Recomputes the block projection incrementally against the current
-    /// text. Cost is O(edited region): the re-parse narrows its window to
-    /// the lines that actually changed and splices the block list in place,
-    /// so per-keystroke work is independent of document size. The
-    /// projection's source doubles as the per-revision materialized mirror,
-    /// so snapshots stay O(1).
-    fn refresh_projection(&mut self) {
-        let new_text: Arc<str> = Arc::from(self.text.materialize());
-        BlockProjection::reparse(&mut self.projection, new_text.clone());
-        *self.materialized.borrow_mut() = Some((self.revision, new_text));
+    /// rope. Cost is O(edited region): the re-parse narrows its window to
+    /// the changed lines (expanding to the enclosing block constructs) and
+    /// splices the block list in place, so per-keystroke work is
+    /// independent of document size — the rope is never materialized on
+    /// this path.
+    fn refresh_projection(&mut self, first_changed: usize, last_changed: usize) {
+        BlockProjection::reparse(
+            &mut self.projection,
+            &self.text,
+            first_changed,
+            last_changed,
+        );
     }
 
     /// Undoes the most recent transaction by replaying its operations
@@ -271,9 +289,19 @@ impl DocumentBuffer {
         self.flush_pending();
         let entry = self.undo_stack.pop()?;
         let restored_cursor = entry.cursor_before;
+        let mut first_changed = usize::MAX;
+        let mut last_changed = 0usize;
         for operation in entry.operations.iter().rev() {
             // Undo replaces `new` (now at range.start) back with `old`.
             let range = operation.range.start..operation.range.start + operation.new.len();
+            let first = self.text.offset_to_point(range.start).0;
+            let last = self
+                .text
+                .offset_to_point(range.end.saturating_sub(1))
+                .0
+                .max(self.text.offset_to_point(range.end).0);
+            first_changed = first_changed.min(first);
+            last_changed = last_changed.max(last);
             self.highlight
                 .apply_edit(&self.text, range.clone(), &operation.old);
             let edited = self.text.edit(range, &operation.old);
@@ -283,7 +311,7 @@ impl DocumentBuffer {
         self.redo_stack.push(entry);
         self.revision = self.revision.wrapping_add(1);
         self.cached_word_count = None;
-        self.refresh_projection();
+        self.refresh_projection(first_changed, last_changed);
         Some(restored_cursor)
     }
 
@@ -300,7 +328,17 @@ impl DocumentBuffer {
         self.flush_pending();
         let entry = self.redo_stack.pop()?;
         let restored_cursor = entry.cursor_after;
+        let mut first_changed = usize::MAX;
+        let mut last_changed = 0usize;
         for operation in &entry.operations {
+            let first = self.text.offset_to_point(operation.range.start).0;
+            let last = self
+                .text
+                .offset_to_point(operation.range.end.saturating_sub(1))
+                .0
+                .max(self.text.offset_to_point(operation.range.end).0);
+            first_changed = first_changed.min(first);
+            last_changed = last_changed.max(last);
             self.highlight
                 .apply_edit(&self.text, operation.range.clone(), &operation.new);
             let edited = self.text.edit(operation.range.clone(), &operation.new);
@@ -310,7 +348,7 @@ impl DocumentBuffer {
         self.undo_stack.push(entry);
         self.revision = self.revision.wrapping_add(1);
         self.cached_word_count = None;
-        self.refresh_projection();
+        self.refresh_projection(first_changed, last_changed);
         Some(restored_cursor)
     }
 
@@ -681,7 +719,7 @@ mod tests {
         assert!(
             blocks_content_eq(
                 &snapshot.blocks,
-                &markdown_parser::parse::BlockProjection::parse(snapshot.text.clone()).blocks,
+                &markdown_parser::parse::BlockProjection::parse(&snapshot.rope).blocks,
             ),
             "projection must equal a full parse of the current text"
         );
@@ -704,14 +742,14 @@ mod tests {
         assert_eq!(snapshot.text.as_ref(), "a\nb\n");
         assert!(blocks_content_eq(
             &snapshot.blocks,
-            &markdown_parser::parse::BlockProjection::parse(snapshot.text.clone()).blocks,
+            &markdown_parser::parse::BlockProjection::parse(&snapshot.rope).blocks,
         ));
         buffer.redo_core();
         let snapshot = buffer.snapshot();
         assert_eq!(snapshot.text.as_ref(), "a\nXb\n");
         assert!(blocks_content_eq(
             &snapshot.blocks,
-            &markdown_parser::parse::BlockProjection::parse(snapshot.text.clone()).blocks,
+            &markdown_parser::parse::BlockProjection::parse(&snapshot.rope).blocks,
         ));
     }
 
@@ -795,12 +833,13 @@ mod tests {
                     // straight to the rope, then re-time just the refresh.
                     let start = Instant::now();
                     let at = buffer.text.len() / 2;
+                    let first = buffer.text.offset_to_point(at).0;
                     let edited = buffer.text.edit(at..at + 1, "x");
                     *Arc::make_mut(&mut buffer.text) = edited;
                     buffer.revision = buffer.revision.wrapping_add(1);
                     projection += start.elapsed();
                     let start = Instant::now();
-                    buffer.refresh_projection();
+                    buffer.refresh_projection(first, first);
                     projection += start.elapsed();
                 }
                 println!(

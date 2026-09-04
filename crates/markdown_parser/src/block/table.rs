@@ -6,6 +6,7 @@
 //! fallback paths.
 
 use crate::inline::text::BlockText;
+use crate::parse::lines::Lines;
 
 /// Horizontal alignment declared by the table's delimiter row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -593,22 +594,22 @@ pub fn is_table_row_candidate(line: &str) -> bool {
 
 /// Collects a contiguous table-candidate region in the current container
 /// scope.
-pub fn collect_table_candidate_region<S: AsRef<str>>(lines: &[S], start: usize) -> usize {
+pub fn collect_table_candidate_region<L: Lines + ?Sized>(lines: &L, start: usize) -> usize {
     let mut index = start + 1;
-    while index < lines.len() && is_table_candidate_line(lines[index].as_ref()) {
+    while index < lines.line_count() && is_table_candidate_line(lines.line(index)) {
         index += 1;
     }
     index
 }
 
 /// Parses a pipe-table region into native table data.
-pub fn parse_table_region<S: AsRef<str>>(lines: &[S]) -> Option<TableData> {
-    if lines.len() < 2 {
+pub fn parse_table_region<L: Lines + ?Sized>(lines: &L) -> Option<TableData> {
+    if lines.line_count() < 2 {
         return None;
     }
 
-    let header = split_table_cells(lines[0].as_ref())?;
-    let alignment_cells = split_table_cells(lines[1].as_ref())?;
+    let header = split_table_cells(lines.line(0))?;
+    let alignment_cells = split_table_cells(lines.line(1))?;
     if header.is_empty() || alignment_cells.len() != header.len() {
         return None;
     }
@@ -619,11 +620,12 @@ pub fn parse_table_region<S: AsRef<str>>(lines: &[S]) -> Option<TableData> {
         .collect::<Option<Vec<_>>>()?;
 
     let mut rows = Vec::new();
-    for line in &lines[2..] {
+    for index in 2..lines.line_count() {
+        let line = lines.line(index);
         // GFM normalizes body rows to the header width: short rows are padded
         // with empty cells and long rows drop their trailing cells, instead of
         // invalidating the whole table.
-        let mut cells = split_table_cells(line.as_ref())?;
+        let mut cells = split_table_cells(line)?;
         cells.resize(header.len(), String::new());
         rows.push(
             cells
@@ -660,17 +662,17 @@ fn is_delimiter_row(line: &str, columns: usize) -> bool {
 /// blank line, matching GFM. Returns `None` for ordinary prose so a stray `|`
 /// is never mistaken for a table; single-column pipeless candidates are also
 /// rejected because they are ambiguous with setext headings.
-pub fn collect_pipeless_table_region<S: AsRef<str>>(lines: &[S], start: usize) -> Option<usize> {
-    let header = split_table_cells(lines.get(start)?.as_ref())?;
+pub fn collect_pipeless_table_region<L: Lines + ?Sized>(lines: &L, start: usize) -> Option<usize> {
+    let header = split_table_cells(lines.get(start)?)?;
     if header.len() < 2 {
         return None;
     }
-    if !is_delimiter_row(lines.get(start + 1)?.as_ref(), header.len()) {
+    if !is_delimiter_row(lines.get(start + 1)?, header.len()) {
         return None;
     }
 
     let mut end = start + 2;
-    while end < lines.len() && !lines[end].as_ref().trim().is_empty() {
+    while end < lines.line_count() && !lines.line(end).trim().is_empty() {
         end += 1;
     }
     Some(end)
