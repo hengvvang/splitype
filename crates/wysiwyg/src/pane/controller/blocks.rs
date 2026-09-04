@@ -48,7 +48,7 @@ impl WysiwygDocumentController {
             vec![new_block.clone()],
             cx,
         );
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&new_block), cx);
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -125,7 +125,7 @@ impl WysiwygDocumentController {
             vec![new_block.clone()],
             cx,
         );
-        self.sync_reference_context(cx);
+        self.sync_reference_context(Some(std::slice::from_ref(&new_block)), cx);
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
@@ -162,8 +162,8 @@ impl WysiwygDocumentController {
         if doc.blocks().len() > 1 {
             doc.remove_block(target_id, cx);
             self.active_entity = doc.blocks().first().map(|b| b.entity.clone());
-            self.rebuild_table_grids(cx);
-            self.sync_reference_context(cx);
+            self.rebuild_table_grids(&[], cx);
+            self.sync_reference_context(None, cx);
             self.pending_edit = true;
             self.commit_document_edit(false, cx);
             cx.notify();

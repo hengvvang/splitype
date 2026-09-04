@@ -275,6 +275,24 @@ impl BlockText {
         self.fragments.iter().map(|f| f.text.len()).sum()
     }
 
+    /// Number of lines the plain text occupies (mirrors `str::lines` on the
+    /// materialized text: a trailing newline does not open a new line and
+    /// empty text counts as one line). O(fragments), no allocation.
+    pub fn plain_line_count(&self) -> usize {
+        let mut total_bytes = 0usize;
+        let mut newlines = 0usize;
+        let mut ends_with_newline = false;
+        for fragment in &self.fragments {
+            total_bytes += fragment.text.len();
+            newlines += fragment.text.bytes().filter(|byte| *byte == b'\n').count();
+            ends_with_newline = fragment.text.ends_with('\n');
+        }
+        if total_bytes == 0 {
+            return 1;
+        }
+        newlines + usize::from(!ends_with_newline)
+    }
+
     /// Whether any fragment carries an inline math or script span. These need
     /// the display-only mixed-visual rendering path: math renders as an SVG,
     /// and script (superscript/subscript, footnote references) as smaller text
@@ -732,5 +750,38 @@ impl BlockText {
             normalized.push(fragment);
         }
         self.fragments = normalized;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plain_line_count_matches_str_lines() {
+        let cases: &[(&str, usize)] = &[
+            ("", 1),
+            ("a", 1),
+            ("a\n", 1),
+            ("a\nb", 2),
+            ("a\nb\n", 2),
+            ("a\n\nb", 3),
+            ("\n\n", 2),
+            ("a\n\n", 2),
+        ];
+        for (text, expected) in cases {
+            let tree = BlockText::plain((*text).to_string());
+            assert_eq!(
+                tree.plain_line_count(),
+                *expected,
+                "plain_line_count diverged from str::lines for {text:?}"
+            );
+        }
+        // Fragmented text (split across style boundaries) counts the same.
+        let fragmented = BlockText::from_fragments(vec![
+            InlineFragment::new("a\n", InlineAttributes::default()),
+            InlineFragment::new("b", InlineAttributes::default()),
+        ]);
+        assert_eq!(fragmented.plain_line_count(), 2);
     }
 }

@@ -22,6 +22,11 @@ pub trait PaneHost: Send + Sync + 'static {
     /// revision, and notifies every observing editor, which re-syncs all
     /// of its panes with the new snapshot.
     fn commit_edit(&self, edit: EditTransaction, cx: &mut App);
+    /// Scrolls the pane's document to the given pixel offset (content-top
+    /// relative). Panes call this to keep the focused block visible after
+    /// cross-block caret navigation; the virtualized render only mounts
+    /// rows near the viewport, so block traversal must follow the scroll.
+    fn scroll_pane_to_y(&self, pane_id: PaneId, y: f32, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
     fn set_outline_hovered(
         &self,

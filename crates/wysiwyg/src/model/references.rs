@@ -5,15 +5,14 @@
 //! block entities. The editor's per-edit entry point orchestrates these
 //! with the cached candidate set.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use gpui::{App, Entity, EntityId};
+use gpui::{App, Entity};
 
 use crate::model::Document;
 use crate::model::block::Block;
-use crate::table::grid::TableGrids;
 use markdown_parser::block::footnote::split_footnote_definition_text;
 use markdown_parser::block::image::ImageReferenceDefinitions;
 use markdown_parser::block::link::LinkReferenceDefinitions;
@@ -31,15 +30,6 @@ pub struct ReferenceRegistries {
     /// Base directory the registries were last synced against; blocks
     /// re-resolve image sources whenever this changes.
     pub base_dir: Option<PathBuf>,
-    /// Document structure version at the time every current block last
-    /// received its reference context. A mismatch means blocks were added
-    /// or replaced since, so the per-block sync cannot be skipped.
-    pub synced_structure_version: u64,
-    /// Blocks and table cells that could contribute reference definitions,
-    /// footnote content, or standalone-image syntax, cached at the last full
-    /// registry sync. A block edit outside this set cannot change the
-    /// registries, so the per-keystroke rebuild is skipped.
-    pub candidate_blocks: HashSet<EntityId>,
 }
 
 /// Rebuild the document-wide footnote registry (definitions bound to
@@ -148,28 +138,6 @@ pub fn block_has_registry_candidates(block: &Block) -> bool {
     }
     let plain_text = block.data.text.plain_text();
     plain_text.contains("]:") || plain_text.contains("[^") || plain_text.contains("![")
-}
-
-/// Entity ids of every block and table cell whose text could contribute
-/// reference definitions, footnote content, or standalone-image syntax to
-/// the document-wide registries.
-pub fn collect_registry_candidates(
-    doc: &Document,
-    table_grids: &TableGrids,
-    cx: &App,
-) -> HashSet<EntityId> {
-    let mut candidates = HashSet::new();
-    for entries in doc.blocks() {
-        if block_has_registry_candidates(entries.entity.read(cx)) {
-            candidates.insert(entries.entity.entity_id());
-        }
-    }
-    for binding in table_grids.cells.values() {
-        if block_has_registry_candidates(binding.cell.read(cx)) {
-            candidates.insert(binding.cell.entity_id());
-        }
-    }
-    candidates
 }
 
 /// Push the current reference context onto one block (only repainting

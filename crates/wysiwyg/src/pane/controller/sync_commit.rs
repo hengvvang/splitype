@@ -22,7 +22,7 @@ impl WysiwygDocumentController {
 
         if self.synced_revision == Some(document.revision) && self.document.is_some() {
             if base_dir_changed {
-                self.sync_reference_context(cx);
+                self.sync_reference_context(None, cx);
             }
             return;
         }
@@ -30,7 +30,7 @@ impl WysiwygDocumentController {
             self.synced_revision = Some(document.revision);
             self.pending_edit = false;
             if base_dir_changed {
-                self.sync_reference_context(cx);
+                self.sync_reference_context(None, cx);
             }
             return;
         }

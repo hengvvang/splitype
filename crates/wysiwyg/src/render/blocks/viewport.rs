@@ -1,11 +1,15 @@
-//! Virtualized document viewport planning, row windowing, and container assembly
-//! for the WYSIWYG editor mode.
+//! Virtualized document viewport planning, row windowing, and container
+//! assembly for the WYSIWYG editor mode.
+//!
+//! Planning runs over the cached per-block [`BlockEntry`] metrics (no entity
+//! reads): every render frame plans all rows in O(n) cheap struct operations
+//! and materializes elements only for the rows intersecting the viewport.
 
 use gpui::*;
 
 use crate::model::BlockEntry;
 use crate::render::layout::{
-    RowSpacingInfo, callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
+    callout_colors, callout_row_top_gap, footnote_row_top_gap, row_top_gap,
 };
 use markdown_parser::block::CalloutKind;
 use theme::{Theme, ThemeDimensions};
@@ -31,22 +35,28 @@ pub struct PlannedRow {
     pub outer_gap: f32,
     /// Inner rows in order; the sum of their block counts equals `end - start`.
     pub segments: Vec<PlannedInnerSegment>,
+    /// Estimated rendered height (outer gap + block heights + inner gaps),
+    /// used to window materialization and size scroll spacers.
+    pub estimated_height: f32,
 }
 
-/// Plans all virtualized rows for the given block entries.
-pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) -> Vec<PlannedRow> {
-    let spacing_for = |index: usize| -> RowSpacingInfo {
-        blocks[index]
-            .entity
-            .read_with(cx, |block, _cx| RowSpacingInfo::from_block(block))
-    };
+/// The estimated height of one block row inside `plan`: the block's cached
+/// height plus any inner gap it carries.
+fn segment_height(entry: &BlockEntry, gap: f32) -> f32 {
+    entry.height + gap
+}
+
+/// Plans all virtualized rows for the given block entries, reading only the
+/// cached [`BlockEntry`] metrics.
+pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions) -> Vec<PlannedRow> {
+    let spacing = |index: usize| blocks[index].spacing;
 
     let mut previous_row_spacing = None;
     let mut rows: Vec<PlannedRow> = Vec::new();
     let mut index = 0usize;
 
     while index < blocks.len() {
-        let first_spacing = spacing_for(index);
+        let first_spacing = spacing(index);
         let top_gap = row_top_gap(previous_row_spacing, first_spacing, d.block_gap);
 
         if let (Some(callout_group_id), Some(callout_variant)) = (
@@ -56,36 +66,41 @@ pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) 
             let mut segments = Vec::new();
             let mut group_end = index;
             let mut previous_callout_row = None;
+            let mut height = top_gap;
             while group_end < blocks.len()
-                && spacing_for(group_end).callout_group_id == Some(callout_group_id)
+                && spacing(group_end).callout_group_id == Some(callout_group_id)
             {
-                let row_spacing = spacing_for(group_end);
+                let row_spacing = spacing(group_end);
                 if let Some(footnote_group_id) = row_spacing.footnote_group_id {
                     let mut footnote_end = group_end;
                     let mut previous_footnote_row = None;
                     let mut row_gaps = Vec::new();
                     while footnote_end < blocks.len()
-                        && spacing_for(footnote_end).callout_group_id == Some(callout_group_id)
-                        && spacing_for(footnote_end).footnote_group_id == Some(footnote_group_id)
+                        && spacing(footnote_end).callout_group_id == Some(callout_group_id)
+                        && spacing(footnote_end).footnote_group_id == Some(footnote_group_id)
                     {
-                        let footnote_spacing = spacing_for(footnote_end);
-                        row_gaps.push(footnote_row_top_gap(previous_footnote_row, d.block_gap));
+                        let footnote_spacing = spacing(footnote_end);
+                        let gap = footnote_row_top_gap(previous_footnote_row, d.block_gap);
+                        row_gaps.push(gap);
+                        height += segment_height(&blocks[footnote_end], gap);
                         previous_footnote_row = Some(footnote_spacing);
                         footnote_end += 1;
                     }
 
+                    let outer = callout_row_top_gap(previous_callout_row, row_spacing, d);
+                    height += outer;
                     segments.push(PlannedInnerSegment::FootnoteSubgroup {
-                        gap: callout_row_top_gap(previous_callout_row, row_spacing, d),
+                        gap: outer,
                         row_gaps,
                     });
-                    previous_callout_row = Some(spacing_for(footnote_end - 1));
+                    previous_callout_row = Some(spacing(footnote_end - 1));
                     group_end = footnote_end;
                     continue;
                 }
 
-                segments.push(PlannedInnerSegment::Block {
-                    gap: callout_row_top_gap(previous_callout_row, row_spacing, d),
-                });
+                let gap = callout_row_top_gap(previous_callout_row, row_spacing, d);
+                segments.push(PlannedInnerSegment::Block { gap });
+                height += segment_height(&blocks[group_end], gap);
                 previous_callout_row = Some(row_spacing);
                 group_end += 1;
             }
@@ -95,9 +110,10 @@ pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) 
                 end: group_end,
                 callout_variant: Some(callout_variant),
                 outer_gap: top_gap,
+                estimated_height: height,
                 segments,
             });
-            previous_row_spacing = Some(spacing_for(group_end - 1));
+            previous_row_spacing = Some(spacing(group_end - 1));
             index = group_end;
             continue;
         }
@@ -106,13 +122,14 @@ pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) 
             let mut segments = Vec::new();
             let mut group_end = index;
             let mut previous_footnote_row = None;
+            let mut height = top_gap;
             while group_end < blocks.len()
-                && spacing_for(group_end).footnote_group_id == Some(footnote_group_id)
+                && spacing(group_end).footnote_group_id == Some(footnote_group_id)
             {
-                let row_spacing = spacing_for(group_end);
-                segments.push(PlannedInnerSegment::Block {
-                    gap: footnote_row_top_gap(previous_footnote_row, d.block_gap),
-                });
+                let row_spacing = spacing(group_end);
+                let gap = footnote_row_top_gap(previous_footnote_row, d.block_gap);
+                segments.push(PlannedInnerSegment::Block { gap });
+                height += segment_height(&blocks[group_end], gap);
                 previous_footnote_row = Some(row_spacing);
                 group_end += 1;
             }
@@ -122,9 +139,10 @@ pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) 
                 end: group_end,
                 callout_variant: None,
                 outer_gap: top_gap,
+                estimated_height: height,
                 segments,
             });
-            previous_row_spacing = Some(spacing_for(group_end - 1));
+            previous_row_spacing = Some(spacing(group_end - 1));
             index = group_end;
             continue;
         }
@@ -134,6 +152,7 @@ pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) 
             end: index + 1,
             callout_variant: None,
             outer_gap: top_gap,
+            estimated_height: top_gap + blocks[index].height,
             segments: Vec::new(),
         });
         previous_row_spacing = Some(first_spacing);
@@ -141,6 +160,44 @@ pub fn plan_document_rows(blocks: &[BlockEntry], d: &ThemeDimensions, cx: &App) 
     }
 
     rows
+}
+
+/// Cumulative row offsets for windowing: `offsets[i]` is the estimated top of
+/// row `i`, `offsets[rows.len()]` the estimated total height.
+pub fn cumulative_row_offsets(rows: &[PlannedRow]) -> Vec<f32> {
+    let mut offsets = Vec::with_capacity(rows.len() + 1);
+    let mut running = 0.0f32;
+    offsets.push(running);
+    for row in rows {
+        running += row.estimated_height;
+        offsets.push(running);
+    }
+    offsets
+}
+
+/// The row range `[start, end)` intersecting the viewport `[min_y, max_y]`,
+/// plus `overscan` extra rows on each side so layout drift around estimates
+/// never shows blank space.
+pub fn visible_row_window(
+    offsets: &[f32],
+    min_y: f32,
+    max_y: f32,
+    overscan: usize,
+) -> (usize, usize) {
+    if offsets.len() <= 1 {
+        return (0, 0);
+    }
+    let row_count = offsets.len() - 1;
+    let start = offsets
+        .partition_point(|offset| *offset <= min_y)
+        .saturating_sub(1)
+        .saturating_sub(overscan)
+        .min(row_count);
+    let end = offsets
+        .partition_point(|offset| *offset < max_y)
+        .saturating_add(overscan)
+        .min(row_count);
+    (start, end.max(start).min(row_count))
 }
 
 /// Materializes one planned render row into its element tree.

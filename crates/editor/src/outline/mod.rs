@@ -66,4 +66,17 @@ impl Editor {
         }
         cx.notify();
     }
+
+    /// Scrolls a pane's document to the given content-top-relative pixel
+    /// offset. Panes call this through the host seam to keep the focused
+    /// block visible after cross-block caret navigation.
+    pub(crate) fn scroll_pane_to_y(&mut self, pane_id: PaneId, y: f32, cx: &mut Context<Self>) {
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state
+                .scroll
+                .handle
+                .set_offset(point(px(0.0), px(-y.max(0.0))));
+        }
+        cx.notify();
+    }
 }

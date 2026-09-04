@@ -12,12 +12,10 @@ pub mod protocol;
 pub mod queries;
 pub mod references;
 pub mod serialize;
-pub mod tree;
 
 pub use block::Block;
 pub use index::*;
 pub use protocol::BlockEvent;
-pub use tree::*;
 
 use gpui::*;
 
@@ -25,7 +23,6 @@ use gpui::*;
 #[derive(Clone)]
 pub struct Document {
     pub roots: Vec<Entity<Block>>,
-    pub tree: tree::SumTree<markdown_parser::parse::BlockData>,
     pub index: BlockIndex,
     pub structure_version: u64,
     pub metadata_rebuild_version: u64,

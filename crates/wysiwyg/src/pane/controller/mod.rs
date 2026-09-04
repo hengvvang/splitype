@@ -21,7 +21,6 @@ use crate::model::block::Block;
 use crate::model::references::ReferenceRegistries;
 use crate::table::axis::TableAxisSelection;
 use crate::table::grid::{TableCellBinding, TableGrids};
-use markdown_parser::block::table::{TableCellPosition, TableColumnAlignment};
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::{BlockData, BlockKind};
 
@@ -72,6 +71,8 @@ pub enum WysiwygContextMenuState {
 /// Autonomous controller for a WYSIWYG editor pane.
 pub struct WysiwygDocumentController {
     pub host: Option<Arc<dyn editor_contracts::PaneHost>>,
+    /// Pane id this controller renders into, captured on the first render.
+    pub pane_id: Option<editor_contracts::PaneId>,
     pub document: Option<Document>,
     pub synced_revision: Option<u64>,
     /// Local edits exist that the host's next snapshot has not acknowledged
@@ -104,6 +105,7 @@ impl WysiwygDocumentController {
     pub fn new(document: &editor_contracts::DocumentSnapshot, cx: &mut Context<Self>) -> Self {
         let mut controller = Self {
             host: None,
+            pane_id: None,
             document: None,
             synced_revision: None,
             pending_edit: false,
@@ -253,8 +255,20 @@ impl WysiwygDocumentController {
             roots.push(empty_block);
         }
 
+        // Entities built or re-adopted in this patch are the only ones whose
+        // derived state (table grids, reference contexts) can have changed.
+        let changed: Vec<Entity<Block>> = entities[prefix..entities.len() - suffix].to_vec();
+        let changed_tables: Vec<Entity<Block>> = changed
+            .iter()
+            .filter(|entity| entity.read(cx).kind() == BlockKind::Table)
+            .cloned()
+            .collect();
+
         let mut doc = Document::new(roots);
-        doc.rebuild_metadata_and_snapshot(cx);
+        // The freshly assembled tree is structurally clean by construction
+        // (children only hang off container kinds), so the index DFS needs no
+        // normalization pass.
+        doc.rebuild_metadata_from_clean_tree(cx);
         // Keep the active entity when its block survived the patch.
         let active_survived = self
             .active_entity
@@ -271,124 +285,122 @@ impl WysiwygDocumentController {
         self.last_typing_insert_at = None;
         self.typing_run_start_hint = None;
         self.last_cursor_hint = None;
-        self.rebuild_table_grids(cx);
-        self.sync_reference_context(cx);
+        self.rebuild_table_grids(&changed_tables, cx);
+        self.sync_reference_context(Some(&changed), cx);
     }
 
-    /// Rebuilds table grid structures and bindings for all table blocks.
-    pub fn rebuild_table_grids(&mut self, cx: &mut Context<Self>) {
-        self.tables.cells.clear();
-        self.tables.axis_preview = None;
-        self.tables.axis_selection = None;
+    /// Rebuilds table grid structures and bindings for the given table
+    /// blocks (all tables on the first build, only the changed ones on
+    /// patches). Bindings whose table no longer exists are dropped.
+    pub fn rebuild_table_grids(
+        &mut self,
+        changed_tables: &[Entity<Block>],
+        cx: &mut Context<Self>,
+    ) {
         let Some(doc) = &self.document else {
             return;
         };
-        let mut tables_to_install = Vec::new();
-        for entry in doc.blocks() {
-            entry
-                .entity
-                .update(cx, |block, _cx| block.clear_table_grid());
-            let block = entry.entity.read(cx);
-            if block.kind() == BlockKind::Table
-                && let Some(table) = block.data.table.clone()
-            {
-                tables_to_install.push((entry.entity.clone(), table));
-            }
+        if !changed_tables.is_empty() {
+            self.tables.axis_preview = None;
+            self.tables.axis_selection = None;
         }
-        for (table_block, table_data) in tables_to_install {
-            let mut bindings = Vec::new();
-            let header = table_data
-                .header
-                .iter()
-                .cloned()
-                .enumerate()
-                .map(|(column, text)| {
-                    let alignment = table_data
-                        .alignments
-                        .get(column)
-                        .copied()
-                        .unwrap_or(TableColumnAlignment::Default);
-                    let position = TableCellPosition { row: 0, column };
+
+        // Drop bindings of tables that no longer exist in the document.
+        let live_table_ids: std::collections::HashSet<EntityId> = doc
+            .index
+            .table_entities
+            .iter()
+            .map(|entity| entity.entity_id())
+            .collect();
+        self.tables
+            .cells
+            .retain(|_, binding| live_table_ids.contains(&binding.table_block.entity_id()));
+
+        for table_block in changed_tables {
+            let Some(table) = table_block.read(cx).data.table.clone() else {
+                continue;
+            };
+            self.tables
+                .cells
+                .retain(|_, binding| binding.table_block.entity_id() != table_block.entity_id());
+            let bindings = crate::table::grid::install_table_grid_for_block(
+                table_block,
+                &table,
+                |text, position, alignment, cx| {
                     let cell = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
                     cell.update(cx, |b, _cx| b.set_table_cell_mode(position, alignment));
-                    bindings.push(TableCellBinding {
+                    let binding = TableCellBinding {
                         table_block: table_block.clone(),
                         cell: cell.clone(),
                         position,
-                    });
-                    cell
-                })
-                .collect::<Vec<_>>();
-
-            let rows = table_data
-                .rows
-                .iter()
-                .cloned()
-                .enumerate()
-                .map(|(body_row_index, row)| {
-                    row.into_iter()
-                        .enumerate()
-                        .map(|(column, text)| {
-                            let alignment = table_data
-                                .alignments
-                                .get(column)
-                                .copied()
-                                .unwrap_or(TableColumnAlignment::Default);
-                            let position = TableCellPosition {
-                                row: body_row_index + 1,
-                                column,
-                            };
-                            let cell =
-                                Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
-                            cell.update(cx, |b, _cx| b.set_table_cell_mode(position, alignment));
-                            bindings.push(TableCellBinding {
-                                table_block: table_block.clone(),
-                                cell: cell.clone(),
-                                position,
-                            });
-                            cell
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-
-            table_block.update(cx, {
-                let grid = crate::table::TableGrid { header, rows };
-                move |block, _cx| block.set_table_grid(grid.clone())
-            });
-
+                    };
+                    (cell, binding)
+                },
+                cx,
+            );
             for binding in bindings {
                 self.tables.cells.insert(binding.cell.entity_id(), binding);
             }
         }
     }
 
-    fn sync_reference_context(&mut self, cx: &mut App) {
+    /// Syncs block reference contexts against the document-wide registries.
+    ///
+    /// `changed` is the entity set a projection patch rebuilt (`None` means
+    /// everything — the initial build or a base-directory change). A patch
+    /// whose changed blocks cannot contribute to or depend on the registries
+    /// (no links, images, footnotes, raw/definition text, tables) needs no
+    /// registry rebuild and no per-block resync at all.
+    fn sync_reference_context(&mut self, changed: Option<&[Entity<Block>]>, cx: &mut App) {
         let Some(document) = &self.document else {
             return;
         };
-        self.references.footnotes = Arc::new(crate::model::references::rebuild_footnote_registry(
-            document, cx,
-        ));
-        for entry in document.blocks() {
-            crate::model::references::sync_reference_context_for_block(
-                &entry.entity,
-                self.references.base_dir.as_deref(),
-                self.references.image.clone(),
-                self.references.link.clone(),
-                self.references.footnotes.clone(),
-                cx,
-            );
+        let registry_affected = match changed {
+            None => true,
+            Some(changed) => changed.iter().any(|entity| {
+                let block = entity.read(cx);
+                block.kind() == BlockKind::Table
+                    || crate::model::references::block_has_registry_candidates(block)
+            }),
+        };
+        if changed.is_some_and(|changed| changed.is_empty()) && !registry_affected {
+            return;
         }
-        for binding in self.tables.cells.values() {
-            crate::model::references::sync_reference_context_for_block(
-                &binding.cell,
-                self.references.base_dir.as_deref(),
-                self.references.image.clone(),
-                self.references.link.clone(),
-                self.references.footnotes.clone(),
-                cx,
+        if registry_affected {
+            self.references.footnotes = Arc::new(
+                crate::model::references::rebuild_footnote_registry(document, cx),
             );
+            for entry in document.blocks() {
+                crate::model::references::sync_reference_context_for_block(
+                    &entry.entity,
+                    self.references.base_dir.as_deref(),
+                    self.references.image.clone(),
+                    self.references.link.clone(),
+                    self.references.footnotes.clone(),
+                    cx,
+                );
+            }
+            for binding in self.tables.cells.values() {
+                crate::model::references::sync_reference_context_for_block(
+                    &binding.cell,
+                    self.references.base_dir.as_deref(),
+                    self.references.image.clone(),
+                    self.references.link.clone(),
+                    self.references.footnotes.clone(),
+                    cx,
+                );
+            }
+        } else {
+            for entity in changed.into_iter().flatten() {
+                crate::model::references::sync_reference_context_for_block(
+                    entity,
+                    self.references.base_dir.as_deref(),
+                    self.references.image.clone(),
+                    self.references.link.clone(),
+                    self.references.footnotes.clone(),
+                    cx,
+                );
+            }
         }
     }
 
@@ -400,6 +412,7 @@ impl WysiwygDocumentController {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.host = Some(ctx.host.clone());
+        self.pane_id = Some(ctx.pane_id);
 
         let theme = cx.global::<theme::ThemeManager>().current_arc();
         let d = &theme.dimensions;
@@ -408,40 +421,102 @@ impl WysiwygDocumentController {
 
         if let Some(doc) = &self.document {
             let blocks = doc.blocks();
-            let plans = crate::render::viewport::plan_document_rows(blocks, d, cx);
+            let plans = crate::render::viewport::plan_document_rows(blocks, d);
+            let row_offsets = crate::render::viewport::cumulative_row_offsets(&plans);
             let centered_width = crate::render::layout::centered_column_width(
                 f32::from(ctx.scroll.bounds().size.width).max(600.0),
                 d,
             );
 
-            let row_elements: Vec<AnyElement> = plans
-                .iter()
-                .map(|plan| {
-                    crate::render::viewport::build_planned_row_element(
-                        plan,
-                        blocks,
-                        centered_width,
-                        &theme,
-                        d,
-                        |row: Div, entity_id: EntityId| {
-                            row.on_mouse_down(
-                                MouseButton::Right,
-                                cx.listener(move |this, event: &MouseDownEvent, _window, cx| {
-                                    this.open_context_menu(entity_id, event.position, cx);
-                                }),
-                            )
-                        },
-                    )
-                })
-                .collect();
+            // Window the plan: materialize only rows around the viewport,
+            // with spacer divs keeping the scroll extent stable. Overscan
+            // covers one viewport height on each side so estimate drift
+            // never shows blank space while scrolling.
+            let viewport_height = f32::from(ctx.scroll.bounds().size.height).max(1.0);
+            let scroll_y = -f32::from(ctx.scroll.offset().y);
+            let total_height = row_offsets.last().copied().unwrap_or(0.0);
+            let (mut window_start, mut window_end) = crate::render::viewport::visible_row_window(
+                &row_offsets,
+                scroll_y.max(0.0),
+                scroll_y + viewport_height,
+                0,
+            );
+            // Extend the window by one viewport height on each side.
+            let mut covered = 0.0f32;
+            while window_start > 0 && covered < viewport_height {
+                window_start -= 1;
+                covered += row_offsets[window_start + 1] - row_offsets[window_start];
+            }
+            covered = 0.0;
+            while window_end < plans.len() && covered < viewport_height {
+                covered += row_offsets[window_end + 1] - row_offsets[window_end];
+                window_end += 1;
+            }
+
+            // The active block's row stays mounted even when it is outside
+            // the viewport window: its element owns the focus, and dropping
+            // it would strand keyboard input.
+            let mut mounted_rows: Vec<usize> = (window_start..window_end).collect();
+            if ctx.is_focused
+                && !plans.is_empty()
+                && let Some(active) = &self.active_entity
+                && let Some(block_idx) = doc.index_for_entity_id(active.entity_id())
+            {
+                let active_row = plans
+                    .partition_point(|row| row.start <= block_idx)
+                    .saturating_sub(1);
+                if !mounted_rows.contains(&active_row) {
+                    mounted_rows.push(active_row);
+                    mounted_rows.sort_unstable();
+                }
+            }
+
+            let mut row_elements: Vec<AnyElement> = Vec::new();
+            let mut last_mounted_end = None;
+            for row_idx in &mounted_rows {
+                // Spacer between the previous mounted run and this row.
+                let gap_start = match last_mounted_end {
+                    Some(end) => row_offsets[end],
+                    None => 0.0,
+                };
+                let gap = row_offsets[*row_idx] - gap_start;
+                if gap > 0.0 {
+                    row_elements.push(div().h(px(gap)).flex_shrink_0().into_any_element());
+                }
+                row_elements.push(crate::render::viewport::build_planned_row_element(
+                    &plans[*row_idx],
+                    blocks,
+                    centered_width,
+                    &theme,
+                    d,
+                    |row: Div, entity_id: EntityId| {
+                        row.on_mouse_down(
+                            MouseButton::Right,
+                            cx.listener(move |this, event: &MouseDownEvent, _window, cx| {
+                                this.open_context_menu(entity_id, event.position, cx);
+                            }),
+                        )
+                    },
+                ));
+                last_mounted_end = Some(*row_idx + 1);
+            }
+            if let Some(end) = last_mounted_end {
+                let bottom_spacer = total_height - row_offsets[end];
+                if bottom_spacer > 0.0 {
+                    row_elements.push(
+                        div()
+                            .h(px(bottom_spacer))
+                            .flex_shrink_0()
+                            .into_any_element(),
+                    );
+                }
+            }
 
             let headings = self.outline_headings(cx);
-            let scroll_y = -f32::from(ctx.scroll.offset().y);
             let active_index = headings
                 .iter()
                 .rposition(|node| {
-                    let node_y = self.calculate_block_scroll_offset(node.block_index, &theme, cx);
-                    node_y <= scroll_y + 30.0
+                    self.calculate_block_scroll_offset(node.block_index) <= scroll_y + 30.0
                 })
                 .or(if headings.is_empty() { None } else { Some(0) });
 

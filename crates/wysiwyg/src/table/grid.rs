@@ -26,16 +26,18 @@ pub struct TableCellBinding {
     pub position: TableCellPosition,
 }
 
-/// Installs the table grid structure onto a Table block entity.
-pub fn install_table_grid_for_block(
+/// Installs the table grid structure onto a Table block entity. `create_cell`
+/// receives the shared context to build cell entities.
+pub fn install_table_grid_for_block<C: AppContext>(
     table_block: &Entity<Block>,
     table: &TableData,
     mut create_cell: impl FnMut(
         markdown_parser::inline::text::BlockText,
         TableCellPosition,
         TableColumnAlignment,
+        &mut C,
     ) -> (Entity<Block>, TableCellBinding),
-    cx: &mut App,
+    cx: &mut C,
 ) -> Vec<TableCellBinding> {
     let mut bindings = Vec::new();
     let header = table
@@ -50,7 +52,7 @@ pub fn install_table_grid_for_block(
                 .copied()
                 .unwrap_or(TableColumnAlignment::Default);
             let position = TableCellPosition { row: 0, column };
-            let (cell, binding) = create_cell(text, position, alignment);
+            let (cell, binding) = create_cell(text, position, alignment, cx);
             bindings.push(binding);
             cell
         })
@@ -74,7 +76,7 @@ pub fn install_table_grid_for_block(
                         row: body_row_index + 1,
                         column,
                     };
-                    let (cell, binding) = create_cell(text, position, alignment);
+                    let (cell, binding) = create_cell(text, position, alignment, cx);
                     bindings.push(binding);
                     cell
                 })

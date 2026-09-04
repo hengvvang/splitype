@@ -4,45 +4,12 @@
 //! orchestration itself lives in `crate::pane`.
 
 use gpui::*;
-use markdown_parser::parse::BlockId;
+
+use crate::model::RowSpacingInfo;
 
 use ::theme::*;
 
 // ── Spacing helpers ─────────────────────────────────────────────────────
-
-/// Row-level spacing metadata read from a [`Block`] entity once per frame.
-///
-/// Used to decide whether consecutive rows belong to the same visual group
-/// (quote, callout, footnote) and should collapse their inter-row gap.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct RowSpacingInfo {
-    pub quote_group_id: Option<BlockId>,
-    pub visible_quote_group_id: Option<BlockId>,
-    pub callout_group_id: Option<BlockId>,
-    pub callout_variant: Option<markdown_parser::block::CalloutKind>,
-    pub is_callout_header: bool,
-    pub footnote_group_id: Option<BlockId>,
-    pub is_footnote_header: bool,
-    pub is_empty_paragraph: bool,
-}
-
-impl RowSpacingInfo {
-    /// Read spacing metadata from a block entity.
-    pub fn from_block(block: &crate::model::block::Block) -> Self {
-        Self {
-            quote_group_id: block.quote_group_id,
-            visible_quote_group_id: block.visible_quote_group_id,
-            callout_group_id: block.callout_group_id,
-            callout_variant: block.callout_variant,
-            is_callout_header: block.kind().is_callout(),
-            footnote_group_id: block.footnote_group_id,
-            is_footnote_header: block.kind().is_footnote_definition(),
-            is_empty_paragraph: block.kind() == markdown_parser::parse::BlockKind::Paragraph
-                && block.data.text.plain_text().is_empty()
-                && block.children.is_empty(),
-        }
-    }
-}
 
 /// Gap between two consecutive rendered rows.
 ///

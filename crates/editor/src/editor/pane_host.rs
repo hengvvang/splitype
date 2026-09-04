@@ -36,6 +36,14 @@ impl PaneHost for EditorPaneHost {
         }
     }
 
+    fn scroll_pane_to_y(&self, pane_id: PaneId, y: f32, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            editor.update(cx, |editor, cx| {
+                editor.scroll_pane_to_y(pane_id, y, cx);
+            });
+        }
+    }
+
     fn set_outline_hovered(
         &self,
         _pane_id: PaneId,

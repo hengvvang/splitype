@@ -1,4 +1,10 @@
-//! Block tree indexing, flattened DFS order metadata, and inheritance scope.
+//! Block tree indexing: flattened DFS order metadata, cached render metrics,
+//! and the inheritance scope used during traversal.
+//!
+//! [`BlockIndex`] is rebuilt by one DFS over the runtime tree. Everything a
+//! render frame or navigation query needs (spacing groups, line counts,
+//! estimated heights, headings, table blocks) is cached here so hot paths
+//! never re-read block entities one by one.
 
 use std::collections::HashMap;
 
@@ -8,10 +14,30 @@ use crate::model::block::Block;
 use markdown_parser::block::CalloutKind;
 use markdown_parser::parse::{BlockId, BlockKind};
 
-/// A block together with its position in the flattened document (DFS) order.
+/// A block together with its position in the flattened document (DFS) order
+/// and the cheap metrics cached at index build time.
 #[derive(Clone)]
 pub struct BlockEntry {
     pub entity: Entity<Block>,
+    /// Estimated plain-text line count (1 for empty blocks).
+    pub line_count: u32,
+    /// Plain-text byte length (no allocation; fragment length sum).
+    pub byte_len: usize,
+    /// Row-level spacing metadata, captured during the index DFS.
+    pub spacing: RowSpacingInfo,
+    /// Estimated rendered height used for scroll offsets and viewport
+    /// windowing. A fixed-formula approximation; actual layout may differ
+    /// slightly, so windowed renders overscan around the estimate.
+    pub height: f32,
+}
+
+/// A heading found during the index DFS, for the pane outline.
+#[derive(Clone)]
+pub struct IndexHeading {
+    pub block_index: usize,
+    pub entity_id: EntityId,
+    pub level: u8,
+    pub label: String,
 }
 
 /// A block's position inside the runtime tree.
@@ -21,6 +47,22 @@ pub struct BlockLocation {
     pub index: usize,
 }
 
+/// Row-level spacing metadata describing which visual group (quote, callout,
+/// footnote) a block belongs to. Decides whether consecutive rows collapse
+/// their inter-row gap. Cached per block in [`BlockEntry`]; derived from the
+/// block's structure context at index build time.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct RowSpacingInfo {
+    pub quote_group_id: Option<BlockId>,
+    pub visible_quote_group_id: Option<BlockId>,
+    pub callout_group_id: Option<BlockId>,
+    pub callout_variant: Option<CalloutKind>,
+    pub is_callout_header: bool,
+    pub footnote_group_id: Option<BlockId>,
+    pub is_footnote_header: bool,
+    pub is_empty_paragraph: bool,
+}
+
 /// Cached flattened-order metadata for the current runtime tree.
 #[derive(Default, Clone)]
 pub struct BlockIndex {
@@ -28,6 +70,14 @@ pub struct BlockIndex {
     pub index_by_entity: HashMap<EntityId, usize>,
     pub location_by_entity: HashMap<EntityId, BlockLocation>,
     pub last_descendant_by_entity: HashMap<EntityId, EntityId>,
+    /// Prefix sums of [`BlockEntry::height`]; `cumulative_heights[i]` is the
+    /// estimated pixel offset of block `i`, so scroll offsets are O(1) and
+    /// viewport windowing is a binary search. Length is `entries.len() + 1`.
+    pub cumulative_heights: Vec<f32>,
+    /// Table blocks in DFS order, for grid rebuilds (only tables are touched).
+    pub table_entities: Vec<Entity<Block>>,
+    /// Headings in DFS order, for the pane outline.
+    pub headings: Vec<IndexHeading>,
 }
 
 impl BlockIndex {
@@ -36,6 +86,9 @@ impl BlockIndex {
         self.index_by_entity.clear();
         self.location_by_entity.clear();
         self.last_descendant_by_entity.clear();
+        self.cumulative_heights.clear();
+        self.table_entities.clear();
+        self.headings.clear();
     }
 }
 

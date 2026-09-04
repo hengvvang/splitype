@@ -2,7 +2,6 @@
 
 pub mod actions;
 pub mod controller;
-pub mod outline;
 pub mod search;
 pub mod shell;
 

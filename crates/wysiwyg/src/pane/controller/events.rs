@@ -45,7 +45,10 @@ impl WysiwygDocumentController {
                                             crate::table::rows::append_table_row(table);
                                         }
                                     });
-                                    self.rebuild_table_grids(cx);
+                                    self.rebuild_table_grids(
+                                        std::slice::from_ref(&table_block),
+                                        cx,
+                                    );
                                     self.pending_edit = true;
                                     self.commit_document_edit(false, cx);
                                     (current.row + 1, 0)
@@ -242,6 +245,7 @@ impl WysiwygDocumentController {
                             cx.notify();
                         });
                         self.active_entity = Some(prev.clone());
+                        self.scroll_block_into_view(current_idx - 1, cx);
                         cx.notify();
                     }
                 }
@@ -260,6 +264,40 @@ impl WysiwygDocumentController {
                             cx.notify();
                         });
                         self.active_entity = Some(next.clone());
+                        self.scroll_block_into_view(current_idx + 1, cx);
+                        cx.notify();
+                    }
+                }
+            }
+            BlockEvent::RequestBlockUp => {
+                if let Some(doc) = &self.document {
+                    let current_idx = doc.index_for_entity_id(block.entity_id()).unwrap_or(0);
+                    if current_idx > 0 {
+                        let prev = doc.blocks()[current_idx - 1].entity.clone();
+                        prev.update(cx, |prev, cx| {
+                            prev.move_to(0, cx);
+                            prev.start_cursor_blink(cx);
+                            cx.notify();
+                        });
+                        self.active_entity = Some(prev);
+                        self.scroll_block_into_view(current_idx - 1, cx);
+                        cx.notify();
+                    }
+                }
+            }
+            BlockEvent::RequestBlockDown => {
+                if let Some(doc) = &self.document {
+                    let blocks = doc.blocks();
+                    let current_idx = doc.index_for_entity_id(block.entity_id()).unwrap_or(0);
+                    if current_idx + 1 < blocks.len() {
+                        let next = blocks[current_idx + 1].entity.clone();
+                        next.update(cx, |next, cx| {
+                            next.move_to(0, cx);
+                            next.start_cursor_blink(cx);
+                            cx.notify();
+                        });
+                        self.active_entity = Some(next);
+                        self.scroll_block_into_view(current_idx + 1, cx);
                         cx.notify();
                     }
                 }
@@ -342,7 +380,7 @@ impl WysiwygDocumentController {
                     }
                 });
                 if modified {
-                    self.rebuild_table_grids(cx);
+                    self.rebuild_table_grids(std::slice::from_ref(&target), cx);
                     self.pending_edit = true;
                     self.commit_document_edit(false, cx);
                     cx.notify();
@@ -358,7 +396,7 @@ impl WysiwygDocumentController {
                     }
                 });
                 if modified {
-                    self.rebuild_table_grids(cx);
+                    self.rebuild_table_grids(std::slice::from_ref(&target), cx);
                     self.pending_edit = true;
                     self.commit_document_edit(false, cx);
                     cx.notify();
@@ -371,9 +409,10 @@ impl WysiwygDocumentController {
             } => {
                 let target_entity = block.entity_id();
                 if let Some(doc) = &self.document {
-                    for entry in doc.blocks() {
-                        if entry.entity.entity_id() != target_entity {
-                            entry.entity.update(cx, |blk, cx| {
+                    // Axis previews only exist on table blocks.
+                    for entity in &doc.index.table_entities {
+                        if entity.entity_id() != target_entity {
+                            entity.update(cx, |blk, cx| {
                                 if blk.table_axis_preview.is_some() {
                                     blk.table_axis_preview = None;
                                     cx.notify();
@@ -398,9 +437,10 @@ impl WysiwygDocumentController {
             BlockEvent::RequestSelectTableAxis { kind, index } => {
                 let target_entity = block.entity_id();
                 if let Some(doc) = &self.document {
-                    for entry in doc.blocks() {
-                        if entry.entity.entity_id() != target_entity {
-                            entry.entity.update(cx, |blk, cx| {
+                    // Axis selections only exist on table blocks.
+                    for entity in &doc.index.table_entities {
+                        if entity.entity_id() != target_entity {
+                            entity.update(cx, |blk, cx| {
                                 if blk.table_axis_selection.is_some() {
                                     blk.table_axis_selection = None;
                                     cx.notify();
@@ -420,7 +460,7 @@ impl WysiwygDocumentController {
             }
             BlockEvent::RequestReorderTableAxis { kind, from, to } => {
                 crate::table::axis::reorder_table_axis(&block, *kind, *from, *to, cx);
-                self.rebuild_table_grids(cx);
+                self.rebuild_table_grids(std::slice::from_ref(&block), cx);
                 self.pending_edit = true;
                 self.commit_document_edit(false, cx);
                 cx.notify();
@@ -438,7 +478,7 @@ impl WysiwygDocumentController {
                         }
                     }
                 });
-                self.rebuild_table_grids(cx);
+                self.rebuild_table_grids(std::slice::from_ref(&block), cx);
                 self.pending_edit = true;
                 self.commit_document_edit(false, cx);
                 cx.notify();

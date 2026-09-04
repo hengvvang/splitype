@@ -11,7 +11,6 @@ impl Document {
     pub fn new(roots: Vec<Entity<Block>>) -> Self {
         Self {
             roots,
-            tree: crate::model::tree::SumTree::new(),
             index: BlockIndex::default(),
             structure_version: 0,
             metadata_rebuild_version: 0,
@@ -108,11 +107,5 @@ impl Document {
             .iter()
             .find(|entry| entry.entity.read(cx).data.id == block_id)
             .map(|entry| entry.entity.clone())
-    }
-
-    pub fn replace_blocks(&mut self, roots: Vec<Entity<Block>>, cx: &mut App) {
-        self.roots = roots;
-        self.structure_version += 1;
-        self.rebuild_metadata_and_snapshot(cx);
     }
 }

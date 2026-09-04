@@ -2,7 +2,7 @@
 
 use editor_contracts::{EditTransaction, OutlineNode, SearchMatch, SearchQuery};
 use gpui::{App, Context, FocusHandle};
-use theme::{Theme, ThemeManager};
+use theme::Theme;
 
 use crate::model::block::CollapsedCaretAffinity;
 
@@ -25,63 +25,44 @@ impl WysiwygDocumentController {
         None
     }
 
-    pub fn outline_headings(&self, cx: &App) -> Vec<OutlineNode> {
-        if let Some(doc) = &self.document {
-            crate::pane::outline::extract_outline_headings(doc, cx)
-        } else {
-            Vec::new()
-        }
+    pub fn outline_headings(&self, _cx: &App) -> Vec<OutlineNode> {
+        self.document
+            .as_ref()
+            .map(|doc| {
+                doc.index
+                    .headings
+                    .iter()
+                    .map(|heading| OutlineNode {
+                        id: format!("outline:{}", heading.entity_id),
+                        label: heading.label.clone(),
+                        level: heading.level,
+                        block_index: heading.block_index,
+                        block_id: Some(heading.entity_id),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
-    pub fn calculate_block_scroll_offset(
-        &self,
-        target_block_idx: usize,
-        theme: &Theme,
-        cx: &App,
-    ) -> f32 {
-        let Some(doc) = &self.document else {
-            return 0.0;
-        };
-        let blocks = doc.blocks();
-        let font_size = theme.typography.text_size.max(14.0);
-        let line_height = (font_size * theme.typography.text_line_height)
-            .round()
-            .max(22.0);
-        let mut y = 0.0;
-        for (i, entry) in blocks.iter().enumerate() {
-            if i >= target_block_idx {
-                break;
-            }
-            let block = entry.entity.read(cx);
-            let est_h = match block.kind() {
-                markdown_parser::parse::BlockKind::Heading { level } => match level {
-                    1 => line_height * 2.2 + 16.0,
-                    2 => line_height * 1.8 + 14.0,
-                    3 => line_height * 1.5 + 12.0,
-                    _ => line_height * 1.3 + 10.0,
-                },
-                markdown_parser::parse::BlockKind::Paragraph => {
-                    let len = block.data.text.plain_len();
-                    let lines = (len / 60).max(1);
-                    (lines as f32) * line_height + 10.0
-                }
-                markdown_parser::parse::BlockKind::CodeBlock { .. } => {
-                    let lines = block.data.text.plain_text().lines().count().max(1);
-                    (lines as f32) * line_height + 24.0
-                }
-                markdown_parser::parse::BlockKind::Table => line_height * 4.0 + 16.0,
-                markdown_parser::parse::BlockKind::ThematicBreak => line_height * 1.0 + 8.0,
-                _ => line_height * 1.5 + 8.0,
-            };
-            y += est_h;
-        }
-        y
+    /// The estimated pixel offset of `target_block_idx`, from the index's
+    /// cached cumulative heights. O(1).
+    pub fn calculate_block_scroll_offset(&self, target_block_idx: usize) -> f32 {
+        self.document
+            .as_ref()
+            .map(|doc| {
+                doc.index
+                    .cumulative_heights
+                    .get(target_block_idx)
+                    .copied()
+                    .unwrap_or(0.0)
+            })
+            .unwrap_or(0.0)
     }
 
     pub fn navigate_to_outline(
         &mut self,
         index: usize,
-        theme: &Theme,
+        _theme: &Theme,
         cx: &mut Context<Self>,
     ) -> Option<f32> {
         let headings = self.outline_headings(cx);
@@ -102,10 +83,20 @@ impl WysiwygDocumentController {
                     }
                 }
             }
-            let target_y = self.calculate_block_scroll_offset(node.block_index, theme, cx);
+            let target_y = self.calculate_block_scroll_offset(node.block_index);
             Some(target_y)
         } else {
             None
+        }
+    }
+
+    /// Keeps the block at `block_index` visible: the virtualized render
+    /// mounts rows only around the viewport, so cross-block caret movement
+    /// scrolls the pane to the block's estimated position through the host.
+    pub fn scroll_block_into_view(&mut self, block_index: usize, cx: &mut App) {
+        let target_y = self.calculate_block_scroll_offset(block_index);
+        if let (Some(host), Some(pane_id)) = (self.host.clone(), self.pane_id) {
+            host.scroll_pane_to_y(pane_id, target_y, cx);
         }
     }
 
@@ -158,8 +149,7 @@ impl WysiwygDocumentController {
                     });
                 }
                 if let Some(block_index) = doc.index_for_entity_id(entity_id) {
-                    let theme = cx.global::<ThemeManager>().current_arc();
-                    target_y = Some(self.calculate_block_scroll_offset(block_index, &theme, cx));
+                    target_y = Some(self.calculate_block_scroll_offset(block_index));
                 }
             }
         }

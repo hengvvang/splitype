@@ -77,7 +77,7 @@ impl WysiwygDocumentController {
                 crate::table::columns::insert_table_column_at(table, index);
             }
         });
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&target), cx);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
@@ -100,7 +100,7 @@ impl WysiwygDocumentController {
                 crate::table::columns::duplicate_table_column(table, index);
             }
         });
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&target), cx);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
@@ -124,7 +124,7 @@ impl WysiwygDocumentController {
                 crate::table::columns::set_table_column_alignment(table, index, alignment);
             }
         });
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&target), cx);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
@@ -149,7 +149,7 @@ impl WysiwygDocumentController {
             }
         });
         if deleted {
-            self.rebuild_table_grids(cx);
+            self.rebuild_table_grids(std::slice::from_ref(&target), cx);
             self.pending_edit = true;
             self.commit_document_edit(false, cx);
             cx.notify();
@@ -173,7 +173,7 @@ impl WysiwygDocumentController {
                 crate::table::rows::insert_table_row_at(table, index);
             }
         });
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&target), cx);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
@@ -196,7 +196,7 @@ impl WysiwygDocumentController {
                 crate::table::rows::duplicate_table_row(table, index);
             }
         });
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&target), cx);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
@@ -225,7 +225,7 @@ impl WysiwygDocumentController {
             }
         });
         if deleted {
-            self.rebuild_table_grids(cx);
+            self.rebuild_table_grids(std::slice::from_ref(&target), cx);
             self.pending_edit = true;
             self.commit_document_edit(false, cx);
             cx.notify();
@@ -301,17 +301,19 @@ impl WysiwygDocumentController {
                 table.resize_shape(target_rows, target_cols);
             }
         });
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&target), cx);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
         cx.notify();
     }
 
     pub fn clear_all_table_axis_selections(&mut self, cx: &mut Context<Self>) {
+        // Only table blocks can hold axis selections, so clearing scans the
+        // cached table list — O(tables), not O(blocks) per click.
         if let Some(doc) = &self.document {
             let mut changed = false;
-            for entry in doc.blocks() {
-                entry.entity.update(cx, |blk, cx| {
+            for entity in &doc.index.table_entities {
+                entity.update(cx, |blk, cx| {
                     if blk.table_axis_selection.is_some() {
                         blk.table_axis_selection = None;
                         changed = true;
@@ -404,7 +406,7 @@ impl WysiwygDocumentController {
             vec![new_block.clone()],
             cx,
         );
-        self.rebuild_table_grids(cx);
+        self.rebuild_table_grids(std::slice::from_ref(&new_block), cx);
         self.active_entity = Some(new_block);
         self.pending_edit = true;
         self.commit_document_edit(false, cx);
