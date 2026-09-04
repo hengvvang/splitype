@@ -104,9 +104,13 @@ impl DocumentBuffer {
     }
 
     /// Rebuilds a buffer from a persisted snapshot, preserving identity.
+    /// The highlight map starts unparsed: the initial parse runs on the
+    /// debounced background task (kicked off by the store after
+    /// construction), so opening a file never pays the parse cost on the
+    /// main thread.
     pub fn restore(id: DocumentId, text: String, path: Option<PathBuf>, dirty: bool) -> Self {
         let text = normalize_line_endings(text);
-        let highlight = HighlightMap::new(CodeLanguageKey::Markdown, &text)
+        let highlight = HighlightMap::unparsed(CodeLanguageKey::Markdown)
             .expect("markdown language configuration");
         let source: Arc<str> = Arc::from(text);
         let rope = Arc::new(Rope::new(&source));
@@ -127,6 +131,12 @@ impl DocumentBuffer {
             highlight_task: None,
             projection: BlockProjection::parse(&rope),
         }
+    }
+
+    /// Kicks off the initial background highlight parse (the map starts
+    /// unparsed; panes render text-only until the first refresh lands).
+    pub fn start_highlighting(&mut self, cx: &mut Context<Self>) {
+        self.schedule_highlight_refresh(cx);
     }
 
     pub fn snapshot(&self) -> DocumentSnapshot {
@@ -883,6 +893,43 @@ mod tests {
                     "bench_precise_keystroke[{size_kb}KB]: {edits} edits = {}us/edit",
                     elapsed.as_micros() / edits as u128
                 );
+            }
+        }
+
+        /// The file-open path: `DocumentBuffer::new` runs the rope build
+        /// and the block projection parse synchronously; the highlight
+        /// parse is unparsed and moved to the background task (measured
+        /// separately as its off-thread cost).
+        #[test]
+        #[ignore = "perf benchmark"]
+        fn bench_open_document_phases() {
+            for size_kb in [64usize, 256, 1024, 4096] {
+                let mut text = String::new();
+                while text.len() < size_kb * 1024 {
+                    text.push_str(
+                        "# Heading\n\nSome **bold** and `code` text with a [link](https://example.com).\n\n- item one\n- item two\n\n> quote line\n\n",
+                    );
+                }
+                text.truncate(size_kb * 1024);
+
+                let start = Instant::now();
+                let buffer = DocumentBuffer::new(text.clone(), None);
+                let total_elapsed = start.elapsed();
+
+                let start = Instant::now();
+                let highlight = syntax_highlighter::engine::HighlightMap::new(
+                    syntax_highlighter::language::CodeLanguageKey::Markdown,
+                    &text,
+                )
+                .expect("markdown map");
+                let background_elapsed = start.elapsed();
+
+                let (layers, layer_ranges) = highlight.layer_stats();
+                println!(
+                    "bench_open[{size_kb}KB]: buffer open {total_elapsed:?}, background highlight parse {background_elapsed:?} ({} spans, {layers} layers, {layer_ranges} ranges)",
+                    highlight.spans().len(),
+                );
+                let _ = buffer;
             }
         }
     }

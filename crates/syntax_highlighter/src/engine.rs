@@ -62,6 +62,10 @@ pub struct HighlightMap {
     injection_query: Option<Arc<Query>>,
     /// Root-language parse tree.
     tree: Tree,
+    /// Whether `tree` was parsed from the document text and subsequent
+    /// edits were recorded on it. False for an unparsed map: its tree is
+    /// empty and must never be reused as an incremental-parse base.
+    tree_valid: bool,
     /// Injection layers, outer to inner.
     layers: Vec<Layer>,
     /// Flat, sorted, non-overlapping spans in document coordinates,
@@ -83,28 +87,38 @@ impl HighlightMap {
     /// for languages without a tree-sitter configuration (callers fall back
     /// to light rules).
     pub fn new(key: CodeLanguageKey, text: &str) -> Option<Self> {
+        let mut map = Self::unparsed(key)?;
+        let rope = Rope::new(text);
+        map.refresh(&rope);
+        Some(map)
+    }
+
+    /// An unparsed map: empty tree, empty spans, ready for the first
+    /// [`HighlightMap::refresh`] (which parses the whole document from
+    /// scratch). The document buffer builds its map this way and lets the
+    /// debounced background task parse, so opening a file never pays the
+    /// parse cost on the main thread.
+    pub fn unparsed(key: CodeLanguageKey) -> Option<Self> {
         let config = language_config(key)?;
         let query = Arc::new(Query::new(&(config.grammar)(), config.highlights_query).ok()?);
         let injection_query = (!config.injections_query.is_empty())
             .then(|| Query::new(&(config.grammar)(), config.injections_query).ok())
             .flatten()
             .map(Arc::new);
-
-        let rope = Rope::new(text);
-        let mut map = Self {
+        let rope = Rope::new("");
+        Some(Self {
             config: config.clone(),
             query,
             injection_query,
-            tree: parse(&(config.grammar)(), text, &[], &rope, None),
+            tree: parse(&(config.grammar)(), "", &[], &rope, None),
+            tree_valid: false,
             layers: Vec::new(),
             spans: Arc::from([]),
             version: 0,
             refreshed_version: 0,
             dirty: None,
             dropped_layers: None,
-        };
-        map.refresh(&rope);
-        Some(map)
+        })
     }
 
     /// Records an edit into the map's internal state. `rope` is the text
@@ -120,7 +134,9 @@ impl HighlightMap {
         let end = range.end.min(rope.len()).max(start);
         let delta = inserted.len() as isize - (end - start) as isize;
 
-        // Root tree: record the edit; the re-parse happens on refresh.
+        // Record the edit on every tree that matched the document. An
+        // unparsed map (tree_valid == false, no layers) records nothing:
+        // its first refresh re-parses from scratch.
         let edit = InputEdit {
             start_byte: start,
             old_end_byte: end,
@@ -129,7 +145,9 @@ impl HighlightMap {
             old_end_position: ts_point(rope, end),
             new_end_position: point_plus(ts_point(rope, end), inserted),
         };
-        self.tree.edit(&edit);
+        if self.tree_valid {
+            self.tree.edit(&edit);
+        }
 
         // Injection layers: shift ranges after the edit, drop ranges it
         // intersects (re-discovered on refresh), remove emptied layers.
@@ -168,9 +186,12 @@ impl HighlightMap {
         let dropped = self.dropped_layers.take();
         let text = rope.materialize();
 
-        // 1. Root tree: incremental re-parse (tree-sitter only re-parses
-        //    what the edits invalidated).
-        self.tree = parse(&(self.config.grammar)(), &text, &[], rope, Some(&self.tree));
+        // 1. Root tree: incremental re-parse when the previous tree matched
+        //    the document (tree-sitter only re-parses what the edits
+        //    invalidated); a full parse for an unparsed map.
+        let old_tree = self.tree_valid.then_some(&self.tree);
+        self.tree = parse(&(self.config.grammar)(), &text, &[], rope, old_tree);
+        self.tree_valid = true;
 
         // 2. Re-discover injections over the recover region: the dirty range
         //    plus dropped layer spans (their starts precede the dirty range,
@@ -209,6 +230,15 @@ impl HighlightMap {
     /// without copying).
     pub fn spans_arc(&self) -> Arc<[CodeHighlightSpan]> {
         self.spans.clone()
+    }
+
+    /// Number of injection layers and their total range count (diagnostics
+    /// and benchmarks).
+    pub fn layer_stats(&self) -> (usize, usize) {
+        (
+            self.layers.len(),
+            self.layers.iter().map(|layer| layer.chunks.len()).sum(),
+        )
     }
 
     /// All spans intersecting `range`, in document coordinates.
@@ -299,13 +329,19 @@ impl HighlightMap {
                     .then(|| Query::new(&(config.grammar)(), config.injections_query).ok())
                     .flatten()
                     .map(Arc::new);
-                let tree = parse(&(config.grammar)(), text, &new_ranges, rope, None);
+                // Parse with the coalesced ranges, never the raw discovered
+                // ones: tree-sitter's parse cost grows superlinearly with
+                // the included-range count (45k inline ranges make a 1MB
+                // document take seconds instead of milliseconds).
+                let chunks = RangeChunks::from_sorted(new_ranges);
+                let included = chunks.materialize();
+                let tree = parse(&(config.grammar)(), text, &included, rope, None);
                 self.layers.push(Layer {
                     key,
                     query: Arc::new(query),
                     injection_query,
                     tree,
-                    chunks: RangeChunks::from_sorted(new_ranges),
+                    chunks,
                 });
             }
         }
@@ -1153,6 +1189,82 @@ mod tests {
                 map.layers.len(),
                 map.layers.iter().map(|l| l.chunks.len()).sum::<usize>()
             );
+        }
+    }
+
+    /// Phases of the initial full parse (the file-open path): root parse,
+    /// injection discovery, layer parses, and the span queries — with the
+    /// real range coalescing applied.
+    #[test]
+    #[ignore = "perf benchmark"]
+    fn full_parse_phases_benchmark() {
+        use std::time::Instant;
+
+        for size_kb in [64usize, 256, 1024] {
+            let mut text = String::new();
+            while text.len() < size_kb * 1024 {
+                text.push_str(
+                    "# Heading\n\nSome **bold** and `code` text with a [link](https://example.com).\n\n- item one\n- item two\n\n> quote line\n\n",
+                );
+            }
+            text.truncate(size_kb * 1024);
+            let config = language_config(CodeLanguageKey::Markdown).expect("config");
+            let rope = Rope::new(&text);
+
+            let start = Instant::now();
+            let tree = parse(&(config.grammar)(), &text, &[], &rope, None);
+            let root_parse = start.elapsed();
+
+            let start = Instant::now();
+            let mut discovered: HashMap<CodeLanguageKey, Vec<Range<usize>>> = HashMap::new();
+            let injection_query =
+                Query::new(&(config.grammar)(), config.injections_query).expect("q");
+            let mut cursor = QueryCursor::new();
+            cursor.set_byte_range(0..text.len());
+            let mut matches = cursor.matches(&injection_query, tree.root_node(), text.as_bytes());
+            while let Some(m) = matches.next() {
+                for capture in m.captures {
+                    let name = injection_query.capture_names()[capture.index as usize];
+                    if name == "injection.content" {
+                        let range = capture.node.byte_range();
+                        discovered
+                            .entry(CodeLanguageKey::MarkdownInline)
+                            .or_default()
+                            .push(range.start..range.end);
+                    }
+                }
+            }
+            let discovery = start.elapsed();
+            let ranges = discovered
+                .remove(&CodeLanguageKey::MarkdownInline)
+                .unwrap_or_default();
+            let coalesced = RangeChunks::from_sorted(ranges);
+
+            let start = Instant::now();
+            let layer_tree = parse(
+                &(config.grammar)(),
+                &text,
+                &coalesced.materialize(),
+                &rope,
+                None,
+            );
+            let layer_parse = start.elapsed();
+
+            let start = Instant::now();
+            let spans = collect_spans(&Arc::new(injection_query), &tree, &text, 0..text.len());
+            let spans_query = start.elapsed();
+
+            eprintln!(
+                "full_parse[{size_kb}KB]: root {root_parse:?}, discovery {discovery:?} ({} ranges -> {} coalesced), layer parse {layer_parse:?}, spans query {spans_query:?} ({} spans)",
+                coalesced.len(),
+                coalesced
+                    .chunks
+                    .iter()
+                    .map(|c| c.ranges.len())
+                    .sum::<usize>(),
+                spans.len(),
+            );
+            let _ = layer_tree;
         }
     }
 }

@@ -50,7 +50,11 @@ impl DocumentStore {
                 return existing;
             }
         }
-        let buffer = cx.new(|_| DocumentBuffer::new(text, path.clone()));
+        let buffer = cx.new(|cx| {
+            let mut buffer = DocumentBuffer::new(text, path.clone());
+            buffer.start_highlighting(cx);
+            buffer
+        });
         let id = buffer.read(cx).id;
         cx.global_mut::<Self>().insert(id, path, buffer.clone());
         buffer
@@ -65,7 +69,11 @@ impl DocumentStore {
         let bytes = std::fs::read(path)?;
         let text = String::from_utf8_lossy(&bytes).to_string();
         let path_buf = path.to_path_buf();
-        let buffer = cx.new(|_| DocumentBuffer::new(text, Some(path_buf.clone())));
+        let buffer = cx.new(|cx| {
+            let mut buffer = DocumentBuffer::new(text, Some(path_buf.clone()));
+            buffer.start_highlighting(cx);
+            buffer
+        });
         let id = buffer.read(cx).id;
         cx.global_mut::<Self>()
             .insert(id, Some(path_buf), buffer.clone());
@@ -200,13 +208,15 @@ impl DocumentStore {
     /// Rebuilds buffers from a persisted snapshot, preserving identities.
     pub fn restore(documents: Vec<PersistedDocument>, cx: &mut App) {
         for document in documents {
-            let buffer = cx.new(|_| {
-                DocumentBuffer::restore(
+            let buffer = cx.new(|cx| {
+                let mut buffer = DocumentBuffer::restore(
                     document.id,
                     document.text,
                     document.path.clone(),
                     document.dirty,
-                )
+                );
+                buffer.start_highlighting(cx);
+                buffer
             });
             cx.global_mut::<DocumentStore>()
                 .insert(document.id, document.path, buffer);
