@@ -7,10 +7,10 @@ from it — app icons, the README banner, and the platform bundle icons.
 
 | File | Role | Generated? |
 | --- | --- | --- |
-| `logo.svg` | Single source of truth for the logo | hand-edited source |
-| `logo.png` | 1024×1024 rendered logo, used as the app icon; also shown at runtime (About dialog, key `identity/logo.png`) | from `logo.svg` |
-| `logo-16.png` … `logo-512.png` | Rendered logo at 16/32/48/64/128/256/512 px (app icons at each size) | from `logo.svg` |
-| `banner.png` | README hero image | from `logo.svg` |
+| `logo.svg` | Scalable logo used at runtime (About dialog) | from `scripts/tools/icon-gen/logo.svg` |
+| `logo.png` | 1024×1024 rendered logo, used as the app icon; also shown at runtime (About dialog, key `identity/logo.png`) | from `scripts/tools/icon-gen/logo.svg` |
+| `logo-16.png` … `logo-512.png` | Rendered logo at 16/32/48/64/128/256/512 px (app icons at each size) | from `scripts/tools/icon-gen/logo.svg` |
+| `banner.png` | README hero image | from `scripts/tools/icon-gen/logo.svg` |
 
 Platform formats are generated into `packaging/`, not kept here:
 
@@ -22,7 +22,7 @@ Platform formats are generated into `packaging/`, not kept here:
 
 ## Regenerating
 
-Edit `logo.svg`, then regenerate everything from
+Edit the single source of truth `scripts/tools/icon-gen/logo.svg`, then regenerate everything from
 [`scripts/tools/icon-gen`](../../scripts/tools/icon-gen):
 
 ```bash
@@ -30,9 +30,8 @@ cd scripts/tools/icon-gen
 cargo run --release
 ```
 
-The generator renders the logo onto white canvases: square icons fit it to
-88% of the canvas, the banner to 84% of its height, everything centered. It
-writes `logo*.png` and `banner.png` into this directory and distributes
+The generator renders the logo onto white canvases and distributes all outputs:
+it copies `logo.svg` and writes `logo*.png` & `banner.png` into this directory, and distributes
 the platform formats into `packaging/`.
 
 ## Runtime key

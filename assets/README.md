@@ -25,8 +25,8 @@ Everything splitype ships that is not source code, grouped by purpose.
 
 ## Regenerating derived files
 
-The app icons, banner, `.ico`, `.icns`, and hicolor PNGs are all generated
-from `identity/logo.svg`:
+The app icons, banner, `.ico`, `.icns`, hicolor PNGs, and the runtime `identity/logo.svg`
+are all generated from `scripts/tools/icon-gen/logo.svg`:
 
 ```bash
 cd scripts/tools/icon-gen

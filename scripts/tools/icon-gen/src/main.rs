@@ -1,10 +1,13 @@
 //! Regenerates every splitype icon asset from `logo.svg`.
 //!
-//! Usage: `cargo run --release` from `scripts/icon-gen/`.
+//! Usage: `cargo run --release` from `scripts/tools/icon-gen/`.
 //!
-//! The logo (459x524 viewBox, black strokes on white) is rendered onto a
-//! white canvas. Square icons fit the logo to 88% of the canvas; the banner
-//! fits it to 84% of its height. Everything is centered.
+//! The source `logo.svg` is maintained directly in this tool directory and
+//! distributed to `assets/identity/logo.svg` alongside all rendered assets.
+//!
+//! The logo (512x512 viewBox) is rendered onto a white canvas.
+//! Square icons fit the logo to 100% of the canvas; the banner fits it to 84%
+//! of its height. Everything is centered.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -67,15 +70,29 @@ fn write_icns(sizes: &[(u32, Vec<u8>)], path: &Path) {
 
 fn main() {
     let root = root_dir();
-    let svg = fs::read_to_string(root.join("assets/identity/logo.svg")).expect("read logo.svg");
+    let tool_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let src_logo_path = if tool_dir.join("logo.svg").exists() {
+        tool_dir.join("logo.svg")
+    } else {
+        root.join("assets/identity/logo.svg")
+    };
+    let svg = fs::read_to_string(&src_logo_path).expect("read logo.svg");
     let identity_dir = root.join("assets/identity");
     let windows_dir = root.join("packaging/windows");
     let macos_dir = root.join("packaging/macos");
     let linux_dir = root.join("packaging/linux/icons/hicolor");
 
+    fs::create_dir_all(&identity_dir).expect("create assets/identity");
     fs::create_dir_all(&windows_dir).expect("create packaging/windows");
     fs::create_dir_all(&macos_dir).expect("create packaging/macos");
     fs::create_dir_all(&linux_dir).expect("create packaging/linux/icons/hicolor");
+
+    // Copy source SVG into assets/identity/logo.svg
+    let target_svg = identity_dir.join("logo.svg");
+    if src_logo_path != target_svg {
+        fs::copy(&src_logo_path, &target_svg).expect("copy logo.svg to assets/identity");
+        println!("wrote {}", target_svg.display());
+    }
 
     // --- Square PNGs -----------------------------------------------------
     let mut pngs: Vec<(u32, Vec<u8>)> = Vec::new();

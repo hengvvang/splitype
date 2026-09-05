@@ -61,7 +61,7 @@ packaging/
 
 ## Regenerating Icons
 
-All platform icons (`.ico`, `.icns`, and Linux hicolor PNGs) are generated automatically from `assets/identity/logo.svg`. Whenever `logo.svg` is modified:
+All platform icons (`.ico`, `.icns`, and Linux hicolor PNGs) are generated automatically from `scripts/tools/icon-gen/logo.svg`. Whenever `logo.svg` is modified:
 
 ```bash
 cd scripts/tools/icon-gen

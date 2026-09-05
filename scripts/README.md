@@ -52,7 +52,7 @@ Run the standard quality gate (formatting check, compilation check, Clippy lints
 ### 2. Specialized Toolchains (`tools/`)
 
 #### `icon-gen`
-A standalone Rust tool that renders `assets/identity/logo.svg` into all required icon sizes and formats for Windows, macOS, and Linux:
+A standalone Rust tool that takes `scripts/tools/icon-gen/logo.svg` as its source of truth and renders/distributes all required icon sizes and formats for Windows, macOS, and Linux:
 
 ```bash
 cd scripts/tools/icon-gen
@@ -60,6 +60,7 @@ cargo run --release
 ```
 
 Generated outputs:
+- `assets/identity/logo.svg` (synchronized SVG source for runtime use)
 - `assets/identity/logo-*.png` & `banner.png`
 - `packaging/windows/splitype.ico`
 - `packaging/macos/splitype.icns`
