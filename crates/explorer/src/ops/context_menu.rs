@@ -99,6 +99,9 @@ impl ExplorerState {
                     .gap(px(8.0))
                     .child(
                         div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .truncate()
                             .text_size(px(t.text_size * 0.8))
                             .text_color(color)
                             .child(label),
@@ -119,6 +122,9 @@ impl ExplorerState {
                     .gap(px(8.0))
                     .child(
                         div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .truncate()
                             .text_size(px(t.text_size * 0.8))
                             .text_color(c.dialog_muted)
                             .child(label),

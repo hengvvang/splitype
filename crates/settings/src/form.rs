@@ -8,8 +8,10 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use theme::{ThemeColors, ThemeDimensions};
+use ui::SearchInput;
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
+
 
 /// Card container holding a section header and its body.
 pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
@@ -357,93 +359,23 @@ pub fn render_searchable_font_picker(
             );
         }
 
-        // Popover header: Search box — an inline text filter driven by
-        // key events, dispatching every change through `on_search_change`.
-        let search_query = props.search_query.clone();
-        let search_focus = props.focus_handle.clone();
-        let search_focus_click = props.focus_handle.clone();
+        // Popover header: Search box using unified SearchInput component
         let on_search_change = props.on_search_change;
-        let is_query_active = !search_query.is_empty();
-        let search_box = div()
-            .id(ElementId::Name(format!("{id_prefix}-search").into()))
-            .key_context("SettingsSearch")
-            .track_focus(&search_focus)
-            .relative()
-            .overflow_hidden()
-            .cursor_text()
-            .flex()
-            .items_center()
-            .gap(px(6.0))
-            .w_full()
-            .h(px(28.0))
-            .px(px(8.0))
-            .mb(px(4.0))
-            .rounded(px(d.select_trigger_radius))
-            .bg(c.dialog_secondary_button_bg)
-            .border_1()
-            .border_color(c.dialog_border)
-            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                window.focus(&search_focus_click, cx);
-            })
-            .child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.0))
-                    .text_size(px(12.0))
-                    .text_color(if search_query.is_empty() {
-                        c.dialog_muted
-                    } else {
-                        c.text_default
-                    })
-                    .child(if search_query.is_empty() {
-                        "Search fonts…".to_string()
-                    } else {
-                        search_query.clone()
-                    }),
+        let search_box = div().mb(px(4.0)).child(
+            SearchInput::new(
+                ElementId::Name(format!("{id_prefix}-search").into()),
+                props.search_query.clone(),
+                props.focus_handle.clone(),
             )
-            .child(
-                div()
-                    .absolute()
-                    .bottom_0()
-                    .left_0()
-                    .right_0()
-                    .h(px(2.0))
-                    .rounded_b(px(d.select_trigger_radius))
-                    .bg(if is_query_active {
-                        c.focus_accent
-                    } else {
-                        c.dialog_border
-                    }),
-            )
-            .on_key_down(Box::new(
-                move |event: &KeyDownEvent, _window: &mut Window, cx: &mut App| {
-                    let mut query = search_query.clone();
-                    let ctrl =
-                        event.keystroke.modifiers.control || event.keystroke.modifiers.platform;
-                    match event.keystroke.key.as_str() {
-                        "backspace" => {
-                            query.pop();
-                            on_search_change(query, _window, cx);
-                        }
-                        "escape" => {}
-                        "space" => {
-                            query.push(' ');
-                            on_search_change(query, _window, cx);
-                        }
-                        key => {
-                            if !ctrl && !event.keystroke.modifiers.alt && !key.is_empty() {
-                                let mut chars = key.chars();
-                                if let Some(first) = chars.next() {
-                                    if chars.next().is_none() && !first.is_control() {
-                                        query.push_str(key);
-                                        on_search_change(query, _window, cx);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-            ));
+            .placeholder("Search fonts…")
+            .autofocus(true)
+            .colors(c.clone())
+            .dimensions(d.clone())
+            .on_change(move |query, window, cx| {
+                on_search_change(query, window, cx);
+            }),
+        );
+
 
         // Popover body: Scrollable list of fonts
         let list_container = div()

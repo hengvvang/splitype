@@ -20,12 +20,14 @@ use config::settings::{CoreSettings, PluginSettings, PluginSettingsDefinition, S
 use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, SettingKind};
 use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
 use ui::select::{select_option, select_panel, select_trigger};
+use ui::switch::Switch;
+use ui::SearchInput;
 use crate::form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsKeyHandler,
     make_row, make_row_with_reset, nav_tab, render_number_field, render_searchable_font_picker,
     section_card,
 };
-use ui::switch::Switch;
+
 
 use crate::state::SettingsUiState;
 
@@ -1018,80 +1020,21 @@ fn render_theme_overrides_panel(
     let search_focus = state.update(cx, |ui, cx| ui.focus_handle(&search_key, cx));
     let search_state = state.clone();
     let search_state_key = search_key.clone();
-    let search_input = div()
-        .id(ElementId::Name(format!("{search_key}-input").into()))
-        .key_context("SettingsInput")
-        .track_focus(&search_focus)
-        .relative()
-        .overflow_hidden()
-        .cursor_text()
-        .w_full()
-        .h(px(28.0))
-        .px(px(8.0))
-        .rounded(px(d.select_trigger_radius))
-        .bg(c.dialog_secondary_button_bg)
-        .border_1()
-        .border_color(c.dialog_border)
-        .flex()
-        .items_center()
-        .child(
-            div()
-                .text_size(px(12.0))
-                .text_color(if query.is_empty() {
-                    c.dialog_muted
-                } else {
-                    c.text_default
-                })
-                .child(if query.is_empty() {
-                    "Search color tokens…".to_string()
-                } else {
-                    query.clone()
-                }),
-        )
-        .child(
-            div()
-                .absolute()
-                .bottom_0()
-                .left_0()
-                .right_0()
-                .h(px(2.0))
-                .rounded_b(px(d.select_trigger_radius))
-                .bg(c.dialog_border),
-        )
-        .on_click(Box::new(
-            move |_event: &ClickEvent, window: &mut Window, cx: &mut App| {
-                window.focus(&search_focus, cx);
-            },
-        ))
-        .on_key_down(Box::new(
-            move |event: &KeyDownEvent, _window: &mut Window, cx: &mut App| {
-                search_state.update(cx, |ui, _| {
-                    let query = ui
-                        .search_queries
-                        .entry(search_state_key.clone())
-                        .or_default();
-                    match event.keystroke.key.as_str() {
-                        "escape" => query.clear(),
-                        "backspace" => {
-                            query.pop();
-                        }
-                        _ => {
-                            let text = event.keystroke.key_char.clone().unwrap_or_else(|| {
-                                if event.keystroke.key.len() == 1 {
-                                    event.keystroke.key.clone()
-                                } else {
-                                    String::new()
-                                }
-                            });
-                            if !text.is_empty() && !text.chars().any(|ch| ch.is_control()) {
-                                query.push_str(&text);
-                            }
-                        }
-                    }
-                });
-                cx.refresh_windows();
-            },
-        ));
+    let search_input = SearchInput::new(
+        ElementId::Name(format!("{search_key}-input").into()),
+        query.clone(),
+        search_focus,
+    )
+    .placeholder("Search color tokens…")
+    .colors(c.clone())
+    .dimensions(d.clone())
+    .on_change(move |new_query, _window, cx| {
+        search_state.update(cx, |ui, _| {
+            ui.search_queries.insert(search_state_key.clone(), new_query);
+        });
+        cx.refresh_windows();
+    });
+
 
     let mut rows: Vec<AnyElement> = Vec::new();
     for (token_key, display, effective) in tokens {

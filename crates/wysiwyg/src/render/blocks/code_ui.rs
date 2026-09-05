@@ -1,14 +1,13 @@
 //! Code block UI — editor section, toolbar, and language picker.
 
-use ui::menu_item::menu_item;
+use ui::{SearchInput, menu_item::menu_item};
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::render::EDITOR_CONTEXT;
-
 use crate::model::block::Block;
-use crate::render::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
+use crate::render::inline::text_element::BlockTextElement;
+
 use config::language::I18nStrings;
 use syntax_highlighter::language::{code_language_display_name, code_language_options_matching};
 use theme::Theme;
@@ -233,75 +232,46 @@ impl Block {
             .bg(c.dialog_surface)
             .shadow_lg()
             .child({
-                let is_query_active = !self.code_toolbar.picker.query.is_empty();
-                div()
-                    .key_context(EDITOR_CONTEXT)
-                    .track_focus(&self.code_language_focus_handle)
-                    .on_key_down(cx.listener(Self::on_code_language_key_down))
-                    .on_action(cx.listener(Self::on_code_language_newline))
-                    .on_action(cx.listener(Self::on_code_language_dismiss))
-                    .on_action(cx.listener(Self::on_code_language_delete_backward))
-                    .on_action(cx.listener(Self::on_code_language_delete))
-                    .on_action(cx.listener(Self::on_code_language_focus_content))
-                    .on_action(cx.listener(Self::on_code_language_focus_next))
-                    .on_action(cx.listener(Self::on_code_language_move_left))
-                    .on_action(cx.listener(Self::on_code_language_move_right))
-                    .on_action(cx.listener(Self::on_code_language_home))
-                    .on_action(cx.listener(Self::on_code_language_end))
-                    .on_action(cx.listener(Self::on_code_language_select_left))
-                    .on_action(cx.listener(Self::on_code_language_select_right))
-                    .on_action(cx.listener(Self::on_code_language_select_all))
-                    .on_action(cx.listener(Self::on_code_language_copy))
-                    .on_action(cx.listener(Self::on_code_language_cut))
-                    .on_action(cx.listener(Self::on_code_language_paste))
-                    .on_action(cx.listener(Self::on_code_language_indent))
-                    .on_action(cx.listener(Self::on_code_language_outdent))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(Self::on_code_language_mouse_down),
-                    )
-                    .on_mouse_up(
-                        MouseButton::Left,
-                        cx.listener(Self::on_code_language_mouse_up),
-                    )
-                    .on_mouse_up_out(
-                        MouseButton::Left,
-                        cx.listener(Self::on_code_language_mouse_up_out),
-                    )
-                    .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
-                    .relative()
-                    .overflow_hidden()
-                    .w_full()
-                    .h(px(28.0))
-                    .px(px(8.0))
-                    .py(px(3.0))
-                    .rounded(px(d.select_trigger_radius))
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .bg(c.dialog_secondary_button_bg)
-                    .flex()
-                    .items_center()
-                    .text_size(px(11.5))
-                    .cursor(CursorStyle::IBeam)
-                    .child(CodeLanguageInputElement::new(
-                        cx.entity(),
-                        SharedString::from(strings.code_language_search_placeholder.clone()),
-                    ))
-                    .child(
-                        div()
-                            .absolute()
-                            .bottom_0()
-                            .left_0()
-                            .right_0()
-                            .h(px(2.0))
-                            .rounded_b(px(d.select_trigger_radius))
-                            .bg(if is_query_active {
-                                c.focus_accent
-                            } else {
-                                c.dialog_border
-                            }),
-                    )
+                let on_change_entity = cx.entity();
+                let on_submit_entity = cx.entity();
+                let on_dismiss_entity = cx.entity();
+                SearchInput::new(
+                    ElementId::Name(format!("code-language-input-{}", self.data.id).into()),
+                    self.code_toolbar.picker.query.clone(),
+                    self.code_language_focus_handle.clone(),
+                )
+                .placeholder(strings.code_language_search_placeholder.clone())
+                .autofocus(true)
+                .on_change(move |new_query, _window, cx| {
+                    on_change_entity.update(cx, |block, cx| {
+                        block.code_toolbar.picker.query = new_query;
+                        block.code_toolbar.picker.selected_range = 0..0;
+                        cx.notify();
+                    });
+                })
+                .on_submit(move |query, window, cx| {
+                    on_submit_entity.update(cx, |block, cx| {
+                        let value = code_language_options_matching(query)
+                            .first()
+                            .map(|option| option.value);
+                        if let Some(value) = value {
+                            block.choose_code_language(value, cx);
+                        } else {
+                            block.code_toolbar.picker.close();
+                        }
+                        block.focus_handle.focus(window, cx);
+                        cx.notify();
+                    });
+                })
+                .on_dismiss(move |window, cx| {
+                    on_dismiss_entity.update(cx, |block, cx| {
+                        block.code_toolbar.picker.close();
+                        block.focus_handle.focus(window, cx);
+                        cx.notify();
+                    });
+                })
             })
+
             .child(
                 div()
                     .id(ElementId::Name(

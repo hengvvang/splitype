@@ -6,7 +6,7 @@ use platform_contracts::PanelId;
 use theme::Theme;
 use ui::button::{icon_chip_button, toolbar_icon_size};
 use ui::menu_item::menu_item;
-use ui::popover::menu_panel;
+use ui::popover::{menu_panel, menu_panel_width_for_labels_with_size};
 
 fn bottombar_container(c: &theme::ThemeColors, height: f32, padding_x: f32) -> Div {
     div()
@@ -137,6 +137,8 @@ impl ExplorerState {
                     .into_any_element()
             };
 
+            let item_text_size = t.text_size * 0.8;
+
             type BottombarMenuItemHandler =
                 Box<dyn Fn(&mut ExplorerState, &mut Window, &mut App) + 'static>;
 
@@ -150,7 +152,10 @@ impl ExplorerState {
                     .w_full()
                     .child(
                         div()
-                            .text_size(px(t.text_size * 0.8))
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .truncate()
+                            .text_size(px(item_text_size))
                             .text_color(color)
                             .child(label),
                     )
@@ -169,8 +174,10 @@ impl ExplorerState {
             };
 
             let mut items = Vec::new();
+            let mut menu_labels = Vec::new();
 
             // 1. Open / Add folder
+            menu_labels.push(s.explorer_add_folder.clone());
             items.push(make_item(
                 "explorer-bb-menu-open-folder",
                 s.explorer_add_folder.clone(),
@@ -182,6 +189,7 @@ impl ExplorerState {
 
             // 2. New File / New Folder (when worktrees are open)
             if has_worktrees {
+                menu_labels.push(s.explorer_new_file.clone());
                 items.push(make_item(
                     "explorer-bb-menu-new-file",
                     s.explorer_new_file.clone(),
@@ -190,6 +198,7 @@ impl ExplorerState {
                         state.on_explorer_new_file(&crate::ops::selection::NewFile, window, cx);
                     }),
                 ));
+                menu_labels.push(s.explorer_new_folder.clone());
                 items.push(make_item(
                     "explorer-bb-menu-new-folder",
                     s.explorer_new_folder.clone(),
@@ -208,6 +217,7 @@ impl ExplorerState {
 
             // 3. Refresh
             let refresh_label = if is_zh { "刷新" } else { "Refresh" };
+            menu_labels.push(refresh_label.to_string());
             items.push(make_item(
                 "explorer-bb-menu-refresh",
                 refresh_label.to_string(),
@@ -218,6 +228,7 @@ impl ExplorerState {
             ));
 
             // 4. Collapse All
+            menu_labels.push(s.explorer_collapse_all.clone());
             items.push(make_item(
                 "explorer-bb-menu-collapse-all",
                 s.explorer_collapse_all.clone(),
@@ -239,6 +250,7 @@ impl ExplorerState {
             } else {
                 "Hide Hidden Files"
             };
+            menu_labels.push(hidden_label.to_string());
             items.push(make_item(
                 "explorer-bb-menu-toggle-hidden",
                 hidden_label.to_string(),
@@ -256,6 +268,7 @@ impl ExplorerState {
                 } else {
                     "Close All Folders"
                 };
+                menu_labels.push(close_all_label.to_string());
                 items.push(make_item(
                     "explorer-bb-menu-close-all",
                     close_all_label.to_string(),
@@ -266,13 +279,16 @@ impl ExplorerState {
                 ));
             }
 
+            let panel_width =
+                menu_panel_width_for_labels_with_size(&menu_labels, item_text_size, d);
+
             let menu = menu_panel(c, d)
                 .id(("explorer-bottombar-menu-panel", panel_id.0))
                 .absolute()
                 .occlude()
                 .bottom(px(d.bottombar_height + 4.0))
                 .right(px(d.bottombar_padding_x))
-                .w(px(160.0))
+                .w(px(panel_width))
                 .children(items);
 
             bar = bar.child(menu);

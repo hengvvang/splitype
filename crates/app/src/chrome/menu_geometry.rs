@@ -3,39 +3,10 @@
 use gpui::OwnedMenuItem;
 use theme::ThemeDimensions;
 
-// ── Character width estimation ────────────────────────────────────────────
-
-fn is_wide_menu_char(ch: char) -> bool {
-    matches!(
-        ch as u32,
-        0x1100..=0x11ff
-            | 0x2e80..=0xa4cf
-            | 0xac00..=0xd7a3
-            | 0xf900..=0xfaff
-            | 0xfe10..=0xfe6f
-            | 0xff00..=0xff60
-            | 0xffe0..=0xffe6
-    )
-}
-
-fn estimated_menu_label_width(label: &str, text_size: f32) -> f32 {
-    label
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_whitespace() {
-                text_size * 0.35
-            } else if ch.is_ascii_punctuation() {
-                text_size * 0.45
-            } else if ch.is_ascii() {
-                text_size * 0.54
-            } else if is_wide_menu_char(ch) {
-                text_size
-            } else {
-                text_size * 0.85
-            }
-        })
-        .sum()
-}
+pub use ui::popover::{
+    estimated_menu_label_width, is_wide_menu_char, menu_panel_width_for_labels,
+    menu_panel_width_for_labels_with_size, MENU_PANEL_MAX_WIDTH,
+};
 
 // ── Menu bar button geometry ──────────────────────────────────────────────
 
@@ -72,23 +43,6 @@ pub fn menu_panel_left<S: AsRef<str>>(
         .map(|label| menu_bar_button_width(label.as_ref(), dimensions))
         .sum();
     TITLEBAR_MENU_START_X + prior_width + TITLEBAR_MENU_BUTTON_GAP * open_index as f32
-}
-
-pub const MENU_PANEL_MAX_WIDTH: f32 = 560.0;
-
-pub fn menu_panel_width_for_labels<S: AsRef<str>>(
-    labels: &[S],
-    dimensions: &ThemeDimensions,
-) -> f32 {
-    let widest_label = labels
-        .iter()
-        .map(|label| estimated_menu_label_width(label.as_ref(), dimensions.menu_text_size))
-        .fold(0.0, f32::max);
-    let content_width = widest_label + dimensions.menu_item_padding_x * 2.0;
-    dimensions
-        .menu_panel_width
-        .max(content_width.ceil())
-        .min(MENU_PANEL_MAX_WIDTH)
 }
 
 // ── Item labelling ────────────────────────────────────────────────────────
