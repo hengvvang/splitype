@@ -21,10 +21,6 @@ impl AssetSource for SplitypeAssets {
     }
 }
 
-/// Looks up one asset-catalog icon by its `assets/`-relative key.
-pub(crate) fn icon_bytes(path: &str) -> Option<Cow<'static, [u8]>> {
-    icons::match_icon(path)
-}
 
 impl SplitypeAssets {
     /// Populate the [`TextSystem`] with all 9 embedded Lexend font variants.

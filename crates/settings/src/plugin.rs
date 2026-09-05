@@ -19,7 +19,7 @@ pub const PANEL_KIND: &str = "splitype.panel.settings";
 pub const PLUGIN_ID: &str = "splitype.settings";
 
 /// Asset directory holding the settings panel's topbar chrome icons.
-pub const TOPBAR_ICON_PREFIX: &str = "icons/settings";
+pub const TOPBAR_ICON_PREFIX: &str = "plugin://splitype.settings";
 
 /// View wrapper implementing [`PanelView`] for the Settings panel.
 pub struct SettingsPanelView {

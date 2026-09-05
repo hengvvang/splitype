@@ -15,8 +15,8 @@ pub use command::{CommandContribution, CommandId, CommandRegistry, CommandRegist
 pub use document_id::DocumentId;
 pub use panel::{PanelDescriptor, PanelId, PanelKind, PanelRenderContext, PanelView};
 pub use plugin::{
-    ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginId,
-    PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError, PluginResources,
-    ThemeFamilyDeclaration,
+    ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginAssetProvider, PluginCapabilities, PluginEntry,
+    PluginId, PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError,
+    PluginResources, ThemeFamilyDeclaration,
 };
 pub use settings::{SettingDeclaration, SettingKind, SettingOption, verify_setting_declarations};

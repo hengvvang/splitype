@@ -137,9 +137,9 @@ pub fn render_task_list_item(
                         .child(
                             svg()
                                 .path(if checked {
-                                    "icons/wysiwyg/checkbox-checked.svg"
+                                    "plugin://splitype.wysiwyg/checkbox-checked.svg"
                                 } else {
-                                    "icons/wysiwyg/checkbox.svg"
+                                    "plugin://splitype.wysiwyg/checkbox.svg"
                                 })
                                 .size(px(d.task_checkbox_size))
                                 .text_color(if checked {

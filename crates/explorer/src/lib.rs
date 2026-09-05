@@ -46,3 +46,5 @@ pub mod state;
 pub mod topbar;
 
 pub use plugin::*;
+
+pub const MANIFEST_TOML: &str = include_str!("../manifest.toml");

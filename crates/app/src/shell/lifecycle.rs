@@ -116,7 +116,7 @@ impl Shell {
         state: Box<dyn std::any::Any>,
         cx: &mut Context<Self>,
     ) -> bool {
-        match window::PanelRegistry::restore_registered_panel(kind.clone(), panel_id, state, cx) {
+        match window_assembly::PanelRegistry::restore_registered_panel(kind.clone(), panel_id, state, cx) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true
@@ -144,14 +144,14 @@ impl Shell {
         if self.panel_views.contains_key(&panel_id) {
             return true;
         }
-        match window::PanelRegistry::create_registered_panel(kind.clone(), panel_id, cx) {
+        match window_assembly::PanelRegistry::create_registered_panel(kind.clone(), panel_id, cx) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true
             }
             Ok(None) => {
                 tracing::warn!(%kind, "no panel descriptor is registered; showing placeholder");
-                let view = Box::new(window::MissingPanelView::new(panel_id, kind));
+                let view = Box::new(window_assembly::MissingPanelView::new(panel_id, kind));
                 self.insert_panel_view(panel_id, view, cx);
                 true
             }
@@ -180,7 +180,7 @@ impl Shell {
             }
             if let Some(retained) = self.retained_panel_states.remove(&PanelId(target_leaf_id)) {
                 if let Ok(Some(descriptor)) =
-                    window::PanelRegistry::registered(retained.kind.clone())
+                    window_assembly::PanelRegistry::registered(retained.kind.clone())
                 {
                     let mut state = retained.state;
                     descriptor.release_retained(&mut state, cx);
@@ -196,7 +196,7 @@ impl Shell {
             view.release_documents(cx);
         }
         if let Some(retained) = self.retained_panel_states.remove(&PanelId(removed_id)) {
-            if let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone()) {
+            if let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(retained.kind.clone()) {
                 let mut state = retained.state;
                 descriptor.release_retained(&mut state, cx);
             }

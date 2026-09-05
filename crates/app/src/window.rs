@@ -103,7 +103,7 @@ pub fn open_cloned_window(
     retained: HashMap<PanelId, crate::shell::RetainedPanel>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {
-    let layout = window::WindowLayout {
+    let layout = window_assembly::WindowLayout {
         tree,
         next_node_id,
         active_splitter_drag: None,
@@ -117,7 +117,7 @@ pub fn open_cloned_window(
 /// Opens a window restoring the persisted layout topology and panel states.
 pub fn open_restored_window(
     cx: &mut App,
-    mut state: window::PersistedWindowState,
+    mut state: window_assembly::PersistedWindowState,
 ) -> WindowHandle<Shell> {
     // Restore the shared documents first: panel sessions resolve their
     // buffer references from the store during restore.
@@ -128,7 +128,7 @@ pub fn open_restored_window(
     let mut retained = HashMap::new();
     let panels = std::mem::take(&mut state.panels);
     for panel in panels {
-        let Ok(Some(descriptor)) = window::PanelRegistry::registered(panel.kind.clone()) else {
+        let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(panel.kind.clone()) else {
             tracing::warn!(
                 kind = %panel.kind,
                 "skipping persisted panel without a registered descriptor"
@@ -158,7 +158,7 @@ pub fn open_restored_window(
 /// through the registry and restoring retained panel states.
 fn open_window_with_retained(
     cx: &mut App,
-    layout: window::WindowLayout,
+    layout: window_assembly::WindowLayout,
     retained: HashMap<PanelId, crate::shell::RetainedPanel>,
 ) -> WindowHandle<Shell> {
     let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);

@@ -754,7 +754,7 @@ fn render_picker(
         .child(
             div().flex_shrink_0().pl(px(4.0)).child(
                 svg()
-                    .path("icons/settings/select-chevron.svg")
+                    .path("plugin://splitype.settings/select-chevron.svg")
                     .size(px(16.0))
                     .text_color(c.dialog_muted),
             ),
@@ -800,7 +800,7 @@ fn render_picker(
                 .child(option_label)
                 .child(if is_selected {
                     svg()
-                        .path("icons/settings/checkmark.svg")
+                        .path("plugin://splitype.settings/checkmark.svg")
                         .size(px(15.0))
                         .text_color(c.dialog_primary_button_bg)
                         .into_any_element()
@@ -1543,7 +1543,7 @@ fn render_weight_control(
         .child(
             div().flex_shrink_0().pl(px(4.0)).child(
                 svg()
-                    .path("icons/settings/select-chevron.svg")
+                    .path("plugin://splitype.settings/select-chevron.svg")
                     .size(px(16.0))
                     .text_color(c.dialog_muted),
             ),
@@ -1584,7 +1584,7 @@ fn render_weight_control(
                 .child(weight)
                 .child(if weight == effective {
                     svg()
-                        .path("icons/settings/checkmark.svg")
+                        .path("plugin://splitype.settings/checkmark.svg")
                         .size(px(15.0))
                         .text_color(c.dialog_primary_button_bg)
                         .into_any_element()

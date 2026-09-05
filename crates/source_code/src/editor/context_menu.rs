@@ -465,7 +465,7 @@ impl SourceCodeEditor {
                         }))
                         .children(is_checked.then(|| {
                             svg()
-                                .path("icons/source_code/checkmark.svg")
+                                .path("plugin://splitype.source-code/checkmark.svg")
                                 .size(px(14.0))
                                 .text_color(c.dialog_primary_button_bg)
                         })),
@@ -497,7 +497,7 @@ impl SourceCodeEditor {
                 .child(label)
                 .child(
                     svg()
-                        .path("icons/source_code/chevron-right.svg")
+                        .path("plugin://splitype.source-code/chevron-right.svg")
                         .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )

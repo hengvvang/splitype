@@ -163,7 +163,7 @@ impl Editor {
                     icon_chip_button(c, d)
                         .child(
                             svg()
-                                .path("icons/editor/bottombar/split-h.svg")
+                                .path("plugin://splitype.editor/bottombar/split-h.svg")
                                 .size(px(btn_icon_size))
                                 .text_color(c.dialog_muted),
                         )
@@ -181,7 +181,7 @@ impl Editor {
                     icon_chip_button(c, d)
                         .child(
                             svg()
-                                .path("icons/editor/bottombar/split-v.svg")
+                                .path("plugin://splitype.editor/bottombar/split-v.svg")
                                 .size(px(btn_icon_size))
                                 .text_color(c.dialog_muted),
                         )
@@ -202,9 +202,9 @@ impl Editor {
                         .child(
                             svg()
                                 .path(if is_pane_maximized {
-                                    "icons/editor/bottombar/restore.svg"
+                                    "plugin://splitype.editor/bottombar/restore.svg"
                                 } else {
-                                    "icons/editor/bottombar/maximize.svg"
+                                    "plugin://splitype.editor/bottombar/maximize.svg"
                                 })
                                 .size(px(btn_icon_size))
                                 .text_color(c.dialog_muted),
@@ -225,7 +225,7 @@ impl Editor {
                     icon_chip_button(c, d)
                         .child(
                             svg()
-                                .path("icons/editor/bottombar/close.svg")
+                                .path("plugin://splitype.editor/bottombar/close.svg")
                                 .size(px(btn_icon_size))
                                 .text_color(c.dialog_muted),
                         )
@@ -323,7 +323,7 @@ impl Editor {
                             .child(display_name)
                             .child(if is_current {
                                 svg()
-                                    .path("icons/editor/topbar/check.svg")
+                                    .path("plugin://splitype.editor/topbar/check.svg")
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()

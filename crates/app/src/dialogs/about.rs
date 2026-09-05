@@ -239,7 +239,7 @@ impl Shell {
                                         .on_click(cx.listener(Self::on_dismiss_info_dialog))
                                         .child(
                                             svg()
-                                                .path("icons/editor/topbar/close.svg")
+                                                .path("icons/titlebar/chrome/close.svg")
                                                 .size(px(16.0))
                                                 .text_color(c.dialog_title),
                                         ),

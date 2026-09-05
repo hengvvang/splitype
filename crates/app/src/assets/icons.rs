@@ -3,25 +3,6 @@
 use std::borrow::Cow;
 
 pub(super) fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
-    if let Some(bytes) = explorer::assets::match_icon(path) {
-        return Some(bytes);
-    }
-    if let Some(bytes) = settings::assets::match_icon(path) {
-        return Some(bytes);
-    }
-    if let Some(bytes) = editor::assets::match_icon(path) {
-        return Some(bytes);
-    }
-    if let Some(bytes) = wysiwyg::assets::match_icon(path) {
-        return Some(bytes);
-    }
-    if let Some(bytes) = preview::assets::match_icon(path) {
-        return Some(bytes);
-    }
-    if let Some(bytes) = source_code::assets::match_icon(path) {
-        return Some(bytes);
-    }
-
     match path {
         // ── Titlebar: app menu buttons ────────────────────────────────
         "icons/titlebar/app_menu/app_menu.svg" => Some(Cow::Borrowed(include_bytes!(

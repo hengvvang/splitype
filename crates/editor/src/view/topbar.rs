@@ -122,7 +122,7 @@ impl Editor {
             .when(is_search_active, |this| this.bg(c.panel_row_hover))
             .child(
                 svg()
-                    .path("icons/editor/topbar/search.svg")
+                    .path("plugin://splitype.editor/topbar/search.svg")
                     .size(px(btn_icon_size))
                     .text_color(if is_search_active {
                         c.focus_accent
@@ -314,7 +314,7 @@ impl Editor {
                     .text_color(c.dialog_muted)
                     .child(
                         svg()
-                            .path("icons/settings/plus.svg")
+                            .path("plugin://splitype.editor/topbar/plus.svg")
                             .size(px(btn_icon_size))
                             .text_color(c.dialog_muted),
                     )

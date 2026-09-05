@@ -83,9 +83,9 @@ pub(crate) fn render_preview_task_list_item(
                 .child(
                     svg()
                         .path(if checked {
-                            "icons/preview/checkbox-checked.svg"
+                            "plugin://splitype.preview/checkbox-checked.svg"
                         } else {
-                            "icons/preview/checkbox.svg"
+                            "plugin://splitype.preview/checkbox.svg"
                         })
                         .size(px(d.task_checkbox_size))
                         .text_color(if checked {

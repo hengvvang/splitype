@@ -13,5 +13,3 @@ registration = "settings"
 panes = []
 panels = ["splitype.panel.settings"]
 
-[resources]
-icon_root = "icons/settings"

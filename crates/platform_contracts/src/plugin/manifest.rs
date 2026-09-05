@@ -90,14 +90,9 @@ pub struct PluginCapabilities {
     pub panels: Vec<PanelKind>,
 }
 
-/// Plugin-owned resources exposed through the `plugin://` asset namespace.
+/// Plugin-owned resources declaration placeholder.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct PluginResources {
-    /// Asset-catalog root of the plugin's bundled icons; a request for
-    /// `plugin://<id>/<path>` resolves to `<icon_root>/<path>`.
-    #[serde(default)]
-    pub icon_root: Option<String>,
-}
+pub struct PluginResources {}
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum PluginManifestError {

@@ -52,7 +52,7 @@ mod tests {
     #[test]
     fn manifest_declarations_cover_the_settings_struct() {
         let manifest: platform_contracts::PluginManifest =
-            toml::from_str(include_str!("../../../assets/plugins/splitype.editor.toml"))
+            toml::from_str(crate::MANIFEST_TOML)
                 .expect("bundled manifest must be valid TOML");
         let problems = platform_contracts::verify_setting_declarations::<EditorSettings>(
             &manifest.settings,

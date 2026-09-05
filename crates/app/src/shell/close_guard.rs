@@ -35,7 +35,7 @@ impl Shell {
         let Some(retained) = self.retained_panel_states.get(&panel_id) else {
             return (false, String::new());
         };
-        let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone()) else {
+        let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(retained.kind.clone()) else {
             return (false, String::new());
         };
         let (dirty, first_name) = descriptor.retained_dirty_info(retained.state.as_ref(), cx);
@@ -58,7 +58,7 @@ impl Shell {
             }
         }
         for retained in self.retained_panel_states.values() {
-            let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone())
+            let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(retained.kind.clone())
             else {
                 continue;
             };
@@ -190,7 +190,7 @@ impl Shell {
             view.release_documents(cx);
         }
         for retained in self.retained_panel_states.values_mut() {
-            let Ok(Some(descriptor)) = window::PanelRegistry::registered(retained.kind.clone())
+            let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(retained.kind.clone())
             else {
                 continue;
             };

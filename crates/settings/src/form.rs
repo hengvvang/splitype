@@ -105,7 +105,7 @@ pub fn make_row_with_reset(
                 .hover(|s| s.bg(c.panel_row_hover))
                 .child(
                     svg()
-                        .path("icons/settings/undo.svg")
+                        .path("plugin://splitype.settings/undo.svg")
                         .size(px(12.0))
                         .text_color(c.dialog_muted),
                 )
@@ -208,7 +208,7 @@ pub fn render_number_field(
             stepper_step_button(dec_id, c)
                 .child(
                     svg()
-                        .path("icons/settings/minus.svg")
+                        .path("plugin://splitype.settings/minus.svg")
                         .size(px(12.0))
                         .text_color(c.dialog_secondary_button_text),
                 )
@@ -221,7 +221,7 @@ pub fn render_number_field(
             stepper_step_button(inc_id, c)
                 .child(
                     svg()
-                        .path("icons/settings/plus.svg")
+                        .path("plugin://splitype.settings/plus.svg")
                         .size(px(12.0))
                         .text_color(c.dialog_secondary_button_text),
                 )
@@ -265,7 +265,7 @@ pub fn render_searchable_font_picker(
             .child(
                 div().flex_shrink_0().pl(px(4.0)).child(
                     svg()
-                        .path("icons/settings/chevron-up-down.svg")
+                        .path("plugin://splitype.settings/chevron-up-down.svg")
                         .size(px(14.0))
                         .text_color(c.dialog_muted),
                 ),
@@ -306,7 +306,7 @@ pub fn render_searchable_font_picker(
                 )
                 .child(if is_default_selected {
                     svg()
-                        .path("icons/settings/checkmark.svg")
+                        .path("plugin://splitype.settings/checkmark.svg")
                         .size(px(14.0))
                         .text_color(c.dialog_primary_button_bg)
                         .into_any_element()
@@ -345,7 +345,7 @@ pub fn render_searchable_font_picker(
                 .child(div().flex_1().min_w(px(0.0)).truncate().child(f_name))
                 .child(if is_selected {
                     svg()
-                        .path("icons/settings/checkmark.svg")
+                        .path("plugin://splitype.settings/checkmark.svg")
                         .size(px(14.0))
                         .text_color(c.dialog_primary_button_bg)
                         .into_any_element()

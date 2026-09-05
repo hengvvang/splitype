@@ -3,7 +3,7 @@
 
 use anyhow::Context as _;
 use config::dirs::SplitypeConfigDirs;
-use window::{PersistedWindowState, WINDOW_STATE_VERSION};
+use window_assembly::{PersistedWindowState, WINDOW_STATE_VERSION};
 
 /// Loads the persisted last-window snapshot, if one exists.
 ///

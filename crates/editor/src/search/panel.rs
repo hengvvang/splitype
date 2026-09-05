@@ -43,9 +43,9 @@ pub fn render_search_panel_overlay(
     // ── Expand/Collapse Chevron (Left Column) ───────────────────────
     let chevron_editor = host.clone();
     let chevron_icon = if show_replace {
-        "icons/explorer/worktree/chevron-down.svg"
+        "plugin://splitype.editor/search/chevron-down.svg"
     } else {
-        "icons/explorer/worktree/chevron-right.svg"
+        "plugin://splitype.editor/search/chevron-right.svg"
     };
     let chevron_btn = div()
         .id("search-replace-expand-toggle")
@@ -206,7 +206,7 @@ pub fn render_search_panel_overlay(
         .cursor_pointer()
         .child(
             svg()
-                .path("icons/editor/topbar/prev.svg")
+                .path("plugin://splitype.editor/topbar/prev.svg")
                 .size(px(11.0))
                 .text_color(c.dialog_muted),
         )
@@ -225,7 +225,7 @@ pub fn render_search_panel_overlay(
         .cursor_pointer()
         .child(
             svg()
-                .path("icons/editor/topbar/next.svg")
+                .path("plugin://splitype.editor/topbar/next.svg")
                 .size(px(11.0))
                 .text_color(c.dialog_muted),
         )
@@ -248,7 +248,7 @@ pub fn render_search_panel_overlay(
         .cursor_pointer()
         .child(
             svg()
-                .path("icons/editor/topbar/search-explorer.svg")
+                .path("plugin://splitype.editor/topbar/search-explorer.svg")
                 .size(px(12.0))
                 .text_color(if scope == SearchScope::Worktree {
                     c.focus_accent
@@ -369,7 +369,7 @@ pub fn render_search_panel_overlay(
             .cursor_pointer()
             .child(
                 svg()
-                    .path("icons/editor/topbar/replace.svg")
+                    .path("plugin://splitype.editor/topbar/replace.svg")
                     .size(px(12.0))
                     .text_color(c.dialog_muted),
             )
@@ -389,7 +389,7 @@ pub fn render_search_panel_overlay(
             .cursor_pointer()
             .child(
                 svg()
-                    .path("icons/splitter/swap.svg")
+                    .path("plugin://splitype.editor/search/replace-all.svg")
                     .size(px(12.0))
                     .text_color(c.dialog_muted),
             )
@@ -541,9 +541,9 @@ pub fn render_search_panel_overlay(
                         .child(
                             svg()
                                 .path(if is_expanded {
-                                    "icons/explorer/worktree/chevron-down.svg"
+                                    "plugin://splitype.editor/search/chevron-down.svg"
                                 } else {
-                                    "icons/explorer/worktree/chevron-right.svg"
+                                    "plugin://splitype.editor/search/chevron-right.svg"
                                 })
                                 .size(px(9.0))
                                 .text_color(c.dialog_muted),
@@ -715,7 +715,7 @@ pub fn render_search_panel_overlay(
                                 .hover(|this| this.bg(c.panel_row_hover))
                                 .child(
                                     svg()
-                                        .path("icons/editor/topbar/close.svg")
+                                        .path("plugin://splitype.editor/topbar/close.svg")
                                         .size(px(8.0))
                                         .text_color(c.dialog_muted),
                                 )

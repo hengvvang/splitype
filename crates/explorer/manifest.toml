@@ -13,9 +13,6 @@ registration = "explorer"
 panes = []
 panels = ["splitype.panel.explorer"]
 
-[resources]
-icon_root = "icons/explorer"
-
 [[settings]]
 key = "hide_hidden"
 kind = "bool"

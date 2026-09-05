@@ -16,7 +16,7 @@ pub const PANEL_KIND: &str = "splitype.panel.explorer";
 pub const PLUGIN_ID: &str = "splitype.explorer";
 
 /// Asset directory holding the explorer panel's topbar chrome icons.
-pub const TOPBAR_ICON_PREFIX: &str = "icons/explorer";
+pub const TOPBAR_ICON_PREFIX: &str = "plugin://splitype.explorer";
 
 /// View wrapper implementing [`PanelView`] for the Explorer file-tree panel.
 pub struct ExplorerPanelView {

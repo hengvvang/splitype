@@ -21,5 +21,7 @@ pub use builder::*;
 pub use rope::Rope;
 pub use settings::SourceCodeSettings;
 
+pub const MANIFEST_TOML: &str = include_str!("../manifest.toml");
+
 #[cfg(test)]
 mod tests;

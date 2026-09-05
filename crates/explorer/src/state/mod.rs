@@ -51,14 +51,14 @@ pub struct ExplorerFileMenuState {
 
 // ── Icons & constants ───────────────────────────────────────────────────
 
-pub const FOLDER_ICON: &str = "icons/explorer/worktree/folder.svg";
-pub const MARKDOWN_ICON: &str = "icons/explorer/worktree/markdown.svg";
-pub const FILE_ICON: &str = "icons/explorer/worktree/file_type_default.svg";
-pub const PDF_ICON: &str = "icons/explorer/worktree/file_type_pdf.svg";
-pub const CODE_ICON: &str = "icons/explorer/worktree/file_type_code.svg";
-pub const MUSIC_ICON: &str = "icons/explorer/worktree/file_type_music.svg";
-pub const IMAGE_ICON: &str = "icons/explorer/worktree/file_type_image.svg";
-pub const TXT_ICON: &str = "icons/explorer/worktree/file_type_txt.svg";
+pub const FOLDER_ICON: &str = "plugin://splitype.explorer/worktree/folder.svg";
+pub const MARKDOWN_ICON: &str = "plugin://splitype.explorer/worktree/markdown.svg";
+pub const FILE_ICON: &str = "plugin://splitype.explorer/worktree/file_type_default.svg";
+pub const PDF_ICON: &str = "plugin://splitype.explorer/worktree/file_type_pdf.svg";
+pub const CODE_ICON: &str = "plugin://splitype.explorer/worktree/file_type_code.svg";
+pub const MUSIC_ICON: &str = "plugin://splitype.explorer/worktree/file_type_music.svg";
+pub const IMAGE_ICON: &str = "plugin://splitype.explorer/worktree/file_type_image.svg";
+pub const TXT_ICON: &str = "plugin://splitype.explorer/worktree/file_type_txt.svg";
 pub const EXPLORER_NODE_HEIGHT: f32 = 28.0;
 pub const EXPLORER_NODE_INDENT: f32 = 14.0;
 

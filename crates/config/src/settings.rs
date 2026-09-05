@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn core_manifest_declarations_cover_core_settings() {
         let manifest: platform_contracts::PluginManifest =
-            toml::from_str(include_str!("../../../assets/plugins/splitype.core.toml"))
+            toml::from_str(crate::CORE_MANIFEST_TOML)
                 .expect("bundled core manifest must be valid TOML");
         // Keybinding overrides and theme overrides are config-only
         // channels with custom settings UI rather than declaration rows.

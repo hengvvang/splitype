@@ -675,9 +675,9 @@ impl Element for EditorElement {
                 size(px(icon_size), px(icon_size)),
             );
             let path: SharedString = if folded {
-                "icons/source_code/chevron-down.svg"
+                "plugin://splitype.source-code/chevron-down.svg"
             } else {
-                "icons/source_code/chevron-right.svg"
+                "plugin://splitype.source-code/chevron-right.svg"
             }
             .into();
             let _ = window.paint_svg(

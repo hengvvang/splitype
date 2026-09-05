@@ -194,20 +194,20 @@ impl Shell {
             let Some(state) = view.clone_state(cx) else {
                 continue;
             };
-            let Ok(Some(descriptor)) = window::PanelRegistry::registered(view.kind()) else {
+            let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(view.kind()) else {
                 continue;
             };
             let Some(json) = descriptor.serialize_state(state.as_ref()) else {
                 continue;
             };
-            panels.push(window::PersistedPanel {
+            panels.push(window_assembly::PersistedPanel {
                 id: *panel_id,
                 kind: view.kind(),
                 state: json,
             });
         }
-        let state = window::PersistedWindowState {
-            version: window::WINDOW_STATE_VERSION,
+        let state = window_assembly::PersistedWindowState {
+            version: window_assembly::WINDOW_STATE_VERSION,
             tree: self.panels.layout.tree.clone(),
             next_node_id: self.panels.layout.next_node_id,
             active_leaf: self.panels.layout.active_leaf,

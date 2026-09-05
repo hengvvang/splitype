@@ -26,6 +26,7 @@ struct PluginRegistration {
     /// document panel of the default window layout.
     document_routing: Option<(PanelKind, DocumentRouting, bool)>,
     explorer_hooks: Option<ExplorerHooks>,
+    asset_provider: Option<Arc<dyn platform_contracts::PluginAssetProvider>>,
 }
 
 /// Resolves a manifest registration key to the plugin's descriptor factories.
@@ -36,18 +37,21 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,
+            asset_provider: Some(Arc::new(wysiwyg::assets::WysiwygAssets)),
         },
         "source-code" => PluginRegistration {
             pane_descriptors: vec![(Arc::new(source_code::SourceCodeDescriptor::new()), false)],
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,
+            asset_provider: Some(Arc::new(source_code::assets::SourceCodeAssets)),
         },
         "preview" => PluginRegistration {
             pane_descriptors: vec![(Arc::new(preview::PreviewDescriptor::new()), false)],
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,
+            asset_provider: Some(Arc::new(preview::assets::PreviewAssets)),
         },
         "editor" => PluginRegistration {
             pane_descriptors: Vec::new(),
@@ -61,6 +65,7 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
                 true,
             )),
             explorer_hooks: None,
+            asset_provider: Some(Arc::new(editor::assets::EditorAssets)),
         },
         "explorer" => PluginRegistration {
             pane_descriptors: Vec::new(),
@@ -73,12 +78,14 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
                 toggle_tree: explorer::toggle_tree,
                 close_folder_scope: explorer::close_folder_scope,
             }),
+            asset_provider: Some(Arc::new(explorer::assets::ExplorerAssets)),
         },
         "settings" => PluginRegistration {
             pane_descriptors: Vec::new(),
             panel_descriptors: vec![Arc::new(settings::SettingsPanelDescriptor::new())],
             document_routing: None,
             explorer_hooks: None,
+            asset_provider: Some(Arc::new(settings::assets::SettingsAssets)),
         },
         // The core plugin contributes commands only; no descriptors.
         "core" => PluginRegistration {
@@ -86,6 +93,7 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
             panel_descriptors: Vec::new(),
             document_routing: None,
             explorer_hooks: None,
+            asset_provider: None,
         },
         _ => return None,
     };
@@ -94,13 +102,13 @@ fn descriptors_for(registration: &str) -> Option<PluginRegistration> {
 
 /// Bundled manifest sources, compiled into the binary.
 const BUNDLED_MANIFESTS: &[&str] = &[
-    include_str!("../../../assets/plugins/splitype.core.toml"),
-    include_str!("../../../assets/plugins/splitype.editor.toml"),
-    include_str!("../../../assets/plugins/splitype.explorer.toml"),
-    include_str!("../../../assets/plugins/splitype.settings.toml"),
-    include_str!("../../../assets/plugins/splitype.wysiwyg.toml"),
-    include_str!("../../../assets/plugins/splitype.source-code.toml"),
-    include_str!("../../../assets/plugins/splitype.preview.toml"),
+    config::CORE_MANIFEST_TOML,
+    editor::MANIFEST_TOML,
+    explorer::MANIFEST_TOML,
+    settings::MANIFEST_TOML,
+    wysiwyg::MANIFEST_TOML,
+    source_code::MANIFEST_TOML,
+    preview::MANIFEST_TOML,
 ];
 
 /// Discovers and activates every bundled in-process plugin.
@@ -144,7 +152,7 @@ pub(crate) fn init_plugins() {
                 "panel kind '{}' registered by '{plugin}' is not declared in its manifest",
                 descriptor.kind()
             );
-            window::PanelRegistry::register_global(descriptor.clone())
+            window_assembly::PanelRegistry::register_global(descriptor.clone())
                 .expect("bundled panel kinds must be unique");
         }
         if let Some((kind, routing, is_primary)) = &factory.document_routing {
@@ -173,18 +181,21 @@ pub(crate) fn init_plugins() {
             )
             .expect("bundled command ids must be unique");
         }
+        if let Some(asset_provider) = factory.asset_provider {
+            PluginRegistry::register_asset_provider_global(plugin.clone(), asset_provider)
+                .expect("bundled plugin asset provider must register");
+        }
         PluginRegistry::register_global(manifest).expect("bundled plugin ids must be unique");
     }
 }
 
-/// Resolves a `plugin://<plugin-id>/<path>` resource URL through the owning
-/// plugin's manifest: the request maps onto the plugin's declared
-/// `resources.icon_root` inside the application asset catalog.
+/// Resolves a `plugin://<plugin-id>/<path>` resource URL through the registered
+/// plugin's asset provider.
 pub(crate) fn resolve_plugin_resource(url: &str) -> Option<Cow<'static, [u8]>> {
     let (plugin_id, resource) = url.split_once('/')?;
-    let manifest = PluginRegistry::registered(PluginId::new(plugin_id)).ok()??;
-    let icon_root = manifest.resources.icon_root.as_deref()?;
-    crate::assets::icon_bytes(&format!("{icon_root}/{resource}"))
+    PluginRegistry::load_plugin_asset_global(&PluginId::new(plugin_id), resource)
+        .ok()
+        .flatten()
 }
 
 /// Discovers user-installed plugin manifests under the config `plugins/`

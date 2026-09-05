@@ -17,3 +17,5 @@ pub mod settings;
 pub mod view;
 
 pub use plugin::*;
+
+pub const MANIFEST_TOML: &str = include_str!("../manifest.toml");

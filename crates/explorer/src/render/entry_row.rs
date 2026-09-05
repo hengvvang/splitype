@@ -119,9 +119,9 @@ impl ExplorerState {
                 .child(
                     svg()
                         .path(if entry.is_expanded {
-                            "icons/explorer/worktree/chevron-down.svg"
+                            "plugin://splitype.explorer/worktree/chevron-down.svg"
                         } else {
-                            "icons/explorer/worktree/chevron-right.svg"
+                            "plugin://splitype.explorer/worktree/chevron-right.svg"
                         })
                         .size(px(14.0))
                         .text_color(c.dialog_muted),

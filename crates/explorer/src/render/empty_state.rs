@@ -62,7 +62,7 @@ impl ExplorerState {
             })
             .child(
                 svg()
-                    .path("icons/explorer/worktree/folder.svg")
+                    .path("plugin://splitype.explorer/worktree/folder.svg")
                     .size(px(40.0))
                     .text_color(c.dialog_muted),
             )
@@ -101,7 +101,7 @@ impl ExplorerState {
                     .hover(|this| this.bg(c.panel_row_hover))
                     .child(
                         svg()
-                            .path("icons/explorer/worktree/open_folder.svg")
+                            .path("plugin://splitype.explorer/worktree/open_folder.svg")
                             .size(px(16.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
@@ -168,7 +168,7 @@ impl ExplorerState {
                                 .gap(px(8.0))
                                 .child(
                                     svg()
-                                        .path("icons/explorer/worktree/folder.svg")
+                                        .path("plugin://splitype.explorer/worktree/folder.svg")
                                         .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 )
@@ -210,7 +210,7 @@ impl ExplorerState {
                                 .gap(px(8.0))
                                 .child(
                                     svg()
-                                        .path("icons/explorer/worktree/markdown.svg")
+                                        .path("plugin://splitype.explorer/worktree/markdown.svg")
                                         .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 )

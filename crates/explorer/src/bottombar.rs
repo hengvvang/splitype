@@ -90,7 +90,7 @@ impl ExplorerState {
             .when(is_menu_open, |this| this.bg(c.panel_row_hover))
             .child(
                 svg()
-                    .path("icons/explorer/bottombar/v_three_points.svg")
+                    .path("plugin://splitype.explorer/bottombar/v_three_points.svg")
                     .size(px(btn_icon_size))
                     .text_color(if is_menu_open {
                         c.text_default

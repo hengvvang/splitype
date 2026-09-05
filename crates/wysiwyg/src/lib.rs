@@ -22,3 +22,5 @@ pub mod table;
 
 pub use builder::*;
 pub use settings::{ImagePasteBehavior, WysiwygSettings};
+
+pub const MANIFEST_TOML: &str = include_str!("../manifest.toml");

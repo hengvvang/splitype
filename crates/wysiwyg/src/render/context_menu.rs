@@ -165,7 +165,7 @@ pub fn render_wysiwyg_context_menu(
                 )
                 .child(
                     svg()
-                        .path("icons/wysiwyg/context_menu/chevron-right.svg")
+                        .path("plugin://splitype.wysiwyg/context_menu/chevron-right.svg")
                         .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
@@ -203,7 +203,7 @@ pub fn render_wysiwyg_context_menu(
                     }))
                     .children(is_checked.then(|| {
                         svg()
-                            .path("icons/wysiwyg/context_menu/checkmark.svg")
+                            .path("plugin://splitype.wysiwyg/context_menu/checkmark.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_primary_button_bg)
                     })),

@@ -12,3 +12,5 @@ pub use language::{I18nManager, I18nStrings};
 
 /// Reverse-DNS application id used by GPUI, desktop launchers, and bundles.
 pub const SPLITYPE_APP_ID: &str = "com.hengvvang.splitype";
+
+pub const CORE_MANIFEST_TOML: &str = include_str!("../manifest.toml");

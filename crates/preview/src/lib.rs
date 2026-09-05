@@ -19,3 +19,5 @@ pub mod render;
 pub mod search;
 pub mod settings;
 pub use builder::*;
+
+pub const MANIFEST_TOML: &str = include_str!("../manifest.toml");

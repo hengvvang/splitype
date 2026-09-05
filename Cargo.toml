@@ -10,7 +10,7 @@ members = [
     "crates/theme",
     "crates/config",
     "crates/ui",
-    "crates/window",
+    "crates/window_assembly",
     "crates/platform_contracts",
     "crates/editor_contracts",
     "crates/editor",
@@ -44,7 +44,7 @@ splitype_cli = { path = "crates/splitype_cli" }
 theme = { path = "crates/theme" }
 config = { path = "crates/config" }
 ui = { path = "crates/ui" }
-window = { path = "crates/window" }
+window_assembly = { path = "crates/window_assembly" }
 editor = { path = "crates/editor" }
 source_code = { path = "crates/source_code" }
 wysiwyg = { path = "crates/wysiwyg" }

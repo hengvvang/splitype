@@ -15,7 +15,7 @@ pub const PANEL_KIND: &str = "splitype.panel.editor";
 pub const PLUGIN_ID: &str = "splitype.editor";
 
 /// Asset directory holding the editor panel's topbar chrome icons.
-pub const TOPBAR_ICON_PREFIX: &str = "icons/editor";
+pub const TOPBAR_ICON_PREFIX: &str = "plugin://splitype.editor";
 
 /// View wrapper implementing [`PanelView`] for an Editor container panel.
 pub struct EditorPanelView {

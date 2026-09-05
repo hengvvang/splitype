@@ -14,7 +14,7 @@ use splitter::tree::NodeId;
 use theme::{Theme, ThemeManager};
 use ui::split::chrome::OverlayStyle;
 use ui::split::drag_preview::render_corner_drag_preview;
-use window::WindowLayout;
+use window_assembly::WindowLayout;
 
 /// Tiled-layout state of the window.
 pub struct WindowPanels {
@@ -37,10 +37,10 @@ impl WindowPanels {
     pub(crate) fn default_layout() -> WindowLayout {
         let left_id = platform_contracts::PanelId(1);
         let right_id = platform_contracts::PanelId(2);
-        let builder = window::WindowLayoutBuilder::new();
+        let builder = window_assembly::WindowLayoutBuilder::new();
         let document_kind = crate::routing::primary_document_kind();
         let explorer_kind = crate::routing::explorer_kind().filter(|kind| {
-            window::PanelRegistry::registered(kind.clone())
+            window_assembly::PanelRegistry::registered(kind.clone())
                 .ok()
                 .flatten()
                 .is_some()
@@ -52,7 +52,7 @@ impl WindowPanels {
             (None, Some(documents)) => builder.with_single_panel(left_id, documents),
             (Some(explorer), None) => builder.with_single_panel(left_id, explorer),
             (None, None) => {
-                let kind = window::PanelRegistry::registered_descriptors()
+                let kind = window_assembly::PanelRegistry::registered_descriptors()
                     .unwrap_or_default()
                     .first()
                     .map(|descriptor| descriptor.kind())

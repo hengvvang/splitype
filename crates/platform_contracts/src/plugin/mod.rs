@@ -4,13 +4,16 @@
 //! (statically linked today; WASM or subprocess transports later), so the
 //! shell can treat every plugin uniformly.
 
+pub mod asset;
 pub mod id;
 pub mod manifest;
 pub mod registry;
 
+pub use asset::PluginAssetProvider;
 pub use id::PluginId;
 pub use manifest::{
     ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginManifest,
     PluginManifestError, PluginResources, ThemeFamilyDeclaration,
 };
 pub use registry::{PluginRegistry, PluginRegistryError};
+

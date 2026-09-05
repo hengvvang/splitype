@@ -1,11 +1,13 @@
 //! Plugin manifest registry — the discovery record of every loaded plugin.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
 
 use thiserror::Error;
 
 use crate::panel::PanelKind;
+use crate::plugin::asset::PluginAssetProvider;
 use crate::plugin::{PluginId, PluginManifest};
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
@@ -25,7 +27,9 @@ pub enum PluginRegistryError {
 pub struct PluginRegistry {
     manifests: HashMap<PluginId, Arc<PluginManifest>>,
     order: Vec<PluginId>,
+    asset_providers: HashMap<PluginId, Arc<dyn PluginAssetProvider>>,
 }
+
 
 impl PluginRegistry {
     pub fn new() -> Self {
@@ -106,7 +110,45 @@ impl PluginRegistry {
             .map_err(|_| PluginRegistryError::Poisoned)?
             .panel_kind_owner(&kind))
     }
+
+    pub fn register_asset_provider(
+        &mut self,
+        id: PluginId,
+        provider: Arc<dyn PluginAssetProvider>,
+    ) {
+        self.asset_providers.insert(id, provider);
+    }
+
+    pub fn register_asset_provider_global(
+        id: PluginId,
+        provider: Arc<dyn PluginAssetProvider>,
+    ) -> Result<(), PluginRegistryError> {
+        Self::global()
+            .lock()
+            .map_err(|_| PluginRegistryError::Poisoned)?
+            .register_asset_provider(id, provider);
+        Ok(())
+    }
+
+    pub fn load_plugin_asset(&self, id: &PluginId, path: &str) -> Option<Cow<'static, [u8]>> {
+        let provider = self.asset_providers.get(id)?;
+        provider.load_asset(path)
+    }
+
+    pub fn load_plugin_asset_global(
+        id: &PluginId,
+        path: &str,
+    ) -> Result<Option<Cow<'static, [u8]>>, PluginRegistryError> {
+        let provider = Self::global()
+            .lock()
+            .map_err(|_| PluginRegistryError::Poisoned)?
+            .asset_providers
+            .get(id)
+            .cloned();
+        Ok(provider.and_then(|p| p.load_asset(path)))
+    }
 }
+
 
 #[cfg(test)]
 mod tests {

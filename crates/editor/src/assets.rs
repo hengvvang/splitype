@@ -1,18 +1,21 @@
 //! Embedded SVG icon asset catalog for the Editor plugin.
 
 use std::borrow::Cow;
+use platform_contracts::PluginAssetProvider;
+
+pub struct EditorAssets;
+
+impl PluginAssetProvider for EditorAssets {
+    fn load_asset(&self, path: &str) -> Option<Cow<'static, [u8]>> {
+        match_icon(path)
+    }
+}
 
 /// Resolves an icon asset for the editor panel and its editor panes.
-///
-/// Accepts paths with or without the `"icons/editor/"` prefix.
 pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
-    let subpath = if let Some(stripped) = path.strip_prefix("icons/editor/") {
-        stripped
-    } else if path.starts_with("icons/") {
-        return None;
-    } else {
-        path
-    };
+    let subpath = path
+        .strip_prefix("plugin://splitype.editor/")
+        .unwrap_or(path);
 
     match subpath {
         // ── Editor: panel header ────────────────────────────────
@@ -55,6 +58,9 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "topbar/restore.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/restore.svg"
         ))),
+        "topbar/plus.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/topbar/plus.svg"
+        ))),
 
         // ── Editor: panel status bar ──────────────────────────────────
         "bottombar/split-h.svg" => Some(Cow::Borrowed(include_bytes!(
@@ -86,6 +92,18 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "context_menu/minus.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/context_menu/minus.svg"
         ))),
+
+        // ── Editor: search panel ──────────────────────────────────────
+        "search/chevron-down.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/search/chevron-down.svg"
+        ))),
+        "search/chevron-right.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/search/chevron-right.svg"
+        ))),
+        "search/replace-all.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/search/replace-all.svg"
+        ))),
+
         // ── Editor: outline panel ─────────────────────────────────────
         "outline/markdown.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/outline/markdown.svg"

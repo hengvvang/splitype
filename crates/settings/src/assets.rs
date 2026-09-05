@@ -1,18 +1,21 @@
 //! Embedded SVG icon asset catalog for the Settings plugin.
 
 use std::borrow::Cow;
+use platform_contracts::PluginAssetProvider;
+
+pub struct SettingsAssets;
+
+impl PluginAssetProvider for SettingsAssets {
+    fn load_asset(&self, path: &str) -> Option<Cow<'static, [u8]>> {
+        match_icon(path)
+    }
+}
 
 /// Resolves an icon asset for the settings panel.
-///
-/// Accepts paths with or without the `"icons/settings/"` prefix.
 pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
-    let subpath = if let Some(stripped) = path.strip_prefix("icons/settings/") {
-        stripped
-    } else if path.starts_with("icons/") {
-        return None;
-    } else {
-        path
-    };
+    let subpath = path
+        .strip_prefix("plugin://splitype.settings/")
+        .unwrap_or(path);
 
     match subpath {
         "select-chevron.svg" => Some(Cow::Borrowed(include_bytes!(

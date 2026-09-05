@@ -18,3 +18,5 @@ pub use host::render_settings_body;
 pub use plugin::*;
 pub use state::SettingsUiState;
 pub use topbar::render_settings_topbar;
+
+pub const MANIFEST_TOML: &str = include_str!("../manifest.toml");

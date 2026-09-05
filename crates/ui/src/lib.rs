@@ -6,7 +6,6 @@
 pub mod split;
 pub mod ui_components;
 
-// Re-export modules and types for backwards compatibility
 pub use ui_components::{
     button, dialog, empty_state, menu_item, popover, select, stepper, switch,
 };

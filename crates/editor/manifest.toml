@@ -13,9 +13,6 @@ registration = "editor"
 panes = []
 panels = ["splitype.panel.editor"]
 
-[resources]
-icon_root = "icons/editor"
-
 [[commands]]
 id = "save"
 menu = "file"

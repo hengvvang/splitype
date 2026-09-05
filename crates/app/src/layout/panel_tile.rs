@@ -146,7 +146,7 @@ impl Shell {
         let shell = cx.entity().downgrade();
 
         let available_descriptors =
-            window::PanelRegistry::registered_descriptors().unwrap_or_default();
+            window_assembly::PanelRegistry::registered_descriptors().unwrap_or_default();
 
         menu_panel(c, d)
             .id(("panel-dropdown-overlay", leaf_id))
