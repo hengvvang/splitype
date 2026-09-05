@@ -178,8 +178,10 @@ pub(crate) fn dispatch_menu_action(
     mut target: Option<MenuDispatchTarget<'_>>,
     cx: &mut App,
 ) {
-    if let Some(target) = target.as_mut() {
-        target.window.activate_window();
+    if !action.as_any().is::<OpenSettings>() && !action.as_any().is::<NewWindow>() {
+        if let Some(target) = target.as_mut() {
+            target.window.activate_window();
+        }
     }
     let error_window = target.as_ref().map(|target| target.window_handle());
 

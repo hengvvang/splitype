@@ -88,6 +88,9 @@ pub fn open_settings_window(cx: &mut App) -> Option<WindowHandle<SettingsWindow>
         .into_iter()
         .find_map(|window| window.downcast::<SettingsWindow>())
     {
+        let _ = handle.update(cx, |_settings, window, _cx| {
+            window.activate_window();
+        });
         return Some(handle);
     }
 
@@ -109,6 +112,10 @@ pub fn open_settings_window(cx: &mut App) -> Option<WindowHandle<SettingsWindow>
             return None;
         }
     };
+
+    let _ = handle.update(cx, |_settings, window, _cx| {
+        window.activate_window();
+    });
 
     Some(handle)
 }
