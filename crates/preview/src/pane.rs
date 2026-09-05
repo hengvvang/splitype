@@ -143,7 +143,7 @@ impl PaneView for PreviewPane {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
-        let outline_hud = ui::render_floating_outline_hud(
+        let outline_hud = editor_contracts::outline::render_floating_outline_hud(
             ctx.pane_id.0,
             &headings,
             active_index,

@@ -75,7 +75,7 @@ impl SourceCodeEditor {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
-        let outline_hud = ui::render_floating_outline_hud(
+        let outline_hud = editor_contracts::outline::render_floating_outline_hud(
             ctx.pane_id.0,
             &headings,
             active_index,
@@ -675,9 +675,9 @@ impl Element for EditorElement {
                 size(px(icon_size), px(icon_size)),
             );
             let path: SharedString = if folded {
-                "icons/settings/chevron-down.svg"
+                "icons/source_code/chevron-down.svg"
             } else {
-                "icons/settings/chevron-right.svg"
+                "icons/source_code/chevron-right.svg"
             }
             .into();
             let _ = window.paint_svg(

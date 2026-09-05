@@ -9,6 +9,7 @@ pub mod blocks;
 pub mod context_menu;
 pub mod inline;
 pub mod layout;
+pub mod table_matrix_picker;
 pub mod text_layout;
 
 pub use blocks::*;

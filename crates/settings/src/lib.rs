@@ -8,13 +8,13 @@
 //! read/written through the canonical `SettingsStore`. The host imports no
 //! other plugin — plugins contribute settings purely as manifest data.
 
+pub mod assets;
+pub mod form;
 pub mod host;
 pub mod plugin;
 pub mod state;
 pub mod topbar;
-pub(crate) mod window;
-
+pub use host::render_settings_body;
 pub use plugin::*;
 pub use state::SettingsUiState;
 pub use topbar::render_settings_topbar;
-pub use window::open_settings_window;

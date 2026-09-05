@@ -1,4 +1,4 @@
-//! Reusable interactive table dimension matrix picker component.
+//! Interactive table dimension matrix picker component for WYSIWYG table editing.
 //!
 //! Provides a configurable matrix grid (e.g. 8x8 for insertion, 8x8 for resizing),
 //! live dimension badges (`[ N ] 行 x [ M ] 列`), and theme-aware cell highlight states.

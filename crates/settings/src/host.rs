@@ -19,14 +19,13 @@ use config::language::I18nManager;
 use config::settings::{CoreSettings, PluginSettings, PluginSettingsDefinition, SettingsStore};
 use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, SettingKind};
 use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
-use ui::section::section_card;
 use ui::select::{select_option, select_panel, select_trigger};
-use ui::settings_form::{
+use crate::form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsKeyHandler,
-    make_row, make_row_with_reset, render_number_field, render_searchable_font_picker,
+    make_row, make_row_with_reset, nav_tab, render_number_field, render_searchable_font_picker,
+    section_card,
 };
 use ui::switch::Switch;
-use ui::tab::nav_tab;
 
 use crate::state::SettingsUiState;
 
@@ -453,7 +452,7 @@ fn render_control(
             let select_state = state.clone();
             let select_plugin = plugin_id.to_string();
             let select_key = key.clone();
-            let on_select_font: ui::settings_form::SettingsOptionHandler<String> =
+            let on_select_font: crate::form::SettingsOptionHandler<String> =
                 Box::new(move |font: String| {
                     let select_state = select_state.clone();
                     let select_plugin = select_plugin.clone();

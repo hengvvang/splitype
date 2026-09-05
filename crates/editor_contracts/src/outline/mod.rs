@@ -5,7 +5,9 @@
 //! which consumes these data types without pulling in any plugin crate.
 
 pub mod host;
+pub mod hud;
 mod state;
 
 pub use host::OutlineHost;
+pub use hud::render_floating_outline_hud;
 pub use state::{OutlineHudState, OutlineNode};

@@ -77,7 +77,7 @@ impl Shell {
     ) -> AnyElement {
         let root = self.panels.layout.tree.clone();
         let leaf_count = root.count_leaves();
-        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
+        let titlebar_height = crate::chrome::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
             Decorations::Server,
             &theme.dimensions,
@@ -190,7 +190,7 @@ impl Shell {
 
     pub(crate) fn finish_drag_gestures(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let theme = cx.global::<ThemeManager>().current_arc();
-        let titlebar_height = ui::custom_titlebar::custom_titlebar_height_for_target_os(
+        let titlebar_height = crate::chrome::custom_titlebar::custom_titlebar_height_for_target_os(
             std::env::consts::OS,
             Decorations::Server,
             &theme.dimensions,

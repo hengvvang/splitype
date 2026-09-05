@@ -32,6 +32,7 @@
 //!
 //! The panel never imports the editor family, and vice versa.
 
+pub mod assets;
 pub mod bottombar;
 pub mod filename_editor;
 pub mod fs;

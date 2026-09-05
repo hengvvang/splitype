@@ -7,30 +7,18 @@ runtime and never ship as loose files.
 
 ## Structure
 
-Icons are grouped by the UI surface they render in, mirroring the app's
-window and panel design. A surface owns every icon it renders — an icon
-used by several surfaces exists once per surface (see
-[Decoupling](#decoupling) below).
+Shell-level icons live in this global `assets/icons/` directory. Plugin-specific icons are co-located within each plugin crate (`crates/explorer/assets/icons/`, `crates/settings/assets/icons/`, `crates/editor/assets/icons/`) and registered via their respective crate `assets` modules.
 
 | Directory | Surface | Icons |
 | --- | --- | --- |
-| `explorer/worktree/` | Worktree: root row and file tree | `folder`, `open_folder`, `replace_folder`, `file`, `markdown`, `view`, `hide`, `sync_folder`, `collapse-all`, `chevron-down`, `chevron-right`, `file_type_pdf`, `file_type_code`, `file_type_music`, `file_type_image`, `file_type_txt`, `file_type_default` |
-| `explorer/topbar/` | Explorer area top bar (window area header) | `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
-| `explorer/bottombar/` | Explorer area bottom bar | `new_folder` |
-| `titlebar/app_menu/` | Menu buttons in the top bar | `app_menu`, `sun`, `moon`, `checkmark`, `chevron-right` |
-| `titlebar/chrome/` | Window control buttons (main top bar) | `close`, `mins`, `maximize`, `restore` |
-| `settings/` | Settings window / panel content | `select-chevron`, `checkmark`, `chevron-down`, `chevron-right`, `sun`, `moon`, `plus`, `minus` |
-| `settings/topbar/` | Settings area top bar (window area header) | `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
-| `editor/topbar/` | Editor area top bar | `add_file`, `active`, `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
-| `editor/bottombar/` | Editor panel bottom bar and inner-panel switch menu | `split-h`, `split-v`, `close`, `checkmark` |
-| `editor/wysiwyg/` | WYSIWYG panel | `checkbox`, `checkbox-checked` |
-| `editor/context_menu/` | Editor right-click menu | `chevron-right`, `plus`, `minus` |
-| `editor/wysiwyg/table/` | Table blocks | `plus` |
-| `editor/wysiwyg/callout/` | Callout blocks | `note`, `tip`, `important`, `warning`, `caution` |
-| `editor/wysiwyg/codeblock/` | Code block toolbar | `copy`, `line-numbers`, `select-checkmark`, `select-chevron` |
-| `editor/preview/` | Preview panel | `checkbox`, `checkbox-checked` |
-| `editor/outline/` | Outline panel | `markdown` |
-| `splitter/` | Window & pane split gesture overlays | `arrow-up`, `arrow-down`, `arrow-left`, `arrow-right`, `dock-up`, `dock-down`, `dock-left`, `dock-right`, `split-area`, `swap` |
+| `crates/explorer/assets/icons/` | Explorer: worktree, panel, topbar, bottombar | `worktree/*`, `topbar/*`, `bottombar/*`, `panel.svg` |
+| `crates/settings/assets/icons/` | Settings: form controls, panel, topbar | Form controls (`select-chevron`, `checkmark`, etc.), `topbar/*`, `panel.svg` |
+| `crates/editor/assets/icons/` | Editor: topbar, bottombar, context_menu, wysiwyg, preview, outline | `topbar/*`, `bottombar/*`, `context_menu/*`, `wysiwyg/*`, `preview/*`, `outline/*`, `panel.svg` |
+| `assets/icons/titlebar/app_menu/` | Menu buttons in the main window top bar | `app_menu`, `sun`, `moon`, `checkmark`, `chevron-right` |
+| `assets/icons/titlebar/chrome/` | Window control buttons (main title bar) | `close`, `mins`, `maximize`, `restore` |
+| `assets/icons/chrome/` | Window chrome (kind-independent) | `check`, `missing` |
+| `assets/icons/splitter/` | Window & pane split gesture overlays | `arrow-up`, `arrow-down`, `arrow-left`, `arrow-right`, `dock-up`, `dock-down`, `dock-left`, `dock-right`, `split-area`, `swap` |
+| `assets/icons/emoji/` | About dialog emoji icons | `1.svg` - `18.svg` |
 
 ## Decoupling
 

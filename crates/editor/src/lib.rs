@@ -4,6 +4,7 @@
 //! buffers, tab view lifecycles, and pane layout hosting.
 
 pub mod actions;
+pub mod assets;
 pub mod document;
 pub mod editor;
 pub mod input;

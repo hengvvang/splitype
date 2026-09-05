@@ -1,18 +1,57 @@
-//! Settings-form primitives shared by every settings section renderer:
-//! row/section scaffolding, handler aliases, number fields, and the
-//! searchable font picker.
+//! Settings-form primitives: row scaffolding, handler aliases, number fields,
+//! and the searchable font picker.
 //!
-//! Components here are business-free building blocks: they take theme
-//! tokens by reference per render and never cache colors, so every control
-//! recolors automatically when the theme switches.
+//! Components here take theme tokens by reference per render and never cache
+//! colors, so every control recolors automatically when the theme switches.
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::section::settings_row;
-use crate::select::{select_option, select_panel, select_trigger};
-use crate::stepper::{stepper_container, stepper_divider, stepper_step_button};
 use theme::{ThemeColors, ThemeDimensions};
+use ui::select::{select_option, select_panel, select_trigger};
+use ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
+
+/// Card container holding a section header and its body.
+pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    div()
+        .relative()
+        .w_full()
+        .rounded(px(d.section_card_radius))
+        .bg(c.dialog_surface)
+        .border_1()
+        .border_color(c.dialog_border)
+        .flex()
+        .flex_col()
+}
+
+/// Settings row container — title/description label and a control on the right.
+pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    div()
+        .w_full()
+        .min_h(px(56.0))
+        .py(px(10.0))
+        .px(px(16.0))
+        .rounded(px(d.settings_row_radius))
+        .bg(c.dialog_surface)
+        .border_1()
+        .border_color(border)
+        .flex()
+        .items_center()
+        .justify_between()
+}
+
+/// Settings navigation tab row.
+pub fn nav_tab(id: impl Into<ElementId>, c: &ThemeColors, d: &ThemeDimensions) -> Stateful<Div> {
+    div()
+        .id(id)
+        .px(px(12.0))
+        .py(px(8.0))
+        .rounded(px(d.tab_radius))
+        .flex()
+        .items_center()
+        .cursor_pointer()
+        .hover(|this| this.bg(c.panel_row_hover))
+}
 
 /// Click handler signature shared by all settings controls.
 pub type SettingsClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;

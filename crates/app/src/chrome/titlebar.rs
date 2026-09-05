@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::shell::Shell;
 use theme::Theme;
-use ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
-use ui::menu_bar::supports_in_window_menu;
+use crate::chrome::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
+use crate::chrome::menu_geometry::supports_in_window_menu;
 
 impl Shell {
     /// Renders the window chrome: the custom system titlebar (with the

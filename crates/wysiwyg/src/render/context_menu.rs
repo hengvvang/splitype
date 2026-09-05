@@ -165,7 +165,7 @@ pub fn render_wysiwyg_context_menu(
                 )
                 .child(
                     svg()
-                        .path("icons/editor/context_menu/chevron-right.svg")
+                        .path("icons/wysiwyg/context_menu/chevron-right.svg")
                         .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
@@ -203,7 +203,7 @@ pub fn render_wysiwyg_context_menu(
                     }))
                     .children(is_checked.then(|| {
                         svg()
-                            .path("icons/titlebar/app_menu/checkmark.svg")
+                            .path("icons/wysiwyg/context_menu/checkmark.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_primary_button_bg)
                     })),
@@ -1004,7 +1004,9 @@ pub fn render_wysiwyg_context_menu(
             let hov_r = *hovered_rows;
             let hov_c = *hovered_cols;
 
-            use ui::table_matrix_picker::{MatrixCellColors, render_matrix_dimension_indicator};
+            use crate::render::table_matrix_picker::{
+                MatrixCellColors, render_matrix_dimension_indicator,
+            };
             let top_indicator = render_matrix_dimension_indicator(
                 display_rows,
                 display_cols,
@@ -1139,7 +1141,9 @@ pub fn render_wysiwyg_context_menu(
             let hov_r = *hovered_rows;
             let hov_c = *hovered_cols;
 
-            use ui::table_matrix_picker::{MatrixCellColors, render_matrix_dimension_indicator};
+            use crate::render::table_matrix_picker::{
+                MatrixCellColors, render_matrix_dimension_indicator,
+            };
             let top_indicator = render_matrix_dimension_indicator(
                 display_rows,
                 display_cols,

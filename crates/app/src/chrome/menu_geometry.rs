@@ -1,13 +1,6 @@
-//! In-window menu bar geometry — pure layout math shared by the Shell's
-//! titlebar menu bar renderer (`app::chrome::menu_bar`).
-//!
-//! These functions compute menu-bar button widths, panel positioning,
-//! submenu bridging, and scrollable-menu heights from theme dimensions.
-//! No editor or model imports: reusable UI components must stay below the
-//! application layers (see `crate::ui` module docs).
+//! In-window menu bar geometry — layout math for titlebar menu buttons and dropdowns.
 
 use gpui::OwnedMenuItem;
-
 use theme::ThemeDimensions;
 
 // ── Character width estimation ────────────────────────────────────────────
@@ -155,5 +148,3 @@ pub fn submenu_panel_top(
     let prior_gaps = dimensions.menu_panel_gap * item_index as f32;
     dimensions.menu_panel_top + dimensions.menu_panel_padding + prior_items_height + prior_gaps
 }
-
-// ── Shared chrome ─────────────────────────────────────────────────────────

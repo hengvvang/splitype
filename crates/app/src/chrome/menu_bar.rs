@@ -6,7 +6,7 @@ use gpui::*;
 use crate::shell::Shell;
 use theme::Theme;
 use ui::button::menu_bar_button;
-use ui::menu_bar::{TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width};
+use crate::chrome::menu_geometry::{TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width};
 
 impl Shell {
     /// Renders the in-window menu bar row (used on platforms without a

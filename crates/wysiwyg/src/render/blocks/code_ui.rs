@@ -137,7 +137,7 @@ impl Block {
                     .child(language_label)
                     .child(
                         svg()
-                            .path("icons/editor/wysiwyg/codeblock/select-chevron.svg")
+                            .path("icons/wysiwyg/codeblock/select-chevron.svg")
                             .size(px(12.0))
                             .text_color(c.dialog_muted),
                     ),
@@ -161,7 +161,7 @@ impl Block {
                     )
                     .child(
                         svg()
-                            .path("icons/editor/wysiwyg/codeblock/line-numbers.svg")
+                            .path("icons/wysiwyg/codeblock/line-numbers.svg")
                             .size(px(14.0))
                             .text_color(if self.show_code_line_numbers {
                                 c.code_language_input_text
@@ -189,7 +189,7 @@ impl Block {
                     )
                     .child(
                         svg()
-                            .path("icons/editor/wysiwyg/codeblock/copy.svg")
+                            .path("icons/wysiwyg/codeblock/copy.svg")
                             .size(px(14.0))
                             .text_color(c.code_language_input_text),
                     ),
@@ -356,7 +356,7 @@ impl Block {
                         .children(if is_selected {
                             Some(
                                 svg()
-                                    .path("icons/editor/wysiwyg/codeblock/select-checkmark.svg")
+                                    .path("icons/wysiwyg/codeblock/select-checkmark.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_primary_button_bg),
                             )

@@ -1,9 +1,5 @@
 //! Custom titlebar chrome — window control buttons, titlebar rendering, and
-//! platform window options.
-//!
-//! Shared by the editor window and the standalone settings window, so it
-//! lives in the reusable component layer (`crate::ui`): generic over the
-//! hosting view entity and free of editor/model imports.
+//! platform window options for Splitype windows.
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;

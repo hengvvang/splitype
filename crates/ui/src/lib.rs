@@ -1,30 +1,14 @@
-//! Reusable UI components — small, business-free building blocks.
+//! Reusable UI components — atomic and molecular design system building blocks.
 //!
-//! Components here consume `editor_contracts` data contracts (outline nodes,
-//! search state) plus `theme`, `config`, `splitter`, and gpui, so any view
-//! can reuse them without depending on the editor family.
+//! Components here consume only `theme`, `config`, `splitter`, and gpui,
+//! providing pure styling and interaction primitives with zero domain logic.
 
-pub mod bottombar;
-pub mod button;
-pub mod chrome;
-pub mod custom_titlebar;
-pub mod dialog;
-pub mod empty_state;
-pub mod menu_bar;
-pub mod menu_item;
-pub mod outline_hud;
-pub mod popover;
-pub mod search_input;
-pub mod search_panel;
-pub mod section;
-pub mod select;
-pub mod settings_form;
 pub mod split;
-pub mod stepper;
-pub mod switch;
-pub mod tab;
-pub mod table_matrix_picker;
-pub mod topbar;
+pub mod ui_components;
 
-pub use outline_hud::render_floating_outline_hud;
-pub use search_panel::render_search_panel_overlay;
+// Re-export modules and types for backwards compatibility
+pub use ui_components::{
+    button, dialog, empty_state, menu_item, popover, select, stepper, switch,
+};
+pub use ui_components::*;
+

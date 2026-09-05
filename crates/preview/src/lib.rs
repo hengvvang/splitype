@@ -9,6 +9,7 @@
 //! crate only refreshes the tree, routes focus and hands over the scroll
 //! shell through [`editor_contracts::PaneRenderContext`].
 
+pub mod assets;
 pub mod block;
 pub mod builder;
 mod context;

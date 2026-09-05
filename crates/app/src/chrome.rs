@@ -3,8 +3,11 @@
 //! the custom system titlebar ([`titlebar`]), the inline menu bar buttons
 //! ([`menu_bar`]), and the menu dropdown panels ([`menu_dropdown`]).
 
+pub mod custom_titlebar;
 pub mod menu_bar;
 pub mod menu_dropdown;
+pub mod menu_geometry;
+pub mod settings_window;
 pub mod titlebar;
 
 use gpui::*;

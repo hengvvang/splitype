@@ -14,7 +14,7 @@ use config::recent::record_recent_file;
 use platform_contracts::{PanelId, PanelKind};
 use splitter::NodeId;
 use splitter::tree::SplitTree;
-use ui::custom_titlebar::splitype_window_options;
+use crate::chrome::custom_titlebar::splitype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {

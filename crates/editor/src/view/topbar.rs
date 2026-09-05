@@ -5,10 +5,26 @@ use gpui::*;
 use splitter::SplitAxis;
 use theme::Theme;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_button_size, toolbar_icon_size};
-use ui::chrome::panel_topbar_icon;
-use ui::topbar::topbar_container;
 
 use crate::editor::Editor;
+
+fn topbar_icon(icon_prefix: &str, name: &str) -> SharedString {
+    format!("{icon_prefix}/topbar/{name}.svg").into()
+}
+
+fn topbar_container(c: &theme::ThemeColors, height: f32, padding_x: f32) -> Div {
+    div()
+        .h(px(height))
+        .w_full()
+        .flex_shrink_0()
+        .flex()
+        .items_center()
+        .justify_between()
+        .px(px(padding_x))
+        .bg(c.dialog_surface)
+        .border_b_1()
+        .border_color(c.dialog_border)
+}
 
 impl Editor {
     /// Top bar of an Editor area: type selector and split/close controls plus the Editor-specific tab bar.
@@ -35,7 +51,7 @@ impl Editor {
             .when(is_active_editor, |this| {
                 this.child(
                     svg()
-                        .path(panel_topbar_icon(icon_prefix, "active"))
+                        .path(topbar_icon(icon_prefix, "active"))
                         .size(px(d.topbar_height * 0.5))
                         .text_color(c.focus_accent),
                 )
@@ -56,7 +72,7 @@ impl Editor {
             .id(("panel-topbar-split-h", panel_id.0))
             .child(
                 svg()
-                    .path(panel_topbar_icon(icon_prefix, "split-h"))
+                    .path(topbar_icon(icon_prefix, "split-h"))
                     .size(px(btn_icon_size))
                     .text_color(if is_maximized {
                         c.dialog_muted.opacity(0.3)
@@ -80,7 +96,7 @@ impl Editor {
             .id(("panel-topbar-split-v", panel_id.0))
             .child(
                 svg()
-                    .path(panel_topbar_icon(icon_prefix, "split-v"))
+                    .path(topbar_icon(icon_prefix, "split-v"))
                     .size(px(btn_icon_size))
                     .text_color(if is_maximized {
                         c.dialog_muted.opacity(0.3)
@@ -135,9 +151,9 @@ impl Editor {
                 .child(
                     svg()
                         .path(if is_maximized {
-                            panel_topbar_icon(icon_prefix, "restore")
+                            topbar_icon(icon_prefix, "restore")
                         } else {
-                            panel_topbar_icon(icon_prefix, "maximize")
+                            topbar_icon(icon_prefix, "maximize")
                         })
                         .size(px(btn_icon_size))
                         .text_color(c.dialog_muted),
@@ -156,7 +172,7 @@ impl Editor {
                 .id(("panel-topbar-close", panel_id.0))
                 .child(
                     svg()
-                        .path(panel_topbar_icon(icon_prefix, "close"))
+                        .path(topbar_icon(icon_prefix, "close"))
                         .size(px(btn_icon_size))
                         .text_color(c.dialog_muted),
                 )
@@ -256,7 +272,7 @@ impl Editor {
                             .cursor_pointer()
                             .child(
                                 svg()
-                                    .path(panel_topbar_icon(icon_prefix, "close"))
+                                    .path(topbar_icon(icon_prefix, "close"))
                                     .size(px(8.0))
                                     .text_color(c.dialog_muted),
                             )

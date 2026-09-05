@@ -1,16 +1,15 @@
-//! Standalone settings window — the same schema-driven settings UI as the
-//! in-window panel, hosted in its own top-level window.
+//! Standalone settings window — hosts the schema-driven settings UI
+//! in its own top-level window.
 
 use gpui::*;
 
 use config::language::I18nManager;
 use theme::ThemeManager;
-use ui::custom_titlebar::{
+use crate::chrome::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
 
-use crate::host::render_settings_body;
-use crate::state::SettingsUiState;
+use settings::{SettingsUiState, render_settings_body};
 
 /// Independent standalone settings window view.
 pub struct SettingsWindow {

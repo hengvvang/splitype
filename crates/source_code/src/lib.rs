@@ -4,6 +4,7 @@
 //! display maps (Tab/Fold/Wrap), multi-cursor selection collection,
 //! syntax highlighting, indent guides, and virtualized viewport rendering.
 
+pub mod assets;
 pub mod brackets;
 pub mod builder;
 pub mod display_map;

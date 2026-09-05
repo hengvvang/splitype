@@ -9,6 +9,7 @@
 //!
 //! [`pane::WysiwygPane`]: pane::shell::WysiwygPane
 
+pub mod assets;
 pub mod builder;
 pub mod input;
 pub mod model;

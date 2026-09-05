@@ -4,10 +4,23 @@ use gpui::prelude::*;
 use gpui::*;
 use splitter::SplitAxis;
 use theme::Theme;
-use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 use ui::menu_item::menu_item;
 use ui::popover::menu_panel;
+
+fn bottombar_container(c: &theme::ThemeColors, height: f32, padding_x: f32) -> Div {
+    div()
+        .h(px(height))
+        .w_full()
+        .flex_shrink_0()
+        .flex()
+        .items_center()
+        .justify_between()
+        .px(px(padding_x))
+        .bg(c.dialog_surface)
+        .border_t_1()
+        .border_color(c.dialog_border)
+}
 
 use config::language::I18nStrings;
 use config::settings::PluginSettings;

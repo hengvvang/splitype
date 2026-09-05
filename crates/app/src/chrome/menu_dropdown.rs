@@ -10,7 +10,7 @@ use config::language::I18nManager;
 use config::settings::Appearance;
 use platform_contracts::PanelId;
 use theme::{Theme, ThemeManager};
-use ui::menu_bar::{
+use crate::chrome::menu_geometry::{
     menu_item_visual_height, menu_items_visual_height_with_gaps, menu_panel_left,
     menu_panel_width_for_labels, owned_menu_item_labels, submenu_panel_top,
 };

@@ -18,7 +18,7 @@ use config::language::{I18nManager, apply_language_selection};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use editor_contracts::{DocumentPanel, ExportFormat};
 use platform_contracts::PanelId;
-use settings::open_settings_window;
+use crate::chrome::settings_window::open_settings_window;
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use theme::apply_theme_selection;
 

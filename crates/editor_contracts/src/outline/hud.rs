@@ -1,14 +1,14 @@
 //! Outline HUD — Notion-style floating equal-length ticks rail and hover
-//! TOC popover. Pure presentation over [`editor_contracts::OutlineNode`] data;
+//! TOC popover. Pure presentation over [`crate::outline::OutlineNode`] data;
 //! navigation re-enters the coordinating crate through
-//! [`editor_contracts::OutlineHost`].
+//! [`crate::outline::OutlineHost`].
 
 use std::sync::Arc;
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use editor_contracts::{OutlineHost, OutlineNode};
+use crate::outline::{OutlineHost, OutlineNode};
 use theme::Theme;
 
 /// Renders the floating outline HUD (equal-length micro-ticks rail plus

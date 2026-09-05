@@ -8,7 +8,7 @@ use std::sync::Arc;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::search_input::SearchInputElement;
+use crate::search::input::SearchInputElement;
 use editor_contracts::{
     SearchActiveField, SearchHost, SearchIme, SearchPanelState, SearchScope, SearchStateView,
 };
