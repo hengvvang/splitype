@@ -44,7 +44,7 @@ impl SourceCodeEditor {
     pub fn render(
         &mut self,
         ctx: &PaneRenderContext,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.host = Some(ctx.host.clone());
@@ -148,6 +148,8 @@ impl SourceCodeEditor {
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,
+            window,
+            cx,
         );
 
         let h_scrollbar = render_horizontal_scrollbar(
@@ -155,6 +157,8 @@ impl SourceCodeEditor {
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,
+            window,
+            cx,
         );
 
         let content = outer

@@ -85,12 +85,22 @@ pub fn scroll_offset_from_track_pos(
     -(scroll_ratio * max_offset)
 }
 
+/// Persistent drag state for a scrollbar.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ScrollbarDragState {
+    pub is_dragging: bool,
+    pub grab_offset: f32,
+    pub drag_ratio: Option<f32>,
+}
+
 /// Renders a vertical scrollbar element for the given `ScrollHandle`.
 pub fn render_vertical_scrollbar(
     id_suffix: impl Into<ElementId>,
     scroll_handle: &ScrollHandle,
     c: &ThemeColors,
     d: &ThemeDimensions,
+    window: &mut Window,
+    cx: &mut App,
 ) -> AnyElement {
     let bounds = scroll_handle.bounds();
     let viewport_h = f32::from(bounds.size.height);
@@ -100,19 +110,37 @@ pub fn render_vertical_scrollbar(
     let track_w = d.scrollbar_width.max(6.0);
     let min_thumb_h = 24.0f32;
 
-    let Some(geom) = compute_scrollbar_geometry(
+    let id_val = id_suffix.into();
+    let state_entity = window.use_keyed_state(
+        (id_val.clone(), "v-drag-state"),
+        cx,
+        |_window, _cx| ScrollbarDragState::default(),
+    );
+    let drag_state = *state_entity.read(cx);
+
+    let Some(mut geom) = compute_scrollbar_geometry(
         viewport_h,
         max_offset_y,
         current_offset_y,
         viewport_h,
         min_thumb_h,
     ) else {
+        if drag_state.is_dragging {
+            state_entity.update(cx, |s, _cx| {
+                s.is_dragging = false;
+                s.drag_ratio = None;
+            });
+        }
         return div().w(px(track_w)).h_full().into_any_element();
     };
 
-    let handle_down = scroll_handle.clone();
-    let handle_move = scroll_handle.clone();
-    let id_val = id_suffix.into();
+    let usable_track = (geom.track_length - geom.thumb_length).max(0.0);
+    // When dragging, user's drag ratio is the single source of truth for thumb position
+    if drag_state.is_dragging {
+        if let Some(ratio) = drag_state.drag_ratio {
+            geom.thumb_offset = (ratio * usable_track).clamp(0.0, usable_track);
+        }
+    }
 
     let thumb = div()
         .id((id_val.clone(), "scrollbar-v-thumb"))
@@ -122,12 +150,18 @@ pub fn render_vertical_scrollbar(
         .right(px(1.0))
         .h(px(geom.thumb_length))
         .rounded_full()
-        .bg(c.scrollbar_thumb)
+        .bg(if drag_state.is_dragging {
+            c.focus_accent
+        } else {
+            c.scrollbar_thumb
+        })
         .hover(|style| style.bg(c.scrollbar_thumb))
         .cursor_pointer();
 
-    div()
-        .id((id_val, "scrollbar-v-track"))
+    let state_down = state_entity.clone();
+    let handle_down = scroll_handle.clone();
+    let track = div()
+        .id((id_val.clone(), "scrollbar-v-track"))
         .w(px(track_w + 2.0))
         .h_full()
         .flex_shrink_0()
@@ -137,31 +171,97 @@ pub fn render_vertical_scrollbar(
         .hover(|style| style.bg(c.dialog_surface))
         .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
             let track_pos = f32::from(event.position.y - bounds.origin.y);
-            let target_offset = scroll_offset_from_track_pos(
-                track_pos,
-                geom.thumb_length,
-                geom.track_length,
-                max_offset_y,
-            );
+            let grab_offset = if track_pos >= geom.thumb_offset
+                && track_pos <= geom.thumb_offset + geom.thumb_length
+            {
+                // Clicked on thumb: keep relative grab position
+                track_pos - geom.thumb_offset
+            } else {
+                // Clicked on track: center thumb on click position
+                geom.thumb_length / 2.0
+            };
+
+            let target_thumb_offset = (track_pos - grab_offset).clamp(0.0, usable_track);
+            let scroll_ratio = if usable_track > 0.0 {
+                target_thumb_offset / usable_track
+            } else {
+                0.0
+            };
+            let target_offset = -(scroll_ratio * max_offset_y);
             let current = handle_down.offset();
             handle_down.set_offset(point(current.x, px(target_offset)));
+
+            state_down.update(cx, |s, cx| {
+                s.is_dragging = true;
+                s.grab_offset = grab_offset;
+                s.drag_ratio = Some(scroll_ratio);
+                cx.notify();
+            });
             cx.stop_propagation();
         })
-        .on_mouse_move(move |event, _window, cx| {
-            if event.pressed_button == Some(MouseButton::Left) {
-                let track_pos = f32::from(event.position.y - bounds.origin.y);
-                let target_offset = scroll_offset_from_track_pos(
-                    track_pos,
-                    geom.thumb_length,
-                    geom.track_length,
-                    max_offset_y,
-                );
-                let current = handle_move.offset();
-                handle_move.set_offset(point(current.x, px(target_offset)));
-                cx.stop_propagation();
-            }
-        })
-        .child(thumb)
+        .child(thumb);
+
+    let capture_listener = if drag_state.is_dragging {
+        let state_move = state_entity.clone();
+        let state_up = state_entity.clone();
+        let handle_move = scroll_handle.clone();
+        let grab_offset = drag_state.grab_offset;
+
+        Some(
+            canvas(
+                |_bounds, _window, _cx| (),
+                move |_bounds, (), window, _cx| {
+                    window.on_mouse_event(move |event: &MouseMoveEvent, phase, _window, cx| {
+                        if phase != DispatchPhase::Capture {
+                            return;
+                        }
+                        let track_pos = f32::from(event.position.y - bounds.origin.y);
+                        let target_thumb_offset =
+                            (track_pos - grab_offset).clamp(0.0, usable_track);
+                        let scroll_ratio = if usable_track > 0.0 {
+                            target_thumb_offset / usable_track
+                        } else {
+                            0.0
+                        };
+                        let target_offset = -(scroll_ratio * max_offset_y);
+                        let current = handle_move.offset();
+                        handle_move.set_offset(point(current.x, px(target_offset)));
+                        state_move.update(cx, |s, cx| {
+                            s.drag_ratio = Some(scroll_ratio);
+                            cx.notify();
+                        });
+                        cx.stop_propagation();
+                    });
+
+                    window.on_mouse_event(move |_event: &MouseUpEvent, phase, _window, cx| {
+                        if phase != DispatchPhase::Capture {
+                            return;
+                        }
+                        state_up.update(cx, |s, cx| {
+                            s.is_dragging = false;
+                            s.drag_ratio = None;
+                            cx.notify();
+                        });
+                        cx.stop_propagation();
+                    });
+                },
+            )
+            .absolute()
+            .w(px(0.0))
+            .h(px(0.0)),
+        )
+    } else {
+        None
+    };
+
+    div()
+        .id((id_val, "scrollbar-v-container"))
+        .h_full()
+        .flex()
+        .flex_row()
+        .relative()
+        .child(track)
+        .children(capture_listener)
         .into_any_element()
 }
 
@@ -171,6 +271,8 @@ pub fn render_horizontal_scrollbar(
     scroll_handle: &ScrollHandle,
     c: &ThemeColors,
     d: &ThemeDimensions,
+    window: &mut Window,
+    cx: &mut App,
 ) -> AnyElement {
     let bounds = scroll_handle.bounds();
     let viewport_w = f32::from(bounds.size.width);
@@ -180,19 +282,36 @@ pub fn render_horizontal_scrollbar(
     let track_h = d.scrollbar_width.max(6.0);
     let min_thumb_w = 24.0f32;
 
-    let Some(geom) = compute_scrollbar_geometry(
+    let id_val = id_suffix.into();
+    let state_entity = window.use_keyed_state(
+        (id_val.clone(), "h-drag-state"),
+        cx,
+        |_window, _cx| ScrollbarDragState::default(),
+    );
+    let drag_state = *state_entity.read(cx);
+
+    let Some(mut geom) = compute_scrollbar_geometry(
         viewport_w,
         max_offset_x,
         current_offset_x,
         viewport_w,
         min_thumb_w,
     ) else {
+        if drag_state.is_dragging {
+            state_entity.update(cx, |s, _cx| {
+                s.is_dragging = false;
+                s.drag_ratio = None;
+            });
+        }
         return div().h(px(0.0)).w_full().into_any_element();
     };
 
-    let handle_down = scroll_handle.clone();
-    let handle_move = scroll_handle.clone();
-    let id_val = id_suffix.into();
+    let usable_track = (geom.track_length - geom.thumb_length).max(0.0);
+    if drag_state.is_dragging {
+        if let Some(ratio) = drag_state.drag_ratio {
+            geom.thumb_offset = (ratio * usable_track).clamp(0.0, usable_track);
+        }
+    }
 
     let thumb = div()
         .id((id_val.clone(), "scrollbar-h-thumb"))
@@ -202,12 +321,18 @@ pub fn render_horizontal_scrollbar(
         .bottom(px(1.0))
         .w(px(geom.thumb_length))
         .rounded_full()
-        .bg(c.scrollbar_thumb)
+        .bg(if drag_state.is_dragging {
+            c.focus_accent
+        } else {
+            c.scrollbar_thumb
+        })
         .hover(|style| style.bg(c.scrollbar_thumb))
         .cursor_pointer();
 
-    div()
-        .id((id_val, "scrollbar-h-track"))
+    let state_down = state_entity.clone();
+    let handle_down = scroll_handle.clone();
+    let track = div()
+        .id((id_val.clone(), "scrollbar-h-track"))
         .h(px(track_h + 2.0))
         .w_full()
         .flex_shrink_0()
@@ -217,31 +342,97 @@ pub fn render_horizontal_scrollbar(
         .hover(|style| style.bg(c.dialog_surface))
         .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
             let track_pos = f32::from(event.position.x - bounds.origin.x);
-            let target_offset = scroll_offset_from_track_pos(
-                track_pos,
-                geom.thumb_length,
-                geom.track_length,
-                max_offset_x,
-            );
+            let grab_offset = if track_pos >= geom.thumb_offset
+                && track_pos <= geom.thumb_offset + geom.thumb_length
+            {
+                // Clicked on thumb: keep relative grab position
+                track_pos - geom.thumb_offset
+            } else {
+                // Clicked on track: center thumb on click position
+                geom.thumb_length / 2.0
+            };
+
+            let target_thumb_offset = (track_pos - grab_offset).clamp(0.0, usable_track);
+            let scroll_ratio = if usable_track > 0.0 {
+                target_thumb_offset / usable_track
+            } else {
+                0.0
+            };
+            let target_offset = -(scroll_ratio * max_offset_x);
             let current = handle_down.offset();
             handle_down.set_offset(point(px(target_offset), current.y));
+
+            state_down.update(cx, |s, cx| {
+                s.is_dragging = true;
+                s.grab_offset = grab_offset;
+                s.drag_ratio = Some(scroll_ratio);
+                cx.notify();
+            });
             cx.stop_propagation();
         })
-        .on_mouse_move(move |event, _window, cx| {
-            if event.pressed_button == Some(MouseButton::Left) {
-                let track_pos = f32::from(event.position.x - bounds.origin.x);
-                let target_offset = scroll_offset_from_track_pos(
-                    track_pos,
-                    geom.thumb_length,
-                    geom.track_length,
-                    max_offset_x,
-                );
-                let current = handle_move.offset();
-                handle_move.set_offset(point(px(target_offset), current.y));
-                cx.stop_propagation();
-            }
-        })
-        .child(thumb)
+        .child(thumb);
+
+    let capture_listener = if drag_state.is_dragging {
+        let state_move = state_entity.clone();
+        let state_up = state_entity.clone();
+        let handle_move = scroll_handle.clone();
+        let grab_offset = drag_state.grab_offset;
+
+        Some(
+            canvas(
+                |_bounds, _window, _cx| (),
+                move |_bounds, (), window, _cx| {
+                    window.on_mouse_event(move |event: &MouseMoveEvent, phase, _window, cx| {
+                        if phase != DispatchPhase::Capture {
+                            return;
+                        }
+                        let track_pos = f32::from(event.position.x - bounds.origin.x);
+                        let target_thumb_offset =
+                            (track_pos - grab_offset).clamp(0.0, usable_track);
+                        let scroll_ratio = if usable_track > 0.0 {
+                            target_thumb_offset / usable_track
+                        } else {
+                            0.0
+                        };
+                        let target_offset = -(scroll_ratio * max_offset_x);
+                        let current = handle_move.offset();
+                        handle_move.set_offset(point(px(target_offset), current.y));
+                        state_move.update(cx, |s, cx| {
+                            s.drag_ratio = Some(scroll_ratio);
+                            cx.notify();
+                        });
+                        cx.stop_propagation();
+                    });
+
+                    window.on_mouse_event(move |_event: &MouseUpEvent, phase, _window, cx| {
+                        if phase != DispatchPhase::Capture {
+                            return;
+                        }
+                        state_up.update(cx, |s, cx| {
+                            s.is_dragging = false;
+                            s.drag_ratio = None;
+                            cx.notify();
+                        });
+                        cx.stop_propagation();
+                    });
+                },
+            )
+            .absolute()
+            .w(px(0.0))
+            .h(px(0.0)),
+        )
+    } else {
+        None
+    };
+
+    div()
+        .id((id_val, "scrollbar-h-container"))
+        .w_full()
+        .flex()
+        .flex_col()
+        .relative()
+        .child(track)
+        .children(capture_listener)
         .into_any_element()
 }
 

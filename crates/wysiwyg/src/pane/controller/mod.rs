@@ -426,69 +426,15 @@ impl WysiwygDocumentController {
         if let Some(doc) = &self.document {
             let blocks = doc.blocks();
             let plans = crate::render::viewport::plan_document_rows(blocks, d);
-            let row_offsets = crate::render::viewport::cumulative_row_offsets(&plans);
             let centered_width = crate::render::layout::centered_column_width(
                 f32::from(ctx.scroll.bounds().size.width).max(600.0),
                 d,
             );
 
-            // Window the plan: materialize only rows around the viewport,
-            // with spacer divs keeping the scroll extent stable. Overscan
-            // covers one viewport height on each side so estimate drift
-            // never shows blank space while scrolling.
-            let viewport_height = f32::from(ctx.scroll.bounds().size.height).max(1.0);
-            let scroll_y = -f32::from(ctx.scroll.offset().y);
-            let total_height = row_offsets.last().copied().unwrap_or(0.0);
-            let (mut window_start, mut window_end) = crate::render::viewport::visible_row_window(
-                &row_offsets,
-                scroll_y.max(0.0),
-                scroll_y + viewport_height,
-                0,
-            );
-            // Extend the window by one viewport height on each side.
-            let mut covered = 0.0f32;
-            while window_start > 0 && covered < viewport_height {
-                window_start -= 1;
-                covered += row_offsets[window_start + 1] - row_offsets[window_start];
-            }
-            covered = 0.0;
-            while window_end < plans.len() && covered < viewport_height {
-                covered += row_offsets[window_end + 1] - row_offsets[window_end];
-                window_end += 1;
-            }
-
-            // The active block's row stays mounted even when it is outside
-            // the viewport window: its element owns the focus, and dropping
-            // it would strand keyboard input.
-            let mut mounted_rows: Vec<usize> = (window_start..window_end).collect();
-            if ctx.is_focused
-                && !plans.is_empty()
-                && let Some(active) = &self.active_entity
-                && let Some(block_idx) = doc.index_for_entity_id(active.entity_id())
-            {
-                let active_row = plans
-                    .partition_point(|row| row.start <= block_idx)
-                    .saturating_sub(1);
-                if !mounted_rows.contains(&active_row) {
-                    mounted_rows.push(active_row);
-                    mounted_rows.sort_unstable();
-                }
-            }
-
-            let mut row_elements: Vec<AnyElement> = Vec::new();
-            let mut last_mounted_end = None;
-            for row_idx in &mounted_rows {
-                // Spacer between the previous mounted run and this row.
-                let gap_start = match last_mounted_end {
-                    Some(end) => row_offsets[end],
-                    None => 0.0,
-                };
-                let gap = row_offsets[*row_idx] - gap_start;
-                if gap > 0.0 {
-                    row_elements.push(div().h(px(gap)).flex_shrink_0().into_any_element());
-                }
+            let mut row_elements: Vec<AnyElement> = Vec::with_capacity(plans.len());
+            for plan in &plans {
                 row_elements.push(crate::render::viewport::build_planned_row_element(
-                    &plans[*row_idx],
+                    plan,
                     blocks,
                     centered_width,
                     &theme,
@@ -502,20 +448,9 @@ impl WysiwygDocumentController {
                         )
                     },
                 ));
-                last_mounted_end = Some(*row_idx + 1);
-            }
-            if let Some(end) = last_mounted_end {
-                let bottom_spacer = total_height - row_offsets[end];
-                if bottom_spacer > 0.0 {
-                    row_elements.push(
-                        div()
-                            .h(px(bottom_spacer))
-                            .flex_shrink_0()
-                            .into_any_element(),
-                    );
-                }
             }
 
+            let scroll_y = -f32::from(ctx.scroll.offset().y);
             let headings = self.outline_headings(cx);
             let active_index = headings
                 .iter()
@@ -604,6 +539,8 @@ impl WysiwygDocumentController {
                 ctx.scroll,
                 c,
                 d,
+                window,
+                cx,
             );
 
             let h_scrollbar = render_horizontal_scrollbar(
@@ -611,6 +548,8 @@ impl WysiwygDocumentController {
                 ctx.scroll,
                 c,
                 d,
+                window,
+                cx,
             );
 
             let content = div()

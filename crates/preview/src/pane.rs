@@ -177,6 +177,8 @@ impl PaneView for PreviewPane {
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,
+            window,
+            cx,
         );
 
         let h_scrollbar = render_horizontal_scrollbar(
@@ -184,6 +186,8 @@ impl PaneView for PreviewPane {
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,
+            window,
+            cx,
         );
 
         let content = gpui::div()
