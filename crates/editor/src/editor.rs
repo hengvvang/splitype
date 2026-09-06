@@ -42,6 +42,10 @@ pub struct Editor {
     pub is_maximized: bool,
     pub leaf_count: usize,
     pub outline: OutlineHudState,
+    /// Outline open/closed state per pane kind within this editor.
+    /// Panes of the same kind within this editor share this setting;
+    /// different kinds are independent; different editors are independent.
+    pub outline_enabled_by_kind: HashMap<PaneKind, bool>,
     pub focused_pane_id: Option<PaneId>,
     pub search: editor_contracts::SearchPanelState,
     /// Observer subscriptions per shared buffer, keyed by buffer id.
@@ -67,6 +71,7 @@ impl Editor {
             is_maximized: false,
             leaf_count: 1,
             outline: OutlineHudState::default(),
+            outline_enabled_by_kind: HashMap::new(),
             focused_pane_id: None,
             search: editor_contracts::SearchPanelState::new(cx),
             buffer_subscriptions: HashMap::new(),
@@ -515,4 +520,73 @@ impl Editor {
     pub fn set_maximized(&mut self, is_maximized: bool) {
         self.is_maximized = is_maximized;
     }
+
+    /// Returns whether outline is enabled for `kind` in this editor.
+    /// Defaults to `true` (mode-enabled initial state).
+    #[inline]
+    pub fn is_outline_enabled_for_kind(&self, kind: &PaneKind) -> bool {
+        self.outline_enabled_by_kind
+            .get(kind)
+            .copied()
+            .unwrap_or(true)
+    }
+
+    /// Toggles the outline state for `kind` in this editor.
+    /// All panes of this kind in this editor share the new state.
+    pub fn toggle_outline_for_kind(&mut self, kind: PaneKind) -> bool {
+        let new_state = !self.is_outline_enabled_for_kind(&kind);
+        self.outline_enabled_by_kind.insert(kind, new_state);
+        new_state
+    }
+
+    /// Toggles the outline state for the kind of the pane identified by `pane_id`.
+    /// All panes of that kind in this editor will update their outline state.
+    pub fn toggle_outline_for_pane(&mut self, pane_id: PaneId) -> bool {
+        let kind = self
+            .session
+            .root
+            .tree
+            .find_leaf_kind(pane_id.0)
+            .or_else(|| self.pane_state_ref(pane_id).map(|s| s.pane().kind()));
+        if let Some(kind) = kind {
+            self.toggle_outline_for_kind(kind)
+        } else {
+            false
+        }
+    }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::prelude::v1::test;
+
+    #[test]
+    fn test_outline_enabled_by_kind_isolation_and_sharing() {
+        let mut editor1_map: HashMap<PaneKind, bool> = HashMap::new();
+        let editor2_map: HashMap<PaneKind, bool> = HashMap::new();
+
+        let wysiwyg = PaneKind::new("splitype.wysiwyg");
+        let source_code = PaneKind::new("splitype.source-code");
+
+        // 1. Initial state is mode-enabled ("模式开启的")
+        let ed1_wysiwyg_initial = editor1_map.get(&wysiwyg).copied().unwrap_or(true);
+        let ed1_source_initial = editor1_map.get(&source_code).copied().unwrap_or(true);
+        assert!(ed1_wysiwyg_initial);
+        assert!(ed1_source_initial);
+
+        // 2. Toggle WYSIWYG off in Editor 1
+        editor1_map.insert(wysiwyg.clone(), false);
+
+        // All WYSIWYG panes in Editor 1 now observe false
+        assert_eq!(editor1_map.get(&wysiwyg).copied().unwrap_or(true), false);
+
+        // Source code panes in Editor 1 remain true (independent)
+        assert_eq!(editor1_map.get(&source_code).copied().unwrap_or(true), true);
+
+        // Editor 2 WYSIWYG panes remain true (Editor 2 is independent from Editor 1)
+        assert_eq!(editor2_map.get(&wysiwyg).copied().unwrap_or(true), true);
+    }
+}
+
+

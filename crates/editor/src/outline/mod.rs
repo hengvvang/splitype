@@ -29,7 +29,7 @@ impl Editor {
             let weak_editor = cx.entity().downgrade();
             cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
-                    .timer(Duration::from_millis(250))
+                    .timer(Duration::from_millis(600))
                     .await;
                 let _ = weak_editor.update(cx, |editor, cx| {
                     if editor.outline.close_token == token && editor.outline.is_hovered {
@@ -53,6 +53,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.outline.active_index = Some(index);
+        self.outline.is_hovered = false;
         if let Some(state) = self.pane_state_mut(pane_id) {
             if state.pane().capabilities().outline {
                 let target_y = state.pane_mut().navigate_to_outline(index, theme, cx);

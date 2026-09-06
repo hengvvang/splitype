@@ -12,4 +12,8 @@ pub trait OutlineHost: Send + Sync + 'static {
     /// window is passed so the host can schedule its debounce through a
     /// try-borrow-safe handle.
     fn set_hovered(&self, hovered: bool, window: &mut Window, cx: &mut App);
+
+    /// Toggle or close outline docked/pinned state.
+    fn toggle_docked(&self, _cx: &mut App) {}
 }
+

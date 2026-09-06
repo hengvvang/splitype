@@ -20,6 +20,8 @@ pub struct OutlineNode {
 pub struct OutlineHudState {
     /// Whether the hover TOC popover card is currently visible.
     pub is_hovered: bool,
+    /// Whether the docked right-side outline bar is open.
+    pub is_docked_open: bool,
     /// Index of the heading currently in the active viewport.
     pub active_index: Option<usize>,
     /// Debounce generation token for mouse leave closure.

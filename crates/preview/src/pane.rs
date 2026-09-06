@@ -3,10 +3,14 @@
 use std::sync::Arc;
 
 use editor_contracts::OutlineNode;
-use editor_contracts::{PaneKind, PaneOutlineHost, PaneRenderContext, PaneView};
+use editor_contracts::{
+    PaneKind, PaneOutlineHost, PaneRenderContext, PaneView, render_outline_indicator_strip,
+    render_pane_layout,
+};
 use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use theme::Theme;
+use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 
 use crate::block::PreviewBlock;
 
@@ -143,21 +147,60 @@ impl PaneView for PreviewPane {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
-        let outline_hud = editor_contracts::outline::render_floating_outline_hud(
-            ctx.pane_id.0,
-            &headings,
-            active_index,
-            ctx.is_outline_hovered,
+        let host_toggle = ctx.host.clone();
+        let pane_id = ctx.pane_id;
+        let breadcrumb = render_pane_breadcrumb(
+            ("preview-breadcrumb", pane_id.0),
+            ctx.file_path,
+            ctx.is_outline_docked,
             &theme,
-            &outline_host,
+            move |_event, _window, cx| {
+                host_toggle.toggle_outline_docked(pane_id, cx);
+            },
         );
-        gpui::div()
+
+        let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
+            Some(render_outline_indicator_strip(
+                pane_id.0,
+                &headings,
+                active_index,
+                ctx.is_outline_hovered,
+                &theme,
+                &outline_host,
+            ))
+        } else {
+            None
+        };
+
+        let v_scrollbar = render_vertical_scrollbar(
+            ("preview-v-scrollbar", pane_id.0),
+            ctx.scroll,
+            &theme.colors,
+            &theme.dimensions,
+        );
+
+        let h_scrollbar = render_horizontal_scrollbar(
+            ("preview-h-scrollbar", pane_id.0),
+            ctx.scroll,
+            &theme.colors,
+            &theme.dimensions,
+        );
+
+        let content = gpui::div()
             .relative()
             .w_full()
             .h_full()
             .child(preview_body)
-            .child(outline_hud)
-            .into_any_element()
+            .into_any_element();
+
+        render_pane_layout(
+            pane_id,
+            Some(breadcrumb),
+            content,
+            outline_indicator,
+            v_scrollbar,
+            h_scrollbar,
+        )
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

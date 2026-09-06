@@ -3,6 +3,7 @@ pub mod host;
 pub mod id;
 pub mod kind;
 pub mod registry;
+pub mod scaffold;
 pub mod view;
 
 pub use descriptor::PaneDescriptor;
@@ -10,4 +11,5 @@ pub use host::{PaneHost, PaneOutlineHost, PaneRenderContext};
 pub use id::PaneId;
 pub use kind::PaneKind;
 pub use registry::{PaneRegistry, PaneRegistryError};
+pub use scaffold::render_pane_layout;
 pub use view::{PaneCapabilities, PaneView};

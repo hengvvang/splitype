@@ -23,10 +23,12 @@ pub use document::{DocumentHost, DocumentId, DocumentSnapshot, TabKind};
 pub use edit::{CursorHint, EditTransaction};
 pub use export::ExportFormat;
 pub use highlight::{CodeHighlightClass, CodeHighlightSpan, HighlightSnapshot};
-pub use outline::{OutlineHost, OutlineHudState, OutlineNode};
+pub use outline::{
+    OutlineHost, OutlineHudState, OutlineNode, render_outline_indicator_strip,
+};
 pub use pane::{
     PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost, PaneRegistry,
-    PaneRegistryError, PaneRenderContext, PaneView,
+    PaneRegistryError, PaneRenderContext, PaneView, render_pane_layout,
 };
 pub use panel::DocumentPanel;
 pub use rope::Rope;

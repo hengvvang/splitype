@@ -9,7 +9,11 @@ pub mod tables;
 
 use std::sync::Arc;
 
-use editor_contracts::{CursorHint, PaneOutlineHost, PaneRenderContext};
+use editor_contracts::{
+    CursorHint, PaneOutlineHost, PaneRenderContext, render_outline_indicator_strip,
+    render_pane_layout,
+};
+use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, EntityId, InteractiveElement,
     IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, SharedString,
@@ -526,15 +530,6 @@ impl WysiwygDocumentController {
                     host: ctx.host.clone(),
                 });
 
-            let outline_hud = editor_contracts::outline::render_floating_outline_hud(
-                ctx.pane_id.0,
-                &headings,
-                active_index,
-                ctx.is_outline_hovered,
-                &theme,
-                &outline_host,
-            );
-
             let scroll_bounds = ctx.scroll.bounds();
             let origin = scroll_bounds.origin;
             let pane_size = scroll_bounds.size;
@@ -580,7 +575,45 @@ impl WysiwygDocumentController {
                 )
             });
 
-            div()
+            let host_toggle = ctx.host.clone();
+            let breadcrumb = render_pane_breadcrumb(
+                ("wysiwyg-breadcrumb", pane_id.0),
+                ctx.file_path,
+                ctx.is_outline_docked,
+                &theme,
+                move |_event, _window, cx| {
+                    host_toggle.toggle_outline_docked(pane_id, cx);
+                },
+            );
+
+            let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
+                Some(render_outline_indicator_strip(
+                    pane_id.0,
+                    &headings,
+                    active_index,
+                    ctx.is_outline_hovered,
+                    &theme,
+                    &outline_host,
+                ))
+            } else {
+                None
+            };
+
+            let v_scrollbar = render_vertical_scrollbar(
+                ("wysiwyg-v-scrollbar", pane_id.0),
+                ctx.scroll,
+                c,
+                d,
+            );
+
+            let h_scrollbar = render_horizontal_scrollbar(
+                ("wysiwyg-h-scrollbar", pane_id.0),
+                ctx.scroll,
+                c,
+                d,
+            );
+
+            let content = div()
                 .id(ElementId::Name(
                     format!("tiled-wysiwyg-editor-{pane_id}").into(),
                 ))
@@ -611,10 +644,18 @@ impl WysiwygDocumentController {
                         )
                         .children(row_elements),
                 )
-                .child(outline_hud)
                 .children(footnote_tooltip_element)
                 .children(context_menu_element)
-                .into_any_element()
+                .into_any_element();
+
+            render_pane_layout(
+                pane_id,
+                Some(breadcrumb),
+                content,
+                outline_indicator,
+                v_scrollbar,
+                h_scrollbar,
+            )
         } else {
             div().into_any_element()
         }

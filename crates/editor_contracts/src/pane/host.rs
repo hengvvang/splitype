@@ -9,6 +9,8 @@ pub struct PaneRenderContext<'a> {
     pub scroll: &'a ScrollHandle,
     pub host: &'a Arc<dyn PaneHost>,
     pub is_outline_hovered: bool,
+    pub is_outline_docked: bool,
+    pub file_path: Option<&'a std::path::Path>,
 }
 
 /// Host seam a pane uses to reach back into the coordinating editor.
@@ -28,6 +30,7 @@ pub trait PaneHost: Send + Sync + 'static {
     /// rows near the viewport, so block traversal must follow the scroll.
     fn scroll_pane_to_y(&self, pane_id: PaneId, y: f32, cx: &mut App);
     fn navigate_to_outline(&self, pane_id: PaneId, index: usize, cx: &mut App);
+    fn toggle_outline_docked(&self, pane_id: PaneId, cx: &mut App);
     fn set_outline_hovered(
         &self,
         pane_id: PaneId,
@@ -79,4 +82,9 @@ impl crate::outline::OutlineHost for PaneOutlineHost {
         self.host
             .set_outline_hovered(self.pane_id, hovered, window, cx);
     }
+
+    fn toggle_docked(&self, cx: &mut App) {
+        self.host.toggle_outline_docked(self.pane_id, cx);
+    }
 }
+

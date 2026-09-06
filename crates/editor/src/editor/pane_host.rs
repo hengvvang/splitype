@@ -44,6 +44,15 @@ impl PaneHost for EditorPaneHost {
         }
     }
 
+    fn toggle_outline_docked(&self, pane_id: PaneId, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            editor.update(cx, |editor, cx| {
+                editor.toggle_outline_for_pane(pane_id);
+                cx.notify();
+            });
+        }
+    }
+
     fn set_outline_hovered(
         &self,
         _pane_id: PaneId,

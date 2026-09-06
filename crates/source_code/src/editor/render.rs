@@ -19,8 +19,12 @@ use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::editor::SourceCodeEditor;
 use crate::indent_guides::compute_indent_guide_columns;
-use editor_contracts::{OutlineHost, PaneId, PaneOutlineHost, PaneRenderContext};
+use editor_contracts::{
+    OutlineHost, PaneId, PaneOutlineHost, PaneRenderContext, render_outline_indicator_strip,
+    render_pane_layout,
+};
 use syntax_highlighter::highlight::build_line_text_runs;
+use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 
 /// One visual row of the last rendered frame, used by mouse hit-testing.
 #[derive(Clone, Debug)]
@@ -75,14 +79,6 @@ impl SourceCodeEditor {
             pane_id: ctx.pane_id,
             host: ctx.host.clone(),
         });
-        let outline_hud = editor_contracts::outline::render_floating_outline_hud(
-            ctx.pane_id.0,
-            &headings,
-            active_index,
-            ctx.is_outline_hovered,
-            &theme,
-            &outline_host,
-        );
 
         let focus_handle = self.focus_handle.clone();
         let editor_entity = cx.entity();
@@ -123,7 +119,45 @@ impl SourceCodeEditor {
             }
         });
 
-        outer
+        let host_toggle = host.clone();
+        let breadcrumb = render_pane_breadcrumb(
+            ("source-breadcrumb", pane_id.0),
+            ctx.file_path,
+            ctx.is_outline_docked,
+            &theme,
+            move |_event, _window, cx| {
+                host_toggle.toggle_outline_docked(pane_id, cx);
+            },
+        );
+
+        let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
+            Some(render_outline_indicator_strip(
+                pane_id.0,
+                &headings,
+                active_index,
+                ctx.is_outline_hovered,
+                &theme,
+                &outline_host,
+            ))
+        } else {
+            None
+        };
+
+        let v_scrollbar = render_vertical_scrollbar(
+            ("source-v-scrollbar", pane_id.0),
+            ctx.scroll,
+            &theme.colors,
+            &theme.dimensions,
+        );
+
+        let h_scrollbar = render_horizontal_scrollbar(
+            ("source-h-scrollbar", pane_id.0),
+            ctx.scroll,
+            &theme.colors,
+            &theme.dimensions,
+        );
+
+        let content = outer
             .child(
                 div()
                     .id(ElementId::Name(
@@ -149,9 +183,17 @@ impl SourceCodeEditor {
                     })
                     .child(EditorElement::new(editor_entity, pane_id, ctx.is_focused)),
             )
-            .child(outline_hud)
             .children(context_menu_element)
-            .into_any_element()
+            .into_any_element();
+
+        render_pane_layout(
+            pane_id,
+            Some(breadcrumb),
+            content,
+            outline_indicator,
+            v_scrollbar,
+            h_scrollbar,
+        )
     }
 }
 
