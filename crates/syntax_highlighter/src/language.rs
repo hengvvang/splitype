@@ -160,3 +160,42 @@ pub fn code_language_display_name(value: &str) -> &str {
         .map(|option| option.label)
         .unwrap_or(value)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_code_language_options_matching() {
+        // Exact name match
+        let rust_matches = code_language_options_matching("rust");
+        assert!(!rust_matches.is_empty());
+        assert_eq!(rust_matches[0].value, "rust");
+
+        // Alias match: 'rs' -> rust
+        let rs_matches = code_language_options_matching("rs");
+        assert!(rs_matches.iter().any(|opt| opt.value == "rust"));
+
+        // Alias match: 'py' -> python
+        let py_matches = code_language_options_matching("py");
+        assert!(py_matches.iter().any(|opt| opt.value == "python"));
+
+        // Case insensitivity: 'PYTHON'
+        let upper_py = code_language_options_matching("PYTHON");
+        assert!(upper_py.iter().any(|opt| opt.value == "python"));
+
+        // Empty query matches all available languages
+        let all = code_language_options_matching("");
+        assert_eq!(all.len(), CODE_LANGUAGE_OPTIONS.len());
+    }
+
+    #[test]
+    fn test_code_language_display_name() {
+        assert_eq!(code_language_display_name("rust"), "Rust");
+        assert_eq!(code_language_display_name("rs"), "Rust");
+        assert_eq!(code_language_display_name("python"), "Python");
+        assert_eq!(code_language_display_name("py"), "Python");
+        assert_eq!(code_language_display_name("unknown_xyz"), "unknown_xyz");
+    }
+}
+

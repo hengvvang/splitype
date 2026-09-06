@@ -251,3 +251,44 @@ pub struct CodeLanguageLastPaint {
 pub const MAX_LAST_PAINTS: usize = 8;
 
 pub type ProjectionCacheKey = (bool, Option<u8>, Range<usize>, Option<Range<usize>>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::prelude::v1::test;
+
+    #[test]
+    fn test_code_language_picker_open_and_close() {
+        let mut picker = CodeLanguagePickerState::default();
+        assert!(!picker.is_open);
+        assert!(picker.query.is_empty());
+
+        picker.query = "rust".to_string();
+        picker.selected_range = 1..3;
+        picker.open();
+
+        assert!(picker.is_open);
+        assert!(picker.query.is_empty());
+        assert_eq!(picker.selected_range, 0..0);
+
+        picker.query = "python".to_string();
+        picker.selected_range = 2..4;
+        picker.close();
+
+        assert!(!picker.is_open);
+        assert!(picker.query.is_empty());
+        assert_eq!(picker.selected_range, 0..0);
+    }
+
+    #[test]
+    fn test_code_language_picker_cursor_offset() {
+        let mut picker = CodeLanguagePickerState::default();
+        picker.selected_range = 2..5;
+        picker.selection_reversed = false;
+        assert_eq!(picker.cursor_offset(), 5);
+
+        picker.selection_reversed = true;
+        assert_eq!(picker.cursor_offset(), 2);
+    }
+}
+

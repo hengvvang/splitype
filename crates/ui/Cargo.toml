@@ -13,5 +13,6 @@ workspace = true
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 config = { path = "../config" }
+platform_contracts = { path = "../platform_contracts" }
 gpui = { workspace = true }
 

@@ -186,6 +186,43 @@ impl RenderOnce for SearchInput {
             let ctrl = keystroke.modifiers.control || keystroke.modifiers.platform;
             let alt = keystroke.modifiers.alt;
 
+            if ctrl && !alt {
+                match keystroke.key.to_lowercase().as_str() {
+                    "v" => {
+                        cx.stop_propagation();
+                        if let Some(clipboard) = cx.read_from_clipboard()
+                            && let Some(text) = clipboard.text()
+                        {
+                            let sanitized = text.replace(['\r', '\n'], "");
+                            let mut new_str = current_value.to_string();
+                            new_str.push_str(&sanitized);
+                            if let Some(ref on_change) = on_change_cb {
+                                on_change(new_str, window, cx);
+                            }
+                        }
+                        return;
+                    }
+                    "c" => {
+                        cx.stop_propagation();
+                        if !current_value.is_empty() {
+                            cx.write_to_clipboard(ClipboardItem::new_string(current_value.to_string()));
+                        }
+                        return;
+                    }
+                    "x" => {
+                        cx.stop_propagation();
+                        if !current_value.is_empty() {
+                            cx.write_to_clipboard(ClipboardItem::new_string(current_value.to_string()));
+                            if let Some(ref on_change) = on_change_cb {
+                                on_change(String::new(), window, cx);
+                            }
+                        }
+                        return;
+                    }
+                    _ => {}
+                }
+            }
+
             let action = handle_search_keystroke(
                 current_value.as_ref(),
                 keystroke.key.as_str(),
@@ -281,6 +318,15 @@ impl RenderOnce for SearchInput {
                 c.dialog_border
             });
 
+        let on_dismiss_action = self.on_dismiss.clone();
+        let on_change_action = self.on_change.clone();
+        let current_value_action = self.value.clone();
+        let on_paste_change = self.on_change.clone();
+        let current_value_paste = self.value.clone();
+        let on_cut_change = self.on_change.clone();
+        let current_value_cut = self.value.clone();
+        let current_value_copy = self.value.clone();
+
         let focus_handle_click = self.focus_handle.clone();
         let key_context = self.key_context.as_deref().unwrap_or("SearchInput");
 
@@ -305,7 +351,69 @@ impl RenderOnce for SearchInput {
                 cx.stop_propagation();
                 focus_handle_click.focus(window, cx);
             })
+            .on_action({
+                let on_dismiss = on_dismiss_action;
+                let on_change = on_change_action;
+                let val = current_value_action;
+                move |_: &platform_contracts::actions::DismissTransientUi, window, cx| {
+                    cx.stop_propagation();
+                    if let Some(ref on_dismiss) = on_dismiss {
+                        on_dismiss(window, cx);
+                    } else if !val.is_empty() {
+                        if let Some(ref on_change) = on_change {
+                            on_change(String::new(), window, cx);
+                        }
+                    }
+                }
+            })
+            .on_action({
+                let val = current_value_copy;
+                move |_: &platform_contracts::actions::Copy, _window, cx| {
+                    cx.stop_propagation();
+                    if !val.is_empty() {
+                        cx.write_to_clipboard(ClipboardItem::new_string(val.to_string()));
+                    }
+                }
+            })
+            .on_action({
+                let val = current_value_cut;
+                let on_change = on_cut_change;
+                move |_: &platform_contracts::actions::Cut, window, cx| {
+                    cx.stop_propagation();
+                    if !val.is_empty() {
+                        cx.write_to_clipboard(ClipboardItem::new_string(val.to_string()));
+                        if let Some(ref on_change) = on_change {
+                            on_change(String::new(), window, cx);
+                        }
+                    }
+                }
+            })
+            .on_action({
+                let val = current_value_paste;
+                let on_change = on_paste_change;
+                move |_: &platform_contracts::actions::Paste, window, cx| {
+                    cx.stop_propagation();
+                    if let Some(clipboard) = cx.read_from_clipboard()
+                        && let Some(text) = clipboard.text()
+                    {
+                        let sanitized = text.replace(['\r', '\n'], "");
+                        let mut new_str = val.to_string();
+                        new_str.push_str(&sanitized);
+                        if let Some(ref on_change) = on_change {
+                            on_change(new_str, window, cx);
+                        }
+                    }
+                }
+            })
+            .on_action(|_: &platform_contracts::actions::SelectAll, _window, cx| {
+                cx.stop_propagation();
+            })
             .on_key_down(key_down_handler)
+            .child(SearchInputBridgeElement {
+                focus_handle: self.focus_handle.clone(),
+                value: self.value.clone(),
+                on_change: self.on_change.clone(),
+            })
             .child(
                 div()
                     .flex_1()
@@ -331,6 +439,182 @@ impl RenderOnce for SearchInput {
             )
             .children(clear_button)
             .child(bottom_indicator)
+    }
+}
+
+/// Helper element that registers a GPUI [`InputHandler`] for [`SearchInput`] while focused.
+pub struct SearchInputBridgeElement {
+    pub focus_handle: FocusHandle,
+    pub value: SharedString,
+    pub on_change: Option<InputChangeHandler>,
+}
+
+impl IntoElement for SearchInputBridgeElement {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl Element for SearchInputBridgeElement {
+    type RequestLayoutState = ();
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+
+    fn source_location(&self) -> Option<&'static core::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        (window.request_layout(Style::default(), [], cx), ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Self::PrepaintState {}
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _inspector_id: Option<&InspectorElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        _prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.focus_handle.is_focused(window) {
+            window.handle_input(
+                &self.focus_handle,
+                SearchInputHandler {
+                    value: self.value.clone(),
+                    bounds,
+                    on_change: self.on_change.clone(),
+                },
+                cx,
+            );
+        }
+    }
+}
+
+/// Bridge between GPUI IME / character events and [`SearchInput`].
+pub struct SearchInputHandler {
+    pub value: SharedString,
+    pub bounds: Bounds<Pixels>,
+    pub on_change: Option<InputChangeHandler>,
+}
+
+impl SearchInputHandler {
+    /// Pure helper that calculates text and adjusted range for a UTF-16 range.
+    pub fn compute_text_for_range(value: &str, range_utf16: std::ops::Range<usize>) -> (Option<String>, Option<std::ops::Range<usize>>) {
+        let utf16_chars: Vec<u16> = value.encode_utf16().collect();
+        let start = range_utf16.start.min(utf16_chars.len());
+        let end = range_utf16.end.min(utf16_chars.len());
+        (String::from_utf16(&utf16_chars[start..end]).ok(), Some(start..end))
+    }
+
+    /// Pure helper that computes the replacement text in range.
+    pub fn compute_replace_text_in_range(current: &str, replacement_range: Option<std::ops::Range<usize>>, text: &str) -> String {
+        if let Some(range) = replacement_range {
+            let utf16_chars: Vec<u16> = current.encode_utf16().collect();
+            let start = range.start.min(utf16_chars.len());
+            let end = range.end.min(utf16_chars.len());
+            let prefix = String::from_utf16_lossy(&utf16_chars[..start]);
+            let suffix = String::from_utf16_lossy(&utf16_chars[end..]);
+            format!("{prefix}{text}{suffix}")
+        } else {
+            format!("{current}{text}")
+        }
+    }
+}
+
+impl InputHandler for SearchInputHandler {
+    fn selected_text_range(
+        &mut self,
+        _ignore_disabled_input: bool,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Option<UTF16Selection> {
+        let len = self.value.encode_utf16().count();
+        Some(UTF16Selection {
+            range: len..len,
+            reversed: false,
+        })
+    }
+
+    fn marked_text_range(&mut self, _window: &mut Window, _cx: &mut App) -> Option<std::ops::Range<usize>> {
+        None
+    }
+
+    fn text_for_range(
+        &mut self,
+        range_utf16: std::ops::Range<usize>,
+        adjusted_range: &mut Option<std::ops::Range<usize>>,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Option<String> {
+        let (text, adj) = Self::compute_text_for_range(self.value.as_ref(), range_utf16);
+        *adjusted_range = adj;
+        text
+    }
+
+    fn replace_text_in_range(
+        &mut self,
+        replacement_range: Option<std::ops::Range<usize>>,
+        text: &str,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let next = Self::compute_replace_text_in_range(self.value.as_ref(), replacement_range, text);
+        if let Some(ref on_change) = self.on_change {
+            on_change(next, window, cx);
+        }
+    }
+
+    fn replace_and_mark_text_in_range(
+        &mut self,
+        range_utf16: Option<std::ops::Range<usize>>,
+        new_text: &str,
+        _new_selected_range: Option<std::ops::Range<usize>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.replace_text_in_range(range_utf16, new_text, window, cx);
+    }
+
+    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut App) {}
+
+    fn bounds_for_range(
+        &mut self,
+        _range_utf16: std::ops::Range<usize>,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Option<Bounds<Pixels>> {
+        Some(self.bounds)
+    }
+
+    fn character_index_for_point(
+        &mut self,
+        _point: Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) -> Option<usize> {
+        Some(self.value.encode_utf16().count())
     }
 }
 
@@ -364,17 +648,18 @@ pub fn handle_search_keystroke(
     ctrl: bool,
     alt: bool,
 ) -> SearchKeyAction {
+    let lower_key = key.to_lowercase();
     if ctrl && !alt {
-        match key {
-            "a" | "A" => return SearchKeyAction::Ignored,
+        match lower_key.as_str() {
+            "a" => return SearchKeyAction::Ignored,
             "backspace" => return SearchKeyAction::Change(String::new()),
             _ => {}
         }
     }
 
-    match key {
+    match lower_key.as_str() {
         "escape" => SearchKeyAction::Dismiss,
-        "enter" => SearchKeyAction::Submit,
+        "enter" | "return" => SearchKeyAction::Submit,
         "backspace" | "delete" => {
             let mut new_str = current.to_string();
             new_str.pop();
@@ -388,7 +673,7 @@ pub fn handle_search_keystroke(
         _ => {
             if !ctrl && !alt {
                 let text = key_char.unwrap_or_else(|| {
-                    if key.len() == 1 {
+                    if key.chars().count() == 1 {
                         key
                     } else {
                         ""
@@ -466,6 +751,36 @@ mod tests {
 
         let action = handle_search_keystroke("test", "Shift", None, false, false);
         assert_eq!(action, SearchKeyAction::Ignored);
+    }
+
+    #[test]
+    fn test_search_input_handler_text_and_selection() {
+        let (text, actual) = SearchInputHandler::compute_text_for_range("Hello World", 0..5);
+        assert_eq!(text, Some("Hello".to_string()));
+        assert_eq!(actual, Some(0..5));
+
+        let (text_utf16, actual_utf16) = SearchInputHandler::compute_text_for_range("你好世界", 0..2);
+        assert_eq!(text_utf16, Some("你好".to_string()));
+        assert_eq!(actual_utf16, Some(0..2));
+    }
+
+    #[test]
+    fn test_search_input_handler_replace_and_multibyte() {
+        // Append text
+        let res = SearchInputHandler::compute_replace_text_in_range("Rust", None, " Lang");
+        assert_eq!(res, "Rust Lang");
+
+        // Chinese / IME insertion
+        let res = SearchInputHandler::compute_replace_text_in_range("你好", Some(2..2), "世界");
+        assert_eq!(res, "你好世界");
+
+        // Replacing middle part
+        let res = SearchInputHandler::compute_replace_text_in_range("abcdef", Some(2..4), "123");
+        assert_eq!(res, "ab123ef");
+
+        // Deleting range
+        let res = SearchInputHandler::compute_replace_text_in_range("Hello World", Some(5..11), "");
+        assert_eq!(res, "Hello");
     }
 }
 

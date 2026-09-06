@@ -6962,6 +6962,7 @@ version = "0.0.1"
 dependencies = [
  "config",
  "gpui",
+ "platform_contracts",
  "splitter",
  "theme",
 ]

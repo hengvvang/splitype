@@ -72,6 +72,11 @@ impl Block {
     }
 
     pub fn on_newline(&mut self, _: &Newline, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_newline(&Newline, window, cx);
+            return;
+        }
+
         // Enter is ordered from special editors to rich-text splitting:
         // table/source/code/quote-like blocks keep local newline semantics,
         // while normal rendered blocks emit an editor-level split request.
@@ -217,6 +222,11 @@ impl Block {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_delete_backward(&DeleteBackward, window, cx);
+            return;
+        }
+
         if self.is_table_cell() {
             if self.selected_range.is_empty() {
                 let previous = self.previous_boundary(self.cursor_offset());
@@ -307,6 +317,11 @@ impl Block {
     }
 
     pub fn on_delete(&mut self, _: &Delete, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_delete(&Delete, window, cx);
+            return;
+        }
+
         if self.is_table_cell() {
             if self.selected_range.is_empty() {
                 let next = self.next_boundary(self.cursor_offset());
@@ -350,6 +365,10 @@ impl Block {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         if self.selected_range.is_empty() {
             if self.cursor_offset() == 0 {
                 // Nothing to the left in this block; defer to grapheme
@@ -368,6 +387,10 @@ impl Block {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         if self.selected_range.is_empty() {
             if self.cursor_offset() == self.display_len() {
                 // Nothing to the right in this block; defer to grapheme
@@ -386,6 +409,10 @@ impl Block {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         if self.is_table_cell() {
             cx.emit(BlockEvent::RequestTableCellMoveHorizontal { delta: 1 });
             return;
@@ -405,6 +432,10 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(_window) {
+            return;
+        }
+
         if self.is_table_cell() {
             cx.emit(BlockEvent::RequestTableCellMoveHorizontal { delta: -1 });
             return;

@@ -111,6 +111,8 @@ impl Block {
             .on_action(cx.listener(Self::on_select_end))
             .on_action(cx.listener(Self::on_paste))
             .on_action(cx.listener(Self::on_exit_code_block))
+            .on_action(cx.listener(Self::on_code_language_dismiss))
+            .on_action(cx.listener(Self::on_code_language_select_all))
             .on_key_down(cx.listener(Self::on_block_key_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_mouse_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_mouse_up))

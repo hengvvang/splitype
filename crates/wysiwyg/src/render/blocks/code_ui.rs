@@ -87,7 +87,7 @@ impl Block {
             editor_section.into_any_element()
         } else {
             let picker = self.render_code_language_picker(current_language, theme, strings, cx);
-            editor_section.child(picker).into_any_element()
+            editor_section.child(deferred(picker)).into_any_element()
         }
     }
 

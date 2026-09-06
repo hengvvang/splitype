@@ -59,6 +59,12 @@ pub fn nav_tab(id: impl Into<ElementId>, c: &ThemeColors, d: &ThemeDimensions) -
 pub type SettingsClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 /// Key-down handler signature for inline numeric editing.
 pub type SettingsKeyHandler = Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>;
+/// Dismiss handler signature for inline editing.
+pub type SettingsDismissHandler =
+    Box<dyn Fn(&platform_contracts::actions::DismissTransientUi, &mut Window, &mut App) + 'static>;
+/// Paste handler signature for inline editing.
+pub type SettingsPasteHandler =
+    Box<dyn Fn(&platform_contracts::actions::Paste, &mut Window, &mut App) + 'static>;
 /// Search-query handler signature for searchable pickers.
 pub type SettingsSearchHandler = Box<dyn Fn(String, &mut Window, &mut App)>;
 /// Option select handler: takes the option value and returns a click handler.
@@ -144,6 +150,8 @@ pub struct NumberFieldProps {
     pub on_inc: SettingsClickHandler,
     pub on_start_edit: SettingsClickHandler,
     pub on_key_down: SettingsKeyHandler,
+    pub on_dismiss: Option<SettingsDismissHandler>,
+    pub on_paste: Option<SettingsPasteHandler>,
 }
 
 pub fn render_number_field(
@@ -166,7 +174,7 @@ pub fn render_number_field(
     let inc_id = ElementId::Name(format!("{id_prefix}-inc").into());
     let center_id = ElementId::Name(format!("{id_prefix}-center").into());
 
-    let center_box = div()
+    let mut center_box = div()
         .id(center_id)
         .key_context("NumberField")
         .track_focus(&props.focus_handle)
@@ -187,23 +195,38 @@ pub fn render_number_field(
             this.border_y_1().border_color(c.focus_accent)
         })
         .on_click(props.on_start_edit)
-        .on_key_down(props.on_key_down)
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(
-                    div()
-                        .text_size(px(12.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(c.text_default)
-                        .child(text_to_show),
-                )
-                .when(is_editing, |this| {
-                    this.child(div().w(px(1.5)).h(px(13.0)).ml(px(1.0)).bg(c.focus_accent))
-                }),
-        );
+        .on_key_down(props.on_key_down);
+
+    if let Some(on_dismiss) = props.on_dismiss {
+        center_box = center_box.on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            cx.stop_propagation();
+            on_dismiss(action, window, cx);
+        });
+    }
+
+    if let Some(on_paste) = props.on_paste {
+        center_box = center_box.on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+            cx.stop_propagation();
+            on_paste(action, window, cx);
+        });
+    }
+
+    let center_box = center_box.child(
+        div()
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(
+                div()
+                    .text_size(px(12.0))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(c.text_default)
+                    .child(text_to_show),
+            )
+            .when(is_editing, |this| {
+                this.child(div().w(px(1.5)).h(px(13.0)).ml(px(1.0)).bg(c.focus_accent))
+            }),
+    );
 
     stepper_container(c, d)
         .child(

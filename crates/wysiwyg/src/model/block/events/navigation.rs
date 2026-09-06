@@ -14,9 +14,14 @@ impl Block {
     pub fn on_focus_previous(
         &mut self,
         _: &FocusPrevious,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_focus_content(&FocusPrevious, window, cx);
+            return;
+        }
+
         let preferred_x = self.vertical_anchor_x();
         if !self.move_cursor_vertically(-1, preferred_x, cx) {
             if self.is_table_cell() {
@@ -30,6 +35,11 @@ impl Block {
     }
 
     pub fn on_focus_next(&mut self, _: &FocusNext, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_focus_next(&FocusNext, window, cx);
+            return;
+        }
+
         let preferred_x = self.vertical_anchor_x();
         if !self.move_cursor_vertically(1, preferred_x, cx) {
             if self.is_table_cell() {
@@ -50,7 +60,12 @@ impl Block {
         }
     }
 
-    pub fn on_move_left(&mut self, _: &MoveLeft, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_move_left(&mut self, _: &MoveLeft, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_move_left(&MoveLeft, window, cx);
+            return;
+        }
+
         if self.selected_range.is_empty() {
             if let Some((target, affinity)) = self.projected_move_left_target(self.cursor_offset())
             {
@@ -72,7 +87,12 @@ impl Block {
         }
     }
 
-    pub fn on_move_right(&mut self, _: &MoveRight, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_move_right(&mut self, _: &MoveRight, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_move_right(&MoveRight, window, cx);
+            return;
+        }
+
         if self.selected_range.is_empty() {
             if let Some((target, affinity)) =
                 self.projected_move_right_target(self.selected_range.end)
@@ -95,15 +115,30 @@ impl Block {
         }
     }
 
-    pub fn on_home(&mut self, _: &Home, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_home(&mut self, _: &Home, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_home(&Home, window, cx);
+            return;
+        }
+
         self.move_to(0, cx);
     }
 
-    pub fn on_end(&mut self, _: &End, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_end(&mut self, _: &End, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_end(&End, window, cx);
+            return;
+        }
+
         self.move_to(self.display_len(), cx);
     }
 
-    pub fn on_select_left(&mut self, _: &SelectLeft, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_select_left(&mut self, _: &SelectLeft, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_select_left(&SelectLeft, window, cx);
+            return;
+        }
+
         if let Some((target, _)) = self.projected_move_left_target(self.cursor_offset()) {
             self.select_to(target, cx);
         } else {
@@ -114,9 +149,14 @@ impl Block {
     pub fn on_select_right(
         &mut self,
         _: &SelectRight,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_select_right(&SelectRight, window, cx);
+            return;
+        }
+
         if let Some((target, _)) = self.projected_move_right_target(self.cursor_offset()) {
             self.select_to(target, cx);
         } else {
@@ -127,44 +167,68 @@ impl Block {
     pub fn on_word_move_left(
         &mut self,
         _: &WordMoveLeft,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         self.move_to(self.previous_word_start(self.cursor_offset()), cx);
     }
 
     pub fn on_word_move_right(
         &mut self,
         _: &WordMoveRight,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         self.move_to(self.next_word_start(self.cursor_offset()), cx);
     }
 
     pub fn on_word_select_left(
         &mut self,
         _: &WordSelectLeft,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         self.select_to(self.previous_word_start(self.cursor_offset()), cx);
     }
 
     pub fn on_word_select_right(
         &mut self,
         _: &WordSelectRight,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         self.select_to(self.next_word_start(self.cursor_offset()), cx);
     }
 
-    pub fn on_block_up(&mut self, _: &BlockUp, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_block_up(&mut self, _: &BlockUp, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         cx.emit(BlockEvent::RequestBlockUp);
     }
 
-    pub fn on_block_down(&mut self, _: &BlockDown, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_block_down(&mut self, _: &BlockDown, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         cx.emit(BlockEvent::RequestBlockDown);
     }
 
@@ -173,11 +237,19 @@ impl Block {
         self.select_to(self.display_len(), cx);
     }
 
-    pub fn on_select_home(&mut self, _: &SelectHome, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_select_home(&mut self, _: &SelectHome, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         self.select_to(0, cx);
     }
 
-    pub fn on_select_end(&mut self, _: &SelectEnd, _window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_select_end(&mut self, _: &SelectEnd, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            return;
+        }
+
         self.select_to(self.display_len(), cx);
     }
 }

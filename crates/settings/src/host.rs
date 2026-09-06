@@ -23,9 +23,9 @@ use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
 use ui::SearchInput;
 use crate::form::{
-    NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsKeyHandler,
-    make_row, make_row_with_reset, nav_tab, render_number_field, render_searchable_font_picker,
-    section_card,
+    NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsDismissHandler,
+    SettingsKeyHandler, SettingsPasteHandler, make_row, make_row_with_reset, nav_tab,
+    render_number_field, render_searchable_font_picker, section_card,
 };
 
 
@@ -621,6 +621,9 @@ fn render_number_control(
         write_number(cx, &commit_plugin, &commit_key, value, min, max);
     });
 
+    let on_dismiss = editable_dismiss_handler(state.clone(), key.clone());
+    let on_paste = editable_paste_handler(state.clone(), key.clone(), true);
+
     render_number_field(
         c,
         d,
@@ -634,6 +637,8 @@ fn render_number_control(
             on_inc,
             on_start_edit,
             on_key_down,
+            on_dismiss: Some(on_dismiss),
+            on_paste: Some(on_paste),
         },
     )
 }
@@ -665,6 +670,9 @@ fn render_text_control(
         let _ =
             SettingsStore::set_plugin_value(cx, &commit_plugin, &commit_key, Value::String(text));
     });
+
+    let on_dismiss = editable_dismiss_handler(state.clone(), key.clone());
+    let on_paste = editable_paste_handler(state.clone(), key.clone(), false);
 
     div()
         .id(ElementId::Name(format!("{id_namespace}-text-{key}").into()))
@@ -724,6 +732,12 @@ fn render_text_control(
             focus_handle.clone(),
         ))
         .on_key_down(on_key_down)
+        .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            on_dismiss(action, window, cx);
+        })
+        .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+            on_paste(action, window, cx);
+        })
         .into_any_element()
 }
 
@@ -917,6 +931,50 @@ fn editable_key_handler(
                 }
             }
             cx.refresh_windows();
+        },
+    )
+}
+
+/// Builds an inline-edit dismiss handler: Escape / DismissTransientUi cancels
+/// the buffer and stops propagation.
+fn editable_dismiss_handler(
+    state: Entity<SettingsUiState>,
+    key: String,
+) -> SettingsDismissHandler {
+    Box::new(
+        move |_: &platform_contracts::actions::DismissTransientUi, _window, cx| {
+            cx.stop_propagation();
+            state.update(cx, |ui, _| {
+                ui.edit_buffers.remove(&key);
+            });
+            cx.refresh_windows();
+        },
+    )
+}
+
+/// Builds an inline-edit paste handler: Paste reads clipboard text and appends.
+fn editable_paste_handler(
+    state: Entity<SettingsUiState>,
+    key: String,
+    numeric_only: bool,
+) -> SettingsPasteHandler {
+    Box::new(
+        move |_: &platform_contracts::actions::Paste, _window, cx| {
+            cx.stop_propagation();
+            let text = cx.read_from_clipboard().and_then(|item| item.text());
+            if let Some(text) = text {
+                let accepted = if numeric_only {
+                    text.chars().all(|ch| ch.is_ascii_digit() || ch == '.' || ch == '-')
+                } else {
+                    !text.chars().any(|ch| ch.is_control())
+                };
+                if accepted && !text.is_empty() {
+                    state.update(cx, |ui, _| {
+                        ui.edit_buffers.entry(key.clone()).or_default().push_str(&text);
+                    });
+                    cx.refresh_windows();
+                }
+            }
         },
     )
 }
@@ -1375,9 +1433,12 @@ fn render_editable_number_control(
     let focus_handle = state.update(cx, |ui, cx| ui.focus_handle(edit_key, cx));
     let commit = Arc::new(commit);
     let commit_key = edit_key.to_string();
-    let on_key_down = editable_key_handler(state.clone(), commit_key, true, move |cx, text| {
+    let on_key_down = editable_key_handler(state.clone(), commit_key.clone(), true, move |cx, text| {
         commit(cx, text);
     });
+
+    let on_dismiss = editable_dismiss_handler(state.clone(), commit_key.clone());
+    let on_paste = editable_paste_handler(state.clone(), commit_key, true);
 
     div()
         .id(ElementId::Name(
@@ -1439,6 +1500,12 @@ fn render_editable_number_control(
             focus_handle.clone(),
         ))
         .on_key_down(on_key_down)
+        .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            on_dismiss(action, window, cx);
+        })
+        .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+            on_paste(action, window, cx);
+        })
         .into_any_element()
 }
 
@@ -1617,6 +1684,9 @@ fn render_color_control(
             write_color_override(cx, &commit_key, Some(text));
         });
 
+    let on_dismiss = editable_dismiss_handler(state.clone(), edit_key.clone());
+    let on_paste = editable_paste_handler(state.clone(), edit_key.clone(), false);
+
     div()
         .id(ElementId::Name(
             format!("{id_namespace}-color-{token_key}").into(),
@@ -1649,10 +1719,10 @@ fn render_color_control(
                 .flex_shrink_0()
                 .w(px(14.0))
                 .h(px(14.0))
-                .rounded_sm()
+                .rounded(px(3.0))
                 .border_1()
                 .border_color(c.dialog_border)
-                .bg(effective.unwrap_or(Hsla::transparent_black())),
+                .bg(effective.unwrap_or(hsla(0.0, 0.0, 0.0, 0.0))),
         )
         .child(
             div()
@@ -1688,6 +1758,12 @@ fn render_color_control(
             focus_handle.clone(),
         ))
         .on_key_down(on_key_down)
+        .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            on_dismiss(action, window, cx);
+        })
+        .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+            on_paste(action, window, cx);
+        })
         .into_any_element()
 }
 
@@ -1811,3 +1887,50 @@ fn remove_installed_theme(cx: &mut App, family_id: &str) {
         tracing::warn!(family_id, error = %err, "failed to remove user theme");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::prelude::v1::test;
+
+    #[test]
+    fn test_format_number_integers_and_decimals() {
+        assert_eq!(format_number(12.0, 1.0), "12");
+        assert_eq!(format_number(0.0, 1.0), "0");
+        assert_eq!(format_number(-5.0, 1.0), "-5");
+
+        assert_eq!(format_number(12.5, 0.1), "12.5");
+        assert_eq!(format_number(12.25, 0.01), "12.25");
+        assert_eq!(format_number(12.250, 0.01), "12.25");
+        assert_eq!(format_number(12.200, 0.01), "12.2");
+        assert_eq!(format_number(12.00, 0.01), "12");
+    }
+
+    #[test]
+    fn test_title_case() {
+        assert_eq!(title_case("font"), "Font");
+        assert_eq!(title_case("theme"), "Theme");
+        assert_eq!(title_case(""), "");
+        assert_eq!(title_case("alreadyCapitalized"), "AlreadyCapitalized");
+    }
+
+    #[test]
+    fn test_clamping_logic() {
+        let clamp_val = |val: f64, min: Option<f64>, max: Option<f64>| -> f64 {
+            match (min, max) {
+                (Some(min), Some(max)) => val.clamp(min, max),
+                (Some(min), None) => val.max(min),
+                (None, Some(max)) => val.min(max),
+                (None, None) => val,
+            }
+        };
+
+        assert_eq!(clamp_val(5.0, Some(10.0), Some(20.0)), 10.0);
+        assert_eq!(clamp_val(25.0, Some(10.0), Some(20.0)), 20.0);
+        assert_eq!(clamp_val(15.0, Some(10.0), Some(20.0)), 15.0);
+        assert_eq!(clamp_val(5.0, Some(10.0), None), 10.0);
+        assert_eq!(clamp_val(15.0, None, Some(10.0)), 10.0);
+        assert_eq!(clamp_val(15.0, None, None), 15.0);
+    }
+}
+

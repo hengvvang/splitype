@@ -73,7 +73,12 @@ impl Block {
         let (_, trailing) = tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));
         (leading, trailing)
     }
-    pub fn on_paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
+    pub fn on_paste(&mut self, action: &Paste, window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(window) {
+            self.on_code_language_paste(action, window, cx);
+            return;
+        }
+
         if self.kind().is_thematic_break() && !self.edits_verbatim_text() {
             return;
         }
