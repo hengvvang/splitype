@@ -216,7 +216,7 @@ theme_section!(
         context_menu_submenu_gap: f32,
         /// Width of the table-axis context menu panel.
         context_menu_axis_panel_width: f32,
-        /// Corner radius of select dropdown trigger buttons.
+        /// Corner radius of select dropdown trigger buttons and unified input fields (2px).
         select_trigger_radius: f32,
         /// Corner radius of select dropdown floating panels.
         select_panel_radius: f32,

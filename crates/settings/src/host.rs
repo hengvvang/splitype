@@ -21,6 +21,7 @@ use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, Set
 use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
+use ui::SearchInput;
 use crate::form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsDismissHandler,
     SettingsKeyHandler, SettingsPasteHandler, nav_tab, render_number_field,
@@ -1261,6 +1262,16 @@ fn render_text_control(
     let on_dismiss = editable_dismiss_handler(state.clone(), key.clone());
     let on_paste = editable_paste_handler(state.clone(), key.clone(), false);
 
+    let is_active = is_editing;
+    let (box_bg, border_color) = if is_active {
+        (c.dialog_secondary_button_bg, c.dialog_border)
+    } else {
+        (
+            c.dialog_secondary_button_bg.opacity(0.55),
+            c.dialog_border.opacity(0.7),
+        )
+    };
+
     div()
         .id(ElementId::Name(format!("{id_namespace}-text-{key}").into()))
         .key_context("SettingsInput")
@@ -1272,13 +1283,12 @@ fn render_text_control(
         .h(px(28.0))
         .px(px(8.0))
         .rounded(px(d.select_trigger_radius))
-        .bg(if is_editing {
-            c.dialog_surface
-        } else {
-            c.dialog_secondary_button_bg
-        })
+        .bg(box_bg)
         .border_1()
-        .border_color(c.dialog_border)
+        .border_color(border_color)
+        .when(!is_active, |this| {
+            this.hover(|this| this.bg(c.panel_row_hover).border_color(c.dialog_border))
+        })
         .flex()
         .items_center()
         .child(
@@ -1304,12 +1314,12 @@ fn render_text_control(
                 .bottom_0()
                 .left_0()
                 .right_0()
-                .h(px(2.0))
+                .h(if is_active { px(2.0) } else { px(1.5) })
                 .rounded_b(px(d.select_trigger_radius))
-                .bg(if is_editing {
+                .bg(if is_active {
                     c.focus_accent
                 } else {
-                    c.dialog_border
+                    c.focus_accent.opacity(0.4)
                 }),
         )
         .on_click(start_edit(
@@ -1348,8 +1358,26 @@ fn render_picker(
     let is_open = state.read(cx).open_picker.as_deref() == Some(key.as_str());
     let label = current_label.unwrap_or_else(|| current_value.to_string());
 
+    let is_searchable = declaration.kind == SettingKind::Language;
+    let search_query = if is_searchable {
+        state
+            .read(cx)
+            .search_queries
+            .get(&key)
+            .cloned()
+            .unwrap_or_default()
+    } else {
+        String::new()
+    };
+    let focus_handle = if is_searchable {
+        Some(state.update(cx, |ui, cx| ui.focus_handle(&format!("{key}-search"), cx)))
+    } else {
+        None
+    };
+
     let toggle_state = state.clone();
     let toggle_key = key.clone();
+    let toggle_focus_handle = focus_handle.clone();
     let trigger = select_trigger(format!("{id_namespace}-picker-{key}"), c, d)
         .text_size(px(12.0))
         .text_color(c.text_default)
@@ -1363,22 +1391,37 @@ fn render_picker(
             ),
         )
         .on_click(Box::new(
-            move |_event: &ClickEvent, _window: &mut Window, cx: &mut App| {
-                toggle_state.update(cx, |ui, _| {
+            move |_event: &ClickEvent, window: &mut Window, cx: &mut App| {
+                let will_open = toggle_state.update(cx, |ui, _| {
                     ui.open_picker = if ui.open_picker.as_deref() == Some(toggle_key.as_str()) {
                         None
                     } else {
                         Some(toggle_key.clone())
                     };
+                    ui.open_picker.is_some()
                 });
+                if will_open {
+                    if let Some(ref fh) = toggle_focus_handle {
+                        window.focus(fh, cx);
+                    }
+                }
                 cx.refresh_windows();
             },
         ));
 
     let mut wrap = div().relative().child(trigger);
     if is_open {
+        let query_lower = search_query.trim().to_lowercase();
         let mut items = Vec::new();
         for option in &options {
+            if is_searchable
+                && !query_lower.is_empty()
+                && !option.label.to_lowercase().contains(&query_lower)
+                && !option.value.to_lowercase().contains(&query_lower)
+            {
+                continue;
+            }
+
             let is_selected = option.value == current_value;
             let option_value = option.value.clone();
             let option_label = option.label.clone();
@@ -1418,13 +1461,57 @@ fn render_picker(
                             &close_key,
                             Value::String(option_value.clone()),
                         );
-                        close_state.update(cx, |ui, _| ui.open_picker = None);
+                        close_state.update(cx, |ui, _| {
+                            ui.open_picker = None;
+                            ui.search_queries.remove(&close_key);
+                        });
                     },
                 ))
                 .into_any_element(),
             );
         }
-        wrap = wrap.child(gpui::deferred(select_panel(c, d).children(items)));
+
+        if is_searchable {
+            let search_state = state.clone();
+            let search_key = key.clone();
+            let search_box = div().mb(px(4.0)).child(
+                SearchInput::new(
+                    ElementId::Name(format!("{id_namespace}-picker-{key}-search").into()),
+                    search_query,
+                    focus_handle.unwrap(),
+                )
+                .placeholder("Search language…")
+                .autofocus(true)
+                .colors(c.clone())
+                .dimensions(d.clone())
+                .on_change(move |query, _window, cx| {
+                    search_state.update(cx, |ui, _| {
+                        ui.search_queries.insert(search_key.clone(), query);
+                    });
+                    cx.refresh_windows();
+                }),
+            );
+
+            let list_container = div()
+                .id(ElementId::Name(format!("{id_namespace}-picker-{key}-list").into()))
+                .w_full()
+                .max_h(px(220.0))
+                .overflow_y_scroll()
+                .flex()
+                .flex_col()
+                .gap(px(2.0))
+                .children(items);
+
+            let panel = select_panel(c, d)
+                .w(px(210.0))
+                .max_h(px(280.0))
+                .child(search_box)
+                .child(list_container);
+
+            wrap = wrap.child(gpui::deferred(panel));
+        } else {
+            wrap = wrap.child(gpui::deferred(select_panel(c, d).children(items)));
+        }
     }
     wrap.into_any_element()
 }
@@ -2005,6 +2092,23 @@ fn render_editable_number_control(
     let on_dismiss = editable_dismiss_handler(state.clone(), commit_key.clone());
     let on_paste = editable_paste_handler(state.clone(), commit_key, true);
 
+    let is_active = is_editing || overridden;
+    let (box_bg, border_color) = if is_active {
+        (
+            c.dialog_secondary_button_bg,
+            if overridden {
+                c.focus_accent
+            } else {
+                c.dialog_border
+            },
+        )
+    } else {
+        (
+            c.dialog_secondary_button_bg.opacity(0.55),
+            c.dialog_border.opacity(0.7),
+        )
+    };
+
     div()
         .id(ElementId::Name(
             format!("{id_namespace}-number-{edit_key}").into(),
@@ -2018,16 +2122,17 @@ fn render_editable_number_control(
         .h(px(28.0))
         .px(px(8.0))
         .rounded(px(d.select_trigger_radius))
-        .bg(if is_editing {
-            c.dialog_surface
-        } else {
-            c.dialog_secondary_button_bg
-        })
+        .bg(box_bg)
         .border_1()
-        .border_color(if overridden {
-            c.focus_accent
-        } else {
-            c.dialog_border
+        .border_color(border_color)
+        .when(!is_active, |this| {
+            this.hover(|this| {
+                this.bg(c.panel_row_hover).border_color(if overridden {
+                    c.focus_accent
+                } else {
+                    c.dialog_border
+                })
+            })
         })
         .flex()
         .items_center()
@@ -2050,12 +2155,12 @@ fn render_editable_number_control(
                 .bottom_0()
                 .left_0()
                 .right_0()
-                .h(px(2.0))
+                .h(if is_active { px(2.0) } else { px(1.5) })
                 .rounded_b(px(d.select_trigger_radius))
-                .bg(if is_editing {
+                .bg(if is_active {
                     c.focus_accent
                 } else {
-                    c.dialog_border
+                    c.focus_accent.opacity(0.4)
                 }),
         )
         .on_click(start_edit(
@@ -2252,6 +2357,23 @@ fn render_color_control(
     let on_dismiss = editable_dismiss_handler(state.clone(), edit_key.clone());
     let on_paste = editable_paste_handler(state.clone(), edit_key.clone(), false);
 
+    let is_active = is_editing || overridden;
+    let (box_bg, border_color) = if is_active {
+        (
+            c.dialog_secondary_button_bg,
+            if overridden {
+                c.focus_accent
+            } else {
+                c.dialog_border
+            },
+        )
+    } else {
+        (
+            c.dialog_secondary_button_bg.opacity(0.55),
+            c.dialog_border.opacity(0.7),
+        )
+    };
+
     div()
         .id(ElementId::Name(
             format!("{id_namespace}-color-{token_key}").into(),
@@ -2265,16 +2387,17 @@ fn render_color_control(
         .h(px(28.0))
         .px(px(8.0))
         .rounded(px(d.select_trigger_radius))
-        .bg(if is_editing {
-            c.dialog_surface
-        } else {
-            c.dialog_secondary_button_bg
-        })
+        .bg(box_bg)
         .border_1()
-        .border_color(if overridden {
-            c.focus_accent
-        } else {
-            c.dialog_border
+        .border_color(border_color)
+        .when(!is_active, |this| {
+            this.hover(|this| {
+                this.bg(c.panel_row_hover).border_color(if overridden {
+                    c.focus_accent
+                } else {
+                    c.dialog_border
+                })
+            })
         })
         .flex()
         .items_center()
@@ -2284,7 +2407,7 @@ fn render_color_control(
                 .flex_shrink_0()
                 .w(px(14.0))
                 .h(px(14.0))
-                .rounded(px(3.0))
+                .rounded(px(d.select_trigger_radius))
                 .border_1()
                 .border_color(c.dialog_border)
                 .bg(effective.unwrap_or(hsla(0.0, 0.0, 0.0, 0.0))),
@@ -2308,12 +2431,12 @@ fn render_color_control(
                 .bottom_0()
                 .left_0()
                 .right_0()
-                .h(px(2.0))
+                .h(if is_active { px(2.0) } else { px(1.5) })
                 .rounded_b(px(d.select_trigger_radius))
-                .bg(if is_editing {
+                .bg(if is_active {
                     c.focus_accent
                 } else {
-                    c.dialog_border
+                    c.focus_accent.opacity(0.4)
                 }),
         )
         .on_click(start_edit(

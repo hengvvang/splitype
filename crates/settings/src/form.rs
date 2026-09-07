@@ -191,7 +191,7 @@ pub fn settings_card_row(
                 .flex_shrink_0()
                 .cursor_pointer()
                 .p(px(2.0))
-                .rounded(px(3.0))
+                .rounded(px(2.0))
                 .hover(|s| s.bg(c.panel_row_hover))
                 .child(
                     svg()
@@ -330,11 +330,11 @@ pub fn render_number_field(
         .bottom_0()
         .left_0()
         .right_0()
-        .h(px(2.0))
+        .h(if is_editing { px(2.0) } else { px(1.5) })
         .bg(if is_editing {
             c.focus_accent
         } else {
-            gpui::transparent_black()
+            c.focus_accent.opacity(0.4)
         });
 
     let mut center_box = div()
@@ -354,7 +354,10 @@ pub fn render_number_field(
         .bg(if is_editing {
             c.dialog_surface
         } else {
-            c.dialog_secondary_button_bg
+            c.dialog_secondary_button_bg.opacity(0.55)
+        })
+        .when(!is_editing, |this| {
+            this.hover(|this| this.bg(c.panel_row_hover))
         })
         .on_click(props.on_start_edit)
         .on_key_down(props.on_key_down);

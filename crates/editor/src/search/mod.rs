@@ -8,7 +8,5 @@
 //! `Editor` entity), plus the render shell in `render`.
 
 pub mod engine;
-pub mod ime;
-pub mod input;
 pub mod panel;
 pub mod render;

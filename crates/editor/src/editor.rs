@@ -25,7 +25,6 @@ use platform_contracts::PanelId;
 
 use crate::document::{DocumentBuffer, DocumentStore};
 use crate::editor::pane_host::EditorPaneHost;
-use crate::editor::search_host::{EditorSearchIme, EditorSearchView};
 use crate::session::{DocumentTab, EditorSession, EditorTabList, PaneState, ScrollState};
 
 /// The Editor aggregate root entity.
@@ -34,8 +33,6 @@ pub struct Editor {
     pub entity_id: EntityId,
     pub host: Option<Arc<dyn DocumentHost>>,
     pub pane_host: Arc<dyn editor_contracts::PaneHost>,
-    pub search_view: Arc<dyn editor_contracts::SearchStateView>,
-    pub search_ime: Arc<dyn editor_contracts::SearchIme>,
     pub session: EditorSession,
     pub panel_rect: Option<Bounds<Pixels>>,
     pub is_active_panel: bool,
@@ -63,8 +60,6 @@ impl Editor {
             entity_id: cx.entity().entity_id(),
             host: None,
             pane_host: EditorPaneHost::new(cx.weak_entity()),
-            search_view: EditorSearchView::new(cx.weak_entity()),
-            search_ime: EditorSearchIme::new(cx.weak_entity()),
             session,
             panel_rect: None,
             is_active_panel: false,

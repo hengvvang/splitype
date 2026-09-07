@@ -9,7 +9,7 @@ pub mod state;
 #[cfg(test)]
 mod query_tests;
 
-pub use host::{SearchHost, SearchIme, SearchInputSnapshot, SearchStateView};
+pub use host::SearchHost;
 pub use query::{RawMatch, SearchQuery, compute_preserve_case_replacement};
 pub use state::{
     SearchActiveField, SearchMatch, SearchPanelState, SearchScope, SearchTextInput,

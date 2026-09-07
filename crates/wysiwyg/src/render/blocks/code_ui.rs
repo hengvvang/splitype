@@ -242,6 +242,8 @@ impl Block {
                 )
                 .placeholder(strings.code_language_search_placeholder.clone())
                 .autofocus(true)
+                .colors(c.clone())
+                .dimensions(d.clone())
                 .on_change(move |new_query, _window, cx| {
                     on_change_entity.update(cx, |block, cx| {
                         block.code_toolbar.picker.query = new_query;

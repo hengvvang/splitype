@@ -1,7 +1,7 @@
 //! Search and text input component with unified styling and keyboard interaction.
 //!
 //! Provides a standardized search input with:
-//! - Uniform styling matching the design system (28px height, rounded corners,
+//! - Uniform styling matching the design system (28px height, 2px rounded corners,
 //!   secondary button background, 1px dialog border).
 //! - Active bottom accent bar that lights up with `c.focus_accent` when focused
 //!   or when a query is present.
@@ -33,6 +33,9 @@ pub type InputSubmitHandler = Arc<dyn Fn(&str, &mut Window, &mut App) + 'static>
 
 /// Callback invoked on escape / dismiss.
 pub type InputDismissHandler = Arc<dyn Fn(&mut Window, &mut App) + 'static>;
+
+/// Callback invoked on key down before default handling; return `true` if handled.
+pub type InputKeyDownHandler = Arc<dyn Fn(&KeyDownEvent, &mut Window, &mut App) -> bool + 'static>;
 
 // ── UTF-8 / UTF-16 Offset Conversions ─────────────────────────────────────────
 
@@ -383,9 +386,11 @@ pub struct SearchInput {
     inactive_indicator_color: Option<Hsla>,
     custom_colors: Option<ThemeColors>,
     custom_dimensions: Option<ThemeDimensions>,
+    trailing: Vec<AnyElement>,
     on_change: Option<InputChangeHandler>,
     on_submit: Option<InputSubmitHandler>,
     on_dismiss: Option<InputDismissHandler>,
+    on_key_down: Option<InputKeyDownHandler>,
 }
 
 impl SearchInput {
@@ -407,9 +412,11 @@ impl SearchInput {
             inactive_indicator_color: None,
             custom_colors: None,
             custom_dimensions: None,
+            trailing: Vec::new(),
             on_change: None,
             on_submit: None,
             on_dismiss: None,
+            on_key_down: None,
         }
     }
 
@@ -461,6 +468,12 @@ impl SearchInput {
         self
     }
 
+    /// Appends a trailing element (e.g. toggle button, icon, status) inside the input container.
+    pub fn trailing(mut self, trailing: impl IntoElement) -> Self {
+        self.trailing.push(trailing.into_any_element());
+        self
+    }
+
     /// Sets the text change callback.
     pub fn on_change(
         mut self,
@@ -485,6 +498,15 @@ impl SearchInput {
         handler: impl Fn(&mut Window, &mut App) + 'static,
     ) -> Self {
         self.on_dismiss = Some(Arc::new(handler));
+        self
+    }
+
+    /// Sets a key-down interceptor. Return `true` to indicate the event was handled and stop further processing.
+    pub fn on_key_down(
+        mut self,
+        handler: impl Fn(&KeyDownEvent, &mut Window, &mut App) -> bool + 'static,
+    ) -> Self {
+        self.on_key_down = Some(Arc::new(handler));
         self
     }
 }
@@ -539,12 +561,19 @@ impl RenderOnce for SearchInput {
         let on_change_cb = self.on_change.clone();
         let on_submit_cb = self.on_submit.clone();
         let on_dismiss_cb = self.on_dismiss.clone();
+        let on_key_down_cb = self.on_key_down.clone();
         let focus_handle_kd = self.focus_handle.clone();
         let state_rc_kd = state_rc.clone();
 
         let key_down_handler = move |event: &KeyDownEvent, window: &mut Window, cx: &mut App| {
             if !focus_handle_kd.is_focused(window) {
                 return;
+            }
+            if let Some(ref on_key_down) = on_key_down_cb {
+                if on_key_down(event, window, cx) {
+                    cx.stop_propagation();
+                    return;
+                }
             }
             let keystroke = &event.keystroke;
             let ctrl = keystroke.modifiers.control || keystroke.modifiers.platform;
@@ -739,7 +768,7 @@ impl RenderOnce for SearchInput {
                     .flex_shrink_0()
                     .w(px(18.0))
                     .h(px(18.0))
-                    .rounded(px(3.5))
+                    .rounded(px(d.select_trigger_radius))
                     .flex()
                     .items_center()
                     .justify_center()
@@ -1000,6 +1029,7 @@ impl RenderOnce for SearchInput {
                 on_change: self.on_change.clone(),
             })
             .children(clear_button)
+            .children(self.trailing)
             .child(bottom_indicator)
     }
 }

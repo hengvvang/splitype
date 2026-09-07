@@ -26,8 +26,6 @@ impl Editor {
             crate::editor::search_host::EditorSearchHost::new(cx.weak_entity());
         crate::search::panel::render_search_panel_overlay(
             &self.search,
-            &self.search_view,
-            &self.search_ime,
             &host,
             theme,
             window,

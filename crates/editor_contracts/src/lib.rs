@@ -33,6 +33,6 @@ pub use pane::{
 pub use panel::DocumentPanel;
 pub use rope::Rope;
 pub use search::{
-    SearchActiveField, SearchHost, SearchIme, SearchInputSnapshot, SearchMatch, SearchPanelState,
-    SearchQuery, SearchScope, SearchStateView, SearchTextInput, compute_preserve_case_replacement,
+    SearchActiveField, SearchHost, SearchMatch, SearchPanelState, SearchQuery, SearchScope,
+    SearchTextInput, compute_preserve_case_replacement,
 };

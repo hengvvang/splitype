@@ -8,18 +8,14 @@ use std::sync::Arc;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::search::input::SearchInputElement;
-use editor_contracts::{
-    SearchActiveField, SearchHost, SearchIme, SearchPanelState, SearchScope, SearchStateView,
-};
+use editor_contracts::{SearchHost, SearchPanelState, SearchScope};
 use theme::{Theme, TypographyScope, TypographyStore};
+use ui::SearchInput;
 
 /// Renders the floating Search and Replace overlay panel in the top-right
 /// corner, or `None` when the panel is hidden.
 pub fn render_search_panel_overlay(
     state: &SearchPanelState,
-    view: &Arc<dyn SearchStateView>,
-    ime: &Arc<dyn SearchIme>,
     host: &Arc<dyn SearchHost>,
     theme: &Theme,
     _window: &mut Window,
@@ -72,7 +68,7 @@ pub fn render_search_panel_overlay(
         .id("search-filter-case")
         .px(px(4.0))
         .py(px(1.0))
-        .rounded(px(d.icon_button_radius))
+        .rounded(px(d.select_trigger_radius))
         .when(match_case, |this| this.bg(c.panel_row_hover))
         .text_color(if match_case {
             c.focus_accent
@@ -92,7 +88,7 @@ pub fn render_search_panel_overlay(
         .id("search-filter-word")
         .px(px(4.0))
         .py(px(1.0))
-        .rounded(px(d.icon_button_radius))
+        .rounded(px(d.select_trigger_radius))
         .when(whole_word, |this| this.bg(c.panel_row_hover))
         .text_color(if whole_word {
             c.focus_accent
@@ -118,7 +114,7 @@ pub fn render_search_panel_overlay(
         .id("search-filter-regex")
         .px(px(4.0))
         .py(px(1.0))
-        .rounded(px(d.icon_button_radius))
+        .rounded(px(d.select_trigger_radius))
         .when(use_regex, |this| this.bg(c.panel_row_hover))
         .text_color(if use_regex {
             c.focus_accent
@@ -134,56 +130,22 @@ pub fn render_search_panel_overlay(
         });
 
     // ── Search Input Box Container ──────────────────────────────────
-    let search_focus = state.search_focus_handle.clone();
-    let search_box_editor = host.clone();
-    let is_query_active = state.active_field == SearchActiveField::Query;
+    let search_host_change = host.clone();
+    let search_host_submit = host.clone();
+    let search_host_key = host.clone();
+    let search_host_dismiss = host.clone();
 
-    let search_bottom_indicator = div()
-        .absolute()
-        .bottom_0()
-        .left_0()
-        .right_0()
-        .h(px(2.0))
-        .rounded_b(px(d.select_trigger_radius))
-        .bg(if is_query_active {
-            c.focus_accent
-        } else {
-            c.dialog_border
-        });
-
-    let search_input_box = div()
-        .id("editor-search-input-box")
+    let search_input_box = div().flex_1().min_w(px(0.0)).child(
+        SearchInput::new(
+            "editor-search-query-input",
+            state.search_input.text.clone(),
+            state.search_focus_handle.clone(),
+        )
+        .placeholder("Search")
         .key_context("SearchQueryInput")
-        .track_focus(&search_focus)
-        .relative()
-        .overflow_hidden()
-        .flex_1()
-        .h(px(32.0))
-        .px(px(8.0))
-        .flex()
-        .items_center()
-        .gap(px(4.0))
-        .bg(c.dialog_surface)
-        .border_1()
-        .border_color(c.dialog_border)
-        .rounded(px(d.select_trigger_radius))
-        .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-            search_box_editor.focus_query(window, cx);
-        })
-        .on_key_down({
-            let host_key_down = host.clone();
-            move |event, window, cx| {
-                host_key_down.handle_key_down(event, window, cx);
-            }
-        })
-        .child(div().flex_1().min_w(px(0.0)).child(SearchInputElement {
-            view: view.clone(),
-            ime: ime.clone(),
-            host: host.clone(),
-            field: SearchActiveField::Query,
-            placeholder: "Search".into(),
-        }))
-        .child(
+        .colors(c.clone())
+        .dimensions(d.clone())
+        .trailing(
             div()
                 .flex()
                 .items_center()
@@ -192,7 +154,32 @@ pub fn render_search_panel_overlay(
                 .child(word_toggle)
                 .child(regex_toggle),
         )
-        .child(search_bottom_indicator);
+        .on_change(move |new_val, _window, cx| {
+            search_host_change.set_query(new_val, cx);
+        })
+        .on_submit(move |_val, window, cx| {
+            search_host_submit.next_match(window, cx);
+        })
+        .on_key_down(move |event, window, cx| {
+            let keystroke = &event.keystroke;
+            if keystroke.key == "enter" || keystroke.key == "return" {
+                if keystroke.modifiers.shift {
+                    search_host_key.prev_match(window, cx);
+                    return true;
+                }
+            } else if keystroke.key == "up" || keystroke.key == "arrowup" {
+                search_host_key.history_prev(cx);
+                return true;
+            } else if keystroke.key == "down" || keystroke.key == "arrowdown" {
+                search_host_key.history_next(cx);
+                return true;
+            }
+            false
+        })
+        .on_dismiss(move |_window, cx| {
+            search_host_dismiss.close(cx);
+        }),
+    );
 
     // ── Search Right Actions (Prev, Next, Scope, Close) ────────────
     let prev_editor = host.clone();
@@ -279,29 +266,12 @@ pub fn render_search_panel_overlay(
 
     // ── Replace Row (When Expanded) ──────────────────────────────────
     let replace_row = if show_replace {
-        let replace_focus = state.replace_focus_handle.clone();
-        let replace_box_editor = host.clone();
-        let is_replace_active = state.active_field == SearchActiveField::Replace;
-
-        let replace_bottom_indicator = div()
-            .absolute()
-            .bottom_0()
-            .left_0()
-            .right_0()
-            .h(px(2.0))
-            .rounded_b(px(d.select_trigger_radius))
-            .bg(if is_replace_active {
-                c.focus_accent
-            } else {
-                c.dialog_border
-            });
-
         let preserve_editor = host.clone();
         let preserve_toggle = div()
             .id("replace-filter-preserve-case")
             .px(px(4.0))
             .py(px(1.0))
-            .rounded(px(d.icon_button_radius))
+            .rounded(px(d.select_trigger_radius))
             .when(preserve_case, |this| this.bg(c.panel_row_hover))
             .text_color(if preserve_case {
                 c.focus_accent
@@ -316,46 +286,32 @@ pub fn render_search_panel_overlay(
                 preserve_editor.toggle_preserve_case(cx);
             });
 
-        let replace_input_box = div()
-            .id("editor-replace-input-box")
+        let replace_host_change = host.clone();
+        let replace_host_submit = host.clone();
+        let replace_input_box = div().flex_1().min_w(px(0.0)).child(
+            SearchInput::new(
+                "editor-search-replace-input",
+                state.replace_input.text.clone(),
+                state.replace_focus_handle.clone(),
+            )
+            .placeholder("Replace")
             .key_context("SearchReplaceInput")
-            .track_focus(&replace_focus)
-            .relative()
-            .overflow_hidden()
-            .flex_1()
-            .h(px(32.0))
-            .px(px(8.0))
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .bg(c.dialog_surface)
-            .border_1()
-            .border_color(c.dialog_border)
-            .rounded(px(d.select_trigger_radius))
-            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                replace_box_editor.focus_replace(window, cx);
-            })
-            .on_key_down({
-                let host_key_down = host.clone();
-                move |event, window, cx| {
-                    host_key_down.handle_key_down(event, window, cx);
-                }
-            })
-            .child(div().flex_1().min_w(px(0.0)).child(SearchInputElement {
-                view: view.clone(),
-                ime: ime.clone(),
-                host: host.clone(),
-                field: SearchActiveField::Replace,
-                placeholder: "Replace".into(),
-            }))
-            .child(
+            .colors(c.clone())
+            .dimensions(d.clone())
+            .trailing(
                 div()
                     .flex()
                     .items_center()
                     .gap(px(2.0))
                     .child(preserve_toggle),
             )
-            .child(replace_bottom_indicator);
+            .on_change(move |new_val, _window, cx| {
+                replace_host_change.set_replace(new_val, cx);
+            })
+            .on_submit(move |_val, window, cx| {
+                replace_host_submit.replace_current(window, cx);
+            }),
+        );
 
         let replace_single_editor = host.clone();
         let replace_single_btn = div()

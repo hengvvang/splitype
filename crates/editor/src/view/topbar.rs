@@ -233,7 +233,7 @@ impl Editor {
                 }
 
                 let height = toolbar_button_size(d.topbar_height);
-                let mut tab_button = div()
+                let tab_button = div()
                     .h(px(height))
                     .px(px(6.0))
                     .flex()
@@ -242,7 +242,6 @@ impl Editor {
                     .rounded(px(d.tab_radius))
                     .bg(tab_bg)
                     .hover(|this| this.bg(c.panel_row_hover))
-                    .relative()
                     .text_size(px(11.0))
                     .cursor_pointer()
                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
@@ -284,19 +283,6 @@ impl Editor {
                                 });
                             }),
                     );
-
-                if is_active {
-                    tab_button = tab_button.child(
-                        div()
-                            .absolute()
-                            .bottom_0()
-                            .left_0()
-                            .right_0()
-                            .h(px(1.5))
-                            .rounded_b(px(d.tab_radius))
-                            .bg(c.focus_accent),
-                    );
-                }
 
                 tab_elements.push(tab_button.into_any_element());
             }
