@@ -16,7 +16,7 @@ pub mod plugin;
 pub mod state;
 pub mod topbar;
 pub use bottombar::render_settings_bottombar;
-pub use form::{make_row, make_row_with_reset, make_searchable_card_row, make_searchable_row};
+pub use form::settings_card_row;
 pub use host::{render_settings_body, COMPACT_BREAKPOINT};
 pub use plugin::*;
 pub use state::SettingsUiState;

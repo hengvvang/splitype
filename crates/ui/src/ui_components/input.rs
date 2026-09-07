@@ -21,6 +21,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
 
@@ -378,6 +379,8 @@ pub struct SearchInput {
     autofocus: bool,
     key_context: Option<SharedString>,
     show_clear_button: bool,
+    clear_icon: Option<SharedString>,
+    inactive_indicator_color: Option<Hsla>,
     custom_colors: Option<ThemeColors>,
     custom_dimensions: Option<ThemeDimensions>,
     on_change: Option<InputChangeHandler>,
@@ -400,6 +403,8 @@ impl SearchInput {
             autofocus: false,
             key_context: None,
             show_clear_button: true,
+            clear_icon: None,
+            inactive_indicator_color: None,
             custom_colors: None,
             custom_dimensions: None,
             on_change: None,
@@ -429,6 +434,18 @@ impl SearchInput {
     /// Sets whether to show a clear button (×) when input is non-empty.
     pub fn show_clear_button(mut self, show: bool) -> Self {
         self.show_clear_button = show;
+        self
+    }
+
+    /// Sets a custom icon path for the clear button (defaults to `"icons/titlebar/chrome/close.svg"`).
+    pub fn clear_icon(mut self, icon: impl Into<SharedString>) -> Self {
+        self.clear_icon = Some(icon.into());
+        self
+    }
+
+    /// Sets a custom indicator line color when the input is not active.
+    pub fn inactive_indicator_color(mut self, color: Hsla) -> Self {
+        self.inactive_indicator_color = Some(color);
         self
     }
 
@@ -704,7 +721,13 @@ impl RenderOnce for SearchInput {
             }
         };
 
-        // Clear button (x)
+        // Clear button using the unified window close icon
+        let clear_icon_path = self
+            .clear_icon
+            .as_deref()
+            .unwrap_or("icons/titlebar/chrome/close.svg")
+            .to_string();
+
         let clear_button = if self.show_clear_button && !is_empty {
             let on_change_clear = self.on_change.clone();
             let focus_handle_clear = self.focus_handle.clone();
@@ -714,13 +737,15 @@ impl RenderOnce for SearchInput {
                     .id((self.id.clone(), "clear"))
                     .cursor_pointer()
                     .flex_shrink_0()
-                    .w(px(16.0))
-                    .h(px(16.0))
-                    .rounded_full()
+                    .w(px(18.0))
+                    .h(px(18.0))
+                    .rounded(px(3.5))
                     .flex()
                     .items_center()
                     .justify_center()
-                    .hover(|this| this.bg(c.panel_row_hover))
+                    .text_color(c.dialog_muted)
+                    .hover(|this| this.bg(c.panel_row_hover).text_color(c.text_default))
+                    .active(|this| this.bg(c.panel_row_hover))
                     .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                         cx.stop_propagation();
                         focus_handle_clear.focus(window, cx);
@@ -738,29 +763,32 @@ impl RenderOnce for SearchInput {
                         window.refresh();
                     })
                     .child(
-                        div()
-                            .text_size(px(11.0))
-                            .text_color(c.dialog_muted)
-                            .line_height(px(11.0))
-                            .child("×"),
+                        svg()
+                            .path(clear_icon_path)
+                            .size(px(8.5)),
                     ),
             )
         } else {
             None
         };
 
-        // Bottom indicator line (retained exactly as requested)
+        // Bottom indicator line: when active, full focus accent (2px);
+        // when inactive, uses a refined accent indicator color (1.5px) instead of dull gray border.
+        let inactive_indicator = self
+            .inactive_indicator_color
+            .unwrap_or_else(|| c.focus_accent.opacity(0.4));
+
         let bottom_indicator = div()
             .absolute()
             .bottom_0()
             .left_0()
             .right_0()
-            .h(px(2.0))
+            .h(if is_active { px(2.0) } else { px(1.5) })
             .rounded_b(px(d.select_trigger_radius))
             .bg(if is_active {
                 c.focus_accent
             } else {
-                c.dialog_border
+                inactive_indicator
             });
 
         let on_dismiss_action = self.on_dismiss.clone();
@@ -781,6 +809,15 @@ impl RenderOnce for SearchInput {
 
         let key_context = self.key_context.as_deref().unwrap_or("SearchInput");
 
+        let (box_bg, border_color) = if is_active {
+            (c.dialog_secondary_button_bg, c.dialog_border)
+        } else {
+            (
+                c.dialog_secondary_button_bg.opacity(0.55),
+                c.dialog_border.opacity(0.7),
+            )
+        };
+
         div()
             .id(self.id.clone())
             .key_context(key_context)
@@ -795,9 +832,12 @@ impl RenderOnce for SearchInput {
             .h(px(28.0))
             .px(px(8.0))
             .rounded(px(d.select_trigger_radius))
-            .bg(c.dialog_secondary_button_bg)
+            .bg(box_bg)
             .border_1()
-            .border_color(c.dialog_border)
+            .border_color(border_color)
+            .when(!is_active, |this| {
+                this.hover(|this| this.bg(c.panel_row_hover).border_color(c.dialog_border))
+            })
             .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                 cx.stop_propagation();
                 focus_handle_click.focus(window, cx);
@@ -1354,139 +1394,16 @@ impl InputHandler for SearchInputHandler {
     }
 }
 
-/// Convenience function to construct a [`SearchInput`].
-pub fn search_input(
-    id: impl Into<ElementId>,
-    value: impl Into<SharedString>,
-    focus_handle: FocusHandle,
-) -> SearchInput {
-    SearchInput::new(id, value, focus_handle)
-}
+/// Canonical alias: [`SearchInput`] serves as the unified text input component across the application.
+pub type TextInput = SearchInput;
 
-/// Result of handling a keystroke on a search input.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SearchKeyAction {
-    /// No change / ignored keystroke.
-    Ignored,
-    /// Value updated to a new string.
-    Change(String),
-    /// Submit triggered (e.g. Enter).
-    Submit,
-    /// Dismiss triggered (e.g. Escape).
-    Dismiss,
-}
-
-/// Pure helper that computes the next search input action for a keystroke.
-pub fn handle_search_keystroke(
-    current: &str,
-    key: &str,
-    key_char: Option<&str>,
-    ctrl: bool,
-    alt: bool,
-) -> SearchKeyAction {
-    let lower_key = key.to_lowercase();
-    if ctrl && !alt {
-        match lower_key.as_str() {
-            "a" => return SearchKeyAction::Ignored,
-            "backspace" => return SearchKeyAction::Change(String::new()),
-            _ => {}
-        }
-    }
-
-    match lower_key.as_str() {
-        "escape" => SearchKeyAction::Dismiss,
-        "enter" | "return" => SearchKeyAction::Submit,
-        "backspace" | "delete" => {
-            let mut new_str = current.to_string();
-            new_str.pop();
-            SearchKeyAction::Change(new_str)
-        }
-        "space" => {
-            let mut new_str = current.to_string();
-            new_str.push(' ');
-            SearchKeyAction::Change(new_str)
-        }
-        _ => {
-            if !ctrl && !alt {
-                let text = key_char.unwrap_or_else(|| {
-                    if key.chars().count() == 1 {
-                        key
-                    } else {
-                        ""
-                    }
-                });
-                if !text.is_empty() && !text.chars().any(|ch| ch.is_control()) {
-                    let mut new_str = current.to_string();
-                    new_str.push_str(text);
-                    return SearchKeyAction::Change(new_str);
-                }
-            }
-            SearchKeyAction::Ignored
-        }
-    }
-}
+/// Canonical alias: [`SearchInput`] serves as the unified input component across the application.
+pub type Input = SearchInput;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use core::prelude::v1::test;
-
-    #[test]
-    fn test_search_keystroke_typing() {
-        // Typing ASCII character
-        let action = handle_search_keystroke("rust", "c", None, false, false);
-        assert_eq!(action, SearchKeyAction::Change("rustc".to_string()));
-
-        // Typing character with key_char
-        let action = handle_search_keystroke("rust", "C", Some("C"), false, false);
-        assert_eq!(action, SearchKeyAction::Change("rustC".to_string()));
-
-        // Typing space
-        let action = handle_search_keystroke("hello", "space", None, false, false);
-        assert_eq!(action, SearchKeyAction::Change("hello ".to_string()));
-    }
-
-    #[test]
-    fn test_search_keystroke_backspace_and_delete() {
-        let action = handle_search_keystroke("abc", "backspace", None, false, false);
-        assert_eq!(action, SearchKeyAction::Change("ab".to_string()));
-
-        let action = handle_search_keystroke("abc", "delete", None, false, false);
-        assert_eq!(action, SearchKeyAction::Change("ab".to_string()));
-
-        // Backspacing empty string doesn't panic
-        let action = handle_search_keystroke("", "backspace", None, false, false);
-        assert_eq!(action, SearchKeyAction::Change("".to_string()));
-    }
-
-    #[test]
-    fn test_search_keystroke_ctrl_shortcuts() {
-        // Ctrl+Backspace clears the entire query
-        let action = handle_search_keystroke("full query", "backspace", None, true, false);
-        assert_eq!(action, SearchKeyAction::Change("".to_string()));
-
-        // Ctrl+A is handled without inserting 'a'
-        let action = handle_search_keystroke("test", "a", None, true, false);
-        assert_eq!(action, SearchKeyAction::Ignored);
-    }
-
-    #[test]
-    fn test_search_keystroke_submit_and_dismiss() {
-        let action = handle_search_keystroke("test", "enter", None, false, false);
-        assert_eq!(action, SearchKeyAction::Submit);
-
-        let action = handle_search_keystroke("test", "escape", None, false, false);
-        assert_eq!(action, SearchKeyAction::Dismiss);
-    }
-
-    #[test]
-    fn test_search_keystroke_ignores_special_keys() {
-        let action = handle_search_keystroke("test", "F1", None, false, false);
-        assert_eq!(action, SearchKeyAction::Ignored);
-
-        let action = handle_search_keystroke("test", "Shift", None, false, false);
-        assert_eq!(action, SearchKeyAction::Ignored);
-    }
 
     #[test]
     fn test_search_input_handler_text_and_selection() {

@@ -65,7 +65,7 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "topbar/split-v.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/split-v.svg"
         ))),
-        "topbar/close.svg" => Some(Cow::Borrowed(include_bytes!(
+        "topbar/close.svg" | "close.svg" | "icons/titlebar/chrome/close.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/close.svg"
         ))),
         "topbar/maximize.svg" => Some(Cow::Borrowed(include_bytes!(

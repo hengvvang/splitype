@@ -13,20 +13,6 @@ use ui::select::{select_option, select_panel, select_trigger};
 use ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
 
 
-/// Card container holding a section header and its body.
-pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
-    div()
-        .relative()
-        .w_full()
-        .min_w(px(0.0))
-        .rounded(px(d.section_card_radius))
-        .bg(c.dialog_surface)
-        .border_1()
-        .border_color(c.dialog_border)
-        .flex()
-        .flex_col()
-}
-
 /// Settings row container — title/description label and a control on the right.
 pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
@@ -74,18 +60,6 @@ pub type SettingsPasteHandler =
 pub type SettingsSearchHandler = Box<dyn Fn(String, &mut Window, &mut App)>;
 /// Option select handler: takes the option value and returns a click handler.
 pub type SettingsOptionHandler<T> = Box<dyn Fn(T) -> SettingsClickHandler>;
-
-/// A settings row with a title, description, and control.
-pub fn make_row(
-    inner_border_color: Hsla,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-    title: impl Into<SharedString>,
-    desc: impl Into<SharedString>,
-    control: AnyElement,
-) -> AnyElement {
-    make_row_with_reset(inner_border_color, c, d, title, desc, None, control)
-}
 
 /// Highlights occurrences of words in `query` within `text` using `StyledText` and `HighlightStyle`.
 pub fn highlight_search_text(
@@ -170,27 +144,20 @@ pub fn highlight_search_text(
         .into_any_element()
 }
 
-/// A settings row designed after Windows 11 SettingsCard with dynamic multi-line
+/// A unified settings row designed after Windows 11 SettingsCard with dynamic multi-line
 /// description wrapping, optional icon, optional chevron, and non-shrinking right control.
-pub fn make_searchable_card_row(
-    inner_border_color: Hsla,
+pub fn settings_card_row(
     c: &ThemeColors,
     d: &ThemeDimensions,
     icon: Option<&'static str>,
     title: &str,
     desc: &str,
     query: &str,
-    is_matched: bool,
     on_reset: Option<SettingsClickHandler>,
     control: AnyElement,
     has_chevron: bool,
 ) -> AnyElement {
     let has_query = !query.trim().is_empty();
-    let effective_border = if is_matched && has_query {
-        c.focus_accent
-    } else {
-        inner_border_color
-    };
 
     let title_element = if has_query {
         div()
@@ -317,64 +284,10 @@ pub fn make_searchable_card_row(
         );
     }
 
-    let mut row = settings_row(effective_border, c, d);
-    if is_matched && has_query {
-        row = row.bg(c.panel_row_hover);
-    }
-
-    row.child(left_side).child(control_area).into_any_element()
-}
-
-/// A settings row with an optional reset-to-default button and search highlight support.
-pub fn make_searchable_row(
-    inner_border_color: Hsla,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-    title: &str,
-    desc: &str,
-    query: &str,
-    is_matched: bool,
-    on_reset: Option<SettingsClickHandler>,
-    control: AnyElement,
-) -> AnyElement {
-    make_searchable_card_row(
-        inner_border_color,
-        c,
-        d,
-        None,
-        title,
-        desc,
-        query,
-        is_matched,
-        on_reset,
-        control,
-        false,
-    )
-}
-
-/// A settings row with an optional reset-to-default button next to the title.
-pub fn make_row_with_reset(
-    inner_border_color: Hsla,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-    title: impl Into<SharedString>,
-    desc: impl Into<SharedString>,
-    on_reset: Option<SettingsClickHandler>,
-    control: AnyElement,
-) -> AnyElement {
-    let title_str = title.into();
-    let desc_str = desc.into();
-    make_searchable_row(
-        inner_border_color,
-        c,
-        d,
-        title_str.as_ref(),
-        desc_str.as_ref(),
-        "",
-        false,
-        on_reset,
-        control,
-    )
+    settings_row(c.dialog_border, c, d)
+        .child(left_side)
+        .child(control_area)
+        .into_any_element()
 }
 
 /// Inline numeric field with steppers and keyboard editing.

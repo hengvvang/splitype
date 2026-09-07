@@ -21,11 +21,10 @@ use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, Set
 use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
-use ui::SearchInput;
 use crate::form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsDismissHandler,
-    SettingsKeyHandler, SettingsPasteHandler, make_row, make_row_with_reset, nav_tab,
-    render_number_field, render_searchable_font_picker, section_card,
+    SettingsKeyHandler, SettingsPasteHandler, nav_tab, render_number_field,
+    render_searchable_font_picker, settings_card_row,
 };
 
 
@@ -653,16 +652,13 @@ fn render_appearance_page(
                     })
                     .into_any_element();
 
-                let is_override_match = !query.is_empty() && ("color".contains(query) || "override".contains(query));
-                let color_overrides_row = crate::form::make_searchable_card_row(
-                    c.dialog_border,
+                let color_overrides_row = settings_card_row(
                     c,
                     d,
                     Some("plugin://splitype.settings/sun.svg"),
                     "Theme Color Overrides",
                     "Fine-tune individual token colors, UI dimensions, and typography scales",
                     query,
-                    is_override_match,
                     None,
                     goto_button,
                     true,
@@ -863,8 +859,6 @@ fn render_setting_row(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    let border_color = c.dialog_border;
-
     let current = current_value(plugin_id, declaration, cx);
     let control = render_control(
         id_namespace,
@@ -890,18 +884,15 @@ fn render_setting_row(
         },
     );
 
-    let is_matched = declaration_matches(declaration, query);
     let icon = icon_for_setting(&declaration.key);
 
-    crate::form::make_searchable_card_row(
-        border_color,
+    settings_card_row(
         c,
         d,
         icon,
         &declaration.title,
         declaration.description.as_deref().unwrap_or_default(),
         query,
-        is_matched,
         Some(reset),
         control,
         false,
@@ -1629,7 +1620,7 @@ fn title_case(input: &str) -> String {
 fn render_theme_overrides_panel(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
-    global_query: &str,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -1663,43 +1654,11 @@ fn render_theme_overrides_panel(
         ));
     }
 
-    let search_key = format!("{id_namespace}-theme-overrides");
-    let inline_query = state
-        .read(cx)
-        .search_queries
-        .get(&search_key)
-        .cloned()
-        .unwrap_or_default()
-        .to_lowercase();
-    let effective_query = if !inline_query.is_empty() {
-        inline_query
-    } else {
-        global_query.to_lowercase()
-    };
-
-    let search_focus = state.update(cx, |ui, cx| ui.focus_handle(&search_key, cx));
-    let search_state = state.clone();
-    let search_state_key = search_key.clone();
-    let search_input = SearchInput::new(
-        ElementId::Name(format!("{search_key}-input").into()),
-        effective_query.clone(),
-        search_focus,
-    )
-    .placeholder("Search color tokens…")
-    .colors(c.clone())
-    .dimensions(d.clone())
-    .on_change(move |new_query, _window, cx| {
-        search_state.update(cx, |ui, _| {
-            ui.search_queries.insert(search_state_key.clone(), new_query);
-        });
-        cx.refresh_windows();
-    });
-
-
+    let query_lower = query.to_lowercase();
     let mut rows: Vec<AnyElement> = Vec::new();
     for (token_key, display, effective) in tokens {
-        let is_matched = !effective_query.is_empty() && display.to_lowercase().contains(&effective_query);
-        if !effective_query.is_empty() && !is_matched && !"color overrides".contains(&effective_query) {
+        let is_matched = !query_lower.is_empty() && display.to_lowercase().contains(&query_lower);
+        if !query_lower.is_empty() && !is_matched && !"color overrides".contains(&query_lower) {
             continue;
         }
         let overridden = overrides.contains_key(&token_key);
@@ -1738,54 +1697,44 @@ fn render_theme_overrides_panel(
             d,
             cx,
         );
-        rows.push(crate::form::make_searchable_row(
-            c.dialog_border,
+        rows.push(settings_card_row(
             c,
             d,
+            None,
             &display,
             &desc,
-            &effective_query,
-            is_matched,
+            query,
             reset,
             control,
+            false,
         ));
     }
 
-    let mut colors_card = section_card(c, d)
-        .child(
-            div()
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(c.text_default)
-                .child("Color Overrides"),
-        );
-
-    if rows.is_empty() && !effective_query.is_empty() {
-        colors_card = colors_card.child(render_no_results(&effective_query, c));
+    let colors_card = if rows.is_empty() && !query.is_empty() {
+        render_no_results(query, c)
     } else {
-        colors_card = colors_card.children(rows);
-    }
+        render_setting_group("Color Overrides", rows, query, c)
+    };
 
     div()
         .w_full()
         .min_w(px(0.0))
         .flex()
         .flex_col()
-        .gap(px(10.0))
-        .child(search_input)
+        .gap(px(16.0))
         .child(colors_card)
         .child(render_dimension_overrides_card(
             id_namespace,
             state,
             theme,
-            &effective_query,
+            query,
             cx,
         ))
         .child(render_typography_overrides_card(
             id_namespace,
             state,
             theme,
-            &effective_query,
+            query,
             cx,
         ))
         .into_any_element()
@@ -1809,9 +1758,11 @@ fn render_dimension_overrides_card(
         .clone();
     let resolved = serde_json::to_value(&theme.dimensions).unwrap_or_default();
 
+    let query_lower = query.to_lowercase();
     let mut rows: Vec<AnyElement> = Vec::new();
     for field in theme::ThemeDimensions::TOKEN_FIELD_NAMES {
-        if !query.is_empty() && !field.to_lowercase().contains(query) {
+        let is_matched = !query_lower.is_empty() && field.to_lowercase().contains(&query_lower);
+        if !query_lower.is_empty() && !is_matched && !"dimension overrides".contains(&query_lower) {
             continue;
         }
         let effective = resolved
@@ -1831,35 +1782,33 @@ fn render_dimension_overrides_card(
         };
         let control =
             render_dimension_control(id_namespace, state, field, effective, overridden, c, d, cx);
-        rows.push(make_row_with_reset(
-            c.dialog_border,
+        let desc = format!(
+            "{} · {}",
+            if overridden {
+                "Overridden"
+            } else {
+                "Inherited"
+            },
+            format_number(effective, 0.01),
+        );
+        rows.push(settings_card_row(
             c,
             d,
+            None,
             *field,
-            format!(
-                "{} · {}",
-                if overridden {
-                    "Overridden"
-                } else {
-                    "Inherited"
-                },
-                format_number(effective, 0.01),
-            ),
+            &desc,
+            query,
             reset,
             control,
+            false,
         ));
     }
 
-    section_card(c, d)
-        .child(
-            div()
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(c.text_default)
-                .child("Dimension Overrides"),
-        )
-        .children(rows)
-        .into_any_element()
+    if rows.is_empty() && !query.is_empty() {
+        render_no_results(query, c)
+    } else {
+        render_setting_group("Dimension Overrides", rows, query, c)
+    }
 }
 
 /// Renders the typography-override card: inline numeric rows for size
@@ -1879,9 +1828,11 @@ fn render_typography_overrides_card(
         .clone();
     let resolved = serde_json::to_value(&theme.typography).unwrap_or_default();
 
+    let query_lower = query.to_lowercase();
     let mut rows: Vec<AnyElement> = Vec::new();
     for field in theme::TYPOGRAPHY_SIZE_FIELDS {
-        if !query.is_empty() && !field.to_lowercase().contains(query) {
+        let is_matched = !query_lower.is_empty() && field.to_lowercase().contains(&query_lower);
+        if !query_lower.is_empty() && !is_matched && !"typography overrides".contains(&query_lower) {
             continue;
         }
         let effective = resolved
@@ -1919,26 +1870,30 @@ fn render_typography_overrides_card(
             },
             cx,
         );
-        rows.push(make_row_with_reset(
-            c.dialog_border,
+        let desc = format!(
+            "{} · {}",
+            if overridden {
+                "Overridden"
+            } else {
+                "Inherited"
+            },
+            format_number(effective, 0.01),
+        );
+        rows.push(settings_card_row(
             c,
             d,
+            None,
             *field,
-            format!(
-                "{} · {}",
-                if overridden {
-                    "Overridden"
-                } else {
-                    "Inherited"
-                },
-                format_number(effective, 0.01),
-            ),
+            &desc,
+            query,
             reset,
             control,
+            false,
         ));
     }
     for field in theme::TYPOGRAPHY_WEIGHT_FIELDS {
-        if !query.is_empty() && !field.to_lowercase().contains(query) {
+        let is_matched = !query_lower.is_empty() && field.to_lowercase().contains(&query_lower);
+        if !query_lower.is_empty() && !is_matched && !"typography overrides".contains(&query_lower) {
             continue;
         }
         let effective = resolved
@@ -1959,35 +1914,33 @@ fn render_typography_overrides_card(
         };
         let control =
             render_weight_control(id_namespace, state, field, &effective, overridden, c, d, cx);
-        rows.push(make_row_with_reset(
-            c.dialog_border,
+        let desc = format!(
+            "{} · {}",
+            if overridden {
+                "Overridden"
+            } else {
+                "Inherited"
+            },
+            effective,
+        );
+        rows.push(settings_card_row(
             c,
             d,
+            None,
             *field,
-            format!(
-                "{} · {}",
-                if overridden {
-                    "Overridden"
-                } else {
-                    "Inherited"
-                },
-                effective,
-            ),
+            &desc,
+            query,
             reset,
             control,
+            false,
         ));
     }
 
-    section_card(c, d)
-        .child(
-            div()
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(c.text_default)
-                .child("Typography Overrides"),
-        )
-        .children(rows)
-        .into_any_element()
+    if rows.is_empty() && !query.is_empty() {
+        render_no_results(query, c)
+    } else {
+        render_setting_group("Typography Overrides", rows, query, c)
+    }
 }
 
 /// Inline numeric input committing `theme.dimension_overrides` values.
@@ -2455,30 +2408,24 @@ fn render_installed_themes_panel(id_namespace: &str, theme: &Theme, cx: &mut App
             .child(if is_current { "Active" } else { "Remove" })
             .on_click(remove)
             .into_any_element();
-        rows.push(make_row(
-            c.dialog_border,
+        rows.push(settings_card_row(
             c,
             d,
-            label.clone(),
+            None,
+            &label,
             if is_current {
                 "Currently selected"
             } else {
                 "Imported theme"
             },
+            "",
+            None,
             control,
+            false,
         ));
     }
 
-    section_card(c, d)
-        .child(
-            div()
-                .text_size(px(13.0))
-                .font_weight(FontWeight::BOLD)
-                .text_color(c.text_default)
-                .child("Installed Themes"),
-        )
-        .children(rows)
-        .into_any_element()
+    render_setting_group("Installed Themes", rows, "", c)
 }
 
 /// Removes an imported theme: settings first (so the sync hook re-resolves
