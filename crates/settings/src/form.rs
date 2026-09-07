@@ -174,11 +174,25 @@ pub fn render_number_field(
     let inc_id = ElementId::Name(format!("{id_prefix}-inc").into());
     let center_id = ElementId::Name(format!("{id_prefix}-center").into());
 
+    let bottom_indicator = div()
+        .absolute()
+        .bottom_0()
+        .left_0()
+        .right_0()
+        .h(px(2.0))
+        .bg(if is_editing {
+            c.focus_accent
+        } else {
+            gpui::transparent_black()
+        });
+
     let mut center_box = div()
         .id(center_id)
         .key_context("NumberField")
         .track_focus(&props.focus_handle)
         .cursor_text()
+        .relative()
+        .overflow_hidden()
         .h_full()
         .flex_1()
         .min_w(px(0.0))
@@ -190,9 +204,6 @@ pub fn render_number_field(
             c.dialog_surface
         } else {
             c.dialog_secondary_button_bg
-        })
-        .when(is_editing, |this| {
-            this.border_y_1().border_color(c.focus_accent)
         })
         .on_click(props.on_start_edit)
         .on_key_down(props.on_key_down);
@@ -211,22 +222,24 @@ pub fn render_number_field(
         });
     }
 
-    let center_box = center_box.child(
-        div()
-            .flex()
-            .items_center()
-            .justify_center()
-            .child(
-                div()
-                    .text_size(px(12.0))
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(c.text_default)
-                    .child(text_to_show),
-            )
-            .when(is_editing, |this| {
-                this.child(div().w(px(1.5)).h(px(13.0)).ml(px(1.0)).bg(c.focus_accent))
-            }),
-    );
+    let center_box = center_box
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(c.text_default)
+                        .child(text_to_show),
+                )
+                .when(is_editing, |this| {
+                    this.child(div().w(px(1.5)).h(px(13.0)).ml(px(1.0)).bg(c.focus_accent))
+                }),
+        )
+        .child(bottom_indicator);
 
     stepper_container(c, d)
         .child(
