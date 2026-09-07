@@ -5,7 +5,7 @@
 //! rendered from manifest-declared settings schemas ([`host`]). It imports
 //! no other plugin.
 
-use crate::host::render_settings_body;
+use crate::host::{render_settings_body, COMPACT_BREAKPOINT};
 use crate::render_settings_bottombar;
 use crate::render_settings_topbar;
 use crate::state::{PersistedSettingsState, SettingsUiState};
@@ -71,7 +71,7 @@ impl PanelView for SettingsPanelView {
     fn render(
         &mut self,
         ctx: &PanelRenderContext,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
         let theme = ctx.theme;
@@ -85,8 +85,14 @@ impl PanelView for SettingsPanelView {
             ctx.is_maximized,
             cx,
         );
-        let body = render_settings_body(&format!("panel-{}", ctx.panel_id.0), state.clone(), theme, cx);
-        let bottombar = render_settings_bottombar(&format!("panel-{}", ctx.panel_id.0), &state, theme, cx);
+        let view_width = ctx
+            .bounds
+            .map(|b| f32::from(b.size.width))
+            .unwrap_or_else(|| f32::from(window.viewport_size().width));
+        let is_compact = view_width < COMPACT_BREAKPOINT;
+
+        let body = render_settings_body(&format!("panel-{}", ctx.panel_id.0), state.clone(), is_compact, theme, cx);
+        let bottombar = render_settings_bottombar(&format!("panel-{}", ctx.panel_id.0), &state, is_compact, theme, cx);
 
         div()
             .w_full()

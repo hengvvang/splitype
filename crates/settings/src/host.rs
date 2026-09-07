@@ -42,6 +42,9 @@ const NAV_APPEARANCE: &str = "core.appearance";
 const NAV_COLOR_OVERRIDES: &str = "core.color_overrides";
 const NAV_TYPOGRAPHY: &str = "core.typography";
 
+/// Screen width breakpoint under which the settings rail is hidden into a floating menu drawer.
+pub const COMPACT_BREAKPOINT: f32 = 540.0;
+
 /// Whether a declaration matches the search query.
 pub fn declaration_matches(declaration: &SettingDeclaration, query: &str) -> bool {
     let q = query.trim().to_lowercase();
@@ -187,16 +190,19 @@ pub fn render_no_results(query: &str, c: &ThemeColors) -> AnyElement {
         .into_any_element()
 }
 
-/// Renders the two-column settings body: categorized navigation rail over
-/// preferences and feature panels, and the active page's settings.
+/// Renders the settings body: categorized navigation rail over preferences
+/// and feature panels, and the active page's settings.
+/// When `is_compact` is true, the left rail is hidden into a floating overlay drawer.
 pub fn render_settings_body(
     id_namespace: &str,
     state: Entity<SettingsUiState>,
+    is_compact: bool,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
+    let is_menu_open = state.read(cx).is_menu_open;
 
     let manifests: Vec<Arc<PluginManifest>> =
         PluginRegistry::registered_manifests().unwrap_or_default();
@@ -339,18 +345,6 @@ pub fn render_settings_body(
         );
     }
 
-    let nav_rail = div()
-        .w(px(180.0))
-        .h_full()
-        .flex_shrink_0()
-        .p(px(8.0))
-        .border_r_1()
-        .border_color(c.dialog_border)
-        .flex()
-        .flex_col()
-        .gap(px(2.0))
-        .children(nav_items);
-
     let content = if visible_pref_items.is_empty() && visible_panel_plugins.is_empty() && !query.is_empty() {
         render_no_results(&query, c)
     } else {
@@ -393,16 +387,69 @@ pub fn render_settings_body(
         .gap(px(12.0))
         .child(content);
 
-    div()
+    let mut container = div()
         .w_full()
         .h_full()
         .min_w(px(0.0))
+        .relative()
         .flex()
         .flex_row()
-        .bg(c.editor_background)
-        .child(nav_rail)
-        .child(right_content)
-        .into_any_element()
+        .bg(c.editor_background);
+
+    if !is_compact {
+        let nav_rail = div()
+            .w(px(180.0))
+            .h_full()
+            .flex_shrink_0()
+            .p(px(8.0))
+            .border_r_1()
+            .border_color(c.dialog_border)
+            .flex()
+            .flex_col()
+            .gap(px(2.0))
+            .children(nav_items);
+
+        container = container.child(nav_rail).child(right_content);
+    } else {
+        container = container.child(right_content);
+
+        if is_menu_open {
+            let backdrop_state = state.clone();
+            let backdrop = div()
+                .id(ElementId::Name(format!("{id_namespace}-menu-backdrop").into()))
+                .absolute()
+                .inset_0()
+                .bg(rgba(0x00000033))
+                .on_click(move |_event, _window, cx| {
+                    backdrop_state.update(cx, |ui, _| {
+                        ui.is_menu_open = false;
+                    });
+                    cx.refresh_windows();
+                });
+
+            let floating_drawer = div()
+                .id(ElementId::Name(format!("{id_namespace}-floating-menu").into()))
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .left_0()
+                .w(px(180.0))
+                .h_full()
+                .p(px(8.0))
+                .bg(c.dialog_surface)
+                .border_r_1()
+                .border_color(c.dialog_border)
+                .shadow_lg()
+                .flex()
+                .flex_col()
+                .gap(px(2.0))
+                .children(nav_items);
+
+            container = container.child(backdrop).child(floating_drawer);
+        }
+    }
+
+    container.into_any_element()
 }
 
 fn render_nav_item(
@@ -450,6 +497,7 @@ fn render_nav_item(
         .on_click(move |_event, _window, cx| {
             nav_state.update(cx, |ui, _| {
                 ui.active_plugin = target.clone();
+                ui.is_menu_open = false;
             });
             cx.refresh_windows();
         });

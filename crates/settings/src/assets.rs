@@ -48,6 +48,9 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "undo.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/undo.svg"
         ))),
+        "menu.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/menu.svg"
+        ))),
 
         // ── Settings: panel top bar (panel header) ──────────────
         "panel.svg" => Some(Cow::Borrowed(include_bytes!(

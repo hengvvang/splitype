@@ -28,6 +28,8 @@ pub struct SettingsUiState {
     focus_handles: BTreeMap<String, FocusHandle>,
     /// Focus handle for the settings bottombar search input.
     search_focus: Option<FocusHandle>,
+    /// Whether the compact category drawer/menu is currently open.
+    pub is_menu_open: bool,
 }
 
 impl Default for SettingsUiState {
@@ -55,6 +57,7 @@ impl SettingsUiState {
             search_queries: BTreeMap::new(),
             focus_handles: BTreeMap::new(),
             search_focus: None,
+            is_menu_open: false,
         }
     }
 
@@ -92,11 +95,38 @@ impl SettingsUiState {
     pub fn clear_search(&mut self) {
         self.search_query.clear();
     }
+
+    /// Toggles the compact category drawer/menu open state.
+    pub fn toggle_menu(&mut self) {
+        self.is_menu_open = !self.is_menu_open;
+    }
+
+    /// Closes the compact category drawer/menu.
+    pub fn close_menu(&mut self) {
+        self.is_menu_open = false;
+    }
+
+    /// Opens the compact category drawer/menu.
+    pub fn open_menu(&mut self) {
+        self.is_menu_open = true;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_menu_state() {
+        let mut state = SettingsUiState::new();
+        assert!(!state.is_menu_open);
+        state.toggle_menu();
+        assert!(state.is_menu_open);
+        state.close_menu();
+        assert!(!state.is_menu_open);
+        state.open_menu();
+        assert!(state.is_menu_open);
+    }
 
     #[test]
     fn persisted_settings_state_round_trips() {
