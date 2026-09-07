@@ -16,6 +16,8 @@ use serde::{Deserialize, Serialize};
 pub struct SettingsUiState {
     /// Id of the currently active plugin page.
     pub active_plugin: String,
+    /// Global settings search query.
+    pub search_query: String,
     /// Declaration key with an open dropdown / picker, if any.
     pub open_picker: Option<String>,
     /// Declaration key → inline edit buffer.
@@ -24,6 +26,8 @@ pub struct SettingsUiState {
     pub search_queries: BTreeMap<String, String>,
     /// Declaration key → focus handle for its inline editor.
     focus_handles: BTreeMap<String, FocusHandle>,
+    /// Focus handle for the settings bottombar search input.
+    search_focus: Option<FocusHandle>,
 }
 
 impl Default for SettingsUiState {
@@ -45,10 +49,12 @@ impl SettingsUiState {
     pub fn new() -> Self {
         Self {
             active_plugin: String::new(),
+            search_query: String::new(),
             open_picker: None,
             edit_buffers: BTreeMap::new(),
             search_queries: BTreeMap::new(),
             focus_handles: BTreeMap::new(),
+            search_focus: None,
         }
     }
 
@@ -70,6 +76,21 @@ impl SettingsUiState {
         let handle = cx.focus_handle();
         self.focus_handles.insert(key.to_string(), handle.clone());
         handle
+    }
+
+    /// Returns the focus handle for the settings bottombar search input.
+    pub fn search_focus_handle(&mut self, cx: &mut App) -> FocusHandle {
+        if let Some(handle) = &self.search_focus {
+            return handle.clone();
+        }
+        let handle = cx.focus_handle();
+        self.search_focus = Some(handle.clone());
+        handle
+    }
+
+    /// Clears the global settings search query.
+    pub fn clear_search(&mut self) {
+        self.search_query.clear();
     }
 }
 

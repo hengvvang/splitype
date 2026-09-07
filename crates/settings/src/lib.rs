@@ -9,11 +9,14 @@
 //! other plugin — plugins contribute settings purely as manifest data.
 
 pub mod assets;
+pub mod bottombar;
 pub mod form;
 pub mod host;
 pub mod plugin;
 pub mod state;
 pub mod topbar;
+pub use bottombar::render_settings_bottombar;
+pub use form::{make_row, make_row_with_reset, make_searchable_card_row, make_searchable_row};
 pub use host::render_settings_body;
 pub use plugin::*;
 pub use state::SettingsUiState;

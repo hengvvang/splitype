@@ -6,6 +6,7 @@
 //! no other plugin.
 
 use crate::host::render_settings_body;
+use crate::render_settings_bottombar;
 use crate::render_settings_topbar;
 use crate::state::{PersistedSettingsState, SettingsUiState};
 use gpui::*;
@@ -84,7 +85,8 @@ impl PanelView for SettingsPanelView {
             ctx.is_maximized,
             cx,
         );
-        let body = render_settings_body(&format!("panel-{}", ctx.panel_id.0), state, theme, cx);
+        let body = render_settings_body(&format!("panel-{}", ctx.panel_id.0), state.clone(), theme, cx);
+        let bottombar = render_settings_bottombar(&format!("panel-{}", ctx.panel_id.0), &state, theme, cx);
 
         div()
             .w_full()
@@ -98,9 +100,11 @@ impl PanelView for SettingsPanelView {
                     .w_full()
                     .flex_1()
                     .min_h(px(0.0))
+                    .min_w(px(0.0))
                     .overflow_hidden()
                     .child(body),
             )
+            .child(bottombar)
             .into_any_element()
     }
 

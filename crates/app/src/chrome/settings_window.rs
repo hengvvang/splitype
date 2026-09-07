@@ -9,7 +9,7 @@ use crate::chrome::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
 
-use settings::{SettingsUiState, render_settings_body};
+use settings::{SettingsUiState, render_settings_body, render_settings_bottombar};
 
 /// Independent standalone settings window view.
 pub struct SettingsWindow {
@@ -35,13 +35,23 @@ impl Render for SettingsWindow {
         let titlebar_height = custom_titlebar_height(window, d);
 
         let body = render_settings_body("window", self.state.clone(), &theme, cx);
+        let bottombar = render_settings_bottombar("window", &self.state, &theme, cx);
 
         let main_body = div()
             .flex()
-            .flex_row()
+            .flex_col()
             .h_full()
             .pt(px(titlebar_height))
-            .child(body);
+            .child(
+                div()
+                    .w_full()
+                    .flex_1()
+                    .min_h(px(0.0))
+                    .min_w(px(0.0))
+                    .overflow_hidden()
+                    .child(body),
+            )
+            .child(bottombar);
 
         let base = div()
             .w_full()

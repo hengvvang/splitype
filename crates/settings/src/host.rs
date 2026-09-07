@@ -42,6 +42,151 @@ const NAV_APPEARANCE: &str = "core.appearance";
 const NAV_COLOR_OVERRIDES: &str = "core.color_overrides";
 const NAV_TYPOGRAPHY: &str = "core.typography";
 
+/// Whether a declaration matches the search query.
+pub fn declaration_matches(declaration: &SettingDeclaration, query: &str) -> bool {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return true;
+    }
+    let words: Vec<&str> = q.split_whitespace().collect();
+    if words.is_empty() {
+        return true;
+    }
+
+    let title = declaration.title.to_lowercase();
+    let desc = declaration.description.as_deref().unwrap_or("").to_lowercase();
+    let key = declaration.key.to_lowercase();
+
+    words.iter().all(|w| {
+        title.contains(w) || desc.contains(w) || key.contains(w)
+    })
+}
+
+/// Whether a category matches the search query or contains matching settings.
+pub fn category_matches(
+    category_id: &str,
+    category_label: &str,
+    core_manifest: Option<&PluginManifest>,
+    panel_plugins: &[Arc<PluginManifest>],
+    query: &str,
+) -> bool {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return true;
+    }
+    let words: Vec<&str> = q.split_whitespace().collect();
+    if words.is_empty() {
+        return true;
+    }
+
+    // 1. Category label match (e.g. "Typography" matches "Typo", "Fonts" matches "Fonts")
+    let label_lower = category_label.to_lowercase();
+    if words.iter().all(|w| label_lower.contains(w)) {
+        return true;
+    }
+
+    // 2. Child settings match
+    match category_id {
+        NAV_GENERAL => {
+            if let Some(m) = core_manifest {
+                let keys = ["startup.open", "startup.restore_window_state", "interface.language_id"];
+                m.settings.iter().any(|s| keys.contains(&s.key.as_str()) && declaration_matches(s, query))
+                    || words.iter().all(|w| "startup".contains(w) || "language".contains(w) || "general".contains(w))
+            } else {
+                false
+            }
+        }
+        NAV_APPEARANCE => {
+            if let Some(m) = core_manifest {
+                m.settings.iter().any(|s| s.key == "theme.family" && declaration_matches(s, query))
+                    || words.iter().all(|w| "theme".contains(w) || "appearance".contains(w) || "color overrides".contains(w) || "customize".contains(w))
+            } else {
+                false
+            }
+        }
+        NAV_COLOR_OVERRIDES => {
+            words.iter().all(|w| "color overrides".contains(w) || "colors".contains(w) || "tokens".contains(w))
+                || ThemeColors::TOKEN_FIELD_NAMES.iter().any(|field| {
+                    let field_lower = field.to_lowercase();
+                    words.iter().all(|w| field_lower.contains(w))
+                })
+        }
+        NAV_TYPOGRAPHY => {
+            if let Some(m) = core_manifest {
+                let keys = [
+                    "typography.ui_font_family",
+                    "typography.prose_font_family",
+                    "typography.code_font_family",
+                ];
+                m.settings.iter().any(|s| keys.contains(&s.key.as_str()) && declaration_matches(s, query))
+                    || words.iter().all(|w| "typography".contains(w) || "fonts".contains(w))
+            } else {
+                false
+            }
+        }
+        plugin_id => {
+            if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == plugin_id) {
+                manifest.settings.iter().any(|s| declaration_matches(s, query))
+            } else {
+                false
+            }
+        }
+    }
+}
+
+/// Count total matches across all registered plugins and core settings.
+pub fn count_total_search_matches(query: &str) -> usize {
+    let q = query.trim();
+    if q.is_empty() {
+        return 0;
+    }
+    let manifests: Vec<Arc<PluginManifest>> =
+        PluginRegistry::registered_manifests().unwrap_or_default();
+    let mut count = 0;
+    for m in &manifests {
+        for s in &m.settings {
+            if declaration_matches(s, q) {
+                count += 1;
+            }
+        }
+    }
+    for field in ThemeColors::TOKEN_FIELD_NAMES {
+        let field_lower = field.to_lowercase();
+        let words: Vec<&str> = q.split_whitespace().collect();
+        if words.iter().all(|w| field_lower.contains(&w.to_lowercase())) {
+            count += 1;
+        }
+    }
+    count
+}
+
+/// Zed-style "No Results" element when search yields no matches.
+pub fn render_no_results(query: &str, c: &ThemeColors) -> AnyElement {
+    div()
+        .w_full()
+        .h_full()
+        .flex()
+        .flex_col()
+        .items_center()
+        .justify_center()
+        .gap(px(8.0))
+        .py(px(48.0))
+        .child(
+            div()
+                .text_size(px(16.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(c.text_default)
+                .child("No Results"),
+        )
+        .child(
+            div()
+                .text_size(px(13.0))
+                .text_color(c.dialog_muted)
+                .child(format!("No settings match \"{}\"", query)),
+        )
+        .into_any_element()
+}
+
 /// Renders the two-column settings body: categorized navigation rail over
 /// preferences and feature panels, and the active page's settings.
 pub fn render_settings_body(
@@ -66,15 +211,7 @@ pub fn render_settings_body(
         .filter(|manifest| manifest.plugin.as_str() != "splitype.core" && !manifest.settings.is_empty())
         .collect();
 
-    let raw_active = state.read(cx).active_plugin.clone();
-    let active_id = if raw_active.is_empty() || raw_active == "splitype.core" {
-        NAV_GENERAL.to_string()
-    } else {
-        raw_active
-    };
-
-    // Left navigation: preferences items followed by panel items.
-    let mut nav_items = Vec::new();
+    let query = state.read(cx).search_query.trim().to_string();
 
     let pref_items = [
         (NAV_GENERAL, "General"),
@@ -82,12 +219,80 @@ pub fn render_settings_body(
         (NAV_COLOR_OVERRIDES, "Color Overrides"),
         (NAV_TYPOGRAPHY, "Typography"),
     ];
-    for (item_id, label) in pref_items {
+
+    let visible_pref_items: Vec<_> = pref_items
+        .into_iter()
+        .filter(|(item_id, label)| {
+            category_matches(item_id, label, core_manifest.as_deref(), &panel_plugins, &query)
+        })
+        .collect();
+
+    let visible_panel_plugins: Vec<_> = panel_plugins
+        .iter()
+        .filter(|manifest| {
+            category_matches(
+                manifest.plugin.as_str(),
+                &manifest.name,
+                None,
+                &panel_plugins,
+                &query,
+            )
+        })
+        .cloned()
+        .collect();
+
+    let raw_active = state.read(cx).active_plugin.clone();
+    let initial_active_id = if raw_active.is_empty() || raw_active == "splitype.core" {
+        NAV_GENERAL.to_string()
+    } else {
+        raw_active
+    };
+
+    // Auto-switch to first visible category if current active category is hidden by search
+    let active_id = if !query.is_empty() {
+        let is_active_visible = visible_pref_items.iter().any(|(id, _)| *id == initial_active_id)
+            || visible_panel_plugins.iter().any(|m| m.plugin.as_str() == initial_active_id);
+        if !is_active_visible {
+            if let Some((first_pref, _)) = visible_pref_items.first() {
+                let first_id = first_pref.to_string();
+                let state_clone = state.clone();
+                let fid = first_id.clone();
+                cx.defer(move |cx| {
+                    state_clone.update(cx, |ui, _| {
+                        ui.active_plugin = fid;
+                    });
+                });
+                first_id
+            } else if let Some(first_panel) = visible_panel_plugins.first() {
+                let first_id = first_panel.plugin.to_string();
+                let state_clone = state.clone();
+                let fid = first_id.clone();
+                cx.defer(move |cx| {
+                    state_clone.update(cx, |ui, _| {
+                        ui.active_plugin = fid;
+                    });
+                });
+                first_id
+            } else {
+                initial_active_id
+            }
+        } else {
+            initial_active_id
+        }
+    } else {
+        initial_active_id
+    };
+
+    // Left navigation: preferences items followed by panel items.
+    let mut nav_items = Vec::new();
+
+    for (item_id, label) in &visible_pref_items {
         nav_items.push(render_nav_item(
             id_namespace,
             item_id,
             label,
-            active_id == item_id,
+            active_id == *item_id,
+            &query,
             &state,
             c,
             d,
@@ -95,16 +300,18 @@ pub fn render_settings_body(
     }
 
     // Panels items (separated from preferences by a divider)
-    if !panel_plugins.is_empty() {
-        nav_items.push(
-            div()
-                .my(px(6.0))
-                .mx(px(8.0))
-                .h(px(1.0))
-                .bg(c.dialog_border)
-                .into_any_element(),
-        );
-        for manifest in &panel_plugins {
+    if !visible_panel_plugins.is_empty() {
+        if !visible_pref_items.is_empty() {
+            nav_items.push(
+                div()
+                    .my(px(6.0))
+                    .mx(px(8.0))
+                    .h(px(1.0))
+                    .bg(c.dialog_border)
+                    .into_any_element(),
+            );
+        }
+        for manifest in &visible_panel_plugins {
             let plugin_id = manifest.plugin.as_str();
             let is_active = active_id == plugin_id;
             let label = &manifest.name;
@@ -113,11 +320,23 @@ pub fn render_settings_body(
                 plugin_id,
                 label,
                 is_active,
+                &query,
                 &state,
                 c,
                 d,
             ));
         }
+    }
+
+    if nav_items.is_empty() && !query.is_empty() {
+        nav_items.push(
+            div()
+                .p(px(8.0))
+                .text_size(px(12.0))
+                .text_color(c.dialog_muted)
+                .child("No matching categories")
+                .into_any_element(),
+        );
     }
 
     let nav_rail = div()
@@ -132,16 +351,28 @@ pub fn render_settings_body(
         .gap(px(2.0))
         .children(nav_items);
 
-    let content = match active_id.as_str() {
-        NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), theme, cx),
-        NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), theme, cx),
-        NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, theme, cx),
-        NAV_TYPOGRAPHY => render_typography_page(id_namespace, &state, core_manifest.as_deref(), theme, cx),
-        other => {
-            if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == other) {
-                render_plugin_page(id_namespace, &state, manifest, theme, cx)
-            } else {
-                render_general_page(id_namespace, &state, core_manifest.as_deref(), theme, cx)
+    let content = if visible_pref_items.is_empty() && visible_panel_plugins.is_empty() && !query.is_empty() {
+        render_no_results(&query, c)
+    } else {
+        match active_id.as_str() {
+            NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+            NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+            NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, &query, theme, cx),
+            NAV_TYPOGRAPHY => render_typography_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+            other => {
+                if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == other) {
+                    render_plugin_page(id_namespace, &state, manifest, &query, theme, cx)
+                } else if let Some((first_pref, _)) = visible_pref_items.first() {
+                    match *first_pref {
+                        NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+                        NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+                        NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, &query, theme, cx),
+                        NAV_TYPOGRAPHY => render_typography_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+                        _ => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+                    }
+                } else {
+                    render_no_results(&query, c)
+                }
             }
         }
     };
@@ -153,6 +384,7 @@ pub fn render_settings_body(
         ))
         .relative()
         .flex_1()
+        .min_w(px(0.0))
         .h_full()
         .p(px(14.0))
         .overflow_y_scroll()
@@ -164,6 +396,7 @@ pub fn render_settings_body(
     div()
         .w_full()
         .h_full()
+        .min_w(px(0.0))
         .flex()
         .flex_row()
         .bg(c.editor_background)
@@ -177,6 +410,7 @@ fn render_nav_item(
     target_id: &str,
     label: &str,
     is_active: bool,
+    query: &str,
     state: &Entity<SettingsUiState>,
     c: &ThemeColors,
     d: &ThemeDimensions,
@@ -189,23 +423,36 @@ fn render_nav_item(
         d,
     )
     .relative()
-    .when(is_active, |this| this.bg(c.panel_row_hover))
-    .child(
+    .when(is_active, |this| this.bg(c.panel_row_hover));
+
+    let text_color = if is_active {
+        c.text_default
+    } else {
+        c.dialog_muted
+    };
+
+    let label_elem = if !query.trim().is_empty() {
+        crate::form::highlight_search_text(label, query, text_color, c.text_highlight_bg)
+    } else {
         div()
             .text_size(px(13.0))
-            .text_color(if is_active {
-                c.text_default
-            } else {
-                c.dialog_muted
-            })
-            .child(label.to_string()),
-    )
-    .on_click(move |_event, _window, cx| {
-        nav_state.update(cx, |ui, _| {
-            ui.active_plugin = target.clone();
+            .text_color(text_color)
+            .child(label.to_string())
+            .into_any_element()
+    };
+
+    tab = tab
+        .child(
+            div()
+                .text_size(px(13.0))
+                .child(label_elem),
+        )
+        .on_click(move |_event, _window, cx| {
+            nav_state.update(cx, |ui, _| {
+                ui.active_plugin = target.clone();
+            });
+            cx.refresh_windows();
         });
-        cx.refresh_windows();
-    });
 
     if is_active {
         tab = tab.child(
@@ -222,11 +469,20 @@ fn render_nav_item(
 
     tab.into_any_element()
 }
-fn render_setting_group(title: &str, rows: Vec<AnyElement>, c: &ThemeColors) -> AnyElement {
+
+fn render_setting_group(title: &str, rows: Vec<AnyElement>, query: &str, c: &ThemeColors) -> AnyElement {
+    let title_elem = if !query.trim().is_empty() {
+        crate::form::highlight_search_text(title, query, c.text_default, c.text_highlight_bg)
+    } else {
+        div().child(title.to_string()).into_any_element()
+    };
+
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_col()
-        .gap(px(4.0))
+        .gap(px(6.0))
         .child(
             div()
                 .pt(px(6.0))
@@ -234,16 +490,16 @@ fn render_setting_group(title: &str, rows: Vec<AnyElement>, c: &ThemeColors) -> 
                 .text_size(px(13.5))
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(c.text_default)
-                .child(title.to_string()),
+                .child(title_elem),
         )
         .children(rows)
         .into_any_element()
 }
-
 fn render_general_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
     manifest: Option<&PluginManifest>,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -255,30 +511,38 @@ fn render_general_page(
         let startup_decls: Vec<_> = startup_keys
             .iter()
             .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "startup".contains(query) || "general".contains(query))
             .collect();
         if !startup_decls.is_empty() {
             let rows: Vec<AnyElement> = startup_decls
                 .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
                 .collect();
-            sections.push(render_setting_group("Startup", rows, c));
+            sections.push(render_setting_group("Startup", rows, query, c));
         }
 
         let lang_keys = ["interface.language_id"];
         let lang_decls: Vec<_> = lang_keys
             .iter()
             .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "language".contains(query) || "general".contains(query))
             .collect();
         if !lang_decls.is_empty() {
             let rows: Vec<AnyElement> = lang_decls
                 .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
                 .collect();
-            sections.push(render_setting_group("Language", rows, c));
+            sections.push(render_setting_group("Language", rows, query, c));
         }
     }
 
+    if sections.is_empty() && !query.is_empty() {
+        return render_no_results(query, c);
+    }
+
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_col()
         .gap(px(12.0))
@@ -290,6 +554,7 @@ fn render_appearance_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
     manifest: Option<&PluginManifest>,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -302,52 +567,80 @@ fn render_appearance_page(
         let theme_decls: Vec<_> = theme_keys
             .iter()
             .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "theme".contains(query) || "appearance".contains(query))
             .collect();
-        if !theme_decls.is_empty() {
+
+        let show_color_overrides = query.is_empty()
+            || "theme color overrides".contains(query)
+            || "color".contains(query)
+            || "overrides".contains(query)
+            || "appearance".contains(query);
+
+        if !theme_decls.is_empty() || show_color_overrides {
             let mut rows: Vec<AnyElement> = theme_decls
                 .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
                 .collect();
 
-            let nav_state = state.clone();
-            let goto_button = div()
-                .id(ElementId::Name(format!("{id_namespace}-goto-color-overrides").into()))
-                .px(px(12.0))
-                .py(px(6.0))
-                .rounded(px(d.button_radius))
-                .border_1()
-                .border_color(c.dialog_border)
-                .cursor_pointer()
-                .hover(|this| this.bg(c.panel_row_hover))
-                .text_size(px(12.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(c.text_default)
-                .child("Customize Colors →")
-                .on_click(move |_event, _window, cx| {
-                    nav_state.update(cx, |ui, _| {
-                        ui.active_plugin = NAV_COLOR_OVERRIDES.to_string();
-                    });
-                    cx.refresh_windows();
-                })
-                .into_any_element();
+            if show_color_overrides {
+                let nav_state = state.clone();
+                let goto_button = div()
+                    .id(ElementId::Name(format!("{id_namespace}-goto-color-overrides").into()))
+                    .px(px(12.0))
+                    .py(px(6.0))
+                    .rounded(px(d.button_radius))
+                    .border_1()
+                    .border_color(c.dialog_border)
+                    .cursor_pointer()
+                    .hover(|this| this.bg(c.panel_row_hover))
+                    .text_size(px(12.0))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(c.text_default)
+                    .child("Customize Colors →")
+                    .on_click(move |_event, _window, cx| {
+                        nav_state.update(cx, |ui, _| {
+                            ui.active_plugin = NAV_COLOR_OVERRIDES.to_string();
+                        });
+                        cx.refresh_windows();
+                    })
+                    .into_any_element();
 
-            let color_overrides_row = make_row(
-                c.dialog_border,
-                c,
-                d,
-                "Theme Color Overrides",
-                "Fine-tune individual token colors, UI dimensions, and typography scales",
-                goto_button,
-            );
-            rows.push(color_overrides_row);
+                let is_override_match = !query.is_empty() && ("color".contains(query) || "override".contains(query));
+                let color_overrides_row = crate::form::make_searchable_card_row(
+                    c.dialog_border,
+                    c,
+                    d,
+                    Some("plugin://splitype.settings/sun.svg"),
+                    "Theme Color Overrides",
+                    "Fine-tune individual token colors, UI dimensions, and typography scales",
+                    query,
+                    is_override_match,
+                    None,
+                    goto_button,
+                    true,
+                );
+                rows.push(color_overrides_row);
+            }
 
-            sections.push(render_setting_group("Theme", rows, c));
+            if !rows.is_empty() {
+                sections.push(render_setting_group("Theme", rows, query, c));
+            }
         }
     }
 
-    sections.push(render_installed_themes_panel(id_namespace, theme, cx));
+    let show_installed_themes = query.is_empty() || "installed themes".contains(query) || "theme".contains(query) || "appearance".contains(query);
+    if show_installed_themes {
+        let installed = render_installed_themes_panel(id_namespace, theme, cx);
+        sections.push(installed);
+    }
+
+    if sections.is_empty() && !query.is_empty() {
+        return render_no_results(query, c);
+    }
 
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_col()
         .gap(px(12.0))
@@ -358,6 +651,7 @@ fn render_appearance_page(
 fn render_color_overrides_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -365,7 +659,7 @@ fn render_color_overrides_page(
         .flex()
         .flex_col()
         .gap(px(12.0))
-        .child(render_theme_overrides_panel(id_namespace, state, theme, cx))
+        .child(render_theme_overrides_panel(id_namespace, state, query, theme, cx))
         .into_any_element()
 }
 
@@ -373,6 +667,7 @@ fn render_typography_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
     manifest: Option<&PluginManifest>,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -388,17 +683,24 @@ fn render_typography_page(
         let typo_decls: Vec<_> = typo_keys
             .iter()
             .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "fonts".contains(query) || "typography".contains(query))
             .collect();
         if !typo_decls.is_empty() {
             let rows: Vec<AnyElement> = typo_decls
                 .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
                 .collect();
-            sections.push(render_setting_group("Fonts", rows, c));
+            sections.push(render_setting_group("Fonts", rows, query, c));
         }
     }
 
+    if sections.is_empty() && !query.is_empty() {
+        return render_no_results(query, c);
+    }
+
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_col()
         .gap(px(12.0))
@@ -411,6 +713,7 @@ fn render_plugin_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
     manifest: &PluginManifest,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -418,20 +721,36 @@ fn render_plugin_page(
     let plugin_id = manifest.plugin.as_str();
 
     let groups = settings_groups(manifest);
+    let plugin_name_matches = !query.is_empty() && manifest.name.to_lowercase().contains(query);
 
     let mut section_elements = Vec::new();
     for (group, declarations) in groups {
-        let rows: Vec<AnyElement> = declarations
+        let filtered_decls: Vec<_> = declarations
             .iter()
+            .filter(|d| query.is_empty() || plugin_name_matches || declaration_matches(d, query) || group.to_lowercase().contains(query))
+            .collect();
+
+        if filtered_decls.is_empty() {
+            continue;
+        }
+
+        let rows: Vec<AnyElement> = filtered_decls
+            .into_iter()
             .map(|declaration| {
-                render_setting_row(id_namespace, state, plugin_id, declaration, theme, cx)
+                render_setting_row(id_namespace, state, plugin_id, declaration, query, theme, cx)
             })
             .collect();
 
-        section_elements.push(render_setting_group(&group, rows, c));
+        section_elements.push(render_setting_group(&group, rows, query, c));
+    }
+
+    if section_elements.is_empty() && !query.is_empty() {
+        return render_no_results(query, c);
     }
 
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_col()
         .gap(px(12.0))
@@ -467,6 +786,21 @@ fn settings_groups(manifest: &PluginManifest) -> Vec<(String, Vec<SettingDeclara
         .collect()
 }
 
+/// Maps known core setting keys to their Windows-style feature icons.
+fn icon_for_setting(key: &str) -> Option<&'static str> {
+    if key.starts_with("startup.restore") {
+        Some("plugin://splitype.settings/topbar/restore.svg")
+    } else if key.starts_with("startup") {
+        Some("plugin://splitype.settings/panel.svg")
+    } else if key.starts_with("theme.appearance") {
+        Some("plugin://splitype.settings/sun.svg")
+    } else if key.starts_with("theme") {
+        Some("plugin://splitype.settings/moon.svg")
+    } else {
+        None
+    }
+}
+
 /// Renders one declaration as a settings row with the control matching its
 /// kind and a reset-to-default action.
 fn render_setting_row(
@@ -474,6 +808,7 @@ fn render_setting_row(
     state: &Entity<SettingsUiState>,
     plugin_id: &str,
     declaration: &SettingDeclaration,
+    query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -507,14 +842,21 @@ fn render_setting_row(
         },
     );
 
-    make_row_with_reset(
+    let is_matched = declaration_matches(declaration, query);
+    let icon = icon_for_setting(&declaration.key);
+
+    crate::form::make_searchable_card_row(
         border_color,
         c,
         d,
-        declaration.title.clone(),
-        declaration.description.clone().unwrap_or_default(),
+        icon,
+        &declaration.title,
+        declaration.description.as_deref().unwrap_or_default(),
+        query,
+        is_matched,
         Some(reset),
         control,
+        false,
     )
 }
 
@@ -1239,6 +1581,7 @@ fn title_case(input: &str) -> String {
 fn render_theme_overrides_panel(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
+    global_query: &str,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -1273,20 +1616,25 @@ fn render_theme_overrides_panel(
     }
 
     let search_key = format!("{id_namespace}-theme-overrides");
-    let query = state
+    let inline_query = state
         .read(cx)
         .search_queries
         .get(&search_key)
         .cloned()
         .unwrap_or_default()
         .to_lowercase();
+    let effective_query = if !inline_query.is_empty() {
+        inline_query
+    } else {
+        global_query.to_lowercase()
+    };
 
     let search_focus = state.update(cx, |ui, cx| ui.focus_handle(&search_key, cx));
     let search_state = state.clone();
     let search_state_key = search_key.clone();
     let search_input = SearchInput::new(
         ElementId::Name(format!("{search_key}-input").into()),
-        query.clone(),
+        effective_query.clone(),
         search_focus,
     )
     .placeholder("Search color tokens…")
@@ -1302,7 +1650,8 @@ fn render_theme_overrides_panel(
 
     let mut rows: Vec<AnyElement> = Vec::new();
     for (token_key, display, effective) in tokens {
-        if !query.is_empty() && !display.to_lowercase().contains(&query) {
+        let is_matched = !effective_query.is_empty() && display.to_lowercase().contains(&effective_query);
+        if !effective_query.is_empty() && !is_matched && !"color overrides".contains(&effective_query) {
             continue;
         }
         let overridden = overrides.contains_key(&token_key);
@@ -1341,28 +1690,37 @@ fn render_theme_overrides_panel(
             d,
             cx,
         );
-        rows.push(make_row_with_reset(
+        rows.push(crate::form::make_searchable_row(
             c.dialog_border,
             c,
             d,
-            display,
-            desc,
+            &display,
+            &desc,
+            &effective_query,
+            is_matched,
             reset,
             control,
         ));
     }
 
-    let colors_card = section_card(c, d)
+    let mut colors_card = section_card(c, d)
         .child(
             div()
                 .text_size(px(13.0))
                 .font_weight(FontWeight::BOLD)
                 .text_color(c.text_default)
                 .child("Color Overrides"),
-        )
-        .children(rows);
+        );
+
+    if rows.is_empty() && !effective_query.is_empty() {
+        colors_card = colors_card.child(render_no_results(&effective_query, c));
+    } else {
+        colors_card = colors_card.children(rows);
+    }
 
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_col()
         .gap(px(10.0))
@@ -1372,14 +1730,14 @@ fn render_theme_overrides_panel(
             id_namespace,
             state,
             theme,
-            &query,
+            &effective_query,
             cx,
         ))
         .child(render_typography_overrides_card(
             id_namespace,
             state,
             theme,
-            &query,
+            &effective_query,
             cx,
         ))
         .into_any_element()
@@ -2137,6 +2495,80 @@ mod tests {
         assert_eq!(clamp_val(5.0, Some(10.0), None), 10.0);
         assert_eq!(clamp_val(15.0, None, Some(10.0)), 10.0);
         assert_eq!(clamp_val(15.0, None, None), 15.0);
+    }
+
+    #[test]
+    fn test_declaration_matches() {
+        let decl = SettingDeclaration {
+            key: "typography.font_size".to_string(),
+            kind: SettingKind::Number,
+            min: Some(8.0),
+            max: Some(72.0),
+            step: Some(1.0),
+            unit: Some("px".to_string()),
+            options: Vec::new(),
+            default: serde_json::json!(14.0),
+            title: "Font Size".to_string(),
+            description: Some("Base font size in pixels".to_string()),
+        };
+
+        // Empty query matches all
+        assert!(declaration_matches(&decl, ""));
+        assert!(declaration_matches(&decl, "   "));
+
+        // Match by title
+        assert!(declaration_matches(&decl, "font"));
+        assert!(declaration_matches(&decl, "SIZE"));
+        assert!(declaration_matches(&decl, "font size"));
+
+        // Match by description
+        assert!(declaration_matches(&decl, "pixels"));
+        assert!(declaration_matches(&decl, "base font"));
+
+        // Match by key
+        assert!(declaration_matches(&decl, "typography"));
+
+        // Non-matching
+        assert!(!declaration_matches(&decl, "theme"));
+        assert!(!declaration_matches(&decl, "color"));
+    }
+
+    #[test]
+    fn test_category_matches() {
+        // Label matches directly
+        assert!(category_matches(NAV_GENERAL, "General", None, &[], "gen"));
+        assert!(category_matches(NAV_TYPOGRAPHY, "Typography", None, &[], "typo"));
+
+        // Child setting matches in core manifest
+        let core_manifest: PluginManifest = serde_json::from_value(serde_json::json!({
+            "manifest_version": 1,
+            "plugin": "splitype.core",
+            "name": "Core",
+            "version": "0.0.1",
+            "entry": { "kind": "in_process", "registration": "splitype_core" },
+            "settings": [
+                {
+                    "key": "startup.open",
+                    "kind": "enum",
+                    "default": "empty",
+                    "title": "Open on startup",
+                    "description": "What to display when Splitype starts"
+                }
+            ]
+        })).expect("manifest deserialize");
+
+        assert!(category_matches(NAV_GENERAL, "General", Some(&core_manifest), &[], "startup"));
+        assert!(!category_matches(NAV_TYPOGRAPHY, "Typography", Some(&core_manifest), &[], "startup"));
+    }
+
+    #[test]
+    fn test_search_state_query() {
+        let mut state = SettingsUiState::new();
+        assert_eq!(state.search_query, "");
+        state.search_query = "markdown".to_string();
+        assert_eq!(state.search_query, "markdown");
+        state.clear_search();
+        assert_eq!(state.search_query, "");
     }
 }
 

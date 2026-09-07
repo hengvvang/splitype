@@ -18,6 +18,7 @@ pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
         .relative()
         .w_full()
+        .min_w(px(0.0))
         .rounded(px(d.section_card_radius))
         .bg(c.dialog_surface)
         .border_1()
@@ -30,6 +31,7 @@ pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
 pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
         .w_full()
+        .min_w(px(0.0))
         .min_h(px(56.0))
         .py(px(10.0))
         .px(px(16.0))
@@ -37,9 +39,12 @@ pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .bg(c.dialog_surface)
         .border_1()
         .border_color(border)
+        .hover(|this| this.bg(c.panel_row_hover))
         .flex()
+        .flex_row()
         .items_center()
         .justify_between()
+        .gap(px(16.0))
 }
 
 /// Settings navigation tab row.
@@ -82,31 +87,141 @@ pub fn make_row(
     make_row_with_reset(inner_border_color, c, d, title, desc, None, control)
 }
 
-/// A settings row with an optional reset-to-default button next to the title.
-pub fn make_row_with_reset(
+/// Highlights occurrences of words in `query` within `text` using `StyledText` and `HighlightStyle`.
+pub fn highlight_search_text(
+    text: &str,
+    query: &str,
+    base_color: Hsla,
+    highlight_bg: Hsla,
+) -> AnyElement {
+    let q = query.trim();
+    if q.is_empty() || text.is_empty() {
+        return div()
+            .w_full()
+            .min_w(px(0.0))
+            .text_color(base_color)
+            .child(text.to_string())
+            .into_any_element();
+    }
+
+    let text_lower = text.to_lowercase();
+    let words: Vec<String> = q.split_whitespace().map(|w| w.to_lowercase()).collect();
+    if words.is_empty() {
+        return div()
+            .w_full()
+            .min_w(px(0.0))
+            .text_color(base_color)
+            .child(text.to_string())
+            .into_any_element();
+    }
+
+    let mut ranges = Vec::new();
+    for word in &words {
+        let mut start = 0;
+        while let Some(idx) = text_lower[start..].find(word.as_str()) {
+            let match_start = start + idx;
+            let match_end = match_start + word.len();
+            if text.is_char_boundary(match_start) && text.is_char_boundary(match_end) {
+                ranges.push((match_start, match_end));
+            }
+            start = match_end.max(start + 1);
+            if start >= text.len() {
+                break;
+            }
+        }
+    }
+
+    if ranges.is_empty() {
+        return div()
+            .w_full()
+            .min_w(px(0.0))
+            .text_color(base_color)
+            .child(text.to_string())
+            .into_any_element();
+    }
+
+    ranges.sort_by_key(|r| r.0);
+    let mut merged: Vec<std::ops::Range<usize>> = Vec::new();
+    for (start, end) in ranges {
+        if let Some(last) = merged.last_mut() {
+            if start <= last.end {
+                last.end = last.end.max(end);
+                continue;
+            }
+        }
+        merged.push(start..end);
+    }
+
+    let highlight_style = HighlightStyle {
+        background_color: Some(highlight_bg),
+        color: Some(base_color),
+        font_weight: Some(FontWeight::SEMIBOLD),
+        ..Default::default()
+    };
+
+    let styled = StyledText::new(text.to_string())
+        .with_highlights(merged.into_iter().map(|range| (range, highlight_style)));
+
+    div()
+        .w_full()
+        .min_w(px(0.0))
+        .text_color(base_color)
+        .child(styled)
+        .into_any_element()
+}
+
+/// A settings row designed after Windows 11 SettingsCard with dynamic multi-line
+/// description wrapping, optional icon, optional chevron, and non-shrinking right control.
+pub fn make_searchable_card_row(
     inner_border_color: Hsla,
     c: &ThemeColors,
     d: &ThemeDimensions,
-    title: impl Into<SharedString>,
-    desc: impl Into<SharedString>,
+    icon: Option<&'static str>,
+    title: &str,
+    desc: &str,
+    query: &str,
+    is_matched: bool,
     on_reset: Option<SettingsClickHandler>,
     control: AnyElement,
+    has_chevron: bool,
 ) -> AnyElement {
-    let title = title.into();
-    let desc = desc.into();
-    let mut title_row = div().flex().items_center().gap(px(6.0)).child(
+    let has_query = !query.trim().is_empty();
+    let effective_border = if is_matched && has_query {
+        c.focus_accent
+    } else {
+        inner_border_color
+    };
+
+    let title_element = if has_query {
         div()
+            .min_w(px(0.0))
             .text_size(px(13.0))
-            .font_weight(FontWeight::NORMAL)
+            .font_weight(FontWeight::MEDIUM)
+            .child(highlight_search_text(title, query, c.text_default, c.text_highlight_bg))
+            .into_any_element()
+    } else {
+        div()
+            .min_w(px(0.0))
+            .text_size(px(13.0))
+            .font_weight(FontWeight::MEDIUM)
             .text_color(c.text_default)
-            .child(title.clone()),
-    );
+            .child(title.to_string())
+            .into_any_element()
+    };
+
+    let mut title_row = div()
+        .min_w(px(0.0))
+        .flex()
+        .items_center()
+        .gap(px(6.0))
+        .child(title_element);
 
     if let Some(reset_fn) = on_reset {
         let reset_id = ElementId::Name(format!("reset-{title}").into());
         title_row = title_row.child(
             div()
                 .id(reset_id)
+                .flex_shrink_0()
                 .cursor_pointer()
                 .p(px(2.0))
                 .rounded(px(3.0))
@@ -121,22 +236,145 @@ pub fn make_row_with_reset(
         );
     }
 
-    let has_desc = !desc.as_ref().is_empty();
+    let has_desc = !desc.is_empty();
     let label_column = if has_desc {
-        div().flex().flex_col().gap(px(2.0)).child(title_row).child(
+        let desc_element = if has_query {
             div()
+                .w_full()
+                .min_w(px(0.0))
                 .text_size(px(11.5))
+                .line_height(relative(1.35))
+                .child(highlight_search_text(desc, query, c.dialog_muted, c.text_highlight_bg))
+                .into_any_element()
+        } else {
+            div()
+                .w_full()
+                .min_w(px(0.0))
+                .text_size(px(11.5))
+                .line_height(relative(1.35))
                 .text_color(c.dialog_muted)
-                .child(desc),
-        )
+                .child(desc.to_string())
+                .into_any_element()
+        };
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .flex()
+            .flex_col()
+            .gap(px(3.0))
+            .child(title_row)
+            .child(desc_element)
     } else {
-        div().flex().flex_col().child(title_row)
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .flex()
+            .flex_col()
+            .child(title_row)
     };
 
-    settings_row(inner_border_color, c, d)
-        .child(label_column)
-        .child(control)
-        .into_any_element()
+    let left_side = if let Some(icon_path) = icon {
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .flex()
+            .items_center()
+            .gap(px(14.0))
+            .child(
+                div()
+                    .size(px(24.0))
+                    .flex_shrink_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(
+                        svg()
+                            .path(icon_path)
+                            .size(px(18.0))
+                            .text_color(c.text_default),
+                    ),
+            )
+            .child(label_column)
+            .into_any_element()
+    } else {
+        label_column.into_any_element()
+    };
+
+    let mut control_area = div()
+        .flex_shrink_0()
+        .flex()
+        .items_center()
+        .gap(px(8.0))
+        .child(control);
+
+    if has_chevron {
+        control_area = control_area.child(
+            svg()
+                .path("plugin://splitype.settings/chevron-right.svg")
+                .size(px(14.0))
+                .text_color(c.dialog_muted)
+                .flex_shrink_0(),
+        );
+    }
+
+    let mut row = settings_row(effective_border, c, d);
+    if is_matched && has_query {
+        row = row.bg(c.panel_row_hover);
+    }
+
+    row.child(left_side).child(control_area).into_any_element()
+}
+
+/// A settings row with an optional reset-to-default button and search highlight support.
+pub fn make_searchable_row(
+    inner_border_color: Hsla,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    title: &str,
+    desc: &str,
+    query: &str,
+    is_matched: bool,
+    on_reset: Option<SettingsClickHandler>,
+    control: AnyElement,
+) -> AnyElement {
+    make_searchable_card_row(
+        inner_border_color,
+        c,
+        d,
+        None,
+        title,
+        desc,
+        query,
+        is_matched,
+        on_reset,
+        control,
+        false,
+    )
+}
+
+/// A settings row with an optional reset-to-default button next to the title.
+pub fn make_row_with_reset(
+    inner_border_color: Hsla,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    title: impl Into<SharedString>,
+    desc: impl Into<SharedString>,
+    on_reset: Option<SettingsClickHandler>,
+    control: AnyElement,
+) -> AnyElement {
+    let title_str = title.into();
+    let desc_str = desc.into();
+    make_searchable_row(
+        inner_border_color,
+        c,
+        d,
+        title_str.as_ref(),
+        desc_str.as_ref(),
+        "",
+        false,
+        on_reset,
+        control,
+    )
 }
 
 /// Inline numeric field with steppers and keyboard editing.
@@ -435,3 +673,4 @@ pub fn render_searchable_font_picker(
 
     btn_wrap.into_any_element()
 }
+
