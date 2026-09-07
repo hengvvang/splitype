@@ -37,8 +37,13 @@ struct PickerOption {
     label: String,
 }
 
-/// Renders the two-column settings body: navigation rail over the plugins
-/// that declare settings, and the active plugin's settings page.
+const NAV_GENERAL: &str = "core.general";
+const NAV_APPEARANCE: &str = "core.appearance";
+const NAV_COLOR_OVERRIDES: &str = "core.color_overrides";
+const NAV_TYPOGRAPHY: &str = "core.typography";
+
+/// Renders the two-column settings body: categorized navigation rail over
+/// preferences and feature panels, and the active page's settings.
 pub fn render_settings_body(
     id_namespace: &str,
     state: Entity<SettingsUiState>,
@@ -50,69 +55,73 @@ pub fn render_settings_body(
 
     let manifests: Vec<Arc<PluginManifest>> =
         PluginRegistry::registered_manifests().unwrap_or_default();
-    let settings_plugins: Vec<Arc<PluginManifest>> = manifests
-        .into_iter()
-        .filter(|manifest| !manifest.settings.is_empty())
-        .collect();
 
-    let active_id = state.read(cx).active_plugin.clone();
-    let active = settings_plugins
+    let core_manifest = manifests
         .iter()
-        .find(|manifest| manifest.plugin.as_str() == active_id)
-        .or_else(|| settings_plugins.first())
+        .find(|m| m.plugin.as_str() == "splitype.core")
         .cloned();
 
-    // Left navigation: one entry per plugin with declared settings.
+    let panel_plugins: Vec<Arc<PluginManifest>> = manifests
+        .into_iter()
+        .filter(|manifest| manifest.plugin.as_str() != "splitype.core" && !manifest.settings.is_empty())
+        .collect();
+
+    let raw_active = state.read(cx).active_plugin.clone();
+    let active_id = if raw_active.is_empty() || raw_active == "splitype.core" {
+        NAV_GENERAL.to_string()
+    } else {
+        raw_active
+    };
+
+    // Left navigation: preferences items followed by panel items.
     let mut nav_items = Vec::new();
-    for manifest in &settings_plugins {
-        let plugin_id = manifest.plugin.as_str().to_string();
-        let is_active = active
-            .as_ref()
-            .is_some_and(|active| active.plugin.as_str() == plugin_id);
-        let label = manifest.name.clone();
-        let nav_state = state.clone();
-        let mut tab = nav_tab(
-            ElementId::Name(format!("{id_namespace}-nav-{plugin_id}").into()),
+
+    let pref_items = [
+        (NAV_GENERAL, "General"),
+        (NAV_APPEARANCE, "Appearance"),
+        (NAV_COLOR_OVERRIDES, "Color Overrides"),
+        (NAV_TYPOGRAPHY, "Typography"),
+    ];
+    for (item_id, label) in pref_items {
+        nav_items.push(render_nav_item(
+            id_namespace,
+            item_id,
+            label,
+            active_id == item_id,
+            &state,
             c,
             d,
-        )
-        .relative()
-        .when(is_active, |this| this.bg(c.panel_row_hover))
-        .child(
+        ));
+    }
+
+    // Panels items (separated from preferences by a divider)
+    if !panel_plugins.is_empty() {
+        nav_items.push(
             div()
-                .text_size(px(13.0))
-                .text_color(if is_active {
-                    c.text_default
-                } else {
-                    c.dialog_muted
-                })
-                .child(label),
-        )
-        .on_click(move |_event, _window, cx| {
-            nav_state.update(cx, |ui, _| {
-                ui.active_plugin = plugin_id.clone();
-            });
-            cx.refresh_windows();
-        });
-
-        if is_active {
-            tab = tab.child(
-                div()
-                    .absolute()
-                    .left_0()
-                    .top(px(8.0))
-                    .bottom(px(8.0))
-                    .w(px(3.0))
-                    .rounded_full()
-                    .bg(c.focus_accent),
-            );
+                .my(px(6.0))
+                .mx(px(8.0))
+                .h(px(1.0))
+                .bg(c.dialog_border)
+                .into_any_element(),
+        );
+        for manifest in &panel_plugins {
+            let plugin_id = manifest.plugin.as_str();
+            let is_active = active_id == plugin_id;
+            let label = &manifest.name;
+            nav_items.push(render_nav_item(
+                id_namespace,
+                plugin_id,
+                label,
+                is_active,
+                &state,
+                c,
+                d,
+            ));
         }
-
-        nav_items.push(tab.into_any_element());
     }
 
     let nav_rail = div()
-        .w(px(160.0))
+        .w(px(180.0))
         .h_full()
         .flex_shrink_0()
         .p(px(8.0))
@@ -123,9 +132,18 @@ pub fn render_settings_body(
         .gap(px(2.0))
         .children(nav_items);
 
-    let content = match &active {
-        Some(manifest) => render_plugin_page(id_namespace, &state, manifest, theme, cx),
-        None => div().into_any_element(),
+    let content = match active_id.as_str() {
+        NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), theme, cx),
+        NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), theme, cx),
+        NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, theme, cx),
+        NAV_TYPOGRAPHY => render_typography_page(id_namespace, &state, core_manifest.as_deref(), theme, cx),
+        other => {
+            if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == other) {
+                render_plugin_page(id_namespace, &state, manifest, theme, cx)
+            } else {
+                render_general_page(id_namespace, &state, core_manifest.as_deref(), theme, cx)
+            }
+        }
     };
 
     let right_content = div()
@@ -154,7 +172,241 @@ pub fn render_settings_body(
         .into_any_element()
 }
 
-/// Renders one plugin's settings page: a page header plus standalone setting cards.
+fn render_nav_item(
+    id_namespace: &str,
+    target_id: &str,
+    label: &str,
+    is_active: bool,
+    state: &Entity<SettingsUiState>,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+) -> AnyElement {
+    let nav_state = state.clone();
+    let target = target_id.to_string();
+    let mut tab = nav_tab(
+        ElementId::Name(format!("{id_namespace}-nav-{target_id}").into()),
+        c,
+        d,
+    )
+    .relative()
+    .when(is_active, |this| this.bg(c.panel_row_hover))
+    .child(
+        div()
+            .text_size(px(13.0))
+            .text_color(if is_active {
+                c.text_default
+            } else {
+                c.dialog_muted
+            })
+            .child(label.to_string()),
+    )
+    .on_click(move |_event, _window, cx| {
+        nav_state.update(cx, |ui, _| {
+            ui.active_plugin = target.clone();
+        });
+        cx.refresh_windows();
+    });
+
+    if is_active {
+        tab = tab.child(
+            div()
+                .absolute()
+                .left_0()
+                .top(px(8.0))
+                .bottom(px(8.0))
+                .w(px(3.0))
+                .rounded_full()
+                .bg(c.focus_accent),
+        );
+    }
+
+    tab.into_any_element()
+}
+fn render_setting_group(title: &str, rows: Vec<AnyElement>, c: &ThemeColors) -> AnyElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(4.0))
+        .child(
+            div()
+                .pt(px(6.0))
+                .pb(px(2.0))
+                .text_size(px(13.5))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(c.text_default)
+                .child(title.to_string()),
+        )
+        .children(rows)
+        .into_any_element()
+}
+
+fn render_general_page(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    manifest: Option<&PluginManifest>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let mut sections = Vec::new();
+
+    if let Some(m) = manifest {
+        let startup_keys = ["startup.open", "startup.restore_window_state"];
+        let startup_decls: Vec<_> = startup_keys
+            .iter()
+            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .collect();
+        if !startup_decls.is_empty() {
+            let rows: Vec<AnyElement> = startup_decls
+                .into_iter()
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .collect();
+            sections.push(render_setting_group("Startup", rows, c));
+        }
+
+        let lang_keys = ["interface.language_id"];
+        let lang_decls: Vec<_> = lang_keys
+            .iter()
+            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .collect();
+        if !lang_decls.is_empty() {
+            let rows: Vec<AnyElement> = lang_decls
+                .into_iter()
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .collect();
+            sections.push(render_setting_group("Language", rows, c));
+        }
+    }
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .children(sections)
+        .into_any_element()
+}
+
+fn render_appearance_page(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    manifest: Option<&PluginManifest>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+    let mut sections = Vec::new();
+
+    if let Some(m) = manifest {
+        let theme_keys = ["theme.appearance", "theme.family"];
+        let theme_decls: Vec<_> = theme_keys
+            .iter()
+            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .collect();
+        if !theme_decls.is_empty() {
+            let mut rows: Vec<AnyElement> = theme_decls
+                .into_iter()
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .collect();
+
+            let nav_state = state.clone();
+            let goto_button = div()
+                .id(ElementId::Name(format!("{id_namespace}-goto-color-overrides").into()))
+                .px(px(12.0))
+                .py(px(6.0))
+                .rounded(px(d.button_radius))
+                .border_1()
+                .border_color(c.dialog_border)
+                .cursor_pointer()
+                .hover(|this| this.bg(c.panel_row_hover))
+                .text_size(px(12.0))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(c.text_default)
+                .child("Customize Colors →")
+                .on_click(move |_event, _window, cx| {
+                    nav_state.update(cx, |ui, _| {
+                        ui.active_plugin = NAV_COLOR_OVERRIDES.to_string();
+                    });
+                    cx.refresh_windows();
+                })
+                .into_any_element();
+
+            let color_overrides_row = make_row(
+                c.dialog_border,
+                c,
+                d,
+                "Theme Color Overrides",
+                "Fine-tune individual token colors, UI dimensions, and typography scales",
+                goto_button,
+            );
+            rows.push(color_overrides_row);
+
+            sections.push(render_setting_group("Theme", rows, c));
+        }
+    }
+
+    sections.push(render_installed_themes_panel(id_namespace, theme, cx));
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .children(sections)
+        .into_any_element()
+}
+
+fn render_color_overrides_page(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .child(render_theme_overrides_panel(id_namespace, state, theme, cx))
+        .into_any_element()
+}
+
+fn render_typography_page(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    manifest: Option<&PluginManifest>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let mut sections = Vec::new();
+
+    if let Some(m) = manifest {
+        let typo_keys = [
+            "typography.ui_font_family",
+            "typography.prose_font_family",
+            "typography.code_font_family",
+        ];
+        let typo_decls: Vec<_> = typo_keys
+            .iter()
+            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
+            .collect();
+        if !typo_decls.is_empty() {
+            let rows: Vec<AnyElement> = typo_decls
+                .into_iter()
+                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, theme, cx))
+                .collect();
+            sections.push(render_setting_group("Fonts", rows, c));
+        }
+    }
+
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(12.0))
+        .children(sections)
+        .into_any_element()
+}
+
+/// Renders one plugin's settings page: standalone setting cards grouped by category.
 fn render_plugin_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
@@ -166,8 +418,6 @@ fn render_plugin_page(
     let plugin_id = manifest.plugin.as_str();
 
     let groups = settings_groups(manifest);
-    let has_multiple_groups =
-        groups.len() > 1 || groups.first().is_some_and(|(g, _)| g != &manifest.name);
 
     let mut section_elements = Vec::new();
     for (group, declarations) in groups {
@@ -178,57 +428,13 @@ fn render_plugin_page(
             })
             .collect();
 
-        let mut group_div = div().flex().flex_col().gap(px(4.0));
-        if has_multiple_groups {
-            group_div = group_div.child(
-                div()
-                    .pt(px(6.0))
-                    .pb(px(2.0))
-                    .text_size(px(13.5))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(c.text_default)
-                    .child(group),
-            );
-        }
-        group_div = group_div.children(rows);
-        section_elements.push(group_div.into_any_element());
-
-        // The group declaring the theme family picker also hosts the
-        // per-user color override panel and the installed-theme manager.
-        if declarations
-            .iter()
-            .any(|declaration| declaration.kind == SettingKind::Theme)
-        {
-            section_elements.push(render_theme_overrides_panel(id_namespace, state, theme, cx));
-            section_elements.push(render_installed_themes_panel(id_namespace, theme, cx));
-        }
+        section_elements.push(render_setting_group(&group, rows, c));
     }
-
-    let description = manifest.description.clone().map(|text| {
-        div()
-            .text_size(px(12.0))
-            .text_color(c.dialog_muted)
-            .child(text)
-    });
 
     div()
         .flex()
         .flex_col()
         .gap(px(12.0))
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(2.0))
-                .child(
-                    div()
-                        .text_size(px(16.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(c.text_default)
-                        .child(manifest.name.clone()),
-                )
-                .children(description),
-        )
         .children(section_elements)
         .into_any_element()
 }

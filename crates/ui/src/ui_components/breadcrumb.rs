@@ -132,7 +132,7 @@ where
                 .on_mouse_down(MouseButton::Left, on_toggle_outline)
                 .child(
                     svg()
-                        .path("plugin://splitype.editor/outline/markdown.svg")
+                        .path("plugin://splitype.editor/outline/outline.svg")
                         .size(px(13.5))
                         .text_color(if is_outline_docked {
                             c.focus_accent

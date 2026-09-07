@@ -18,7 +18,7 @@
 //   forms are also accepted).
 // - Unknown keys are hard errors, so typos fail the import loudly.
 // - `colors`, `dimensions`, `typography`, and `placeholders` accept any of
-//   the tokens listed in Settings -> Splitype Core -> Color Overrides.
+//   the tokens listed in Settings -> Color Overrides.
 // - `extension` overrides plugin-contributed tokens keyed by token id.
 {
   // Required. Shown as the theme name in the Theme menu.

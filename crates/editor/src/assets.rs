@@ -1,7 +1,7 @@
 //! Embedded SVG icon asset catalog for the Editor plugin.
 
-use std::borrow::Cow;
 use platform_contracts::PluginAssetProvider;
+use std::borrow::Cow;
 
 pub struct EditorAssets;
 
@@ -19,9 +19,7 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
 
     match subpath {
         // ── Editor: panel header ────────────────────────────────
-        "panel.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/panel.svg"
-        ))),
+        "panel.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/panel.svg"))),
         "topbar/active.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/active.svg"
         ))),
@@ -105,8 +103,8 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         ))),
 
         // ── Editor: outline panel ─────────────────────────────────────
-        "outline/markdown.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/outline/markdown.svg"
+        "outline/outline.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/outline/outline.svg"
         ))),
 
         _ => None,

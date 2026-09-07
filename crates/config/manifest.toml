@@ -2,7 +2,7 @@
 # and help commands shared by every window.
 manifest_version = 1
 plugin = "splitype.core"
-name = "Splitype Core"
+name = "Core"
 version = "0.1.0"
 description = "Application window, file, preference, and help commands."
 
