@@ -192,7 +192,8 @@ pub fn settings_group_item_row(
             .child(title_row)
     };
 
-    let left_side = if let Some(icon_path) = icon {
+    let effective_icon = icon.filter(|s| !s.trim().is_empty());
+    let left_side = if let Some(icon_path) = effective_icon {
         div()
             .flex_1()
             .min_w(px(0.0))
@@ -321,7 +322,8 @@ pub fn settings_expander_group(
             .child(title_elem)
     };
 
-    let left_side = if let Some(icon_path) = icon {
+    let effective_icon = icon.filter(|s| !s.trim().is_empty());
+    let left_side = if let Some(icon_path) = effective_icon {
         div()
             .flex_1()
             .min_w(px(0.0))

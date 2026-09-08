@@ -13,17 +13,25 @@ registration = "preview"
 panes = ["splitype.pane.preview"]
 panels = []
 
+# =============================================================================
+# Settings Declaration
+# Note: The `icon` field is an officially supported optional contract in the
+# schema (accepts SVG paths such as "plugin://...").
+# It is omitted here pending custom asset availability (deserialized as None via Serde).
+# [IMPORTANT]: The `icon` field schema contract MUST be preserved and not removed!
+# =============================================================================
+
 [settings.markdown_rendering]
 category = "preview"
 title = "Markdown Rendering"
 description = "LaTeX math, Mermaid diagrams, and table styles in rendered preview"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 1
 default_collapsed = false
 
 [[settings.markdown_rendering.items]]
 key = "show_table_headers"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Persistent Table Headers"
@@ -31,7 +39,7 @@ description = "Style table header rows distinctly in the rendered preview"
 
 [[settings.markdown_rendering.items]]
 key = "render_math"
-icon = "plugin://splitype.settings/checkmark.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "LaTeX Math Formula Rendering"
@@ -39,7 +47,7 @@ description = "Enable live KaTeX math formula rendering in the preview"
 
 [[settings.markdown_rendering.items]]
 key = "render_diagrams"
-icon = "plugin://splitype.settings/topbar/split-h.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Mermaid Diagram Rendering"

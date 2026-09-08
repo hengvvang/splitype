@@ -142,17 +142,41 @@ id = "core.typography"
 title = "Typography"
 order = 40
 
+# =============================================================================
+# Settings Declaration Architecture (WinUI 3 SettingsExpander Tree)
+#
+# Icon Field Specification & Configuration Guide:
+# 1. The `icon` field is an officially supported, core optional contract in the
+#    settings schema (`pub icon: Option<String>` in `SettingGroupDeclaration`
+#    and `SettingDeclaration`).
+# 2. It accepts SVG asset resource paths (e.g. "plugin://splitype.core/icon.svg").
+# 3. When custom icon resources are not yet prepared or finalized, two syntaxes
+#    are fully supported and functionally equivalent:
+#    - [Explicit Empty String]: `icon = ""`
+#    - [Field Omission]: Omit the `icon` key entirely (deserialized as None via Serde).
+# 4. The UI rendering layer defensively sanitizes empty strings and whitespace,
+#    seamlessly falling back to a clean text-first layout without blank placeholders
+#    or asset load warnings.
+# 5. [IMPORTANT]: The `icon` field schema contract MUST be preserved. Do NOT remove
+#    the `icon` field definition or support from schemas or structs simply because
+#    assets are pending.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# [Pattern 1: Explicit Empty String (`icon = ""`)]
+# Demonstrates declaring the icon slot explicitly while resources are pending.
+# -----------------------------------------------------------------------------
 [settings.startup]
 category = "core.general"
 title = "Startup"
 description = "Initial workspace and window restoration settings"
-icon = "plugin://splitype.settings/panel.svg"
+icon = "" # Explicit empty string: placeholder for pending icon asset
 order = 1
 default_collapsed = false
 
 [[settings.startup.items]]
 key = "startup.open"
-icon = "plugin://splitype.settings/panel.svg"
+icon = "" # Explicit empty string: placeholder for pending icon asset
 kind = "enum"
 default = "new_file"
 title = "App Startup Behavior"
@@ -164,23 +188,28 @@ options = [
 
 [[settings.startup.items]]
 key = "startup.restore_window_state"
-icon = "plugin://splitype.settings/topbar/restore.svg"
+icon = "" # Explicit empty string: placeholder for pending icon asset
 kind = "bool"
 default = true
 title = "Restore Window Geometry & State"
 description = "Remember previous window dimensions, position, and layout splits on startup"
 
+# -----------------------------------------------------------------------------
+# [Pattern 2: Omitted Icon Field]
+# Demonstrates omitting `icon` to let Serde default to `None`.
+# The schema contract remains intact; `icon = "plugin://..."` can be populated later.
+# -----------------------------------------------------------------------------
 [settings.language]
 category = "core.general"
 title = "Language"
 description = "User interface language preferences"
-icon = "plugin://splitype.settings/menu.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 2
 default_collapsed = false
 
 [[settings.language.items]]
 key = "interface.language_id"
-icon = "plugin://splitype.settings/menu.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "language"
 default = "en-US"
 title = "Display Language"
@@ -190,13 +219,13 @@ description = "Select preferred language for editor UI and dialogs"
 category = "core.appearance"
 title = "Theme"
 description = "Select theme appearance and visual palette"
-icon = "plugin://splitype.settings/sun.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 1
 default_collapsed = false
 
 [[settings.theme.items]]
 key = "theme.appearance"
-icon = "plugin://splitype.settings/sun.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "enum"
 default = "dark"
 title = "Theme Appearance"
@@ -209,7 +238,7 @@ options = [
 
 [[settings.theme.items]]
 key = "theme.family"
-icon = "plugin://splitype.settings/moon.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "theme"
 default = "splitype"
 title = "Theme Family"
@@ -219,13 +248,13 @@ description = "Select the application-wide visual theme"
 category = "core.typography"
 title = "Fonts"
 description = "Interface, Markdown prose, and monospace code typography"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 1
 default_collapsed = false
 
 [[settings.fonts.items]]
 key = "typography.ui_font_family"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "font"
 default = ""
 title = "Interface Font"
@@ -233,7 +262,7 @@ description = "Font used for menus, file navigation panel, and application chrom
 
 [[settings.fonts.items]]
 key = "typography.prose_font_family"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "font"
 default = ""
 title = "Prose Text Font"
@@ -241,7 +270,7 @@ description = "Font used for Markdown prose, headings, and tables"
 
 [[settings.fonts.items]]
 key = "typography.code_font_family"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "font"
 default = ""
 title = "Code Block Font"

@@ -158,17 +158,25 @@ id = "exit-code-block"
 shortcuts = ["cmd-enter", "ctrl-enter"]
 context = "EditorContent"
 
+# =============================================================================
+# Settings Declaration
+# Note: The `icon` field is an officially supported optional contract in the
+# schema (accepts SVG paths such as "plugin://...").
+# It is omitted here pending custom asset availability (deserialized as None via Serde).
+# [IMPORTANT]: The `icon` field schema contract MUST be preserved and not removed!
+# =============================================================================
+
 [settings.clipboard]
 category = "wysiwyg"
 title = "Clipboard & Assets"
 description = "Storage destination and path strategy when pasting images from clipboard"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 1
 default_collapsed = false
 
 [[settings.clipboard.items]]
 key = "image_paste_behavior"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "enum"
 default = "none"
 title = "Clipboard Image Paste Action"

@@ -13,17 +13,25 @@ registration = "source-code"
 panes = ["splitype.pane.source_code"]
 panels = []
 
+# =============================================================================
+# Settings Declaration
+# Note: The `icon` field is an officially supported optional contract in the
+# schema (accepts SVG paths such as "plugin://...").
+# It is omitted here pending custom asset availability (deserialized as None via Serde).
+# [IMPORTANT]: The `icon` field schema contract MUST be preserved and not removed!
+# =============================================================================
+
 [settings.editor_view]
 category = "source-code"
 title = "Display & Gutter"
 description = "Line numbers, soft wrapping, and cursor line highlight"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 1
 default_collapsed = false
 
 [[settings.editor_view.items]]
 key = "line_numbers"
-icon = "plugin://splitype.settings/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Line Numbers"
@@ -31,7 +39,7 @@ description = "Show line numbers in the source gutter"
 
 [[settings.editor_view.items]]
 key = "word_wrap"
-icon = "plugin://splitype.settings/chevron-right.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Soft Word Wrapping"
@@ -39,7 +47,7 @@ description = "Wrap long lines to fit the current viewport width"
 
 [[settings.editor_view.items]]
 key = "highlight_active_line"
-icon = "plugin://splitype.settings/checkmark.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Highlight Active Line"
@@ -49,13 +57,13 @@ description = "Subtly highlight the background of the line containing the cursor
 category = "source-code"
 title = "Indentation"
 description = "Tab width and whitespace insertion behavior"
-icon = "plugin://splitype.settings/menu.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 2
 default_collapsed = false
 
 [[settings.indentation.items]]
 key = "tab_size"
-icon = "plugin://splitype.settings/plus.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "number"
 default = 4
 min = 2
@@ -66,7 +74,7 @@ description = "The number of spaces a tab character equals (2, 4, or 8 spaces)"
 
 [[settings.indentation.items]]
 key = "insert_spaces"
-icon = "plugin://splitype.settings/minus.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Insert Spaces on Tab"

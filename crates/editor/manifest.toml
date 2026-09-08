@@ -73,17 +73,25 @@ shortcuts = ["f3"]
 id = "find-previous"
 shortcuts = ["shift-f3"]
 
+# =============================================================================
+# Settings Declaration
+# Note: The `icon` field is an officially supported optional contract in the
+# schema (accepts SVG paths such as "plugin://...").
+# It is omitted here pending custom asset availability (deserialized as None via Serde).
+# [IMPORTANT]: The `icon` field schema contract MUST be preserved and not removed!
+# =============================================================================
+
 [settings.status_bar]
 category = "editor"
 title = "Status Bar"
 description = "Control visibility of the persistent bottom status bar across window"
-icon = "plugin://splitype.editor/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 1
 default_collapsed = false
 
 [[settings.status_bar.items]]
 key = "status_bar_enabled"
-icon = "plugin://splitype.editor/panel.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Status Bar Visibility"
@@ -93,13 +101,13 @@ description = "Show or hide the persistent bottom status bar across window"
 category = "editor"
 title = "Document Metrics"
 description = "Display real-time word count, cursor coordinates, and reading duration in status bar"
-icon = "plugin://splitype.editor/bottombar/checkmark.svg"
+# icon field preserved in schema; omitted pending asset availability
 order = 2
 default_collapsed = false
 
 [[settings.status_bar_metrics.items]]
 key = "show_word_count"
-icon = "plugin://splitype.editor/outline/outline.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Word Count Badge"
@@ -107,7 +115,7 @@ description = "Display real-time document word count in the status bar"
 
 [[settings.status_bar_metrics.items]]
 key = "show_cursor_position"
-icon = "plugin://splitype.editor/topbar/search.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Cursor Position Badge"
@@ -115,7 +123,7 @@ description = "Display line and column coordinates in the status bar"
 
 [[settings.status_bar_metrics.items]]
 key = "show_character_count"
-icon = "plugin://splitype.editor/outline/outline.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Character Count Badge"
@@ -123,7 +131,7 @@ description = "Display total character count in the status bar"
 
 [[settings.status_bar_metrics.items]]
 key = "show_reading_time"
-icon = "plugin://splitype.editor/bottombar/checkmark.svg"
+# icon field preserved in schema; omitted pending asset availability
 kind = "bool"
 default = true
 title = "Estimated Reading Time"
