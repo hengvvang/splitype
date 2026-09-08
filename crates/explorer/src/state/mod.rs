@@ -30,12 +30,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui::{
-    AnyWindowHandle, AppContext, Bounds, Entity, FocusHandle, Pixels, Subscription, Task,
-    UniformListScrollHandle, WeakEntity,
+    AnyWindowHandle, AppContext, Bounds, Entity, FocusHandle, Pixels, ShapedLine, Subscription,
+    Task, UniformListScrollHandle, WeakEntity,
 };
 
+use crate::settings::{ExplorerSettings, ExplorerSortMode, ExplorerSortOrder};
 use crate::state::undo::ExplorerUndoHistory;
-use crate::state::worktree::{Worktree, WorktreeEntryKind, WorktreeSnapshot};
+use crate::state::worktree::{Worktree, WorktreeEntry, WorktreeEntryKind, WorktreeSnapshot};
 
 pub use crate::state::store::WorktreeStore;
 pub use crate::state::worktree::{ExplorerEntryId, WorktreeEvent, WorktreeId};
@@ -148,6 +149,9 @@ pub struct ExplorerFilenameEditor {
     pub focus_handle: Option<FocusHandle>,
     /// Bounds of the input element from the last frame (IME hit-testing).
     pub last_bounds: Option<Bounds<Pixels>>,
+    pub last_layout: Option<ShapedLine>,
+    pub is_selecting: bool,
+    pub opened_at: Option<std::time::Instant>,
 }
 
 /// Inline create/rename state (mirrors Zed's `EditState`).
@@ -258,9 +262,13 @@ impl DragExplorerTarget {
 
 // ── Explorer State ─────────────────────────────────────────────────────
 
-/// Top-level explorer file-tree state.
+    /// Top-level explorer file-tree state.
 pub struct ExplorerState {
     pub tree_visible: bool,
+    /// Sorting mode (directories first, files first, mixed).
+    pub sort_mode: ExplorerSortMode,
+    /// Sorting order (ascending, descending).
+    pub sort_order: ExplorerSortOrder,
     /// Shared worktree entities in this panel's display order. The trees
     /// themselves are process-global (see [`WorktreeStore`]); this list is
     /// the panel's view of which roots are visible.
@@ -313,14 +321,21 @@ pub struct ExplorerState {
     /// subscription (or the panel) unsubscribes; the store drops the shared
     /// tree when the last view releases it.
     pub subscriptions: HashMap<WorktreeId, Subscription>,
+    /// Keyboard focus handle for the explorer panel.
+    pub focus_handle: Option<FocusHandle>,
 }
 
 impl ExplorerState {
     /// Construct a per-panel explorer state entity. Each panel instance
     /// owns its own state, so split/multi-window panels never interfere.
     pub fn entity(cx: &mut gpui::App) -> Entity<Self> {
+        let settings = config::settings::PluginSettings::<ExplorerSettings>::get(cx);
+        let focus_handle = cx.focus_handle();
         cx.new(|cx| Self {
             self_weak: cx.weak_entity(),
+            sort_mode: settings.sort_mode,
+            sort_order: settings.sort_order,
+            focus_handle: Some(focus_handle),
             ..Default::default()
         })
     }
@@ -330,6 +345,8 @@ impl Default for ExplorerState {
     fn default() -> Self {
         let mut state = Self {
             tree_visible: false,
+            sort_mode: ExplorerSortMode::DirectoriesFirst,
+            sort_order: ExplorerSortOrder::Ascending,
             worktrees: Vec::new(),
             snapshots: Vec::new(),
             expanded: HashMap::new(),
@@ -356,6 +373,7 @@ impl Default for ExplorerState {
             active_file: None,
             self_weak: WeakEntity::new_invalid(),
             subscriptions: HashMap::new(),
+            focus_handle: None,
         };
         state.refresh_recent_cache();
         state
@@ -380,14 +398,183 @@ impl ExplorerState {
     }
 }
 
-// ── Direct Snapshot $\rightarrow$ Visible Rows Derivation ──────────────────────
+// ── Ergonomic Sorting & Visible Rows Derivation ──────────────────────────
+
+/// Natural alphanumeric comparison (case-insensitive, numeric-aware).
+/// Groups of ASCII digits are compared as numbers; non-digits are compared case-insensitively.
+pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    let mut a_bytes = a.as_bytes();
+    let mut b_bytes = b.as_bytes();
+
+    while !a_bytes.is_empty() && !b_bytes.is_empty() {
+        if a_bytes[0].is_ascii_digit() && b_bytes[0].is_ascii_digit() {
+            let a_len = a_bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+            let b_len = b_bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+
+            let a_digits = &a_bytes[..a_len];
+            let b_digits = &b_bytes[..b_len];
+
+            // Skip leading zeros
+            let a_non_zero = a_digits.iter().position(|&b| b != b'0').unwrap_or(a_len);
+            let b_non_zero = b_digits.iter().position(|&b| b != b'0').unwrap_or(b_len);
+
+            let a_trimmed = &a_digits[a_non_zero..];
+            let b_trimmed = &b_digits[b_non_zero..];
+
+            let ord = a_trimmed
+                .len()
+                .cmp(&b_trimmed.len())
+                .then_with(|| a_trimmed.cmp(b_trimmed))
+                .then_with(|| a_len.cmp(&b_len));
+
+            if ord != std::cmp::Ordering::Equal {
+                return ord;
+            }
+
+            a_bytes = &a_bytes[a_len..];
+            b_bytes = &b_bytes[b_len..];
+        } else {
+            let ca = a_bytes[0].to_ascii_lowercase();
+            let cb = b_bytes[0].to_ascii_lowercase();
+            match ca.cmp(&cb) {
+                std::cmp::Ordering::Equal => {
+                    a_bytes = &a_bytes[1..];
+                    b_bytes = &b_bytes[1..];
+                }
+                diff => return diff,
+            }
+        }
+    }
+
+    a_bytes
+        .len()
+        .cmp(&b_bytes.len())
+        .then_with(|| a.cmp(b))
+}
+
+/// Compare two entries in the same directory using ergonomic rules:
+/// 1. Group by node kind (DirectoriesFirst, FilesFirst, or Mixed).
+/// 2. Sort by natural alphanumeric order within the same kind.
+/// 3. Invert the name comparison if Descending.
+pub fn compare_worktree_entries(
+    a: &WorktreeEntry,
+    b: &WorktreeEntry,
+    sort_mode: ExplorerSortMode,
+    sort_order: ExplorerSortOrder,
+) -> std::cmp::Ordering {
+    let kind_cmp = match sort_mode {
+        ExplorerSortMode::DirectoriesFirst => match (a.kind, b.kind) {
+            (WorktreeEntryKind::Directory, WorktreeEntryKind::File) => std::cmp::Ordering::Less,
+            (WorktreeEntryKind::File, WorktreeEntryKind::Directory) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        },
+        ExplorerSortMode::FilesFirst => match (a.kind, b.kind) {
+            (WorktreeEntryKind::File, WorktreeEntryKind::Directory) => std::cmp::Ordering::Less,
+            (WorktreeEntryKind::Directory, WorktreeEntryKind::File) => std::cmp::Ordering::Greater,
+            _ => std::cmp::Ordering::Equal,
+        },
+        ExplorerSortMode::Mixed => std::cmp::Ordering::Equal,
+    };
+
+    if kind_cmp != std::cmp::Ordering::Equal {
+        return kind_cmp;
+    }
+
+    let name_a = a.path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+    let name_b = b.path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+
+    let name_cmp = natural_cmp(name_a, name_b);
+
+    match sort_order {
+        ExplorerSortOrder::Ascending => name_cmp,
+        ExplorerSortOrder::Descending => name_cmp.reverse(),
+    }
+}
+
+fn collect_visible_entries(
+    snapshot: &WorktreeSnapshot,
+    worktree_id: WorktreeId,
+    parent_id: ExplorerEntryId,
+    depth: usize,
+    expanded_set: Option<&BTreeSet<ExplorerEntryId>>,
+    sort_mode: ExplorerSortMode,
+    sort_order: ExplorerSortOrder,
+    flat_entries: &mut Vec<VisibleExplorerEntry>,
+) {
+    let child_ids = snapshot.child_ids(parent_id);
+    if child_ids.is_empty() {
+        return;
+    }
+
+    let mut children: Vec<&WorktreeEntry> = child_ids
+        .iter()
+        .filter_map(|id| snapshot.entry_for_id(*id))
+        .collect();
+
+    children.sort_by(|a, b| compare_worktree_entries(a, b, sort_mode, sort_order));
+
+    for child in children {
+        let is_dir = child.kind == WorktreeEntryKind::Directory;
+        let is_expanded = if is_dir {
+            expanded_set.is_some_and(|set| set.contains(&child.id))
+        } else {
+            false
+        };
+        let has_children = is_dir && snapshot.child_count(child.id) > 0;
+        let label = child
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| child.path.to_string_lossy().into_owned());
+
+        let kind = if is_dir {
+            ExplorerEntryKind::Directory
+        } else if child
+            .path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+        {
+            ExplorerEntryKind::MarkdownFile
+        } else {
+            ExplorerEntryKind::File
+        };
+
+        flat_entries.push(VisibleExplorerEntry {
+            worktree_id,
+            id: child.id,
+            parent_id: Some(parent_id),
+            path: child.path.clone(),
+            label,
+            depth,
+            kind,
+            is_expanded,
+            has_children,
+        });
+
+        if is_dir && is_expanded {
+            collect_visible_entries(
+                snapshot,
+                worktree_id,
+                child.id,
+                depth + 1,
+                expanded_set,
+                sort_mode,
+                sort_order,
+                flat_entries,
+            );
+        }
+    }
+}
 
 /// Derive the flat visible row list directly from each [`WorktreeSnapshot`]
-/// in linear time $O(N)$ with zero intermediate recursive tree allocations.
+/// by traversing only expanded directories in $O(V)$ time, with children sorted
+/// by the specified sort mode and sort order.
 pub fn build_explorer_rows(
     snapshots: &[Arc<WorktreeSnapshot>],
     expanded: &HashMap<WorktreeId, BTreeSet<ExplorerEntryId>>,
     edit: Option<&ExplorerEditState>,
+    sort_mode: ExplorerSortMode,
+    sort_order: ExplorerSortOrder,
 ) -> Vec<ExplorerRow> {
     let mut rows = Vec::new();
 
@@ -401,85 +588,48 @@ pub fn build_explorer_rows(
         let root_is_expanded = expanded_set.is_none_or(|set| set.contains(&root_entry.id));
 
         let mut flat_entries: Vec<VisibleExplorerEntry> =
-            Vec::with_capacity(snapshot.entries_by_path.len());
-        let mut collapsed_prefix: Option<PathBuf> = None;
+            Vec::with_capacity(snapshot.entries_by_path.len().min(64));
 
-        for entry in snapshot.entries_by_path.values() {
-            let path = &entry.path;
+        let root_is_dir = root_entry.kind == WorktreeEntryKind::Directory;
+        let root_kind = if root_is_dir {
+            ExplorerEntryKind::Directory
+        } else if root_path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+        {
+            ExplorerEntryKind::MarkdownFile
+        } else {
+            ExplorerEntryKind::File
+        };
+        let root_label = root_path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| root_path.to_string_lossy().into_owned());
+        let root_has_children = root_is_dir && snapshot.child_count(root_entry.id) > 0;
 
-            // If we are currently skipping a collapsed directory subtree:
-            if let Some(prefix) = &collapsed_prefix {
-                if path.starts_with(prefix) && path != prefix {
-                    continue;
-                } else {
-                    collapsed_prefix = None;
-                }
-            }
+        flat_entries.push(VisibleExplorerEntry {
+            worktree_id,
+            id: root_entry.id,
+            parent_id: None,
+            path: root_path.clone(),
+            label: root_label,
+            depth: 0,
+            kind: root_kind,
+            is_expanded: root_is_expanded,
+            has_children: root_has_children,
+        });
 
-            // Calculate depth relative to worktree root
-            let (depth, label) = if path == root_path {
-                let label = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
-                (0, label)
-            } else if let Ok(rel) = path.strip_prefix(root_path) {
-                let depth = rel.components().count();
-                let label = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| path.to_string_lossy().into_owned());
-                (depth, label)
-            } else {
-                continue;
-            };
-
-            let is_dir = entry.kind == WorktreeEntryKind::Directory;
-            let is_expanded = if path == root_path {
-                root_is_expanded
-            } else if is_dir {
-                expanded_set.is_some_and(|set| set.contains(&entry.id))
-            } else {
-                false
-            };
-
-            // Check if this directory has children in the snapshot. Child
-            // counts are precomputed per snapshot so this stays O(1) —
-            // rescanning each directory's subtree here was quadratic.
-            let has_children = is_dir && snapshot.child_count(entry.id) > 0;
-
-            // Determine entry kind
-            let kind = if is_dir {
-                ExplorerEntryKind::Directory
-            } else if path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-            {
-                ExplorerEntryKind::MarkdownFile
-            } else {
-                ExplorerEntryKind::File
-            };
-
-            let parent_id = path
-                .parent()
-                .and_then(|p| snapshot.id_for_path.get(p).copied());
-
-            flat_entries.push(VisibleExplorerEntry {
+        if root_is_expanded && root_is_dir {
+            collect_visible_entries(
+                snapshot,
                 worktree_id,
-                id: entry.id,
-                parent_id,
-                path: path.clone(),
-                label,
-                depth,
-                kind,
-                is_expanded,
-                has_children,
-            });
-
-            // If this directory is collapsed, skip all its children
-            if is_dir && !is_expanded {
-                collapsed_prefix = Some(path.clone());
-            }
+                root_entry.id,
+                1,
+                expanded_set,
+                sort_mode,
+                sort_order,
+                &mut flat_entries,
+            );
         }
 
         // Splice inline edit row if active for this worktree
@@ -519,4 +669,522 @@ pub fn build_explorer_rows(
     }
 
     rows
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cmp::Ordering;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_natural_cmp() {
+        assert_eq!(
+            natural_cmp("file2.txt", "file10.txt"),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(
+            natural_cmp("file10.txt", "file2.txt"),
+            std::cmp::Ordering::Greater
+        );
+        assert_eq!(
+            natural_cmp("file1.txt", "file1.txt"),
+            std::cmp::Ordering::Equal
+        );
+        assert_eq!(natural_cmp("a.txt", "B.txt"), std::cmp::Ordering::Less);
+        assert_eq!(natural_cmp("B.txt", "a.txt"), std::cmp::Ordering::Greater);
+        assert_eq!(natural_cmp("A.txt", "a.txt"), std::cmp::Ordering::Less);
+    }
+
+    #[test]
+    fn test_compare_worktree_entries() {
+        let dir = WorktreeEntry {
+            id: ExplorerEntryId(1),
+            path: PathBuf::from("/root/z_folder"),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+        let file = WorktreeEntry {
+            id: ExplorerEntryId(2),
+            path: PathBuf::from("/root/a_file.txt"),
+            kind: WorktreeEntryKind::File,
+            inode: None,
+        };
+
+        // Directories first: dir comes before file even though 'z' > 'a'
+        assert_eq!(
+            compare_worktree_entries(
+                &dir,
+                &file,
+                ExplorerSortMode::DirectoriesFirst,
+                ExplorerSortOrder::Ascending
+            ),
+            std::cmp::Ordering::Less
+        );
+
+        // Files first: file comes before dir
+        assert_eq!(
+            compare_worktree_entries(
+                &dir,
+                &file,
+                ExplorerSortMode::FilesFirst,
+                ExplorerSortOrder::Ascending
+            ),
+            std::cmp::Ordering::Greater
+        );
+
+        // Mixed: 'a_file.txt' comes before 'z_folder'
+        assert_eq!(
+            compare_worktree_entries(
+                &dir,
+                &file,
+                ExplorerSortMode::Mixed,
+                ExplorerSortOrder::Ascending
+            ),
+            std::cmp::Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn test_build_explorer_rows_directories_first() {
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+        let mut children_by_parent = std::collections::HashMap::new();
+
+        let root = PathBuf::from("/project");
+        let root_entry = WorktreeEntry {
+            id: ExplorerEntryId(0),
+            path: root.clone(),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+        entries_by_path.insert(root.clone(), root_entry.clone());
+        id_for_path.insert(root.clone(), ExplorerEntryId(0));
+        path_for_id.insert(ExplorerEntryId(0), root.clone());
+
+        // Children of root:
+        // 1. Cargo.toml (file)
+        // 2. src (dir)
+        // 3. assets (dir)
+        // 4. README.md (file)
+        let items = [
+            ("Cargo.toml", WorktreeEntryKind::File, 1),
+            ("src", WorktreeEntryKind::Directory, 2),
+            ("assets", WorktreeEntryKind::Directory, 3),
+            ("README.md", WorktreeEntryKind::File, 4),
+        ];
+
+        let mut root_child_ids = Vec::new();
+        for (name, kind, id_num) in items {
+            let id = ExplorerEntryId(id_num);
+            let path = root.join(name);
+            let entry = WorktreeEntry {
+                id,
+                path: path.clone(),
+                kind,
+                inode: None,
+            };
+            entries_by_path.insert(path.clone(), entry);
+            id_for_path.insert(path.clone(), id);
+            path_for_id.insert(id, path);
+            root_child_ids.push(id);
+        }
+        children_by_parent.insert(ExplorerEntryId(0), root_child_ids);
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: WorktreeId(1),
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent,
+        });
+
+        let mut expanded = HashMap::new();
+        let mut exp_set = BTreeSet::new();
+        exp_set.insert(ExplorerEntryId(0)); // root expanded
+        expanded.insert(WorktreeId(1), exp_set);
+
+        let rows = build_explorer_rows(
+            &[snapshot],
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+        );
+
+        let labels: Vec<String> = rows
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label),
+                _ => None,
+            })
+            .collect();
+
+        // Root is first, then directories ('assets', 'src'), then files ('Cargo.toml', 'README.md')
+        assert_eq!(
+            labels,
+            vec!["project", "assets", "src", "Cargo.toml", "README.md"]
+        );
+    }
+
+    #[test]
+    fn test_build_explorer_rows_nested_expanded() {
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+        let mut children_by_parent = std::collections::HashMap::new();
+
+        let root = PathBuf::from("/project");
+        let root_entry = WorktreeEntry {
+            id: ExplorerEntryId(0),
+            path: root.clone(),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+        entries_by_path.insert(root.clone(), root_entry.clone());
+        id_for_path.insert(root.clone(), ExplorerEntryId(0));
+        path_for_id.insert(ExplorerEntryId(0), root.clone());
+
+        // Root has child dir "src" (id 1) and file "a_root.txt" (id 2)
+        let src_path = root.join("src");
+        entries_by_path.insert(
+            src_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(1),
+                path: src_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+            },
+        );
+        id_for_path.insert(src_path.clone(), ExplorerEntryId(1));
+        path_for_id.insert(ExplorerEntryId(1), src_path.clone());
+
+        let root_file_path = root.join("a_root.txt");
+        entries_by_path.insert(
+            root_file_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(2),
+                path: root_file_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+            },
+        );
+        id_for_path.insert(root_file_path.clone(), ExplorerEntryId(2));
+        path_for_id.insert(ExplorerEntryId(2), root_file_path);
+
+        children_by_parent.insert(
+            ExplorerEntryId(0),
+            vec![ExplorerEntryId(1), ExplorerEntryId(2)],
+        );
+
+        // "src" has child file "main.rs" (id 3)
+        let main_path = src_path.join("main.rs");
+        entries_by_path.insert(
+            main_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(3),
+                path: main_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+            },
+        );
+        id_for_path.insert(main_path.clone(), ExplorerEntryId(3));
+        path_for_id.insert(ExplorerEntryId(3), main_path);
+
+        children_by_parent.insert(ExplorerEntryId(1), vec![ExplorerEntryId(3)]);
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: WorktreeId(1),
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent,
+        });
+
+        // Expand root and src
+        let mut expanded = HashMap::new();
+        let mut exp_set = BTreeSet::new();
+        exp_set.insert(ExplorerEntryId(0));
+        exp_set.insert(ExplorerEntryId(1));
+        expanded.insert(WorktreeId(1), exp_set);
+
+        let rows = build_explorer_rows(
+            &[snapshot],
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+        );
+
+        let labels: Vec<String> = rows
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label),
+                _ => None,
+            })
+            .collect();
+
+        // project -> src -> main.rs -> a_root.txt
+        assert_eq!(labels, vec!["project", "src", "main.rs", "a_root.txt"]);
+    }
+
+    #[test]
+    fn test_trailing_slash_path_parsing() {
+        let input_unix = "nested/dir/my_folder/";
+        let is_dir_unix = input_unix.ends_with('/') || input_unix.ends_with('\\');
+        assert!(is_dir_unix);
+        let parts_unix: Vec<&str> = input_unix
+            .split(['/', '\\'])
+            .filter(|s| !s.is_empty())
+            .collect();
+        assert_eq!(parts_unix, vec!["nested", "dir", "my_folder"]);
+
+        let input_win = "nested\\dir\\my_folder\\";
+        let is_dir_win = input_win.ends_with('/') || input_win.ends_with('\\');
+        assert!(is_dir_win);
+        let parts_win: Vec<&str> = input_win
+            .split(['/', '\\'])
+            .filter(|s| !s.is_empty())
+            .collect();
+        assert_eq!(parts_win, vec!["nested", "dir", "my_folder"]);
+
+        let file_input = "nested/dir/file.txt";
+        let is_dir_file = file_input.ends_with('/') || file_input.ends_with('\\');
+        assert!(!is_dir_file);
+        let parts_file: Vec<&str> = file_input
+            .split(['/', '\\'])
+            .filter(|s| !s.is_empty())
+            .collect();
+        assert_eq!(parts_file, vec!["nested", "dir", "file.txt"]);
+    }
+
+    #[test]
+    fn test_natural_cmp_complex() {
+        assert_eq!(natural_cmp("file1.txt", "file2.txt"), Ordering::Less);
+        assert_eq!(natural_cmp("file2.txt", "file10.txt"), Ordering::Less);
+        assert_eq!(natural_cmp("file10.txt", "file100.txt"), Ordering::Less);
+        assert_eq!(natural_cmp("item1", "item01"), Ordering::Less);
+        assert_eq!(natural_cmp("item01", "item1"), Ordering::Greater);
+        assert_eq!(natural_cmp("item1", "item1"), Ordering::Equal);
+        assert_eq!(natural_cmp("apple", "Banana"), Ordering::Less);
+        assert_eq!(natural_cmp("Banana", "cherry"), Ordering::Less);
+    }
+
+    #[test]
+    fn test_filename_editor_mouse_and_selection() {
+        let mut editor = ExplorerFilenameEditor::default();
+        editor.set_text("test_file.rs".to_string(), Some(0..9));
+        assert_eq!(editor.selected_text(), "test_file");
+
+        editor.select_all();
+        assert_eq!(editor.selected_text(), "test_file.rs");
+
+        editor.move_to(4);
+        assert_eq!(editor.cursor(), 4);
+        assert!(editor.selection_range().is_empty());
+
+        editor.select_to(9);
+        assert_eq!(editor.selected_text(), "_file");
+
+        editor.select_to(0);
+        assert_eq!(editor.selected_text(), "test");
+    }
+
+    struct TestDir(std::path::PathBuf);
+    impl TestDir {
+        fn new() -> Self {
+            use std::sync::atomic::{AtomicU64, Ordering};
+            static COUNTER: AtomicU64 = AtomicU64::new(0);
+            let dir = std::env::temp_dir().join(format!(
+                "splitype_test_{}_{}_{}",
+                std::process::id(),
+                COUNTER.fetch_add(1, Ordering::Relaxed),
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            ));
+            let _ = std::fs::create_dir_all(&dir);
+            Self(dir)
+        }
+        fn path(&self) -> &std::path::Path {
+            &self.0
+        }
+    }
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn test_execute_entry_ops_disambiguate_policy() {
+        let temp = TestDir::new();
+        let target_dir = temp.path().join("target");
+        std::fs::create_dir_all(&target_dir).unwrap();
+
+        let src_file = temp.path().join("file.txt");
+        std::fs::write(&src_file, "source content").unwrap();
+
+        let existing_dest = target_dir.join("file.txt");
+        std::fs::write(&existing_dest, "original content").unwrap();
+
+        // 1. With disambiguate = true (drag-copy with collision): creates "file copy.txt"
+        let changes = crate::state::utils::execute_entry_ops(
+            &[src_file.clone()],
+            &target_dir,
+            false,
+            true,
+        );
+        assert_eq!(changes.len(), 1);
+        if let crate::state::undo::ExplorerChange::Copied { dest, .. } = &changes[0] {
+            assert!(dest.file_name().unwrap().to_str().unwrap().contains("copy"));
+            assert!(dest.exists());
+        } else {
+            panic!("expected Copied change");
+        }
+
+        // 2. With disambiguate = false (external replace drop): overwrites "file.txt"
+        let changes = crate::state::utils::execute_entry_ops(
+            &[src_file.clone()],
+            &target_dir,
+            false,
+            false,
+        );
+        assert_eq!(changes.len(), 1);
+        if let crate::state::undo::ExplorerChange::Copied { dest, .. } = &changes[0] {
+            assert_eq!(dest, &existing_dest);
+            assert_eq!(std::fs::read_to_string(dest).unwrap(), "source content");
+        } else {
+            panic!("expected Copied change");
+        }
+    }
+
+    #[test]
+    fn test_filename_editor_insert_and_typing() {
+        let mut editor = ExplorerFilenameEditor::default();
+        assert_eq!(editor.text, "");
+
+        // Typing characters and space
+        editor.insert_at_selection("my");
+        editor.insert_at_selection(" ");
+        editor.insert_at_selection("file.rs");
+        assert_eq!(editor.text, "my file.rs");
+        assert_eq!(editor.cursor(), 10);
+
+        // Backspace
+        editor.delete_backward();
+        editor.delete_backward();
+        editor.delete_backward();
+        assert_eq!(editor.text, "my file");
+
+        // Move to start and insert
+        editor.move_home(false);
+        assert_eq!(editor.cursor(), 0);
+        editor.insert_at_selection("new_");
+        assert_eq!(editor.text, "new_my file");
+
+        // Selection replacement
+        editor.set_text("renamed_file.txt".to_string(), Some(0..7));
+        assert_eq!(editor.selected_text(), "renamed");
+        editor.insert_at_selection("updated");
+        assert_eq!(editor.text, "updated_file.txt");
+    }
+
+    #[test]
+    fn test_drag_and_drop_move_to_different_folder() {
+        let temp = TestDir::new();
+        let folder_a = temp.path().join("folder_a");
+        let folder_b = temp.path().join("folder_b");
+        std::fs::create_dir_all(&folder_a).unwrap();
+        std::fs::create_dir_all(&folder_b).unwrap();
+
+        let file1 = folder_a.join("file1.txt");
+        std::fs::write(&file1, "file1 content").unwrap();
+
+        let file2 = folder_b.join("file2.txt");
+        std::fs::write(&file2, "file2 content").unwrap();
+
+        // 1. Moving file1 from folder_a into folder_b (dragging onto folder_b or file in folder_b)
+        let changes = crate::state::utils::execute_entry_ops(
+            &[file1.clone()],
+            &folder_b,
+            true,  // is_cut (move)
+            false,
+        );
+        assert_eq!(changes.len(), 1);
+        let dest = folder_b.join("file1.txt");
+        assert!(!file1.exists(), "source file should be moved away");
+        assert!(dest.exists(), "dest file should exist in folder_b");
+        assert_eq!(std::fs::read_to_string(&dest).unwrap(), "file1 content");
+
+        // 2. Moving file1 into folder_b again (same parent directory / sibling file): should be a no-op
+        let noop_changes = crate::state::utils::execute_entry_ops(
+            &[dest.clone()],
+            &folder_b,
+            true,
+            false,
+        );
+        assert_eq!(noop_changes.len(), 0, "moving a file into its own parent directory is a no-op");
+        assert!(dest.exists());
+    }
+
+    #[test]
+    fn test_context_menu_selection_and_highlight_target() {
+        let entry1 = SelectedEntry {
+            worktree_id: WorktreeId(1),
+            entry_id: ExplorerEntryId(10),
+        };
+        let entry2 = SelectedEntry {
+            worktree_id: WorktreeId(1),
+            entry_id: ExplorerEntryId(20),
+        };
+        let path1 = PathBuf::from("/root/file1.txt");
+        let path2 = PathBuf::from("/root/file2.txt");
+
+        let mut marked = std::collections::HashSet::new();
+        marked.insert(entry1);
+        marked.insert(entry2);
+
+        // Case 1: Right-clicking entry1 (which is already inside multi-selection)
+        // mirrors Zed: keeps all marked entries intact and sets selected to entry1.
+        let target_selection = entry1;
+        let mut selected = Some(target_selection);
+        if !marked.contains(&target_selection) {
+            marked.clear();
+        }
+        assert_eq!(marked.len(), 2, "multi-selection should remain intact when right-clicking a marked item");
+        assert_eq!(selected, Some(entry1));
+
+        // Case 2: Right-clicking entry3 (not in multi-selection)
+        // mirrors Zed: clears previous multi-selection and sets selected to entry3.
+        let entry3 = SelectedEntry {
+            worktree_id: WorktreeId(1),
+            entry_id: ExplorerEntryId(30),
+        };
+        let target_selection_unmarked = entry3;
+        selected = Some(target_selection_unmarked);
+        if !marked.contains(&target_selection_unmarked) {
+            marked.clear();
+        }
+        assert!(marked.is_empty(), "marked entries should clear when right-clicking an unmarked item");
+        assert_eq!(selected, Some(entry3));
+
+        // Case 3: Context menu open state marks target path as active highlight target
+        let file_menu = Some(ExplorerFileMenuState {
+            position: gpui::Point {
+                x: gpui::px(100.0),
+                y: gpui::px(200.0),
+            },
+            path: path1.clone(),
+            is_dir: false,
+        });
+
+        let is_menu_target_path1 = file_menu.as_ref().is_some_and(|m| m.path == path1);
+        let is_menu_target_path2 = file_menu.as_ref().is_some_and(|m| m.path == path2);
+        assert!(is_menu_target_path1, "file1 should be recognized as active context menu target");
+        assert!(!is_menu_target_path2, "file2 should not be recognized as active context menu target");
+    }
 }

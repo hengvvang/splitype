@@ -35,10 +35,32 @@ actions!(
         ScrollCursorBottom,
         ScrollUp,
         ScrollDown,
+        DuplicateSelectedEntry,
+        UndoFileOperation,
+        RedoFileOperation,
     ]
 );
 
 impl ExplorerState {
+    /// Mark every visible entry row in the tree (mirrors Zed's `select_all`).
+    pub(crate) fn select_all_explorer_entries(&mut self, cx: &mut App) {
+        if self.edit.is_some() {
+            return;
+        }
+        self.marked.clear();
+        for row in &self.entries {
+            if let ExplorerRow::Entry(entry) = row {
+                self.marked.insert(SelectedEntry {
+                    worktree_id: entry.worktree_id,
+                    entry_id: entry.id,
+                });
+            }
+        }
+        if self.selected.is_none() {
+            self.selected = self.marked.iter().next().copied();
+        }
+        cx.refresh_windows();
+    }
     // ── Selection resolution ─────────────────────────────────────────────
 
     /// Locate `path` across all worktrees; returns the strongly-typed `SelectedEntry`.
@@ -62,6 +84,15 @@ impl ExplorerState {
             }
         }
         None
+    }
+
+    /// Look up the absolute path for a selected entry in its owning worktree.
+    pub(crate) fn explorer_path_for_selection(&self, sel: &SelectedEntry) -> Option<PathBuf> {
+        self.snapshots
+            .iter()
+            .find(|snap| snap.id() == sel.worktree_id)
+            .and_then(|snap| snap.path_for_id.get(&sel.entry_id).cloned())
+            .or_else(|| self.explorer_path_for_id(sel.entry_id))
     }
 
     /// Look up the visible row for a file selection.
@@ -536,14 +567,20 @@ impl ExplorerState {
         if self.edit.is_some() {
             return;
         }
-        let Some(index) = self.explorer_selected_row_index() else {
-            return;
+        let target_path = if let Some(index) = self.explorer_selected_row_index() {
+            if let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) {
+                Some(entry.path.clone())
+            } else {
+                None
+            }
+        } else if let Some(sel) = self.selected {
+            self.explorer_path_for_selection(&sel)
+        } else {
+            None
         };
-        let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
-            return;
-        };
-        let path = entry.path.clone();
-        self.begin_inline_rename(path, window, cx);
+        if let Some(path) = target_path {
+            self.begin_inline_rename(path, window, cx);
+        }
     }
 
     pub(crate) fn on_explorer_delete_selected(

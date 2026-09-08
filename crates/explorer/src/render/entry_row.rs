@@ -31,6 +31,7 @@ impl ExplorerState {
         panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
+        window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
         match row {
@@ -40,7 +41,7 @@ impl ExplorerState {
             ExplorerRow::Entry(entry) => {
                 self.render_explorer_entry_row(entry, panel_id, drag_highlight, theme, cx)
             }
-            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(panel_id, theme, cx),
+            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(panel_id, theme, window, cx),
         }
     }
 
@@ -63,6 +64,11 @@ impl ExplorerState {
         let is_marked = self.marked.contains(&mark_selection);
         let is_drag_target = drag_highlight
             .is_some_and(|highlight| entry.path == *highlight || entry.path.starts_with(highlight));
+        let is_menu_target = self
+            .file_menu
+            .as_ref()
+            .is_some_and(|menu| menu.path == entry.path);
+        let is_row_active = selected || is_marked || is_menu_target;
         let node_id = entry.id;
         let click_kind = entry.kind;
         let click_path = entry.path.clone();
@@ -72,12 +78,17 @@ impl ExplorerState {
         let arrow_node_id = entry.id;
         // Drag payload: the row where the drag started first, then the
         // marked entries it carries along (mirrors Zed's DraggedSelection).
-        let mut drag_selections = vec![mark_selection];
-        for selection in &self.marked {
-            if !drag_selections.contains(selection) {
-                drag_selections.push(*selection);
+        let drag_selections = if is_marked {
+            let mut items = vec![mark_selection];
+            for selection in &self.marked {
+                if !items.contains(selection) {
+                    items.push(*selection);
+                }
             }
-        }
+            items
+        } else {
+            vec![mark_selection]
+        };
         let drag_payload = DraggedExplorerSelection {
             selections: drag_selections,
         };
@@ -99,7 +110,7 @@ impl ExplorerState {
             }
         };
 
-        let label_color = if selected {
+        let label_color = if is_row_active {
             c.text_default
         } else {
             c.dialog_muted
@@ -137,6 +148,18 @@ impl ExplorerState {
                 });
         }
 
+        let guide_color = theme
+            .token("splitype.explorer.indent_guide")
+            .unwrap_or_else(|| c.separator.opacity(0.35));
+
+        let row_bg = if is_drag_target {
+            c.callout_tip_bg
+        } else if is_row_active {
+            c.panel_row_hover
+        } else {
+            hsla(0.0, 0.0, 0.0, 0.0)
+        };
+
         div()
             .id(ElementId::Name(
                 format!("explorer-node-{panel_id}-{}", node_id.0).into(),
@@ -150,16 +173,10 @@ impl ExplorerState {
             .gap(px(6.0))
             .pl(px(6.0 + entry.depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
-            .bg(if is_drag_target {
-                c.callout_tip_bg
-            } else if is_marked || selected {
-                c.panel_row_hover
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
+            .bg(row_bg)
             .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
-            .children(if selected {
+            .children(if is_row_active {
                 Some(ui::selection_indicator(
                     theme
                         .token("splitype.explorer.selection_accent")
@@ -170,6 +187,15 @@ impl ExplorerState {
             } else {
                 None
             })
+            .children((0..entry.depth).map(|k| {
+                div()
+                    .absolute()
+                    .left(px(13.0 + k as f32 * EXPLORER_NODE_INDENT))
+                    .top_0()
+                    .bottom_0()
+                    .w(px(1.0))
+                    .bg(guide_color)
+            }))
             .child(arrow_el)
             .children(icon.map(|(path, color)| {
                 svg()
@@ -193,11 +219,14 @@ impl ExplorerState {
             .on_mouse_down(MouseButton::Right, {
                 let right_click_selection = mark_selection;
                 let weak = weak.clone();
-                move |event, _window, cx| {
+                move |event, window, cx| {
                     let path = right_click_path.clone();
                     let is_dir = right_click_is_dir;
                     let selection = right_click_selection;
                     let _ = weak.update(cx, |state, cx| {
+                        if let Some(focus_handle) = state.focus_handle.as_ref() {
+                            window.focus(focus_handle, cx);
+                        }
                         // Right-click selects the row (indicator feedback,
                         // mirroring Zed's deploy_context_menu); marked
                         // entries are cleared when the target is not one of
@@ -215,6 +244,9 @@ impl ExplorerState {
             .on_click({
                 let weak = weak.clone();
                 move |event, window, cx| {
+                    if event.is_right_click() {
+                        return;
+                    }
                     let id = node_id;
                     let kind = click_kind;
                     let path = click_path.clone();
@@ -224,6 +256,9 @@ impl ExplorerState {
                     let alt = event.modifiers().alt;
                     let secondary = event.modifiers().secondary();
                     let _ = weak.update(cx, |state, cx| {
+                        if let Some(focus_handle) = state.focus_handle.as_ref() {
+                            window.focus(focus_handle, cx);
+                        }
                         if shift {
                             state.select_explorer_range(id, cx);
                             return;

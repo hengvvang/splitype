@@ -434,13 +434,22 @@ impl ExplorerState {
         Some(
             overlay()
                 .id("explorer-file-context-menu-overlay")
-                .occlude()
                 .on_mouse_down(MouseButton::Left, {
                     let weak = weak.clone();
                     move |event, window, cx| {
                         let _ = weak.update(cx, |state, cx| {
                             state.on_dismiss_explorer_file_menu(event, window, cx);
                         });
+                        cx.propagate();
+                    }
+                })
+                .on_mouse_down(MouseButton::Right, {
+                    let weak = weak.clone();
+                    move |event, window, cx| {
+                        let _ = weak.update(cx, |state, cx| {
+                            state.on_dismiss_explorer_file_menu(event, window, cx);
+                        });
+                        cx.propagate();
                     }
                 })
                 .child(
@@ -452,6 +461,9 @@ impl ExplorerState {
                         .w(px(250.0))
                         .gap(px(2.0))
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                            cx.stop_propagation()
+                        })
+                        .on_mouse_down(MouseButton::Right, |_event, _window, cx| {
                             cx.stop_propagation()
                         })
                         .children(items),

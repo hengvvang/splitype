@@ -40,15 +40,14 @@ impl ExplorerState {
         window: &mut Window,
         cx: &mut App,
     ) {
-        if let Some(existing_cursor) = cx.active_drag_cursor_style() {
-            let new_cursor = if explorer_is_copy_modifier(modifiers) {
-                CursorStyle::DragCopy
-            } else {
-                CursorStyle::PointingHand
-            };
-            if existing_cursor != new_cursor {
-                cx.set_active_drag_cursor_style(new_cursor, window);
-            }
+        let existing_cursor = cx.active_drag_cursor_style();
+        let new_cursor = if explorer_is_copy_modifier(modifiers) {
+            CursorStyle::DragCopy
+        } else {
+            CursorStyle::PointingHand
+        };
+        if existing_cursor != Some(new_cursor) {
+            cx.set_active_drag_cursor_style(new_cursor, window);
         }
     }
 
@@ -451,14 +450,14 @@ impl ExplorerState {
             .selections
             .iter()
             .filter(|selection| !self.is_explorer_root_entry(selection.entry_id))
-            .filter_map(|selection| self.explorer_path_for_id(selection.entry_id))
+            .filter_map(|selection| self.explorer_path_for_selection(selection))
             .collect();
         if paths.is_empty() {
             return;
         }
         let paths = self.disjoint_explorer_paths(&paths);
         let is_copy = explorer_is_copy_modifier(&window.modifiers());
-        self.perform_entry_ops(paths, target_dir, !is_copy, window, cx);
+        self.perform_entry_ops(paths, target_dir, !is_copy, is_copy, window, cx);
     }
 
     /// Drop internal dragged entries onto the panel background (targets the
@@ -488,14 +487,14 @@ impl ExplorerState {
             .selections
             .iter()
             .filter(|selection| !self.is_explorer_root_entry(selection.entry_id))
-            .filter_map(|selection| self.explorer_path_for_id(selection.entry_id))
+            .filter_map(|selection| self.explorer_path_for_selection(selection))
             .collect();
         if paths.is_empty() {
             return;
         }
         let paths = self.disjoint_explorer_paths(&paths);
         let is_copy = explorer_is_copy_modifier(&window.modifiers());
-        self.perform_entry_ops(paths, root, !is_copy, window, cx);
+        self.perform_entry_ops(paths, root, !is_copy, is_copy, window, cx);
     }
 
     /// Drop external files onto an entry (always a copy, mirrors Zed).
@@ -548,7 +547,7 @@ impl ExplorerState {
             .cloned()
             .collect();
         if conflicts.is_empty() {
-            self.perform_entry_ops(paths.to_vec(), target_dir, false, window, cx);
+            self.perform_entry_ops(paths.to_vec(), target_dir, false, false, window, cx);
             return;
         }
         let window_handle = window.window_handle();
@@ -588,7 +587,7 @@ impl ExplorerState {
             }
             let _ = cx.update_window(window_handle, |_, window, cx| {
                 let _ = weak.update(cx, |state, cx| {
-                    state.perform_entry_ops(remaining, target_dir, false, window, cx);
+                    state.perform_entry_ops(remaining, target_dir, false, false, window, cx);
                 });
             });
         });
@@ -623,15 +622,16 @@ impl ExplorerState {
         paths: Vec<PathBuf>,
         target_dir: PathBuf,
         is_cut: bool,
+        disambiguate: bool,
         window: &mut Window,
         cx: &mut App,
     ) {
         if paths.is_empty() {
             return;
         }
-        let disambiguate = !is_cut;
         let window_handle = window.window_handle();
         let weak = self.self_weak.clone();
+        let target_dir_for_expand = target_dir.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
             let changes = cx
                 .background_executor()
@@ -646,6 +646,7 @@ impl ExplorerState {
                     } else if let Some(change) = changes.first() {
                         state.record_explorer_change(change.clone());
                     }
+                    state.expand_to_path(&target_dir_for_expand);
                     for change in &changes {
                         if let Some(dest) = explorer_change_destination(change) {
                             state.expand_to_path(dest);
@@ -653,9 +654,19 @@ impl ExplorerState {
                     }
                     state.rescan_explorer_worktrees(cx);
                     if let Some(last) = changes.last().and_then(explorer_change_destination) {
-                        if let Some(sel) = state.explorer_id_for_path(last) {
-                            state.pending_select = Some((sel.worktree_id, last.to_path_buf()));
-                        }
+                        let wt_id = state
+                            .snapshots
+                            .iter()
+                            .find_map(|snap| {
+                                let root = snap.root_entry()?;
+                                if last.starts_with(&root.path) {
+                                    Some(snap.id())
+                                } else {
+                                    None
+                                }
+                            })
+                            .unwrap_or(crate::state::worktree::WorktreeId(0));
+                        state.pending_select = Some((wt_id, last.to_path_buf()));
                     }
                     // A disambiguated copy ("name copy.ext") opens the inline
                     // rename editor with the suffix pre-selected (mirrors Zed) —
@@ -667,6 +678,7 @@ impl ExplorerState {
                     {
                         state.pending_rename = Some((window_handle, dest.clone()));
                     }
+                    state.rebuild_explorer_entries();
                     state.sync_explorer_models(cx);
                     cx.refresh_windows();
                 });

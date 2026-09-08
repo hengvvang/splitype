@@ -60,12 +60,14 @@ pub struct WorktreeSnapshot {
     /// Id → path.
     pub path_for_id: HashMap<ExplorerEntryId, PathBuf>,
     /// File id → entry id (rename/move detection between rescans).
-    inode_to_id: HashMap<u64, ExplorerEntryId>,
+    pub(crate) inode_to_id: HashMap<u64, ExplorerEntryId>,
     /// Directory id → direct child count. Precomputed during the scan so
     /// row derivation can answer `has_children` in O(1) instead of
     /// rescanning each directory's subtree (which was quadratic when
     /// every directory is expanded).
-    dir_child_counts: HashMap<ExplorerEntryId, u32>,
+    pub(crate) dir_child_counts: HashMap<ExplorerEntryId, u32>,
+    /// Directory id -> direct child entry ids.
+    pub children_by_parent: HashMap<ExplorerEntryId, Vec<ExplorerEntryId>>,
 }
 
 impl WorktreeSnapshot {
@@ -74,6 +76,15 @@ impl WorktreeSnapshot {
     #[inline]
     pub fn child_count(&self, id: ExplorerEntryId) -> u32 {
         self.dir_child_counts.get(&id).copied().unwrap_or(0)
+    }
+
+    /// The direct child ids of a directory entry.
+    #[inline]
+    pub fn child_ids(&self, id: ExplorerEntryId) -> &[ExplorerEntryId] {
+        self.children_by_parent
+            .get(&id)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 
     #[inline]
@@ -158,6 +169,7 @@ pub struct Worktree {
     /// instead of panicking ("RefCell already borrowed"). The first window
     /// that opened the tree provides it; shared trees keep using it.
     /// `None` in tests.
+    #[allow(dead_code)]
     window_handle: Option<AnyWindowHandle>,
     #[cfg_attr(test, allow(dead_code))]
     fs_watch_task: Option<Task<()>>,
@@ -250,7 +262,6 @@ impl Worktree {
         let hide_hidden = self.hide_hidden;
         let root_id = self.root_id;
         let weak = self.self_weak.clone();
-        let window_handle = self.window_handle;
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             let scanned = cx
                 .background_executor()
@@ -289,16 +300,9 @@ impl Worktree {
                     this.rescan(cx);
                 }
             };
-            match &window_handle {
-                Some(handle) => {
-                    let _ = handle.update(cx, |_view, _window, cx| {
-                        let _ = weak.update(cx, run);
-                    });
-                }
-                None => {
-                    let _ = weak.update(cx, run);
-                }
-            }
+            cx.update(|cx| {
+                let _ = weak.update(cx, run);
+            });
         });
         self.scan_task = Some(task);
     }
@@ -312,7 +316,6 @@ impl Worktree {
         {
             let root = self.root.clone();
             let weak = self.self_weak.clone();
-            let window_handle = self.window_handle;
             let task = cx.spawn(async move |cx: &mut AsyncApp| {
                 let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
                 let mut watcher =
@@ -332,16 +335,9 @@ impl Worktree {
                     return;
                 }
                 while rx.next().await.is_some() {
-                    match &window_handle {
-                        Some(handle) => {
-                            let _ = handle.update(cx, |_view, _window, cx| {
-                                let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
-                            });
-                        }
-                        None => {
-                            let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
-                        }
-                    }
+                    cx.update(|cx| {
+                        let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
+                    });
                 }
             });
             self.fs_watch_task = Some(task);
@@ -355,27 +351,17 @@ impl Worktree {
             return;
         }
         let weak = self.self_weak.clone();
-        let window_handle = self.window_handle;
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             cx.background_executor()
                 .timer(std::time::Duration::from_millis(250))
                 .await;
-            // try-borrow path: skip the rescan request when it lands
-            // mid-render (the fs watcher will fire again).
             let finish = |this: &mut Worktree, cx: &mut Context<Worktree>| {
                 this.fs_refresh_task = None;
                 this.rescan(cx);
             };
-            match &window_handle {
-                Some(handle) => {
-                    let _ = handle.update(cx, |_view, _window, cx| {
-                        let _ = weak.update(cx, |this, cx| finish(this, cx));
-                    });
-                }
-                None => {
-                    let _ = weak.update(cx, |this, cx| finish(this, cx));
-                }
-            }
+            cx.update(|cx| {
+                let _ = weak.update(cx, |this, cx| finish(this, cx));
+            });
         });
         self.fs_refresh_task = Some(task);
     }
@@ -577,9 +563,8 @@ fn assign_stable_ids(
     }
     out.entries_by_path = std::mem::take(new_entries);
 
-    // Precompute direct child counts so the panel's row derivation can
-    // answer has_children in O(1) (per-directory subtree rescans would
-    // make the rebuild quadratic when everything is expanded).
+    // Precompute direct child counts and parent-to-children index so the panel's row
+    // derivation can traverse expanded folders in O(V) and answer has_children in O(1).
     for (path, entry) in out.entries_by_path.iter() {
         if path == root {
             continue;
@@ -591,7 +576,10 @@ fn assign_stable_ids(
             continue;
         };
         *out.dir_child_counts.entry(*parent_id).or_insert(0) += 1;
-        let _ = entry;
+        out.children_by_parent
+            .entry(*parent_id)
+            .or_default()
+            .push(entry.id);
     }
 }
 
@@ -603,6 +591,7 @@ mod bench {
     use std::time::Instant;
 
     use super::{ExplorerEntryId, WorktreeEntry, WorktreeEntryKind, WorktreeId, WorktreeSnapshot};
+    use crate::settings::{ExplorerSortMode, ExplorerSortOrder};
     use crate::state::{ExplorerRow, build_explorer_rows};
 
     /// Builds a synthetic snapshot rooted at `/root`. Returns the snapshot
@@ -614,6 +603,7 @@ mod bench {
         let mut id_for_path = HashMap::new();
         let mut path_for_id = HashMap::new();
         let mut dir_child_counts = HashMap::new();
+        let mut children_by_parent: HashMap<ExplorerEntryId, Vec<ExplorerEntryId>> = HashMap::new();
         let mut dir_ids = Vec::new();
         let root = PathBuf::from("/root");
         let root_entry = WorktreeEntry {
@@ -649,8 +639,13 @@ mod bench {
             }
             if let Some(parent) = path.parent()
                 && let Some(parent_id) = id_for_path.get(parent)
+                && let Some(entry_id) = id_for_path.get(path)
             {
                 *dir_child_counts.entry(*parent_id).or_insert(0) += 1;
+                children_by_parent
+                    .entry(*parent_id)
+                    .or_default()
+                    .push(*entry_id);
             }
         }
         (
@@ -661,6 +656,7 @@ mod bench {
                 path_for_id,
                 inode_to_id: HashMap::new(),
                 dir_child_counts,
+                children_by_parent,
             },
             dir_ids,
         )
@@ -672,8 +668,13 @@ mod bench {
         expanded: &HashMap<WorktreeId, BTreeSet<ExplorerEntryId>>,
     ) {
         let start = Instant::now();
-        let rows: Vec<ExplorerRow> =
-            build_explorer_rows(&[Arc::new(snapshot.clone())], expanded, None);
+        let rows: Vec<ExplorerRow> = build_explorer_rows(
+            &[Arc::new(snapshot.clone())],
+            expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+        );
         let elapsed = start.elapsed();
         println!(
             "bench_explorer_rows[{name}]: entries={} rows={} elapsed={elapsed:?}",

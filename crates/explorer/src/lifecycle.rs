@@ -89,7 +89,10 @@ impl ExplorerState {
             return; // already added
         }
         explorer.tree_visible = true;
-        let hide_hidden = PluginSettings::<ExplorerSettings>::get(cx).hide_hidden;
+        let settings = PluginSettings::<ExplorerSettings>::get(cx);
+        let hide_hidden = settings.hide_hidden;
+        explorer.sort_mode = settings.sort_mode;
+        explorer.sort_order = settings.sort_order;
         // Resolve-or-scan the shared tree through the store; a folder already
         // open in another panel (or window) is shared live, not rescanned.
         let worktree = WorktreeStore::open(path, hide_hidden, window_handle, cx);

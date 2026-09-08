@@ -75,16 +75,10 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
     fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.state.update(cx, |state, _cx| {
             if let Some(edit) = state.edit.as_mut() {
-                if edit
-                    .filename
-                    .focus_handle
-                    .as_ref()
-                    .is_some_and(|handle| handle.is_focused(window))
-                {
-                    edit.filename.marked_range = None;
-                }
+                edit.filename.marked_range = None;
             }
         });
+        window.refresh();
     }
 
     fn replace_text_in_range(
@@ -97,12 +91,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         let Some(edit) = self.state.read(cx).edit.as_ref() else {
             return;
         };
-        if !edit
-            .filename
-            .focus_handle
-            .as_ref()
-            .is_some_and(|handle| handle.is_focused(window))
-        {
+        if edit.filename.focus_handle.is_none() {
             return;
         }
         let text = edit.filename.text.clone();
@@ -117,6 +106,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
                 state.populate_explorer_validation(cx);
             }
         });
+        window.refresh();
     }
 
     fn replace_and_mark_text_in_range(
@@ -130,12 +120,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
         let Some(edit) = self.state.read(cx).edit.as_ref() else {
             return;
         };
-        if !edit
-            .filename
-            .focus_handle
-            .as_ref()
-            .is_some_and(|handle| handle.is_focused(window))
-        {
+        if edit.filename.focus_handle.is_none() {
             return;
         }
         let text = edit.filename.text.clone();
@@ -160,6 +145,7 @@ impl EntityInputHandler for ExplorerFilenameImeHost {
                 state.populate_explorer_validation(cx);
             }
         });
+        window.refresh();
     }
 
     fn bounds_for_range(

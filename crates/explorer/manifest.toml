@@ -64,3 +64,68 @@ description = "Reveal and select the active document's file in the tree"
 [[theme_tokens]]
 key = "splitype.explorer.selection_accent"
 description = "Accent bar color of the selected file-tree row"
+
+[[commands]]
+id = "rename"
+shortcuts = ["f2"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "delete"
+shortcuts = ["delete"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "trash"
+shortcuts = []
+context = "ExplorerPanel"
+
+[[commands]]
+id = "new-file"
+shortcuts = ["alt-n"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "new-directory"
+shortcuts = ["alt-shift-n"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "select-previous"
+shortcuts = ["up"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "select-next"
+shortcuts = ["down"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "select-parent"
+shortcuts = ["alt-up"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "select-first"
+shortcuts = ["home"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "select-last"
+shortcuts = ["end"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "expand-selected"
+shortcuts = ["right"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "collapse-selected"
+shortcuts = ["left"]
+context = "ExplorerPanel"
+
+[[commands]]
+id = "open-selected"
+shortcuts = ["enter"]
+context = "ExplorerPanel"

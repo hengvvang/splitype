@@ -2,6 +2,8 @@
 
 use std::ops::Range;
 
+use gpui::{Pixels, Point};
+
 use crate::state::ExplorerFilenameEditor;
 
 // ── UTF-8 / UTF-16 offset conversion (IME bridge) ────────────────────────
@@ -56,6 +58,36 @@ impl ExplorerFilenameEditor {
         self.selection = selection.start.min(end)..selection.end.min(end);
         self.reversed = false;
         self.marked_range = None;
+    }
+
+    pub(crate) fn select_all(&mut self) {
+        self.selection = 0..self.text.len();
+        self.reversed = false;
+        self.marked_range = None;
+    }
+
+    pub(crate) fn move_to(&mut self, offset: usize) {
+        let offset = offset.min(self.text.len());
+        self.selection = offset..offset;
+        self.reversed = false;
+        self.marked_range = None;
+    }
+
+    pub(crate) fn select_to(&mut self, offset: usize) {
+        let offset = offset.min(self.text.len());
+        let anchor = self.selection_anchor();
+        self.set_cursor(offset, anchor, true);
+    }
+
+    pub(crate) fn index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
+        if self.text.is_empty() {
+            return 0;
+        }
+        let (Some(bounds), Some(line)) = (self.last_bounds.as_ref(), self.last_layout.as_ref()) else {
+            return 0;
+        };
+        let rel_x = position.x - bounds.left();
+        line.closest_index_for_x(rel_x)
     }
 
     /// The selected range in forward order.

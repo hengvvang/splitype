@@ -152,7 +152,8 @@ impl Element for ExplorerFilenameInputElement {
             .shape_line(text, font_size, &runs, None);
         let line_height = bounds.size.height;
         let selection_range = filename.selection_range();
-        let selection = if focused && !selection_range.is_empty() {
+        let is_editing = self.state.read(cx).edit.is_some();
+        let selection = if (focused || is_editing) && !selection_range.is_empty() {
             let start = line.x_for_index(selection_range.start);
             let end = line.x_for_index(selection_range.end);
             Some(fill(
@@ -165,7 +166,7 @@ impl Element for ExplorerFilenameInputElement {
         } else {
             None
         };
-        let cursor = if focused && selection_range.is_empty() {
+        let cursor = if (focused || is_editing) && selection_range.is_empty() {
             let cursor_x = line.x_for_index(if filename.reversed {
                 filename.selection.start
             } else {
@@ -215,9 +216,7 @@ impl Element for ExplorerFilenameInputElement {
             .edit
             .as_ref()
             .and_then(|edit| edit.filename.focus_handle.clone());
-        if let Some(focus_handle) = focus_handle
-            && focus_handle.is_focused(window)
-        {
+        if let Some(focus_handle) = focus_handle {
             window.handle_input(
                 &focus_handle,
                 ElementInputHandler::new(bounds, self.ime_host.clone()),
@@ -230,6 +229,11 @@ impl Element for ExplorerFilenameInputElement {
         }
 
         if let Some(line) = prepaint.line.take() {
+            self.state.update(cx, |state, _cx| {
+                if let Some(edit) = state.edit.as_mut() {
+                    edit.filename.last_layout = Some(line.clone());
+                }
+            });
             line.paint(
                 bounds.origin,
                 bounds.size.height,

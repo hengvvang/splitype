@@ -30,8 +30,14 @@ impl ExplorerState {
             entry_id: entry.id,
         };
         let selected = self.selected == Some(mark_selection);
+        let is_marked = self.marked.contains(&mark_selection);
         let is_drag_target = drag_highlight
             .is_some_and(|highlight| entry.path == *highlight || entry.path.starts_with(highlight));
+        let is_menu_target = self
+            .file_menu
+            .as_ref()
+            .is_some_and(|menu| menu.path == entry.path);
+        let is_row_active = selected || is_marked || is_menu_target;
         let is_expanded = entry.is_expanded;
         let node_id = entry.id;
         let click_path = entry.path.clone();
@@ -96,6 +102,14 @@ impl ExplorerState {
                 });
         }
 
+        let row_bg = if is_drag_target {
+            c.callout_tip_bg
+        } else if is_row_active {
+            c.panel_row_hover
+        } else {
+            hsla(0.0, 0.0, 0.0, 0.0)
+        };
+
         div()
             .id(ElementId::Name(
                 format!("explorer-root-row-{panel_id}-{}", entry.worktree_id.0).into(),
@@ -109,17 +123,17 @@ impl ExplorerState {
             .gap(px(6.0))
             .pl(px(6.0))
             .pr(px(4.0))
-            .bg(if is_drag_target {
-                c.callout_tip_bg
-            } else if selected {
-                c.panel_row_hover
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
+            .bg(row_bg)
             .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
-            .children(if selected {
-                Some(ui::selection_indicator(c.focus_accent, px(4.0), px(4.0)))
+            .children(if is_row_active {
+                Some(ui::selection_indicator(
+                    theme
+                        .token("splitype.explorer.selection_accent")
+                        .unwrap_or(c.focus_accent),
+                    px(4.0),
+                    px(4.0),
+                ))
             } else {
                 None
             })
@@ -140,7 +154,7 @@ impl ExplorerState {
                     .text_size(px(t.text_size * 0.9))
                     .font_weight(FontWeight::BOLD)
                     .line_height(px(t.text_size * t.text_line_height))
-                    .text_color(if selected {
+                    .text_color(if is_row_active {
                         c.text_default
                     } else {
                         c.dialog_muted
@@ -150,10 +164,13 @@ impl ExplorerState {
             .on_mouse_down(MouseButton::Right, {
                 let right_click_selection = mark_selection;
                 let weak = weak.clone();
-                move |event, _window, cx| {
+                move |event, window, cx| {
                     let path = right_click_path.clone();
                     let selection = right_click_selection;
                     let _ = weak.update(cx, |state, cx| {
+                        if let Some(focus_handle) = state.focus_handle.as_ref() {
+                            window.focus(focus_handle, cx);
+                        }
                         // Right-click selects the row (indicator feedback,
                         // mirroring Zed's deploy_context_menu); marked
                         // entries are cleared when the target is not one of
@@ -171,6 +188,9 @@ impl ExplorerState {
             .on_click({
                 let weak = weak.clone();
                 move |event, window, cx| {
+                    if event.is_right_click() {
+                        return;
+                    }
                     let id = node_id;
                     let selection = mark_selection;
                     let shift = event.modifiers().shift;

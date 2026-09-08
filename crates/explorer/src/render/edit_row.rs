@@ -4,7 +4,7 @@ use crate::state::ExplorerState;
 
 use crate::filename_editor::ExplorerFilenameInputElement;
 use crate::state::{
-    EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
+    EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FOLDER_ICON, file_type_icon,
 };
 use platform_contracts::PanelId;
 use theme::Theme;
@@ -16,7 +16,8 @@ impl ExplorerState {
         &self,
         panel_id: PanelId,
         theme: &Theme,
-        _cx: &mut App,
+        window: &mut Window,
+        cx: &mut App,
     ) -> AnyElement {
         let Some(edit) = self.edit.as_ref() else {
             return div().into_any_element();
@@ -24,9 +25,15 @@ impl ExplorerState {
         let c = &theme.colors;
         let t = &theme.typography;
         let depth = edit.depth;
-        let is_dir = edit.is_dir;
+        let trimmed_name = edit.filename.text.trim();
+        let is_dir = edit.is_dir
+            || (edit.target_id.is_none()
+                && (trimmed_name.ends_with('/') || trimmed_name.ends_with('\\')));
         let validation = edit.validation.clone();
         let focus_handle = edit.filename.focus_handle.clone().unwrap();
+        if !focus_handle.is_focused(window) {
+            focus_handle.focus(window, cx);
+        }
         let weak = self.self_weak.clone();
         let state_entity = self
             .self_weak
@@ -36,7 +43,12 @@ impl ExplorerState {
         let icon = if is_dir {
             (FOLDER_ICON, c.text_default)
         } else {
-            (FILE_ICON, c.text_default)
+            let ext = std::path::Path::new(trimmed_name)
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            (file_type_icon(&ext), c.text_default)
         };
 
         let validation_label = match validation {
@@ -44,6 +56,10 @@ impl ExplorerState {
             Some(ExplorerValidation::Error(message)) => Some((message, c.callout_caution_border)),
             None => None,
         };
+
+        let guide_color = theme
+            .token("splitype.explorer.indent_guide")
+            .unwrap_or_else(|| c.separator.opacity(0.35));
 
         div()
             .id(ElementId::Name(format!("explorer-edit-{panel_id}").into()))
@@ -58,6 +74,15 @@ impl ExplorerState {
             .pr(px(8.0))
             .bg(c.panel_row_hover)
             .children(Some(ui::selection_indicator(c.focus_accent, px(4.0), px(4.0))))
+            .children((0..depth).map(|k| {
+                div()
+                    .absolute()
+                    .left(px(13.0 + k as f32 * EXPLORER_NODE_INDENT))
+                    .top_0()
+                    .bottom_0()
+                    .w(px(1.0))
+                    .bg(guide_color)
+            }))
             // Clicks inside the edit row must not reach the panel
             // background (double-click there would create a new file).
             .on_click(|_event, _window, cx| cx.stop_propagation())
@@ -86,6 +111,12 @@ impl ExplorerState {
                     .track_focus(&focus_handle)
                     .flex_1()
                     .min_w(px(0.0))
+                    .h(px(22.0))
+                    .px(px(4.0))
+                    .rounded(px(2.0))
+                    .bg(c.editor_background)
+                    .border_1()
+                    .border_color(c.focus_accent)
                     .flex()
                     .items_center()
                     .on_key_down({
@@ -130,6 +161,40 @@ impl ExplorerState {
                         move |action: &platform_contracts::actions::Paste, window, cx| {
                             let _ = weak.update(cx, |state, cx| {
                                 state.on_explorer_filename_paste(action, window, cx);
+                            });
+                        }
+                    })
+                    .on_action({
+                        let weak = weak.clone();
+                        move |action: &platform_contracts::actions::SelectAll, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_select_all(action, window, cx);
+                            });
+                        }
+                    })
+                    .on_mouse_down(MouseButton::Left, {
+                        let weak = weak.clone();
+                        move |event, window, cx| {
+                            cx.stop_propagation();
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_mouse_down(event, window, cx);
+                            });
+                        }
+                    })
+                    .on_mouse_up(MouseButton::Left, {
+                        let weak = weak.clone();
+                        move |event, window, cx| {
+                            cx.stop_propagation();
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_mouse_up(event, window, cx);
+                            });
+                        }
+                    })
+                    .on_mouse_move({
+                        let weak = weak.clone();
+                        move |event, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.on_explorer_filename_mouse_move(event, window, cx);
                             });
                         }
                     })

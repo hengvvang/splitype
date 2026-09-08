@@ -289,6 +289,58 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
             label: |_| SharedString::from("Exit Code Block"),
             make_action: || Box::new(wysiwyg::pane::actions::ExitCodeBlock),
         },
+        ("splitype.explorer", "rename") => CommandBinding {
+            label: |_| SharedString::from("Rename"),
+            make_action: || Box::new(explorer::ops::selection::RenameSelectedEntry),
+        },
+        ("splitype.explorer", "delete") => CommandBinding {
+            label: |_| SharedString::from("Delete"),
+            make_action: || Box::new(explorer::ops::selection::DeleteSelectedEntry),
+        },
+        ("splitype.explorer", "trash") => CommandBinding {
+            label: |_| SharedString::from("Trash"),
+            make_action: || Box::new(explorer::ops::selection::TrashSelectedEntry),
+        },
+        ("splitype.explorer", "new-file") => CommandBinding {
+            label: |_| SharedString::from("New File"),
+            make_action: || Box::new(explorer::ops::selection::NewFile),
+        },
+        ("splitype.explorer", "new-directory") => CommandBinding {
+            label: |_| SharedString::from("New Folder"),
+            make_action: || Box::new(explorer::ops::selection::NewDirectory),
+        },
+        ("splitype.explorer", "select-previous") => CommandBinding {
+            label: |_| SharedString::from("Select Previous"),
+            make_action: || Box::new(explorer::ops::selection::SelectPrevious),
+        },
+        ("splitype.explorer", "select-next") => CommandBinding {
+            label: |_| SharedString::from("Select Next"),
+            make_action: || Box::new(explorer::ops::selection::SelectNext),
+        },
+        ("splitype.explorer", "select-parent") => CommandBinding {
+            label: |_| SharedString::from("Select Parent"),
+            make_action: || Box::new(explorer::ops::selection::SelectParent),
+        },
+        ("splitype.explorer", "select-first") => CommandBinding {
+            label: |_| SharedString::from("Select First"),
+            make_action: || Box::new(explorer::ops::selection::SelectFirst),
+        },
+        ("splitype.explorer", "select-last") => CommandBinding {
+            label: |_| SharedString::from("Select Last"),
+            make_action: || Box::new(explorer::ops::selection::SelectLast),
+        },
+        ("splitype.explorer", "expand-selected") => CommandBinding {
+            label: |_| SharedString::from("Expand Selected"),
+            make_action: || Box::new(explorer::ops::selection::ExpandSelectedEntry),
+        },
+        ("splitype.explorer", "collapse-selected") => CommandBinding {
+            label: |_| SharedString::from("Collapse Selected"),
+            make_action: || Box::new(explorer::ops::selection::CollapseSelectedEntry),
+        },
+        ("splitype.explorer", "open-selected") => CommandBinding {
+            label: |_| SharedString::from("Open Selected"),
+            make_action: || Box::new(explorer::ops::selection::OpenSelectedEntry),
+        },
         _ => return None,
     })
 }

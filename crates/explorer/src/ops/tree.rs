@@ -140,6 +140,9 @@ impl ExplorerState {
 
     /// Synchronize the explorer with the worktrees.
     pub(crate) fn sync_explorer_file_tree(&mut self, cx: &mut App) {
+        let settings = config::settings::PluginSettings::<crate::settings::ExplorerSettings>::get(cx);
+        self.sort_mode = settings.sort_mode;
+        self.sort_order = settings.sort_order;
         self.snapshots = self
             .worktrees
             .iter()
@@ -158,7 +161,13 @@ impl ExplorerState {
     pub(crate) fn rebuild_explorer_entries(&mut self) {
         let expanded = self.expanded.clone();
         let edit = self.edit.as_ref();
-        self.entries = build_explorer_rows(&self.snapshots, &expanded, edit);
+        self.entries = build_explorer_rows(
+            &self.snapshots,
+            &expanded,
+            edit,
+            self.sort_mode,
+            self.sort_order,
+        );
     }
 
     /// Follow the active document (or a pending inline-create target) in the
@@ -168,13 +177,14 @@ impl ExplorerState {
         if self.worktrees.is_empty() {
             return;
         }
-        let pending = self.pending_select.take();
-        if let Some((_worktree_id, path)) = pending {
-            if let Some(sel) = self.explorer_id_for_path(&path) {
+        if let Some((_worktree_id, path)) = self.pending_select.as_ref() {
+            if let Some(sel) = self.explorer_id_for_path(path) {
                 self.selected = Some(sel);
                 if reveal {
-                    self.expand_to_path(&path);
+                    let path_clone = path.clone();
+                    self.expand_to_path(&path_clone);
                 }
+                self.pending_select = None;
             }
             return;
         }
@@ -194,19 +204,19 @@ impl ExplorerState {
 
     /// Expand every ancestor directory of `path` that exists in the tree.
     pub(crate) fn expand_to_path(&mut self, path: &Path) {
-        let Some(sel) = self.explorer_id_for_path(path) else {
-            return;
-        };
-        let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(sel.entry_id) else {
-            return;
-        };
-        let set = self.expanded.entry(worktree_id).or_default();
-        if let Some(root_entry) = snapshot.root_entry() {
-            set.insert(root_entry.id);
-        }
-        for ancestor in path.ancestors() {
-            if let Some(id) = snapshot.id_for_path.get(ancestor) {
-                set.insert(*id);
+        for snapshot in &self.snapshots {
+            let Some(root_entry) = snapshot.root_entry() else {
+                continue;
+            };
+            if path.starts_with(&root_entry.path) {
+                let set = self.expanded.entry(snapshot.id()).or_default();
+                set.insert(root_entry.id);
+                for ancestor in path.ancestors() {
+                    if let Some(id) = snapshot.id_for_path.get(ancestor) {
+                        set.insert(*id);
+                    }
+                }
+                return;
             }
         }
     }

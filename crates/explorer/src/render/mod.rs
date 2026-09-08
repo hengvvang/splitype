@@ -9,9 +9,11 @@ use std::ops::Range;
 
 use gpui::*;
 
+use crate::ops::selection::{DuplicateSelectedEntry, RedoFileOperation, UndoFileOperation};
 use crate::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
 use platform_contracts::PanelId;
+use platform_contracts::actions::{Copy, Cut, Paste, SelectAll};
 use theme::Theme;
 
 /// Free-function entry point: renders the explorer body (file tree or
@@ -106,7 +108,7 @@ impl ExplorerState {
         let row_theme = theme.clone();
         let list = uniform_list(("explorer-tree", panel_id.0), entries_len, {
             let weak = weak.clone();
-            move |range: Range<usize>, _window, cx| {
+            move |range: Range<usize>, window, cx| {
                 weak.update(cx, |state, cx| {
                     state.rendered_rows = range.len();
                     // The drag highlight extends to a directory and all of
@@ -120,6 +122,7 @@ impl ExplorerState {
                                 panel_id,
                                 drag_highlight.as_deref(),
                                 &row_theme,
+                                window,
                                 cx,
                             ));
                         }
@@ -134,10 +137,13 @@ impl ExplorerState {
         .min_h(px(0.0))
         .py(px(4.0));
 
-        div()
+        let mut root = div()
             .id(("explorer-root", panel_id.0))
-            .key_context("ExplorerPanel")
-            .w_full()
+            .key_context("ExplorerPanel");
+        if let Some(handle) = self.focus_handle.as_ref() {
+            root = root.track_focus(handle);
+        }
+        root.w_full()
             .h_full()
             .flex()
             .flex_col()
@@ -327,6 +333,62 @@ impl ExplorerState {
                     });
                 }
             })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &Copy, _window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_copy(cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &Cut, _window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_cut(cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &Paste, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_paste(window, cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &SelectAll, _window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.select_all_explorer_entries(cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &DuplicateSelectedEntry, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_duplicate(window, cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &UndoFileOperation, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_undo(window, cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |_: &RedoFileOperation, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.explorer_redo(window, cx);
+                    });
+                }
+            })
             // The drag cursor (move vs. copy) follows the copy modifier
             // while it is held (mirrors Zed).
             .on_modifiers_changed({
@@ -343,6 +405,9 @@ impl ExplorerState {
             .on_click({
                 let weak = weak.clone();
                 move |event: &gpui::ClickEvent, window, cx| {
+                    if event.is_right_click() {
+                        return;
+                    }
                     let _ = weak.update(cx, |state, cx| {
                         if event.click_count() > 1 {
                             if let Some(root) = state.last_explorer_root_path() {
@@ -362,17 +427,25 @@ impl ExplorerState {
                 MouseButton::Right,
                 {
                     let weak = weak.clone();
-                    move |event: &gpui::MouseDownEvent, _window, cx| {
+                    move |event: &gpui::MouseDownEvent, window, cx| {
                         let _ = weak.update(cx, |state, cx| {
+                            if let Some(focus_handle) = state.focus_handle.as_ref() {
+                                window.focus(focus_handle, cx);
+                            }
                             // Right-clicking below the last entry targets the last
                             // worktree root (mirrors Zed: background right-click is
                             // equivalent to right-clicking the root directory).
                             if let Some((worktree_id, path, root_id)) = state.last_explorer_root() {
-                                state.selected = Some(crate::state::SelectedEntry {
+                                let selection = crate::state::SelectedEntry {
                                     worktree_id,
                                     entry_id: root_id,
-                                });
+                                };
+                                state.selected = Some(selection);
+                                if !state.marked.contains(&selection) {
+                                    state.marked.clear();
+                                }
                                 state.open_explorer_file_context_menu(event.position, path, true, cx);
+                                cx.refresh_windows();
                             }
                         });
                     }

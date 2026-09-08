@@ -9,7 +9,7 @@ use crate::state::ExplorerState;
 use crate::filename_editor::ExplorerFilenameImeHost;
 use crate::state::undo::ExplorerChange;
 use crate::state::{ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation};
-use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste};
+use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste, SelectAll};
 
 impl ExplorerState {
     /// Real-time validation of the inline filename (mirrors Zed's
@@ -238,6 +238,7 @@ impl ExplorerState {
         cx: &mut App,
     ) {
         edit.filename.focus_handle = Some(cx.focus_handle());
+        edit.filename.opened_at = Some(std::time::Instant::now());
         let focus_handle = edit.filename.focus_handle.clone().unwrap();
         // IME host: the filename input element registers this entity as its
         // window input handler. It holds the panel state entity so IME
@@ -262,6 +263,13 @@ impl ExplorerState {
                 let _ = weak.update(cx, |state, cx| {
                     if !window.is_window_active() {
                         return;
+                    }
+                    if let Some(edit) = state.edit.as_ref() {
+                        if let Some(opened_at) = edit.filename.opened_at {
+                            if opened_at.elapsed() < std::time::Duration::from_millis(150) {
+                                return;
+                            }
+                        }
                     }
                     if state.edit.is_some() && !state.confirm_explorer_edit(window, cx) {
                         state.discard_explorer_edit(cx);
@@ -324,7 +332,8 @@ impl ExplorerState {
         }
 
         let is_create = edit.target_id.is_none();
-        let is_dir = edit.is_dir;
+        let has_trailing_slash = filename.ends_with('/') || filename.ends_with('\\');
+        let is_dir = edit.is_dir || (is_create && has_trailing_slash);
         let worktree_id = edit.worktree_id;
         let old_path = edit.path.clone();
         let new_path = if is_create {
@@ -340,6 +349,11 @@ impl ExplorerState {
                 .map(|parent| parent.join(&filename))
                 .unwrap_or_else(|| edit.path.clone())
         };
+        // If an existing entry was not renamed, cleanly dismiss the edit (mirrors Zed).
+        if !is_create && old_path == new_path {
+            self.discard_explorer_edit(cx);
+            return true;
+        }
         let missing_dirs = if is_create {
             if let Some(snapshot) = self.snapshots.iter().find(|snap| snap.id() == worktree_id) {
                 crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
@@ -520,16 +534,11 @@ impl ExplorerState {
             "right" => edit.filename.move_right(keystroke.modifiers.shift),
             "home" => edit.filename.move_home(keystroke.modifiers.shift),
             "end" => edit.filename.move_end(keystroke.modifiers.shift),
-            _ => {
-                // Printable characters arrive through the window input
-                // handler (`WM_CHAR` / IME composition), never through
-                // `key_char`: inserting here as well would duplicate every
-                // character (the platform delivers both paths per key).
-                return;
-            }
+            _ => return,
         }
         self.populate_explorer_validation(cx);
         self.autoscroll_explorer_edit(window, cx);
+        cx.refresh_windows();
     }
 
     pub(crate) fn on_explorer_filename_copy(
@@ -576,6 +585,71 @@ impl ExplorerState {
         edit.filename.insert_at_selection(&sanitized);
         self.populate_explorer_validation(cx);
         cx.refresh_windows();
+    }
+
+    pub(crate) fn on_explorer_filename_select_all(
+        &mut self,
+        _: &SelectAll,
+        _window: &mut Window,
+        cx: &mut App,
+    ) {
+        if let Some(edit) = self.edit.as_mut() {
+            edit.filename.select_all();
+            cx.refresh_windows();
+        }
+    }
+
+    pub(crate) fn on_explorer_filename_mouse_down(
+        &mut self,
+        event: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        if let Some(focus_handle) = edit.filename.focus_handle.as_ref() {
+            window.focus(focus_handle, cx);
+        }
+        edit.filename.is_selecting = true;
+        if event.click_count == 2 {
+            edit.filename.select_all();
+        } else {
+            let index = edit.filename.index_for_mouse_position(event.position);
+            if event.modifiers.shift {
+                edit.filename.select_to(index);
+            } else {
+                edit.filename.move_to(index);
+            }
+        }
+        cx.refresh_windows();
+    }
+
+    pub(crate) fn on_explorer_filename_mouse_up(
+        &mut self,
+        _event: &MouseUpEvent,
+        _window: &mut Window,
+        _cx: &mut App,
+    ) {
+        if let Some(edit) = self.edit.as_mut() {
+            edit.filename.is_selecting = false;
+        }
+    }
+
+    pub(crate) fn on_explorer_filename_mouse_move(
+        &mut self,
+        event: &MouseMoveEvent,
+        _window: &mut Window,
+        cx: &mut App,
+    ) {
+        let Some(edit) = self.edit.as_mut() else {
+            return;
+        };
+        if edit.filename.is_selecting {
+            let index = edit.filename.index_for_mouse_position(event.position);
+            edit.filename.select_to(index);
+            cx.refresh_windows();
+        }
     }
 }
 
