@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 
 use thiserror::Error;
 
+use crate::document::DocumentSnapshot;
 use crate::pane::{PaneDescriptor, PaneKind, PaneView};
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
@@ -13,9 +14,28 @@ pub enum PaneRegistryError {
     Poisoned,
 }
 
+/// Takeover delegation target when a pane is intercepted based on document conditions.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PaneTakeover {
+    /// The pane kind to delegate rendering and input to.
+    pub target_kind: PaneKind,
+    /// Whether the delegated pane should operate in read-only mode.
+    pub read_only: bool,
+}
+
+pub type TakeoverPredicate = Arc<dyn Fn(&DocumentSnapshot) -> bool + Send + Sync>;
+
+#[derive(Clone)]
+struct TakeoverRule {
+    target_kind: PaneKind,
+    read_only: bool,
+    predicate: TakeoverPredicate,
+}
+
 #[derive(Default)]
 pub struct PaneRegistry {
     descriptors: HashMap<PaneKind, Arc<dyn PaneDescriptor>>,
+    takeover_rules: HashMap<PaneKind, Vec<TakeoverRule>>,
     order: Vec<PaneKind>,
     default_kind: Option<PaneKind>,
 }
@@ -109,6 +129,68 @@ impl PaneRegistry {
             .map_err(|_| PaneRegistryError::Poisoned)?
             .all_descriptors())
     }
+
+    /// Registers a takeover rule intercepting `source_kind` when `predicate(doc)` is true.
+    pub fn register_takeover(
+        &mut self,
+        source_kind: PaneKind,
+        target_kind: PaneKind,
+        read_only: bool,
+        predicate: Arc<dyn Fn(&DocumentSnapshot) -> bool + Send + Sync>,
+    ) {
+        self.takeover_rules
+            .entry(source_kind)
+            .or_default()
+            .push(TakeoverRule {
+                target_kind,
+                read_only,
+                predicate,
+            });
+    }
+
+    /// Registers a takeover rule in the process-global pane registry.
+    pub fn register_takeover_global(
+        source_kind: PaneKind,
+        target_kind: PaneKind,
+        read_only: bool,
+        predicate: Arc<dyn Fn(&DocumentSnapshot) -> bool + Send + Sync>,
+    ) -> Result<(), PaneRegistryError> {
+        Self::global()
+            .lock()
+            .map_err(|_| PaneRegistryError::Poisoned)?
+            .register_takeover(source_kind, target_kind, read_only, predicate);
+        Ok(())
+    }
+
+    /// Resolves whether `kind` is taken over by another pane for the given document snapshot.
+    pub fn resolve_takeover(
+        &self,
+        kind: &PaneKind,
+        doc: &DocumentSnapshot,
+    ) -> Option<PaneTakeover> {
+        if let Some(rules) = self.takeover_rules.get(kind) {
+            for rule in rules {
+                if (rule.predicate)(doc) {
+                    return Some(PaneTakeover {
+                        target_kind: rule.target_kind.clone(),
+                        read_only: rule.read_only,
+                    });
+                }
+            }
+        }
+        None
+    }
+
+    /// Resolves whether `kind` is taken over using the process-global registry.
+    pub fn resolve_takeover_global(
+        kind: &PaneKind,
+        doc: &DocumentSnapshot,
+    ) -> Result<Option<PaneTakeover>, PaneRegistryError> {
+        Ok(Self::global()
+            .lock()
+            .map_err(|_| PaneRegistryError::Poisoned)?
+            .resolve_takeover(kind, doc))
+    }
 }
 
 #[cfg(test)]
@@ -147,5 +229,31 @@ mod tests {
         );
         assert_eq!(registry.default_kind(), Some(kind));
         assert_eq!(registry.all_descriptors().len(), 1);
+    }
+
+    #[test]
+    fn takeover_rules_intercept_matching_documents() {
+        let mut registry = PaneRegistry::new();
+        let wysiwyg = PaneKind::new("splitype.pane.wysiwyg");
+        let source_code = PaneKind::new("splitype.pane.source_code");
+
+        registry.register_takeover(
+            wysiwyg.clone(),
+            source_code.clone(),
+            false,
+            Arc::new(|doc| !doc.is_markdown()),
+        );
+
+        let md_doc = DocumentSnapshot::empty().with_path(std::path::PathBuf::from("test.md"));
+        let rs_doc = DocumentSnapshot::empty().with_path(std::path::PathBuf::from("test.rs"));
+
+        assert_eq!(registry.resolve_takeover(&wysiwyg, &md_doc), None);
+        assert_eq!(
+            registry.resolve_takeover(&wysiwyg, &rs_doc),
+            Some(PaneTakeover {
+                target_kind: source_code,
+                read_only: false,
+            })
+        );
     }
 }

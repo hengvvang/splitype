@@ -80,8 +80,8 @@ pub struct DocumentBuffer {
     /// Cursor the next snapshot should carry when this revision was
     /// produced by undo/redo; cleared by the next regular edit.
     restore_cursor: Option<CursorHint>,
-    /// Incremental highlight engine (Markdown root + injections).
-    highlight: HighlightMap,
+    /// Incremental highlight engine (Markdown root + injections or source code root).
+    highlight: Option<HighlightMap>,
     /// In-flight background highlight refresh; superseded tasks drop their
     /// result because its version no longer matches.
     highlight_task: Option<Task<()>>,
@@ -98,9 +98,26 @@ struct PendingEdit {
     operations: Vec<Operation>,
 }
 
+fn detect_language(path: Option<&std::path::Path>) -> Option<CodeLanguageKey> {
+    let path = path?;
+    let ext = path.extension()?.to_str()?;
+    syntax_highlighter::highlight::resolve_code_language_key(Some(ext))
+}
+
 impl DocumentBuffer {
     pub fn new(text: String, path: Option<PathBuf>) -> Self {
         Self::restore(DocumentId::new(), text, path, false)
+    }
+
+    /// Returns true when this buffer represents a Markdown document.
+    #[inline]
+    pub fn is_markdown(&self) -> bool {
+        self.path
+            .as_deref()
+            .and_then(|p| p.extension())
+            .and_then(|e| e.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
+            .unwrap_or(true)
     }
 
     /// Rebuilds a buffer from a persisted snapshot, preserving identity.
@@ -110,10 +127,12 @@ impl DocumentBuffer {
     /// main thread.
     pub fn restore(id: DocumentId, text: String, path: Option<PathBuf>, dirty: bool) -> Self {
         let text = normalize_line_endings(text);
-        let highlight = HighlightMap::unparsed(CodeLanguageKey::Markdown)
-            .expect("markdown language configuration");
+        let language = detect_language(path.as_deref())
+            .or_else(|| path.is_none().then_some(CodeLanguageKey::Markdown));
+        let highlight = language.and_then(HighlightMap::unparsed);
         let source: Arc<str> = Arc::from(text);
         let rope = Arc::new(Rope::new(&source));
+        let projection = BlockProjection::parse(&rope);
         Self {
             id,
             text: rope.clone(),
@@ -129,7 +148,7 @@ impl DocumentBuffer {
             restore_cursor: None,
             highlight,
             highlight_task: None,
-            projection: BlockProjection::parse(&rope),
+            projection,
         }
     }
 
@@ -141,10 +160,12 @@ impl DocumentBuffer {
 
     pub fn snapshot(&self) -> DocumentSnapshot {
         let text = self.text_arc();
-        let highlights = Some(Arc::new(HighlightSnapshot {
-            version: self.highlight.refreshed_version,
-            spans: self.highlight.spans_arc(),
-        }));
+        let highlights = self.highlight.as_ref().map(|h| {
+            Arc::new(HighlightSnapshot {
+                version: h.refreshed_version,
+                spans: h.spans_arc(),
+            })
+        });
         DocumentSnapshot::new(
             self.id,
             self.revision,
@@ -229,7 +250,9 @@ impl DocumentBuffer {
                 .max(self.text.offset_to_point(end).0);
             first_changed = first_changed.min(first);
             last_changed = last_changed.max(last);
-            self.highlight.apply_edit(&self.text, start..end, &inserted);
+            if let Some(highlight) = &mut self.highlight {
+                highlight.apply_edit(&self.text, start..end, &inserted);
+            }
             let edited = self.text.edit(start..end, &inserted);
             *Arc::make_mut(&mut self.text) = edited;
             operations.push(Operation {
@@ -312,8 +335,9 @@ impl DocumentBuffer {
                 .max(self.text.offset_to_point(range.end).0);
             first_changed = first_changed.min(first);
             last_changed = last_changed.max(last);
-            self.highlight
-                .apply_edit(&self.text, range.clone(), &operation.old);
+            if let Some(highlight) = &mut self.highlight {
+                highlight.apply_edit(&self.text, range.clone(), &operation.old);
+            }
             let edited = self.text.edit(range, &operation.old);
             *Arc::make_mut(&mut self.text) = edited;
         }
@@ -349,8 +373,9 @@ impl DocumentBuffer {
                 .max(self.text.offset_to_point(operation.range.end).0);
             first_changed = first_changed.min(first);
             last_changed = last_changed.max(last);
-            self.highlight
-                .apply_edit(&self.text, operation.range.clone(), &operation.new);
+            if let Some(highlight) = &mut self.highlight {
+                highlight.apply_edit(&self.text, operation.range.clone(), &operation.new);
+            }
             let edited = self.text.edit(operation.range.clone(), &operation.new);
             *Arc::make_mut(&mut self.text) = edited;
         }
@@ -369,7 +394,7 @@ impl DocumentBuffer {
     /// projection needs no background refresh: it is maintained
     /// synchronously with every edit.
     fn schedule_highlight_refresh(&mut self, cx: &mut Context<Self>) {
-        if self.highlight_task.is_some() {
+        if self.highlight.is_none() || self.highlight_task.is_some() {
             return;
         }
         let weak = cx.weak_entity();
@@ -381,9 +406,10 @@ impl DocumentBuffer {
                         .await;
                     let Some((mut map, rope)) = weak
                         .update(cx, |buffer, _| {
-                            (buffer.highlight.clone(), buffer.text.clone())
+                            buffer.highlight.clone().map(|h| (h, buffer.text.clone()))
                         })
                         .ok()
+                        .flatten()
                     else {
                         return;
                     };
@@ -395,12 +421,17 @@ impl DocumentBuffer {
                         })
                         .await;
                     let Ok(done) = weak.update(cx, |buffer, cx| {
-                        if buffer.highlight.adopt_refresh(computed) {
-                            buffer.highlight_task = None;
-                            cx.notify();
-                            true
+                        if let Some(h) = &mut buffer.highlight {
+                            if h.adopt_refresh(computed) {
+                                buffer.highlight_task = None;
+                                cx.notify();
+                                true
+                            } else {
+                                false
+                            }
                         } else {
-                            false
+                            buffer.highlight_task = None;
+                            true
                         }
                     }) else {
                         return;

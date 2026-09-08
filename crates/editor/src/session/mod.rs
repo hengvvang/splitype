@@ -189,7 +189,8 @@ impl EditorSession {
                 tracing::warn!("persisted tab references a missing buffer; skipping");
                 continue;
             };
-            tab_list.push(DocumentTab::new(buffer, tab.kind));
+            let snapshot = buffer.read(cx).snapshot();
+            tab_list.push(DocumentTab::new(buffer, tab.kind).with_snapshot(snapshot));
         }
         tab_list.set_active_tab(active_index);
         let root = SplitterRoot {

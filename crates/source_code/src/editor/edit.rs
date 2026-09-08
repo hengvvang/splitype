@@ -19,6 +19,9 @@ impl SourceCodeEditor {
 
     /// Inserts text at every cursor (replacing selections) and commits.
     pub fn insert_text_commit(&mut self, inserted: &str, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor_before = self.cursor_hint();
         let merge = self.merge_for_insert(self.cursor(), inserted);
         let insert_pos = self.insert_text_local(inserted);
@@ -30,6 +33,9 @@ impl SourceCodeEditor {
 
     /// Inserts a newline preserving the current line's leading indentation.
     pub fn insert_newline_with_auto_indent(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor = self.cursor();
         let (row, _) = self.point_of(cursor);
         let indent: String = self
@@ -42,6 +48,9 @@ impl SourceCodeEditor {
 
     /// Indents the current line(s) or selection.
     pub fn indent(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let indent_unit = self.settings.indent_unit();
         let Some(range) = self.selections.primary_range() else {
             self.insert_text_commit(&indent_unit, cx);
@@ -71,6 +80,9 @@ impl SourceCodeEditor {
 
     /// Outdents the current line(s) or selection.
     pub fn outdent(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let (start_row, end_row) = if let Some(range) = self.selections.primary_range() {
             let (sr, _) = self.point_of(range.start);
             let (er, ec) = self.point_of(range.end);
@@ -112,6 +124,9 @@ impl SourceCodeEditor {
 
     /// Duplicates the current line, inserting the copy below it.
     pub fn duplicate_line(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor = self.cursor();
         let (row, _) = self.point_of(cursor);
         let line = self.line_str(row).to_string();
@@ -128,6 +143,9 @@ impl SourceCodeEditor {
 
     /// Deletes the current line including its trailing newline.
     pub fn delete_line(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor = self.cursor();
         let (row, _) = self.point_of(cursor);
         let start = self.line_start_offset(row);
@@ -150,6 +168,9 @@ impl SourceCodeEditor {
 
     /// Deletes backward (Backspace): the selection, or the previous char.
     pub fn delete_backward(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor_before = self.cursor_hint();
         if self.selections.has_selection() {
             self.delete_selection_local();
@@ -179,6 +200,9 @@ impl SourceCodeEditor {
 
     /// Deletes the word before the cursor (Ctrl+Backspace).
     pub fn delete_word_backward(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor_before = self.cursor_hint();
         if self.selections.has_selection() {
             self.delete_selection_local();
@@ -219,6 +243,9 @@ impl SourceCodeEditor {
 
     /// Deletes forward (Delete key): the selection, or the next char.
     pub fn delete_forward(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor_before = self.cursor_hint();
         if self.selections.has_selection() {
             self.delete_selection_local();
@@ -247,6 +274,9 @@ impl SourceCodeEditor {
 
     /// Deletes the word after the cursor (Ctrl+Delete).
     pub fn delete_word_forward(&mut self, cx: &mut Context<Self>) {
+        if self.read_only {
+            return;
+        }
         let cursor_before = self.cursor_hint();
         if self.selections.has_selection() {
             self.delete_selection_local();
@@ -293,6 +323,9 @@ impl SourceCodeEditor {
         inserted: &str,
         cx: &mut Context<Self>,
     ) -> Option<EditTransaction> {
+        if self.read_only {
+            return None;
+        }
         let cursor_before = self.cursor_hint();
         let merge = self.merge_for_insert(self.cursor(), inserted);
         let insert_pos = self.insert_text_local(inserted);
@@ -306,7 +339,7 @@ impl SourceCodeEditor {
     /// Deletes the current selection(s) and returns the resulting
     /// transaction, or `None` when there is nothing to delete.
     pub fn delete_selection(&mut self, cx: &mut Context<Self>) -> Option<EditTransaction> {
-        if !self.selections.has_selection() {
+        if self.read_only || !self.selections.has_selection() {
             return None;
         }
         let cursor_before = self.cursor_hint();
@@ -333,7 +366,7 @@ impl SourceCodeEditor {
         replacement: &str,
         cx: &mut Context<Self>,
     ) -> Option<EditTransaction> {
-        if range.start > self.text.len() || range.end > self.text.len() {
+        if self.read_only || range.start > self.text.len() || range.end > self.text.len() {
             return None;
         }
         let cursor_before = self.cursor_hint();
@@ -354,6 +387,9 @@ impl SourceCodeEditor {
         mut replacements: Vec<(Range<usize>, String)>,
         cx: &mut Context<Self>,
     ) -> Option<EditTransaction> {
+        if self.read_only {
+            return None;
+        }
         let cursor_before = self.cursor_hint();
         replacements.sort_by_key(|(range, _)| std::cmp::Reverse(range.start));
         for (range, replacement) in &replacements {

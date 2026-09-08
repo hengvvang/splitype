@@ -155,6 +155,8 @@ pub struct SourceCodeEditor {
     /// pane's key handler runs inside the host editor's own update, so
     /// commits must not re-enter the editor entity synchronously.
     deferred_commit: Option<(bool, CursorHint)>,
+    /// When true, the editor behaves as a read-only code viewer (no edits, no cursor).
+    pub read_only: bool,
 }
 
 impl SourceCodeEditor {
@@ -196,6 +198,7 @@ impl SourceCodeEditor {
             cursor_blink_epoch: None,
             frame_rows: Vec::new(),
             deferred_commit: None,
+            read_only: false,
         };
         editor.apply_document(document.rope.clone(), document.revision, cx);
         editor.highlights = document.highlights.clone();
@@ -755,7 +758,9 @@ impl SourceCodeEditor {
 
     /// Starts (or restarts) the cursor blink phase.
     pub fn start_cursor_blink(&mut self) {
-        self.cursor_blink_epoch = Some(Instant::now());
+        if !self.read_only {
+            self.cursor_blink_epoch = Some(Instant::now());
+        }
     }
 
     pub fn cursor_blink_epoch(&self) -> Option<Instant> {

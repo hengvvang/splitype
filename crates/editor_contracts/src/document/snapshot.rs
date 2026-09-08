@@ -80,6 +80,24 @@ impl DocumentSnapshot {
             Arc::new(Vec::new()),
         )
     }
+
+    /// Returns true when this document represents a Markdown file (or an untitled buffer).
+    pub fn is_markdown(&self) -> bool {
+        self.path
+            .as_deref()
+            .and_then(|p| p.extension())
+            .and_then(|e| e.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"))
+            .unwrap_or(true)
+    }
+
+    /// Returns a copy of the snapshot with the given path set.
+    pub fn with_path(mut self, path: PathBuf) -> Self {
+        let p = Arc::<Path>::from(path);
+        self.base_dir = p.parent().map(Arc::<Path>::from);
+        self.path = Some(p);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -110,5 +128,59 @@ mod tests {
     fn empty_snapshot_has_stable_identity() {
         assert_eq!(DocumentSnapshot::empty().id, DocumentSnapshot::empty().id);
         assert_eq!(DocumentSnapshot::empty().rope.len(), 0);
+    }
+
+    #[test]
+    fn test_is_markdown_detection() {
+        let untitled = DocumentSnapshot::empty();
+        assert!(untitled.is_markdown());
+
+        let md = DocumentSnapshot::new(
+            DocumentId::new(),
+            1,
+            Rope::new(""),
+            "",
+            Some(PathBuf::from("foo.md")),
+            None,
+            None,
+            Arc::new(Vec::new()),
+        );
+        assert!(md.is_markdown());
+
+        let markdown = DocumentSnapshot::new(
+            DocumentId::new(),
+            1,
+            Rope::new(""),
+            "",
+            Some(PathBuf::from("foo.MARKDOWN")),
+            None,
+            None,
+            Arc::new(Vec::new()),
+        );
+        assert!(markdown.is_markdown());
+
+        let rust_file = DocumentSnapshot::new(
+            DocumentId::new(),
+            1,
+            Rope::new(""),
+            "",
+            Some(PathBuf::from("main.rs")),
+            None,
+            None,
+            Arc::new(Vec::new()),
+        );
+        assert!(!rust_file.is_markdown());
+
+        let python_file = DocumentSnapshot::new(
+            DocumentId::new(),
+            1,
+            Rope::new(""),
+            "",
+            Some(PathBuf::from("script.py")),
+            None,
+            None,
+            Arc::new(Vec::new()),
+        );
+        assert!(!python_file.is_markdown());
     }
 }

@@ -7,7 +7,7 @@ use gpui::{Entity, EntityId};
 
 use crate::document::DocumentBuffer;
 use crate::session::{PaneState, TabKind};
-use editor_contracts::DocumentId;
+use editor_contracts::{DocumentId, DocumentSnapshot};
 
 /// Transient per-tab view bookkeeping for save/close/drop flows.
 ///
@@ -35,6 +35,10 @@ pub struct DocumentTab {
     /// The shared document source of truth.
     pub buffer: Entity<DocumentBuffer>,
     pub kind: TabKind,
+    /// Latest document snapshot, cached for O(1) context-free access.
+    pub snapshot: DocumentSnapshot,
+    /// Whether the document in this tab is markdown.
+    pub is_markdown: bool,
     /// Per-pane view states, keyed by pane id.
     pub panes: HashMap<editor_contracts::PaneId, PaneState>,
     pub pending: TabPendingState,
@@ -45,9 +49,22 @@ impl DocumentTab {
         Self {
             buffer,
             kind,
+            snapshot: DocumentSnapshot::empty(),
+            is_markdown: true,
             panes: HashMap::new(),
             pending: TabPendingState::default(),
         }
+    }
+
+    pub fn with_snapshot(mut self, snapshot: DocumentSnapshot) -> Self {
+        self.is_markdown = snapshot.is_markdown();
+        self.snapshot = snapshot;
+        self
+    }
+
+    pub fn with_is_markdown(mut self, is_markdown: bool) -> Self {
+        self.is_markdown = is_markdown;
+        self
     }
 
     #[inline]

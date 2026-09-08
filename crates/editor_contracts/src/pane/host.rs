@@ -11,6 +11,7 @@ pub struct PaneRenderContext<'a> {
     pub is_outline_hovered: bool,
     pub is_outline_docked: bool,
     pub file_path: Option<&'a std::path::Path>,
+    pub read_only: bool,
 }
 
 /// Host seam a pane uses to reach back into the coordinating editor.

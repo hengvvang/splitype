@@ -248,7 +248,10 @@ impl PaneView for SourceCodePane {
 
     fn render(&mut self, ctx: &PaneRenderContext, window: &mut Window, cx: &mut App) -> AnyElement {
         let controller = self.ensure_controller(cx);
-        controller.update(cx, |editor, cx| editor.render(ctx, window, cx))
+        controller.update(cx, |editor, cx| {
+            editor.read_only = ctx.read_only;
+            editor.render(ctx, window, cx)
+        })
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

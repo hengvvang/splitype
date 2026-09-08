@@ -22,6 +22,81 @@ impl SourceCodeEditor {
         let shift = event.keystroke.modifiers.shift;
         let alt = event.keystroke.modifiers.alt;
 
+        if self.read_only {
+            if ctrl && !alt {
+                match key {
+                    "a" | "A" | "c" | "C" => return false,
+                    "home" => {
+                        self.move_to(0, shift);
+                        self.scroll_cursor_into_view(window, cx);
+                        return true;
+                    }
+                    "end" => {
+                        let len = self.text.len();
+                        self.move_to(len, shift);
+                        self.scroll_cursor_into_view(window, cx);
+                        return true;
+                    }
+                    _ => return true,
+                }
+            }
+            return match key {
+                "left" | "arrowleft" => {
+                    self.move_left(shift, ctrl);
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "right" | "arrowright" => {
+                    self.move_right(shift, ctrl);
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "up" | "arrowup" => {
+                    self.move_up(shift);
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "down" | "arrowdown" => {
+                    self.move_down(shift);
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "pageup" => {
+                    for _ in 0..10 {
+                        self.move_up(shift);
+                    }
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "pagedown" => {
+                    for _ in 0..10 {
+                        self.move_down(shift);
+                    }
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "home" => {
+                    self.move_to_line_start(shift);
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                "end" => {
+                    self.move_to_line_end(shift);
+                    self.scroll_cursor_into_view(window, cx);
+                    cx.notify();
+                    true
+                }
+                _ => true,
+            };
+        }
+
         if ctrl && !alt {
             match key {
                 // Clipboard, select-all, and undo/redo are handled by the

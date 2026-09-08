@@ -187,6 +187,24 @@ pub(crate) fn init_plugins() {
         }
         PluginRegistry::register_global(manifest).expect("bundled plugin ids must be unique");
     }
+
+    // Composition root routing policy: when a document is not markdown,
+    // intercept WYSIWYG and Preview panes with the source_code editor.
+    editor_contracts::PaneRegistry::register_takeover_global(
+        editor_contracts::PaneKind::from_static(wysiwyg::PANE_KIND),
+        editor_contracts::PaneKind::from_static(source_code::PANE_KIND),
+        false,
+        Arc::new(|doc| !doc.is_markdown()),
+    )
+    .expect("register wysiwyg takeover");
+
+    editor_contracts::PaneRegistry::register_takeover_global(
+        editor_contracts::PaneKind::from_static(preview::PANE_KIND),
+        editor_contracts::PaneKind::from_static(source_code::PANE_KIND),
+        true,
+        Arc::new(|doc| !doc.is_markdown()),
+    )
+    .expect("register preview takeover");
 }
 
 /// Resolves a `plugin://<plugin-id>/<path>` resource URL through the registered

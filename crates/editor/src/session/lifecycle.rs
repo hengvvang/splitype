@@ -354,7 +354,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(path) = crate::input::first_dropped_markdown_path(paths.paths()) else {
+        let Some(path) = crate::input::first_dropped_supported_path(paths.paths()) else {
             let strings = cx.global::<I18nManager>().strings().clone();
             self.show_drop_open_failed_prompt(strings.drop_no_markdown_file_message, window, cx);
             return;

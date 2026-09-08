@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_contracts::{DocumentHost, EditTransaction, OutlineHudState, PaneId, PaneKind, TabKind};
+use editor_contracts::{DocumentHost, DocumentSnapshot, EditTransaction, OutlineHudState, PaneId, PaneKind, TabKind};
 use platform_contracts::PanelId;
 
 use crate::document::{DocumentBuffer, DocumentStore};
@@ -110,8 +110,11 @@ impl Editor {
     }
 
     /// Pushes a new tab into the session, registering its buffer view.
-    pub(crate) fn attach_tab(&mut self, tab: DocumentTab, cx: &mut Context<Self>) {
+    pub(crate) fn attach_tab(&mut self, mut tab: DocumentTab, cx: &mut Context<Self>) {
         let buffer = tab.buffer.clone();
+        let snapshot = buffer.read(cx).snapshot();
+        tab.is_markdown = snapshot.is_markdown();
+        tab.snapshot = snapshot;
         self.acquire_and_observe(buffer, cx);
         self.session.push_tab(tab);
     }
@@ -148,11 +151,33 @@ impl Editor {
             cx.notify();
             return;
         }
+        let is_markdown = buffer.read(cx).is_markdown();
         let document = buffer.read(cx).snapshot();
+        let mut leaf_ids = Vec::new();
+        self.session.root.tree.leaf_ids(&mut leaf_ids);
+        let leaf_kinds: Vec<(PaneId, PaneKind)> = leaf_ids
+            .into_iter()
+            .filter_map(|id| {
+                self.session
+                    .root
+                    .tree
+                    .find_leaf_kind(id)
+                    .map(|kind| (PaneId(id), kind))
+            })
+            .collect();
+
         for tab in self.session.tabs_mut() {
             if tab.buffer == buffer {
+                tab.is_markdown = is_markdown;
+                tab.snapshot = document.clone();
                 tab.pending.window_title_refresh = true;
                 tab.pending.window_edited = true;
+                for (pane_id, configured) in &leaf_kinds {
+                    let effective = Self::resolve_effective_pane_kind(configured, Some(&document));
+                    if let Some(state) = tab.panes.get_mut(pane_id) {
+                        state.ensure_kind(effective);
+                    }
+                }
                 for state in tab.panes.values_mut() {
                     state.sync_active(&document, cx);
                 }
@@ -170,8 +195,30 @@ impl Editor {
         let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
             return;
         };
+        let is_markdown = buffer.read(cx).is_markdown();
         let document = buffer.read(cx).snapshot();
+        let mut leaf_ids = Vec::new();
+        self.session.root.tree.leaf_ids(&mut leaf_ids);
+        let leaf_kinds: Vec<(PaneId, PaneKind)> = leaf_ids
+            .into_iter()
+            .filter_map(|id| {
+                self.session
+                    .root
+                    .tree
+                    .find_leaf_kind(id)
+                    .map(|kind| (PaneId(id), kind))
+            })
+            .collect();
+
         if let Some(tab_mut) = self.session.active_tab_mut() {
+            tab_mut.is_markdown = is_markdown;
+            tab_mut.snapshot = document.clone();
+            for (pane_id, configured) in leaf_kinds {
+                let effective = Self::resolve_effective_pane_kind(&configured, Some(&document));
+                if let Some(state) = tab_mut.panes.get_mut(&pane_id) {
+                    state.ensure_kind(effective);
+                }
+            }
             for state in tab_mut.panes.values_mut() {
                 state.sync_active(&document, cx);
             }
@@ -246,7 +293,8 @@ impl Editor {
             return;
         }
 
-        let tab = DocumentTab::new(buffer.clone(), kind);
+        let snapshot = buffer.read(cx).snapshot();
+        let tab = DocumentTab::new(buffer.clone(), kind).with_snapshot(snapshot);
         if kind == TabKind::Transient {
             let clean_transient_idx = self
                 .session
@@ -391,16 +439,55 @@ impl Editor {
 
     #[inline]
     pub fn default_pane_kind(&self) -> PaneKind {
+        Self::registered_default_pane_kind()
+    }
+
+    #[inline]
+    pub fn registered_default_pane_kind() -> PaneKind {
         editor_contracts::PaneRegistry::registered_default_kind()
             .ok()
             .flatten()
             .unwrap_or_default()
     }
 
+    #[inline]
+    pub fn resolve_effective_pane(
+        configured: &PaneKind,
+        doc: Option<&DocumentSnapshot>,
+    ) -> (PaneKind, bool) {
+        if let Some(doc) = doc {
+            if let Ok(Some(takeover)) =
+                editor_contracts::PaneRegistry::resolve_takeover_global(configured, doc)
+            {
+                return (takeover.target_kind, takeover.read_only);
+            }
+        }
+        (configured.clone(), false)
+    }
+
+    #[inline]
+    pub fn resolve_effective_pane_kind(
+        configured: &PaneKind,
+        doc: Option<&DocumentSnapshot>,
+    ) -> PaneKind {
+        Self::resolve_effective_pane(configured, doc).0
+    }
+
+    #[inline]
+    pub fn effective_pane_kind(
+        &self,
+        configured: &PaneKind,
+        doc: Option<&DocumentSnapshot>,
+    ) -> PaneKind {
+        Self::resolve_effective_pane_kind(configured, doc)
+    }
+
     pub fn pane_state(&mut self, pane_id: PaneId) -> &mut PaneState {
-        let kind = self
+        let configured = self
             .pane_kind(pane_id)
             .unwrap_or_else(|| self.default_pane_kind());
+        let doc = self.active_tab().map(|t| &t.snapshot);
+        let effective = Self::resolve_effective_pane_kind(&configured, doc);
         let tab = self
             .session
             .active_tab_mut()
@@ -408,21 +495,23 @@ impl Editor {
         let state = tab
             .panes
             .entry(pane_id)
-            .or_insert_with(|| PaneState::new(kind.clone()));
-        state.ensure_kind(kind);
+            .or_insert_with(|| PaneState::new(effective.clone()));
+        state.ensure_kind(effective);
         state
     }
 
     pub fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
-        let kind = self
+        let configured = self
             .pane_kind(pane_id)
             .unwrap_or_else(|| self.default_pane_kind());
+        let doc = self.active_tab().map(|t| &t.snapshot);
+        let effective = Self::resolve_effective_pane_kind(&configured, doc);
         let tab = self.session.active_tab_mut()?;
         let state = tab
             .panes
             .entry(pane_id)
-            .or_insert_with(|| PaneState::new(kind.clone()));
-        state.ensure_kind(kind);
+            .or_insert_with(|| PaneState::new(effective.clone()));
+        state.ensure_kind(effective);
         Some(state)
     }
 
@@ -581,6 +670,33 @@ mod tests {
 
         // Editor 2 WYSIWYG panes remain true (Editor 2 is independent from Editor 1)
         assert_eq!(editor2_map.get(&wysiwyg).copied().unwrap_or(true), true);
+    }
+
+    #[test]
+    fn test_effective_pane_delegation() {
+        use std::path::PathBuf;
+
+        let universal_kind = PaneKind::from_static("test.universal");
+        let takeover_target = PaneKind::from_static("test.takeover_target");
+        let _ = editor_contracts::PaneRegistry::register_takeover_global(
+            universal_kind.clone(),
+            takeover_target.clone(),
+            true,
+            Arc::new(|doc| !doc.is_markdown()),
+        );
+
+        let md_doc = DocumentSnapshot::empty().with_path(PathBuf::from("readme.md"));
+        let rs_doc = DocumentSnapshot::empty().with_path(PathBuf::from("main.rs"));
+
+        let (eff_univ_md, ro_univ_md) =
+            Editor::resolve_effective_pane(&universal_kind, Some(&md_doc));
+        assert_eq!(eff_univ_md, universal_kind);
+        assert!(!ro_univ_md);
+
+        let (eff_univ_rs, ro_univ_rs) =
+            Editor::resolve_effective_pane(&universal_kind, Some(&rs_doc));
+        assert_eq!(eff_univ_rs, takeover_target);
+        assert!(ro_univ_rs);
     }
 }
 

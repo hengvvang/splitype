@@ -4,7 +4,21 @@ pub mod keyboard;
 
 use std::path::{Path, PathBuf};
 
+/// Returns true when `path` exists and is a file.
+pub(crate) fn is_supported_file_path(path: &Path) -> bool {
+    path.is_file()
+}
+
+/// Returns the first path in `paths` that is an existing file.
+pub(crate) fn first_dropped_supported_path(paths: &[PathBuf]) -> Option<PathBuf> {
+    paths
+        .iter()
+        .find(|path| is_supported_file_path(path))
+        .cloned()
+}
+
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
+#[allow(dead_code)]
 pub(crate) fn is_markdown_file_path(path: &Path) -> bool {
     path.is_file()
         && path.extension().is_some_and(|extension| {
@@ -14,6 +28,7 @@ pub(crate) fn is_markdown_file_path(path: &Path) -> bool {
 }
 
 /// Returns the first path in `paths` that passes [`is_markdown_file_path`].
+#[allow(dead_code)]
 pub(crate) fn first_dropped_markdown_path(paths: &[PathBuf]) -> Option<PathBuf> {
     paths
         .iter()

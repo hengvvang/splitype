@@ -10,6 +10,6 @@ pub use descriptor::PaneDescriptor;
 pub use host::{PaneHost, PaneOutlineHost, PaneRenderContext};
 pub use id::PaneId;
 pub use kind::PaneKind;
-pub use registry::{PaneRegistry, PaneRegistryError};
+pub use registry::{PaneRegistry, PaneRegistryError, PaneTakeover};
 pub use scaffold::render_pane_layout;
 pub use view::{PaneCapabilities, PaneView};

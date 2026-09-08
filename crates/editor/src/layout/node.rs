@@ -323,18 +323,18 @@ impl Editor {
         let host = self.pane_host.clone();
 
         let is_outline_hovered = self.outline.is_hovered;
-        let pane_kind = self
+        let configured_kind = self
             .session
             .root
             .tree
             .find_leaf_kind(pane_id.0)
-            .or_else(|| self.pane_state_ref(pane_id).map(|s| s.pane().kind()));
-        let is_outline_docked = pane_kind
-            .as_ref()
-            .map(|k| self.is_outline_enabled_for_kind(k))
-            .unwrap_or(true);
+            .or_else(|| self.pane_state_ref(pane_id).map(|s| s.pane().kind()))
+            .unwrap_or_else(|| self.default_pane_kind());
+        let (effective_kind, read_only) = Self::resolve_effective_pane(&configured_kind, Some(&document));
+        let is_outline_docked = self.is_outline_enabled_for_kind(&configured_kind);
 
         if let Some(state) = self.pane_state_mut(pane_id) {
+            state.ensure_kind(effective_kind);
             // Syncing here every frame is the activation catch-up: a kind
             // switch (ensure_kind) happens just above, and the revision
             // guard makes this a no-op when nothing changed.
@@ -348,6 +348,7 @@ impl Editor {
                 is_outline_hovered,
                 is_outline_docked,
                 file_path: document.path.as_deref(),
+                read_only,
             };
             let pane_content = state.pane_mut().render(&render_ctx, window, cx);
 

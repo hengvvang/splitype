@@ -28,7 +28,7 @@ pub use outline::{
 };
 pub use pane::{
     PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost, PaneRegistry,
-    PaneRegistryError, PaneRenderContext, PaneView, render_pane_layout,
+    PaneRegistryError, PaneRenderContext, PaneTakeover, PaneView, render_pane_layout,
 };
 pub use panel::DocumentPanel;
 pub use rope::Rope;
