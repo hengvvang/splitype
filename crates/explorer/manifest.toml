@@ -13,49 +13,50 @@ registration = "explorer"
 panes = []
 panels = ["splitype.panel.explorer"]
 
-[[settings]]
+[settings.file_tree]
+category = "explorer"
+title = "File Tree"
+description = "File tree scanning, display, and auto-selection settings"
+icon = "plugin://splitype.settings/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.file_tree.items]]
 key = "hide_hidden"
+icon = "plugin://splitype.settings/menu.svg"
 kind = "bool"
 default = true
 title = "Hide Dotfiles"
 description = "Skip dot-prefixed files and folders during tree scans"
 
-[[settings]]
+[[settings.file_tree.items]]
 key = "sort_mode"
+icon = "plugin://splitype.settings/select-chevron.svg"
 kind = "enum"
 default = "directories_first"
 title = "Sort Mode"
 description = "Grouping strategy for the file tree entries"
+options = [
+  { value = "directories_first", label = "Directories First" },
+  { value = "files_first", label = "Files First" },
+  { value = "mixed", label = "Mixed (Alphabetical)" },
+]
 
-[[settings.options]]
-value = "directories_first"
-label = "Directories First"
-
-[[settings.options]]
-value = "files_first"
-label = "Files First"
-
-[[settings.options]]
-value = "mixed"
-label = "Mixed (Alphabetical)"
-
-[[settings]]
+[[settings.file_tree.items]]
 key = "sort_order"
+icon = "plugin://splitype.settings/chevron-up-down.svg"
 kind = "enum"
 default = "ascending"
 title = "Sort Order"
 description = "Ascending or descending entry ordering"
+options = [
+  { value = "ascending", label = "Ascending (A to Z)" },
+  { value = "descending", label = "Descending (Z to A)" },
+]
 
-[[settings.options]]
-value = "ascending"
-label = "Ascending (A to Z)"
-
-[[settings.options]]
-value = "descending"
-label = "Descending (Z to A)"
-
-[[settings]]
+[[settings.file_tree.items]]
 key = "auto_reveal"
+icon = "plugin://splitype.settings/checkmark.svg"
 kind = "bool"
 default = true
 title = "Auto Reveal Active File"

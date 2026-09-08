@@ -13,22 +13,33 @@ registration = "preview"
 panes = ["splitype.pane.preview"]
 panels = []
 
-[[settings]]
+[settings.markdown_rendering]
+category = "preview"
+title = "Markdown Rendering"
+description = "LaTeX math, Mermaid diagrams, and table styles in rendered preview"
+icon = "plugin://splitype.settings/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.markdown_rendering.items]]
 key = "show_table_headers"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "bool"
 default = true
 title = "Persistent Table Headers"
 description = "Style table header rows distinctly in the rendered preview"
 
-[[settings]]
+[[settings.markdown_rendering.items]]
 key = "render_math"
+icon = "plugin://splitype.settings/checkmark.svg"
 kind = "bool"
 default = true
 title = "LaTeX Math Formula Rendering"
 description = "Enable live KaTeX math formula rendering in the preview"
 
-[[settings]]
+[[settings.markdown_rendering.items]]
 key = "render_diagrams"
+icon = "plugin://splitype.settings/topbar/split-h.svg"
 kind = "bool"
 default = true
 title = "Mermaid Diagram Rendering"

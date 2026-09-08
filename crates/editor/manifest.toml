@@ -73,36 +73,57 @@ shortcuts = ["f3"]
 id = "find-previous"
 shortcuts = ["shift-f3"]
 
-[[settings]]
+[settings.status_bar]
+category = "editor"
+title = "Status Bar"
+description = "Control visibility of the persistent bottom status bar across window"
+icon = "plugin://splitype.editor/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.status_bar.items]]
 key = "status_bar_enabled"
+icon = "plugin://splitype.editor/panel.svg"
 kind = "bool"
 default = true
 title = "Status Bar Visibility"
 description = "Show or hide the persistent bottom status bar across window"
 
-[[settings]]
+[settings.status_bar_metrics]
+category = "editor"
+title = "Document Metrics"
+description = "Display real-time word count, cursor coordinates, and reading duration in status bar"
+icon = "plugin://splitype.editor/bottombar/checkmark.svg"
+order = 2
+default_collapsed = false
+
+[[settings.status_bar_metrics.items]]
 key = "show_word_count"
+icon = "plugin://splitype.editor/outline/outline.svg"
 kind = "bool"
 default = true
 title = "Word Count Badge"
 description = "Display real-time document word count in the status bar"
 
-[[settings]]
+[[settings.status_bar_metrics.items]]
 key = "show_cursor_position"
+icon = "plugin://splitype.editor/topbar/search.svg"
 kind = "bool"
 default = true
 title = "Cursor Position Badge"
 description = "Display line and column coordinates in the status bar"
 
-[[settings]]
+[[settings.status_bar_metrics.items]]
 key = "show_character_count"
+icon = "plugin://splitype.editor/outline/outline.svg"
 kind = "bool"
 default = true
 title = "Character Count Badge"
 description = "Display total character count in the status bar"
 
-[[settings]]
+[[settings.status_bar_metrics.items]]
 key = "show_reading_time"
+icon = "plugin://splitype.editor/bottombar/checkmark.svg"
 kind = "bool"
 default = true
 title = "Estimated Reading Time"

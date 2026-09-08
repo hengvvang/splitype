@@ -470,7 +470,7 @@ mod tests {
         // Keybinding overrides and theme overrides are config-only
         // channels with custom settings UI rather than declaration rows.
         let problems = platform_contracts::verify_setting_declarations::<CoreSettings>(
-            &manifest.settings,
+            &manifest.all_settings(),
             &[
                 "keybindings",
                 "theme.overrides",

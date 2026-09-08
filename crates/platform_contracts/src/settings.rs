@@ -45,12 +45,57 @@ pub struct SettingOption {
     pub label: String,
 }
 
+/// One settings category declared in a plugin manifest for the settings navigation rail.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SettingCategoryDeclaration {
+    /// Category identifier (e.g. `editor`, `core.appearance`).
+    pub id: String,
+    /// Display title on the navigation rail.
+    pub title: String,
+    /// Optional URI or icon name for the category tab.
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// Display sort order on the navigation rail.
+    #[serde(default)]
+    pub order: u32,
+}
+
+/// One settings group declared in a plugin manifest, rendering as a unified WinUI 3 card.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SettingGroupDeclaration {
+    /// Group identifier (e.g. `status_bar`, `theme`).
+    #[serde(default)]
+    pub id: String,
+    /// Category ID this group belongs to (e.g. `editor`, `core.general`).
+    pub category: String,
+    /// Optional icon URI for the group card header.
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// Display title for the group card header.
+    pub title: String,
+    /// Optional description shown under the group title.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Display sort order of the group within its category.
+    #[serde(default)]
+    pub order: u32,
+    /// Whether this group starts collapsed by default.
+    #[serde(default)]
+    pub default_collapsed: bool,
+    /// Child setting declarations connected inside this group container.
+    #[serde(default)]
+    pub items: Vec<SettingDeclaration>,
+}
+
 /// One settings key declared by a plugin manifest.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SettingDeclaration {
     /// Plugin-local settings key; dotted paths address nested struct
     /// fields (e.g. `theme.family`).
     pub key: String,
+    /// Optional icon URI shown on the left of this setting row.
+    #[serde(default)]
+    pub icon: Option<String>,
     /// The control kind rendered for this key.
     pub kind: SettingKind,
     /// Numeric bounds for [`SettingKind::Number`] declarations.

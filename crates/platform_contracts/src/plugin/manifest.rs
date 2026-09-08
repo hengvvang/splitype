@@ -1,12 +1,16 @@
 //! Plugin manifest — the versioned declaration a plugin ships to describe
 //! itself: identity, entry point, and capability declarations.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::panel::PanelKind;
 use crate::plugin::PluginId;
-use crate::settings::{SettingDeclaration, SettingKind};
+use crate::settings::{
+    SettingCategoryDeclaration, SettingDeclaration, SettingGroupDeclaration, SettingKind,
+};
 
 /// Current manifest schema version. Bump on breaking changes; loaders must
 /// reject manifests they do not understand.
@@ -33,9 +37,12 @@ pub struct PluginManifest {
     /// Commands the plugin exposes to menus and shortcuts.
     #[serde(default)]
     pub commands: Vec<ManifestCommand>,
-    /// Settings schema the plugin contributes to the settings UI.
+    /// Settings categories the plugin contributes to the settings navigation rail.
     #[serde(default)]
-    pub settings: Vec<SettingDeclaration>,
+    pub setting_categories: Vec<SettingCategoryDeclaration>,
+    /// Settings schema the plugin contributes, organized by group cards.
+    #[serde(default)]
+    pub settings: BTreeMap<String, SettingGroupDeclaration>,
     /// Theme families the plugin contributes, in the same JSONC family
     /// format as user theme files.
     #[serde(default)]
@@ -125,6 +132,22 @@ pub enum PluginManifestError {
 }
 
 impl PluginManifest {
+    /// Returns a flat list of all setting declarations across all groups.
+    pub fn all_settings(&self) -> Vec<SettingDeclaration> {
+        self.settings
+            .values()
+            .flat_map(|group| group.items.clone())
+            .collect()
+    }
+
+    /// Finds a setting declaration by key across all groups.
+    pub fn find_setting(&self, key: &str) -> Option<&SettingDeclaration> {
+        self.settings
+            .values()
+            .flat_map(|group| &group.items)
+            .find(|item| item.key == key)
+    }
+
     /// Validates the structural invariants of a manifest.
     pub fn validate(&self) -> Result<(), PluginManifestError> {
         if self.manifest_version != PLUGIN_MANIFEST_VERSION {
@@ -179,41 +202,50 @@ impl PluginManifest {
     }
 
     fn validate_settings(&self) -> Result<(), PluginManifestError> {
-        for declaration in &self.settings {
-            let id = format!("{}.{}", self.plugin, declaration.key);
-            if declaration.key.trim().is_empty() || declaration.key.starts_with('.') {
-                return Err(PluginManifestError::InvalidSettingKey(id));
+        let mut seen_keys = std::collections::BTreeSet::new();
+        for (group_id, group) in &self.settings {
+            if group_id.trim().is_empty() {
+                return Err(PluginManifestError::InvalidSettingKey(format!(
+                    "{}.<empty-group>",
+                    self.plugin
+                )));
             }
-            if declaration.title.trim().is_empty() {
-                return Err(PluginManifestError::EmptySettingTitle(id));
+            if group.title.trim().is_empty() {
+                return Err(PluginManifestError::EmptySettingTitle(format!(
+                    "{}.{}",
+                    self.plugin, group_id
+                )));
             }
-            if self
-                .settings
-                .iter()
-                .filter(|other| other.key == declaration.key)
-                .count()
-                > 1
-            {
-                return Err(PluginManifestError::DuplicateSettingKey(id));
-            }
-            if !declaration.accepts(&declaration.default) {
-                return Err(PluginManifestError::SettingDefaultMismatch(id));
-            }
-            match &declaration.kind {
-                SettingKind::Enum => {
-                    if declaration.options.is_empty() {
-                        return Err(PluginManifestError::EnumWithoutOptions(id));
-                    }
+            for declaration in &group.items {
+                let id = format!("{}.{}", self.plugin, declaration.key);
+                if declaration.key.trim().is_empty() || declaration.key.starts_with('.') {
+                    return Err(PluginManifestError::InvalidSettingKey(id));
                 }
-                SettingKind::Number => {}
-                _ => {
-                    if declaration.min.is_some()
-                        || declaration.max.is_some()
-                        || declaration.step.is_some()
-                        || declaration.unit.is_some()
-                        || !declaration.options.is_empty()
-                    {
-                        return Err(PluginManifestError::InvalidSettingBounds(id));
+                if declaration.title.trim().is_empty() {
+                    return Err(PluginManifestError::EmptySettingTitle(id));
+                }
+                if !seen_keys.insert(declaration.key.clone()) {
+                    return Err(PluginManifestError::DuplicateSettingKey(id));
+                }
+                if !declaration.accepts(&declaration.default) {
+                    return Err(PluginManifestError::SettingDefaultMismatch(id));
+                }
+                match &declaration.kind {
+                    SettingKind::Enum => {
+                        if declaration.options.is_empty() {
+                            return Err(PluginManifestError::EnumWithoutOptions(id));
+                        }
+                    }
+                    SettingKind::Number => {}
+                    _ => {
+                        if declaration.min.is_some()
+                            || declaration.max.is_some()
+                            || declaration.step.is_some()
+                            || declaration.unit.is_some()
+                            || !declaration.options.is_empty()
+                        {
+                            return Err(PluginManifestError::InvalidSettingBounds(id));
+                        }
                     }
                 }
             }

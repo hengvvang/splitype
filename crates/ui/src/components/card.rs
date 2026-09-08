@@ -92,52 +92,20 @@ pub fn highlight_search_text(
         .into_any_element()
 }
 
-/// Settings row container — title/description label and a control on the right (4px radius).
-pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
-    div()
-        .w_full()
-        .min_w(px(0.0))
-        .min_h(px(56.0))
-        .py(px(10.0))
-        .px(px(16.0))
-        .rounded(px(d.settings_row_radius))
-        .bg(c.dialog_surface)
-        .border_1()
-        .border_color(border)
-        .hover(|this| this.bg(c.panel_row_hover))
-        .flex()
-        .flex_row()
-        .items_center()
-        .justify_between()
-        .gap(px(16.0))
-}
+//
 
-/// Settings card group container (WinUI 3 8px section_card_radius).
-pub fn settings_group(c: &ThemeColors, d: &ThemeDimensions) -> Div {
-    div()
-        .w_full()
-        .min_w(px(0.0))
-        .rounded(px(d.section_card_radius))
-        .border_1()
-        .border_color(c.dialog_border)
-        .bg(c.dialog_surface)
-        .overflow_hidden()
-        .flex()
-        .flex_col()
-}
-
-/// A unified settings row designed after Windows 11 SettingsCard with dynamic multi-line
-/// description wrapping, optional icon, optional chevron, and non-shrinking right control.
-pub fn settings_card_row(
+/// A settings item row inside a unified WinUI 3 group container.
+/// Items inside the container are connected seamlessly with subtle divider lines.
+pub fn settings_group_item_row(
     c: &ThemeColors,
     d: &ThemeDimensions,
-    icon: Option<&'static str>,
+    icon: Option<&str>,
     title: &str,
     desc: &str,
     query: &str,
     on_reset: Option<CardClickHandler>,
     control: AnyElement,
-    has_chevron: bool,
+    has_top_border: bool,
 ) -> AnyElement {
     let has_query = !query.trim().is_empty();
 
@@ -166,7 +134,7 @@ pub fn settings_card_row(
         .child(title_element);
 
     if let Some(reset_fn) = on_reset {
-        let reset_id = ElementId::Name(format!("reset-{title}").into());
+        let reset_id = ElementId::Name(format!("reset-group-{title}").into());
         title_row = title_row.child(
             div()
                 .id(reset_id)
@@ -240,7 +208,7 @@ pub fn settings_card_row(
                     .justify_center()
                     .child(
                         svg()
-                            .path(icon_path)
+                            .path(icon_path.to_string())
                             .size(px(18.0))
                             .text_color(c.text_default),
                     ),
@@ -251,25 +219,192 @@ pub fn settings_card_row(
         label_column.into_any_element()
     };
 
-    let mut control_area = div()
+    let control_area = div()
         .flex_shrink_0()
         .flex()
         .items_center()
         .gap(px(8.0))
         .child(control);
 
-    if has_chevron {
-        control_area = control_area.child(
-            svg()
-                .path("plugin://splitype.settings/chevron-right.svg")
-                .size(px(14.0))
-                .text_color(c.dialog_muted)
-                .flex_shrink_0(),
-        );
+    let mut row = div()
+        .w_full()
+        .min_w(px(0.0))
+        .min_h(px(56.0))
+        .py(px(10.0))
+        .px(px(16.0))
+        .bg(c.dialog_surface)
+        .hover(|this| this.bg(c.panel_row_hover))
+        .flex()
+        .flex_row()
+        .items_center()
+        .justify_between()
+        .gap(px(16.0));
+
+    if has_top_border {
+        row = row.border_t_1().border_color(c.dialog_border);
     }
 
-    settings_row(c.dialog_border, c, d)
-        .child(left_side)
+    row.child(left_side)
         .child(control_area)
         .into_any_element()
+}
+
+/// A complete Windows 11 Fluent Design SettingsExpander container:
+/// header card with icon, title, description, and chevron, enclosing seamlessly
+/// connected child rows separated by subtle dividers.
+pub fn settings_expander_group(
+    id: ElementId,
+    icon: Option<&str>,
+    title: &str,
+    description: Option<&str>,
+    query: &str,
+    is_collapsed: bool,
+    on_toggle: Option<CardClickHandler>,
+    items: Vec<AnyElement>,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+) -> AnyElement {
+    let has_query = !query.trim().is_empty();
+
+    let title_elem = if has_query {
+        div()
+            .min_w(px(0.0))
+            .text_size(px(13.5))
+            .font_weight(FontWeight::SEMIBOLD)
+            .child(highlight_search_text(title, query, c.text_default, c.text_highlight_bg))
+            .into_any_element()
+    } else {
+        div()
+            .min_w(px(0.0))
+            .text_size(px(13.5))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(c.text_default)
+            .child(title.to_string())
+            .into_any_element()
+    };
+
+    let desc_str = description.unwrap_or_default();
+    let has_desc = !desc_str.is_empty();
+
+    let text_column = if has_desc {
+        let desc_elem = if has_query {
+            div()
+                .w_full()
+                .min_w(px(0.0))
+                .text_size(px(11.5))
+                .child(highlight_search_text(desc_str, query, c.dialog_muted, c.text_highlight_bg))
+                .into_any_element()
+        } else {
+            div()
+                .w_full()
+                .min_w(px(0.0))
+                .text_size(px(11.5))
+                .text_color(c.dialog_muted)
+                .child(desc_str.to_string())
+                .into_any_element()
+        };
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .flex()
+            .flex_col()
+            .gap(px(2.0))
+            .child(title_elem)
+            .child(desc_elem)
+    } else {
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .flex()
+            .flex_col()
+            .justify_center()
+            .child(title_elem)
+    };
+
+    let left_side = if let Some(icon_path) = icon {
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .flex()
+            .items_center()
+            .gap(px(14.0))
+            .child(
+                div()
+                    .size(px(26.0))
+                    .flex_shrink_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(
+                        svg()
+                            .path(icon_path.to_string())
+                            .size(px(20.0))
+                            .text_color(c.text_default),
+                    ),
+            )
+            .child(text_column)
+            .into_any_element()
+    } else {
+        text_column.into_any_element()
+    };
+
+    let chevron_path = if is_collapsed {
+        "plugin://splitype.settings/chevron-right.svg"
+    } else {
+        "plugin://splitype.settings/chevron-down.svg"
+    };
+
+    let right_chevron = div()
+        .flex_shrink_0()
+        .size(px(20.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(
+            svg()
+                .path(chevron_path)
+                .size(px(14.0))
+                .text_color(c.dialog_muted),
+        );
+
+    let mut header = div()
+        .id(id)
+        .w_full()
+        .min_w(px(0.0))
+        .min_h(px(56.0))
+        .py(px(12.0))
+        .px(px(16.0))
+        .bg(c.dialog_surface)
+        .flex()
+        .flex_row()
+        .items_center()
+        .justify_between()
+        .gap(px(16.0))
+        .child(left_side)
+        .child(right_chevron);
+
+    if let Some(toggle) = on_toggle {
+        header = header
+            .cursor_pointer()
+            .hover(|this| this.bg(c.panel_row_hover))
+            .on_click(toggle);
+    }
+
+    let mut container = div()
+        .w_full()
+        .min_w(px(0.0))
+        .rounded(px(d.section_card_radius))
+        .border_1()
+        .border_color(c.dialog_border)
+        .bg(c.dialog_surface)
+        .overflow_hidden()
+        .flex()
+        .flex_col()
+        .child(header);
+
+    if !is_collapsed && !items.is_empty() {
+        container = container.children(items);
+    }
+
+    container.into_any_element()
 }

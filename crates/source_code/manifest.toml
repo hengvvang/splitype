@@ -13,22 +13,49 @@ registration = "source-code"
 panes = ["splitype.pane.source_code"]
 panels = []
 
-[[settings]]
+[settings.editor_view]
+category = "source-code"
+title = "Display & Gutter"
+description = "Line numbers, soft wrapping, and cursor line highlight"
+icon = "plugin://splitype.settings/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.editor_view.items]]
 key = "line_numbers"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "bool"
 default = true
 title = "Line Numbers"
 description = "Show line numbers in the source gutter"
 
-[[settings]]
+[[settings.editor_view.items]]
 key = "word_wrap"
+icon = "plugin://splitype.settings/chevron-right.svg"
 kind = "bool"
 default = true
 title = "Soft Word Wrapping"
 description = "Wrap long lines to fit the current viewport width"
 
-[[settings]]
+[[settings.editor_view.items]]
+key = "highlight_active_line"
+icon = "plugin://splitype.settings/checkmark.svg"
+kind = "bool"
+default = true
+title = "Highlight Active Line"
+description = "Subtly highlight the background of the line containing the cursor"
+
+[settings.indentation]
+category = "source-code"
+title = "Indentation"
+description = "Tab width and whitespace insertion behavior"
+icon = "plugin://splitype.settings/menu.svg"
+order = 2
+default_collapsed = false
+
+[[settings.indentation.items]]
 key = "tab_size"
+icon = "plugin://splitype.settings/plus.svg"
 kind = "number"
 default = 4
 min = 2
@@ -37,16 +64,10 @@ step = 2
 title = "Tab Indentation Width"
 description = "The number of spaces a tab character equals (2, 4, or 8 spaces)"
 
-[[settings]]
+[[settings.indentation.items]]
 key = "insert_spaces"
+icon = "plugin://splitype.settings/minus.svg"
 kind = "bool"
 default = true
 title = "Insert Spaces on Tab"
 description = "Pressing Tab inserts spaces instead of a literal tab character"
-
-[[settings]]
-key = "highlight_active_line"
-kind = "bool"
-default = true
-title = "Highlight Active Line"
-description = "Subtly highlight the background of the line containing the cursor"

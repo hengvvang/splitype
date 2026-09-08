@@ -122,77 +122,126 @@ id = "uninstall-cli"
 menu = "help"
 shortcuts = []
 
-[[settings]]
+[[setting_categories]]
+id = "core.general"
+title = "General"
+order = 10
+
+[[setting_categories]]
+id = "core.appearance"
+title = "Appearance"
+order = 20
+
+[[setting_categories]]
+id = "core.color_overrides"
+title = "Color Overrides"
+order = 30
+
+[[setting_categories]]
+id = "core.typography"
+title = "Typography"
+order = 40
+
+[settings.startup]
+category = "core.general"
+title = "Startup"
+description = "Initial workspace and window restoration settings"
+icon = "plugin://splitype.settings/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.startup.items]]
 key = "startup.open"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "enum"
 default = "new_file"
 title = "App Startup Behavior"
 description = "Initial document or workspace opened upon launching Splitype"
+options = [
+  { value = "new_file", label = "Open New Document" },
+  { value = "last_opened_file", label = "Open Last Active Document" },
+]
 
-[[settings.options]]
-value = "new_file"
-label = "Open New Document"
-
-[[settings.options]]
-value = "last_opened_file"
-label = "Open Last Active Document"
-
-[[settings]]
+[[settings.startup.items]]
 key = "startup.restore_window_state"
+icon = "plugin://splitype.settings/topbar/restore.svg"
 kind = "bool"
 default = true
 title = "Restore Window Geometry & State"
 description = "Remember previous window dimensions, position, and layout splits on startup"
 
-[[settings]]
-key = "theme.appearance"
-kind = "enum"
-default = "dark"
-title = "Theme Appearance"
-description = "Light or dark appearance of the selected theme"
+[settings.language]
+category = "core.general"
+title = "Language"
+description = "User interface language preferences"
+icon = "plugin://splitype.settings/menu.svg"
+order = 2
+default_collapsed = false
 
-[[settings.options]]
-value = "dark"
-label = "Dark"
-
-[[settings.options]]
-value = "light"
-label = "Light"
-
-[[settings.options]]
-value = "auto"
-label = "Follow System"
-
-[[settings]]
-key = "theme.family"
-kind = "theme"
-default = "splitype"
-title = "Theme Family"
-description = "Select the application-wide visual theme"
-
-[[settings]]
+[[settings.language.items]]
 key = "interface.language_id"
+icon = "plugin://splitype.settings/menu.svg"
 kind = "language"
 default = "en-US"
 title = "Display Language"
 description = "Select preferred language for editor UI and dialogs"
 
-[[settings]]
+[settings.theme]
+category = "core.appearance"
+title = "Theme"
+description = "Select theme appearance and visual palette"
+icon = "plugin://splitype.settings/sun.svg"
+order = 1
+default_collapsed = false
+
+[[settings.theme.items]]
+key = "theme.appearance"
+icon = "plugin://splitype.settings/sun.svg"
+kind = "enum"
+default = "dark"
+title = "Theme Appearance"
+description = "Light or dark appearance of the selected theme"
+options = [
+  { value = "dark", label = "Dark" },
+  { value = "light", label = "Light" },
+  { value = "auto", label = "Follow System" },
+]
+
+[[settings.theme.items]]
+key = "theme.family"
+icon = "plugin://splitype.settings/moon.svg"
+kind = "theme"
+default = "splitype"
+title = "Theme Family"
+description = "Select the application-wide visual theme"
+
+[settings.fonts]
+category = "core.typography"
+title = "Fonts"
+description = "Interface, Markdown prose, and monospace code typography"
+icon = "plugin://splitype.settings/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.fonts.items]]
 key = "typography.ui_font_family"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "font"
 default = ""
 title = "Interface Font"
 description = "Font used for menus, file navigation panel, and application chrome"
 
-[[settings]]
+[[settings.fonts.items]]
 key = "typography.prose_font_family"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "font"
 default = ""
 title = "Prose Text Font"
 description = "Font used for Markdown prose, headings, and tables"
 
-[[settings]]
+[[settings.fonts.items]]
 key = "typography.code_font_family"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "font"
 default = ""
 title = "Code Block Font"

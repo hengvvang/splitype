@@ -167,7 +167,8 @@ mod tests {
             capabilities: crate::plugin::PluginCapabilities::default(),
             resources: crate::plugin::PluginResources::default(),
             commands: Vec::new(),
-            settings: Vec::new(),
+            setting_categories: Vec::new(),
+            settings: std::collections::BTreeMap::new(),
             themes: Vec::new(),
             theme_tokens: Vec::new(),
         }

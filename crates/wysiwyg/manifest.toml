@@ -158,25 +158,24 @@ id = "exit-code-block"
 shortcuts = ["cmd-enter", "ctrl-enter"]
 context = "EditorContent"
 
-[[settings]]
+[settings.clipboard]
+category = "wysiwyg"
+title = "Clipboard & Assets"
+description = "Storage destination and path strategy when pasting images from clipboard"
+icon = "plugin://splitype.settings/panel.svg"
+order = 1
+default_collapsed = false
+
+[[settings.clipboard.items]]
 key = "image_paste_behavior"
+icon = "plugin://splitype.settings/panel.svg"
 kind = "enum"
 default = "none"
 title = "Clipboard Image Paste Action"
 description = "Storage destination and path strategy when pasting images from clipboard"
-
-[[settings.options]]
-value = "none"
-label = "No local copy (standard insertion)"
-
-[[settings.options]]
-value = "copy_to_document_folder"
-label = "Copy image to document folder (./)"
-
-[[settings.options]]
-value = "copy_to_assets_folder"
-label = "Copy image to assets folder (./assets/)"
-
-[[settings.options]]
-value = "copy_to_named_assets_folder"
-label = "Copy image to named assets folder (./.assets/)"
+options = [
+  { value = "none", label = "No local copy (standard insertion)" },
+  { value = "copy_to_document_folder", label = "Copy image to document folder (./)" },
+  { value = "copy_to_assets_folder", label = "Copy image to assets folder (./assets/)" },
+  { value = "copy_to_named_assets_folder", label = "Copy image to named assets folder (./.assets/)" },
+]

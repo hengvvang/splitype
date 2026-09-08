@@ -12,7 +12,9 @@ use ui::SearchInput;
 use ui::select::{select_option, select_panel, select_trigger};
 
 
-pub use ui::components::card::{highlight_search_text, settings_card_row, settings_row};
+pub use ui::components::card::{
+    highlight_search_text, settings_expander_group, settings_group_item_row,
+};
 pub use ui::components::number_box::{
     NumberBoxClickHandler as SettingsClickHandler,
     NumberBoxDismissHandler as SettingsDismissHandler,

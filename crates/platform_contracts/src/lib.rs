@@ -19,4 +19,7 @@ pub use plugin::{
     PluginId, PluginManifest, PluginManifestError, PluginRegistry, PluginRegistryError,
     PluginResources, ThemeFamilyDeclaration,
 };
-pub use settings::{SettingDeclaration, SettingKind, SettingOption, verify_setting_declarations};
+pub use settings::{
+    SettingCategoryDeclaration, SettingDeclaration, SettingGroupDeclaration, SettingKind,
+    SettingOption, verify_setting_declarations,
+};

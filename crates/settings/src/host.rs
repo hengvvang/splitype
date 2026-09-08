@@ -25,7 +25,7 @@ use ui::SearchInput;
 use crate::form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsDismissHandler,
     SettingsKeyHandler, SettingsPasteHandler, nav_tab, render_number_field,
-    render_searchable_font_picker, settings_card_row,
+    render_searchable_font_picker, settings_expander_group, settings_group_item_row,
 };
 
 
@@ -90,19 +90,17 @@ pub fn category_matches(
 
     // 2. Child settings match
     match category_id {
-        NAV_GENERAL => {
+        NAV_GENERAL | NAV_APPEARANCE | NAV_TYPOGRAPHY => {
             if let Some(m) = core_manifest {
-                let keys = ["startup.open", "startup.restore_window_state", "interface.language_id"];
-                m.settings.iter().any(|s| keys.contains(&s.key.as_str()) && declaration_matches(s, query))
-                    || words.iter().all(|w| "startup".contains(w) || "language".contains(w) || "general".contains(w))
-            } else {
-                false
-            }
-        }
-        NAV_APPEARANCE => {
-            if let Some(m) = core_manifest {
-                m.settings.iter().any(|s| s.key == "theme.family" && declaration_matches(s, query))
-                    || words.iter().all(|w| "theme".contains(w) || "appearance".contains(w) || "color overrides".contains(w) || "customize".contains(w))
+                m.settings
+                    .values()
+                    .filter(|g| g.category == category_id)
+                    .any(|g| {
+                        g.title.to_lowercase().contains(query)
+                            || g.description.as_deref().unwrap_or_default().to_lowercase().contains(query)
+                            || g.items.iter().any(|s| declaration_matches(s, query))
+                    })
+                    || words.iter().all(|w| category_id.contains(w) || label_lower.contains(w))
             } else {
                 false
             }
@@ -114,22 +112,13 @@ pub fn category_matches(
                     words.iter().all(|w| field_lower.contains(w))
                 })
         }
-        NAV_TYPOGRAPHY => {
-            if let Some(m) = core_manifest {
-                let keys = [
-                    "typography.ui_font_family",
-                    "typography.prose_font_family",
-                    "typography.code_font_family",
-                ];
-                m.settings.iter().any(|s| keys.contains(&s.key.as_str()) && declaration_matches(s, query))
-                    || words.iter().all(|w| "typography".contains(w) || "fonts".contains(w))
-            } else {
-                false
-            }
-        }
         plugin_id => {
             if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == plugin_id) {
-                manifest.settings.iter().any(|s| declaration_matches(s, query))
+                manifest.settings.values().any(|g| {
+                    g.title.to_lowercase().contains(query)
+                        || g.description.as_deref().unwrap_or_default().to_lowercase().contains(query)
+                        || g.items.iter().any(|s| declaration_matches(s, query))
+                })
             } else {
                 false
             }
@@ -147,8 +136,8 @@ pub fn count_total_search_matches(query: &str) -> usize {
         PluginRegistry::registered_manifests().unwrap_or_default();
     let mut count = 0;
     for m in &manifests {
-        for s in &m.settings {
-            if declaration_matches(s, q) {
+        for s in m.all_settings() {
+            if declaration_matches(&s, q) {
                 count += 1;
             }
         }
@@ -219,12 +208,22 @@ pub fn render_settings_body(
 
     let query = state.read(cx).search_query.trim().to_string();
 
-    let pref_items = [
-        (NAV_GENERAL, "General"),
-        (NAV_APPEARANCE, "Appearance"),
-        (NAV_COLOR_OVERRIDES, "Color Overrides"),
-        (NAV_TYPOGRAPHY, "Typography"),
-    ];
+    let pref_items: Vec<(String, String)> = core_manifest
+        .as_ref()
+        .filter(|m| !m.setting_categories.is_empty())
+        .map(|core| {
+            let mut cats = core.setting_categories.clone();
+            cats.sort_by_key(|c| c.order);
+            cats.into_iter().map(|c| (c.id, c.title)).collect()
+        })
+        .unwrap_or_else(|| {
+            vec![
+                (NAV_GENERAL.to_string(), "General".to_string()),
+                (NAV_APPEARANCE.to_string(), "Appearance".to_string()),
+                (NAV_COLOR_OVERRIDES.to_string(), "Color Overrides".to_string()),
+                (NAV_TYPOGRAPHY.to_string(), "Typography".to_string()),
+            ]
+        });
 
     let visible_pref_items: Vec<_> = pref_items
         .into_iter()
@@ -357,7 +356,7 @@ pub fn render_settings_body(
                 if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == other) {
                     render_plugin_page(id_namespace, &state, manifest, &query, theme, cx)
                 } else if let Some((first_pref, _)) = visible_pref_items.first() {
-                    match *first_pref {
+                    match first_pref.as_str() {
                         NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
                         NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
                         NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, &query, theme, cx),
@@ -509,31 +508,169 @@ fn render_nav_item(
     tab.into_any_element()
 }
 
-fn render_setting_group(title: &str, rows: Vec<AnyElement>, query: &str, c: &ThemeColors) -> AnyElement {
-    let title_elem = if !query.trim().is_empty() {
-        crate::form::highlight_search_text(title, query, c.text_default, c.text_highlight_bg)
-    } else {
-        div().child(title.to_string()).into_any_element()
-    };
+fn render_setting_group(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    group_id: &str,
+    icon: Option<&str>,
+    title: &str,
+    description: Option<&str>,
+    default_collapsed: bool,
+    rows: Vec<AnyElement>,
+    query: &str,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
 
-    div()
-        .w_full()
-        .min_w(px(0.0))
-        .flex()
-        .flex_col()
-        .gap(px(6.0))
-        .child(
-            div()
-                .pt(px(6.0))
-                .pb(px(2.0))
-                .text_size(px(13.5))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(c.text_default)
-                .child(title_elem),
-        )
-        .children(rows)
-        .into_any_element()
+    let is_collapsed = state.read(cx).is_group_collapsed(group_id, default_collapsed);
+    let state_clone = state.clone();
+    let gid = group_id.to_string();
+
+    let on_toggle: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)> = Box::new(move |_event, _window, cx| {
+        state_clone.update(cx, |ui, _| {
+            ui.toggle_group_collapsed(&gid, default_collapsed);
+        });
+        cx.refresh_windows();
+    });
+
+    settings_expander_group(
+        ElementId::Name(format!("{id_namespace}-group-{group_id}").into()),
+        icon,
+        title,
+        description,
+        query,
+        is_collapsed,
+        Some(on_toggle),
+        rows,
+        c,
+        d,
+    )
 }
+
+/// One concrete group of settings rendered as a WinUI 3 card.
+#[derive(Clone, Debug)]
+pub struct SettingGroupDescriptor {
+    pub id: String,
+    pub title: String,
+    pub description: Option<String>,
+    pub icon: Option<String>,
+    pub default_collapsed: bool,
+    pub order: u32,
+    pub declarations: Vec<SettingDeclaration>,
+}
+
+/// Converts a manifest's setting groups into sorted SettingGroupDescriptors.
+fn settings_groups(manifest: &PluginManifest) -> Vec<SettingGroupDescriptor> {
+    let mut groups: Vec<SettingGroupDescriptor> = manifest
+        .settings
+        .iter()
+        .map(|(key, group)| {
+            let id = if group.id.is_empty() {
+                key.clone()
+            } else {
+                group.id.clone()
+            };
+            SettingGroupDescriptor {
+                id,
+                title: group.title.clone(),
+                description: group.description.clone(),
+                icon: group.icon.clone(),
+                default_collapsed: group.default_collapsed,
+                order: group.order,
+                declarations: group.items.clone(),
+            }
+        })
+        .collect();
+    groups.sort_by_key(|g| g.order);
+    groups
+}
+
+/// Renders a list of group descriptors into SettingsExpander card elements.
+fn render_group_descriptors(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    plugin_id: &str,
+    mut groups: Vec<SettingGroupDescriptor>,
+    query: &str,
+    theme: &Theme,
+    cx: &mut App,
+) -> Vec<AnyElement> {
+    groups.sort_by_key(|g| g.order);
+    let mut section_elements = Vec::new();
+
+    for group in groups {
+        let filtered_decls: Vec<_> = group
+            .declarations
+            .iter()
+            .filter(|d| query.is_empty() || declaration_matches(d, query) || group.title.to_lowercase().contains(query))
+            .collect();
+
+        if filtered_decls.is_empty() {
+            continue;
+        }
+
+        let rows: Vec<AnyElement> = filtered_decls
+            .into_iter()
+            .map(|declaration| {
+                render_setting_row(id_namespace, state, plugin_id, declaration, query, true, theme, cx)
+            })
+            .collect();
+
+        section_elements.push(render_setting_group(
+            id_namespace,
+            state,
+            &group.id,
+            group.icon.as_deref(),
+            &group.title,
+            group.description.as_deref(),
+            group.default_collapsed,
+            rows,
+            query,
+            theme,
+            cx,
+        ));
+    }
+    section_elements
+}
+
+/// Renders groups belonging to a specific category from a manifest.
+fn render_groups_for_category(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    manifest: &PluginManifest,
+    category_id: &str,
+    query: &str,
+    theme: &Theme,
+    cx: &mut App,
+) -> Vec<AnyElement> {
+    let plugin_id = manifest.plugin.as_str();
+    let mut groups: Vec<SettingGroupDescriptor> = manifest
+        .settings
+        .iter()
+        .filter(|(_, g)| g.category == category_id)
+        .map(|(key, group)| {
+            let id = if group.id.is_empty() {
+                key.clone()
+            } else {
+                group.id.clone()
+            };
+            SettingGroupDescriptor {
+                id,
+                title: group.title.clone(),
+                description: group.description.clone(),
+                icon: group.icon.clone(),
+                default_collapsed: group.default_collapsed,
+                order: group.order,
+                declarations: group.items.clone(),
+            }
+        })
+        .collect();
+    groups.sort_by_key(|g| g.order);
+    render_group_descriptors(id_namespace, state, plugin_id, groups, query, theme, cx)
+}
+
 fn render_general_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
@@ -543,37 +680,11 @@ fn render_general_page(
     cx: &mut App,
 ) -> AnyElement {
     let c = &theme.colors;
-    let mut sections = Vec::new();
-
-    if let Some(m) = manifest {
-        let startup_keys = ["startup.open", "startup.restore_window_state"];
-        let startup_decls: Vec<_> = startup_keys
-            .iter()
-            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
-            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "startup".contains(query) || "general".contains(query))
-            .collect();
-        if !startup_decls.is_empty() {
-            let rows: Vec<AnyElement> = startup_decls
-                .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
-                .collect();
-            sections.push(render_setting_group("Startup", rows, query, c));
-        }
-
-        let lang_keys = ["interface.language_id"];
-        let lang_decls: Vec<_> = lang_keys
-            .iter()
-            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
-            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "language".contains(query) || "general".contains(query))
-            .collect();
-        if !lang_decls.is_empty() {
-            let rows: Vec<AnyElement> = lang_decls
-                .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
-                .collect();
-            sections.push(render_setting_group("Language", rows, query, c));
-        }
-    }
+    let sections = if let Some(m) = manifest {
+        render_groups_for_category(id_namespace, state, m, NAV_GENERAL, query, theme, cx)
+    } else {
+        Vec::new()
+    };
 
     if sections.is_empty() && !query.is_empty() {
         return render_no_results(query, c);
@@ -598,31 +709,18 @@ fn render_appearance_page(
     cx: &mut App,
 ) -> AnyElement {
     let c = &theme.colors;
-    let mut sections = Vec::new();
+    let mut sections = if let Some(m) = manifest {
+        render_groups_for_category(id_namespace, state, m, NAV_APPEARANCE, query, theme, cx)
+    } else {
+        Vec::new()
+    };
 
-    if let Some(m) = manifest {
-        let theme_keys = ["theme.appearance", "theme.family"];
-        let theme_decls: Vec<_> = theme_keys
-            .iter()
-            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
-            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "theme".contains(query) || "appearance".contains(query))
-            .collect();
-
-        if !theme_decls.is_empty() {
-            let rows: Vec<AnyElement> = theme_decls
-                .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
-                .collect();
-
-            if !rows.is_empty() {
-                sections.push(render_setting_group("Theme", rows, query, c));
-            }
-        }
-    }
-
-    let show_installed_themes = query.is_empty() || "installed themes".contains(query) || "theme".contains(query) || "appearance".contains(query);
+    let show_installed_themes = query.is_empty()
+        || "installed themes".contains(query)
+        || "theme".contains(query)
+        || "appearance".contains(query);
     if show_installed_themes {
-        let installed = render_installed_themes_panel(id_namespace, theme, cx);
+        let installed = render_installed_themes_panel(id_namespace, state, theme, cx);
         sections.push(installed);
     }
 
@@ -664,26 +762,20 @@ fn render_typography_page(
     cx: &mut App,
 ) -> AnyElement {
     let c = &theme.colors;
-    let mut sections = Vec::new();
+    let mut sections = if let Some(m) = manifest {
+        render_groups_for_category(id_namespace, state, m, NAV_TYPOGRAPHY, query, theme, cx)
+    } else {
+        Vec::new()
+    };
 
-    if let Some(m) = manifest {
-        let typo_keys = [
-            "typography.ui_font_family",
-            "typography.prose_font_family",
-            "typography.code_font_family",
-        ];
-        let typo_decls: Vec<_> = typo_keys
-            .iter()
-            .filter_map(|key| m.settings.iter().find(|s| &s.key == key))
-            .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "fonts".contains(query) || "typography".contains(query))
-            .collect();
-        if !typo_decls.is_empty() {
-            let rows: Vec<AnyElement> = typo_decls
-                .into_iter()
-                .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
-                .collect();
-            sections.push(render_setting_group("Fonts", rows, query, c));
-        }
+    let show_overrides = query.is_empty()
+        || "typography overrides".contains(query)
+        || "fonts".contains(query)
+        || "typography".contains(query)
+        || "weight".contains(query);
+    if show_overrides {
+        let panel = render_typography_overrides_card(id_namespace, state, theme, query, cx);
+        sections.push(panel);
     }
 
     if sections.is_empty() && !query.is_empty() {
@@ -700,7 +792,7 @@ fn render_typography_page(
         .into_any_element()
 }
 
-/// Renders one plugin's settings page: standalone setting cards grouped by category.
+/// Renders one plugin's settings page: WinUI 3 group cards.
 fn render_plugin_page(
     id_namespace: &str,
     state: &Entity<SettingsUiState>,
@@ -713,28 +805,7 @@ fn render_plugin_page(
     let plugin_id = manifest.plugin.as_str();
 
     let groups = settings_groups(manifest);
-    let plugin_name_matches = !query.is_empty() && manifest.name.to_lowercase().contains(query);
-
-    let mut section_elements = Vec::new();
-    for (group, declarations) in groups {
-        let filtered_decls: Vec<_> = declarations
-            .iter()
-            .filter(|d| query.is_empty() || plugin_name_matches || declaration_matches(d, query) || group.to_lowercase().contains(query))
-            .collect();
-
-        if filtered_decls.is_empty() {
-            continue;
-        }
-
-        let rows: Vec<AnyElement> = filtered_decls
-            .into_iter()
-            .map(|declaration| {
-                render_setting_row(id_namespace, state, plugin_id, declaration, query, theme, cx)
-            })
-            .collect();
-
-        section_elements.push(render_setting_group(&group, rows, query, c));
-    }
+    let section_elements = render_group_descriptors(id_namespace, state, plugin_id, groups, query, theme, cx);
 
     if section_elements.is_empty() && !query.is_empty() {
         return render_no_results(query, c);
@@ -750,50 +821,7 @@ fn render_plugin_page(
         .into_any_element()
 }
 
-/// Groups a plugin's declarations: flat keys form one group named after the
-/// plugin; dotted keys group by their first segment (e.g. `startup.open` →
-/// `Startup`).
-fn settings_groups(manifest: &PluginManifest) -> Vec<(String, Vec<SettingDeclaration>)> {
-    if !manifest
-        .settings
-        .iter()
-        .any(|declaration| declaration.key.contains('.'))
-    {
-        return vec![(manifest.name.clone(), manifest.settings.clone())];
-    }
-    let mut grouped: std::collections::BTreeMap<String, Vec<SettingDeclaration>> =
-        std::collections::BTreeMap::new();
-    for declaration in &manifest.settings {
-        let group = declaration
-            .key
-            .split('.')
-            .next()
-            .unwrap_or(&declaration.key)
-            .to_string();
-        grouped.entry(group).or_default().push(declaration.clone());
-    }
-    grouped
-        .into_iter()
-        .map(|(group, declarations)| (title_case(&group), declarations))
-        .collect()
-}
-
-/// Maps known core setting keys to their Windows-style feature icons.
-fn icon_for_setting(key: &str) -> Option<&'static str> {
-    if key.starts_with("startup.restore") {
-        Some("plugin://splitype.settings/topbar/restore.svg")
-    } else if key.starts_with("startup") {
-        Some("plugin://splitype.settings/panel.svg")
-    } else if key.starts_with("theme.appearance") {
-        Some("plugin://splitype.settings/sun.svg")
-    } else if key.starts_with("theme") {
-        Some("plugin://splitype.settings/moon.svg")
-    } else {
-        None
-    }
-}
-
-/// Renders one declaration as a settings row with the control matching its
+/// Renders one declaration as a settings row inside a group container with the control matching its
 /// kind and a reset-to-default action.
 fn render_setting_row(
     id_namespace: &str,
@@ -801,6 +829,7 @@ fn render_setting_row(
     plugin_id: &str,
     declaration: &SettingDeclaration,
     query: &str,
+    has_top_border: bool,
     theme: &Theme,
     cx: &mut App,
 ) -> AnyElement {
@@ -832,9 +861,9 @@ fn render_setting_row(
         },
     );
 
-    let icon = icon_for_setting(&declaration.key);
+    let icon = declaration.icon.as_deref();
 
-    settings_card_row(
+    settings_group_item_row(
         c,
         d,
         icon,
@@ -843,7 +872,7 @@ fn render_setting_row(
         query,
         Some(reset),
         control,
-        false,
+        has_top_border,
     )
 }
 
@@ -1613,15 +1642,6 @@ fn format_number(value: f64, step: f64) -> String {
     text
 }
 
-/// Capitalizes the first character of a dotted-key segment for card titles.
-fn title_case(input: &str) -> String {
-    let mut chars = input.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-        None => String::new(),
-    }
-}
-
 /// Renders the theme color-override panel: a searchable list of every color
 /// token with inline hex editing. Appended to the group that declares the
 /// theme family picker (kind [`SettingKind::Theme`]).
@@ -1705,7 +1725,7 @@ fn render_theme_overrides_panel(
             d,
             cx,
         );
-        rows.push(settings_card_row(
+        rows.push(settings_group_item_row(
             c,
             d,
             None,
@@ -1714,14 +1734,26 @@ fn render_theme_overrides_panel(
             query,
             reset,
             control,
-            false,
+            true,
         ));
     }
 
     let colors_card = if rows.is_empty() && !query.is_empty() {
         render_no_results(query, c)
     } else {
-        render_setting_group("Color Overrides", rows, query, c)
+        render_setting_group(
+            id_namespace,
+            state,
+            "color_overrides",
+            Some("plugin://splitype.settings/sun.svg"),
+            "Color Overrides",
+            Some("Live per-token theme color customization"),
+            false,
+            rows,
+            query,
+            theme,
+            cx,
+        )
     };
 
     div()
@@ -1799,7 +1831,7 @@ fn render_dimension_overrides_card(
             },
             format_number(effective, 0.01),
         );
-        rows.push(settings_card_row(
+        rows.push(settings_group_item_row(
             c,
             d,
             None,
@@ -1808,14 +1840,26 @@ fn render_dimension_overrides_card(
             query,
             reset,
             control,
-            false,
+            true,
         ));
     }
 
     if rows.is_empty() && !query.is_empty() {
         render_no_results(query, c)
     } else {
-        render_setting_group("Dimension Overrides", rows, query, c)
+        render_setting_group(
+            id_namespace,
+            state,
+            "dimension_overrides",
+            Some("plugin://splitype.settings/panel.svg"),
+            "Dimension Overrides",
+            Some("Geometry and border radius customization"),
+            false,
+            rows,
+            query,
+            theme,
+            cx,
+        )
     }
 }
 
@@ -1887,7 +1931,7 @@ fn render_typography_overrides_card(
             },
             format_number(effective, 0.01),
         );
-        rows.push(settings_card_row(
+        rows.push(settings_group_item_row(
             c,
             d,
             None,
@@ -1896,7 +1940,7 @@ fn render_typography_overrides_card(
             query,
             reset,
             control,
-            false,
+            true,
         ));
     }
     for field in theme::TYPOGRAPHY_WEIGHT_FIELDS {
@@ -1931,7 +1975,7 @@ fn render_typography_overrides_card(
             },
             effective,
         );
-        rows.push(settings_card_row(
+        rows.push(settings_group_item_row(
             c,
             d,
             None,
@@ -1940,14 +1984,26 @@ fn render_typography_overrides_card(
             query,
             reset,
             control,
-            false,
+            true,
         ));
     }
 
     if rows.is_empty() && !query.is_empty() {
         render_no_results(query, c)
     } else {
-        render_setting_group("Typography Overrides", rows, query, c)
+        render_setting_group(
+            id_namespace,
+            state,
+            "typography_overrides",
+            Some("plugin://splitype.settings/panel.svg"),
+            "Typography Overrides",
+            Some("Font sizes and line heights customization"),
+            false,
+            rows,
+            query,
+            theme,
+            cx,
+        )
     }
 }
 
@@ -2316,7 +2372,12 @@ fn hsla_to_hex(hsla: Hsla) -> String {
 /// Renders the installed-theme manager: one row per imported user theme
 /// family with a remove action. Appended to the group that declares the
 /// theme family picker.
-fn render_installed_themes_panel(id_namespace: &str, theme: &Theme, cx: &mut App) -> AnyElement {
+fn render_installed_themes_panel(
+    id_namespace: &str,
+    state: &Entity<SettingsUiState>,
+    theme: &Theme,
+    cx: &mut App,
+) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
 
@@ -2366,7 +2427,7 @@ fn render_installed_themes_panel(id_namespace: &str, theme: &Theme, cx: &mut App
         .child(if is_current { "Active" } else { "Remove" })
         .on_click(remove)
         .into_any_element();
-        rows.push(settings_card_row(
+        rows.push(settings_group_item_row(
             c,
             d,
             None,
@@ -2379,11 +2440,23 @@ fn render_installed_themes_panel(id_namespace: &str, theme: &Theme, cx: &mut App
             "",
             None,
             control,
-            false,
+            true,
         ));
     }
 
-    render_setting_group("Installed Themes", rows, "", c)
+    render_setting_group(
+        id_namespace,
+        state,
+        "installed_themes",
+        Some("plugin://splitype.settings/moon.svg"),
+        "Installed Themes",
+        Some("Built-in and custom theme families"),
+        false,
+        rows,
+        "",
+        theme,
+        cx,
+    )
 }
 
 /// Removes an imported theme: settings first (so the sync hook re-resolves
@@ -2424,14 +2497,6 @@ mod tests {
     }
 
     #[test]
-    fn test_title_case() {
-        assert_eq!(title_case("font"), "Font");
-        assert_eq!(title_case("theme"), "Theme");
-        assert_eq!(title_case(""), "");
-        assert_eq!(title_case("alreadyCapitalized"), "AlreadyCapitalized");
-    }
-
-    #[test]
     fn test_clamping_logic() {
         let clamp_val = |val: f64, min: Option<f64>, max: Option<f64>| -> f64 {
             match (min, max) {
@@ -2454,6 +2519,7 @@ mod tests {
     fn test_declaration_matches() {
         let decl = SettingDeclaration {
             key: "typography.font_size".to_string(),
+            icon: None,
             kind: SettingKind::Number,
             min: Some(8.0),
             max: Some(72.0),
@@ -2499,15 +2565,21 @@ mod tests {
             "name": "Core",
             "version": "0.0.1",
             "entry": { "kind": "in_process", "registration": "splitype_core" },
-            "settings": [
-                {
-                    "key": "startup.open",
-                    "kind": "enum",
-                    "default": "empty",
-                    "title": "Open on startup",
-                    "description": "What to display when Splitype starts"
+            "settings": {
+                "startup": {
+                    "category": "core.general",
+                    "title": "Startup",
+                    "items": [
+                        {
+                            "key": "startup.open",
+                            "kind": "enum",
+                            "default": "empty",
+                            "title": "Open on startup",
+                            "description": "What to display when Splitype starts"
+                        }
+                    ]
                 }
-            ]
+            }
         })).expect("manifest deserialize");
 
         assert!(category_matches(NAV_GENERAL, "General", Some(&core_manifest), &[], "startup"));

@@ -30,6 +30,8 @@ pub struct SettingsUiState {
     search_focus: Option<FocusHandle>,
     /// Whether the compact category drawer/menu is currently open.
     pub is_menu_open: bool,
+    /// Explicit collapsed state overrides for settings groups (group_id -> is_collapsed).
+    pub collapsed_groups: BTreeMap<String, bool>,
 }
 
 impl Default for SettingsUiState {
@@ -58,6 +60,7 @@ impl SettingsUiState {
             focus_handles: BTreeMap::new(),
             search_focus: None,
             is_menu_open: false,
+            collapsed_groups: BTreeMap::new(),
         }
     }
 
@@ -110,11 +113,54 @@ impl SettingsUiState {
     pub fn open_menu(&mut self) {
         self.is_menu_open = true;
     }
+
+    /// Checks whether a settings group is currently collapsed.
+    /// When there is an active search query, groups are always expanded so search matches are visible.
+    pub fn is_group_collapsed(&self, group_id: &str, default_collapsed: bool) -> bool {
+        if !self.search_query.trim().is_empty() {
+            return false;
+        }
+        if let Some(collapsed) = self.collapsed_groups.get(group_id) {
+            *collapsed
+        } else {
+            default_collapsed
+        }
+    }
+
+    /// Toggles the collapsed state of a settings group.
+    pub fn toggle_group_collapsed(&mut self, group_id: &str, default_collapsed: bool) {
+        let currently_collapsed = self.is_group_collapsed(group_id, default_collapsed);
+        self.collapsed_groups
+            .insert(group_id.to_string(), !currently_collapsed);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_group_collapse_and_search_auto_expand() {
+        let mut state = SettingsUiState::new();
+        // Defaults to false
+        assert!(!state.is_group_collapsed("group_a", false));
+        // Defaults to true
+        assert!(state.is_group_collapsed("group_b", true));
+
+        // Toggle group_a -> becomes collapsed
+        state.toggle_group_collapsed("group_a", false);
+        assert!(state.is_group_collapsed("group_a", false));
+
+        // When search query is entered, all groups are auto-expanded!
+        state.search_query = "word count".to_string();
+        assert!(!state.is_group_collapsed("group_a", false));
+        assert!(!state.is_group_collapsed("group_b", true));
+
+        // When search query is cleared, prior collapsed states are restored!
+        state.clear_search();
+        assert!(state.is_group_collapsed("group_a", false));
+        assert!(state.is_group_collapsed("group_b", true));
+    }
 
     #[test]
     fn test_menu_state() {

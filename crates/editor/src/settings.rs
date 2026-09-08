@@ -55,7 +55,7 @@ mod tests {
             toml::from_str(crate::MANIFEST_TOML)
                 .expect("bundled manifest must be valid TOML");
         let problems = platform_contracts::verify_setting_declarations::<EditorSettings>(
-            &manifest.settings,
+            &manifest.all_settings(),
             &[],
         );
         assert!(problems.is_empty(), "declaration mismatches: {problems:#?}");
