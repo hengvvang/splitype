@@ -444,21 +444,13 @@ impl ExplorerState {
                     }
                 })
                 .child(
-                    div()
+                    ui::menu_panel(c, d)
                         .id("explorer-file-context-menu-panel")
                         .absolute()
                         .left(panel_x)
                         .top(panel_y)
                         .w(px(250.0))
-                        .p(px(d.menu_panel_padding))
-                        .flex()
-                        .flex_col()
                         .gap(px(2.0))
-                        .bg(c.dialog_surface)
-                        .border(px(d.dialog_border_width))
-                        .border_color(c.dialog_border)
-                        .rounded(px(d.menu_panel_radius))
-                        .shadow_lg()
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                             cx.stop_propagation()
                         })

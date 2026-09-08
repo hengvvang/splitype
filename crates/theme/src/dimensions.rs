@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Global geometric corner radius primitives (WinUI 3 / Fluent Design System)
 pub const CONTROL_CORNER_RADIUS: f32 = 4.0;
+pub const OVERLAY_CORNER_RADIUS: f32 = 8.0;
 pub const FULL_CORNER_RADIUS: f32 = 999.0;
 
 theme_section!(
@@ -94,8 +95,6 @@ theme_section!(
         code_language_input_padding_x: f32,
         /// Vertical padding inside the code-block language input.
         code_language_input_padding_y: f32,
-        /// Corner radius of the code-block language input.
-        code_language_input_radius: f32,
         /// Border width of the code-block language input.
         code_language_input_border_width: f32,
         /// Gap between code text and the language input.
@@ -216,24 +215,14 @@ theme_section!(
         context_menu_submenu_gap: f32,
         /// Width of the table-axis context menu panel.
         context_menu_axis_panel_width: f32,
-        /// Corner radius of select dropdown trigger buttons and unified input fields (2px).
+        /// Corner radius of select dropdown trigger buttons and unified input fields (4px, WinUI 3 ControlCornerRadius).
         select_trigger_radius: f32,
-        /// Corner radius of select dropdown floating panels.
+        /// Corner radius of select dropdown floating panels (4px, matching WinUI 3 control geometry).
         select_panel_radius: f32,
         /// Corner radius of select dropdown option items.
         select_option_radius: f32,
         /// Corner radius of stepper containers and buttons.
         stepper_radius: f32,
-        /// Maximum width of the table-insert dialog.
-        table_insert_dialog_width: f32,
-        /// Gap between table-insert stepper label and controls.
-        table_insert_stepper_gap: f32,
-        /// Size of table-insert stepper buttons.
-        table_insert_stepper_button_size: f32,
-        /// Minimum width of the table-insert stepper value pill.
-        table_insert_stepper_value_min_width: f32,
-        /// Horizontal padding inside the table-insert stepper value pill.
-        table_insert_stepper_value_padding_x: f32,
         /// Corner radius of explorer file-tree item rows.
         tree_item_radius: f32,
         /// Corner radius of outline tree node item rows.

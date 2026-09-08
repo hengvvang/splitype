@@ -83,30 +83,30 @@ where
     F: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
 {
     let c = &theme.colors;
+    let d = &theme.dimensions;
     let path_display = file_path
         .map(format_root_relative_path)
         .unwrap_or_else(|| "Untitled".to_string());
 
     let id = id.into();
-    let btn_id = (id.clone(), "outline-toggle-btn");
+    let btn_id = ElementId::Name(format!("{id:?}-outline-btn").into());
 
     div()
         .id(id)
-        .h(px(28.0))
+        .h(px(24.0))
         .w_full()
+        .px(px(8.0))
+        .bg(c.editor_background)
+        .border_b_1()
+        .border_color(c.dialog_border)
         .flex()
-        .flex_row()
         .items_center()
         .justify_between()
-        .px(px(10.0))
-        .bg(c.editor_background)
-        .border_b(px(1.0))
-        .border_color(c.dialog_border.opacity(0.4))
-        // Left: File path text (root-relative)
+        // Left: Path breadcrumb
         .child(
             div()
+                .flex_1()
                 .flex()
-                .flex_row()
                 .items_center()
                 .overflow_hidden()
                 .child(
@@ -125,7 +125,7 @@ where
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(4.0))
+                .rounded(px(d.icon_button_radius))
                 .cursor_pointer()
                 .when(is_outline_docked, |this| this.bg(c.panel_row_hover))
                 .hover(|this| this.bg(c.panel_row_hover))

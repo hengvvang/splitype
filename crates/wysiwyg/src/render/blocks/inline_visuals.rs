@@ -414,6 +414,7 @@ impl Block {
             })
             .max_w(max_width)
             .max_h(max_height)
+            .rounded(px(d.image_radius))
             .object_fit(ObjectFit::Contain)
             .with_fallback(move || {
                 render_image_placeholder(&runtime_for_fallback, max_width, &placeholder_theme)

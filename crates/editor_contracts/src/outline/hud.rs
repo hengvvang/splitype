@@ -174,7 +174,7 @@ pub fn render_floating_outline_hud(
         .w(px(28.0))
         .py(px(6.0))
         .px(px(4.0))
-        .rounded(px(6.0))
+        .rounded(px(d.button_radius))
         .flex()
         .flex_col()
         .items_end()

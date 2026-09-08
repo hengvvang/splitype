@@ -10,7 +10,7 @@ pub fn stepper_container(c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
         .flex()
         .items_center()
-        .w(px(145.0))
+        .w(px(130.0))
         .h(px(28.0))
         .rounded(px(d.stepper_radius))
         .border_1()

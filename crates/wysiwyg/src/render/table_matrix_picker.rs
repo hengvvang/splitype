@@ -45,6 +45,7 @@ pub fn render_matrix_dimension_indicator(
     theme: &Theme,
 ) -> Div {
     let c = &theme.colors;
+    let d = &theme.dimensions;
     div()
         .w_full()
         .flex()
@@ -69,7 +70,7 @@ pub fn render_matrix_dimension_indicator(
                         .justify_center()
                         .border(px(1.0))
                         .border_color(c.dialog_border)
-                        .rounded(px(3.0))
+                        .rounded(px(d.button_radius))
                         .bg(c.dialog_surface)
                         .text_size(px(12.0))
                         .font_weight(FontWeight::MEDIUM)
@@ -104,7 +105,7 @@ pub fn render_matrix_dimension_indicator(
                         .justify_center()
                         .border(px(1.0))
                         .border_color(c.dialog_border)
-                        .rounded(px(3.0))
+                        .rounded(px(d.button_radius))
                         .bg(c.dialog_surface)
                         .text_size(px(12.0))
                         .font_weight(FontWeight::MEDIUM)

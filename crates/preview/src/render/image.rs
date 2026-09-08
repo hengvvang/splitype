@@ -45,6 +45,7 @@ pub(crate) fn render_preview_image(
     }
     .max_w(px(max_width))
     .max_h(px(d.image_root_max_height))
+    .rounded(px(d.image_radius))
     .object_fit(ObjectFit::Contain);
 
     let mut container = div()

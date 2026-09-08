@@ -160,20 +160,13 @@ impl ExplorerState {
             .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
             .children(if selected {
-                Some(
-                    div()
-                        .absolute()
-                        .left_0()
-                        .top(px(4.0))
-                        .bottom(px(4.0))
-                        .w(px(3.0))
-                        .rounded_r(px(2.0))
-                        .bg(
-                            theme
-                                .token("splitype.explorer.selection_accent")
-                                .unwrap_or(c.focus_accent),
-                        ),
-                )
+                Some(ui::selection_indicator(
+                    theme
+                        .token("splitype.explorer.selection_accent")
+                        .unwrap_or(c.focus_accent),
+                    px(4.0),
+                    px(4.0),
+                ))
             } else {
                 None
             })

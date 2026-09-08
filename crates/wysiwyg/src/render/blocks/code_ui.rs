@@ -209,7 +209,7 @@ impl Block {
         let options = code_language_options_matching(&self.code_toolbar.picker.query);
         let selected_language = current_language.to_string();
 
-        div()
+        ui::menu_panel(c, d)
             .id(ElementId::Name(
                 format!("code-picker-container-{}", self.data.id).into(),
             ))
@@ -222,15 +222,7 @@ impl Block {
             .on_scroll_wheel(|_, _, cx| cx.stop_propagation())
             .w(px(230.0))
             .max_h(px(320.0))
-            .flex()
-            .flex_col()
             .gap(px(4.0))
-            .p(px(6.0))
-            .rounded(px(d.menu_panel_radius))
-            .border_1()
-            .border_color(c.dialog_border)
-            .bg(c.dialog_surface)
-            .shadow_lg()
             .child({
                 let on_change_entity = cx.entity();
                 let on_submit_entity = cx.entity();

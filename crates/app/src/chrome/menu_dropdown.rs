@@ -15,6 +15,7 @@ use crate::chrome::menu_geometry::{
     menu_panel_width_for_labels, owned_menu_item_labels, submenu_panel_top,
 };
 use ui::menu_item::{menu_item, menu_item_row};
+use ui::popover::menu_panel;
 
 impl Shell {
     pub(crate) fn render_in_window_menu_item(
@@ -248,23 +249,14 @@ impl Shell {
                             )
                         });
 
-                let sub_panel = div()
+                let sub_panel = menu_panel(c, d)
                     .id(("app-submenu-panel", open_index * 1000 + submenu_index))
                     .absolute()
-                    .occlude()
                     .top(px(top_offset + top))
                     .left(px(left))
                     .w(px(submenu_width))
                     .max_h(px(max_panel_height))
                     .when(is_submenu_scrollable, |this| this.overflow_y_scroll())
-                    .p(px(d.menu_panel_padding))
-                    .flex()
-                    .flex_col()
-                    .gap(px(d.menu_panel_gap))
-                    .bg(c.dialog_surface)
-                    .border(px(d.dialog_border_width))
-                    .border_color(c.dialog_border)
-                    .rounded(px(d.menu_panel_radius))
                     .shadow_xl()
                     .on_hover(cx.listener(Self::on_menu_submenu_panel_hover))
                     .children(rendered_sub_items)
@@ -322,23 +314,14 @@ impl Shell {
                 )
             });
 
-        let main_panel = div()
+        let main_panel = menu_panel(c, d)
             .id(("app-menu-panel", open_index))
             .absolute()
-            .occlude()
             .top(px(top_offset + d.menu_panel_top))
             .left(px(main_left))
             .w(px(menu_panel_width))
             .max_h(px(max_panel_height))
             .when(is_scrollable, |this| this.overflow_y_scroll())
-            .p(px(d.menu_panel_padding))
-            .flex()
-            .flex_col()
-            .gap(px(d.menu_panel_gap))
-            .bg(c.dialog_surface)
-            .border(px(d.dialog_border_width))
-            .border_color(c.dialog_border)
-            .rounded(px(d.menu_panel_radius))
             .shadow_xl()
             .on_hover(cx.listener(Self::on_menu_panel_hover))
             .children(rendered_items);

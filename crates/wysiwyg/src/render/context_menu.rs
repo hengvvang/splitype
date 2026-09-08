@@ -1042,7 +1042,7 @@ pub fn render_wysiwyg_context_menu(
                             format!("table-resize-cell-{}-{}", r, col).into(),
                         ))
                         .size(px(20.0))
-                        .rounded(px(3.0))
+                        .rounded(px(d.button_radius))
                         .bg(cell_bg)
                         .cursor_pointer()
                         .on_hover(cx.listener(move |this, hovered: &bool, _window, cx| {
@@ -1094,20 +1094,13 @@ pub fn render_wysiwyg_context_menu(
                     }),
                 )
                 .child(
-                    div()
+                    menu_panel(c, d)
                         .id("editor-table-resize-panel")
                         .absolute()
                         .left(panel_left)
                         .top(panel_top)
                         .p(px(12.0))
-                        .flex()
-                        .flex_col()
                         .gap(px(4.0))
-                        .bg(c.dialog_surface)
-                        .border(px(d.dialog_border_width))
-                        .border_color(c.dialog_border)
-                        .rounded(px(d.menu_panel_radius))
-                        .shadow_lg()
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                             cx.stop_propagation();
                         })
@@ -1177,7 +1170,7 @@ pub fn render_wysiwyg_context_menu(
                             format!("table-insert-cell-{}-{}", r, col).into(),
                         ))
                         .size(px(20.0))
-                        .rounded(px(3.0))
+                        .rounded(px(d.button_radius))
                         .bg(cell_bg)
                         .cursor_pointer()
                         .on_hover(cx.listener(move |this, hovered: &bool, _window, cx| {
@@ -1229,20 +1222,13 @@ pub fn render_wysiwyg_context_menu(
                     }),
                 )
                 .child(
-                    div()
+                    menu_panel(c, d)
                         .id("editor-table-insert-panel")
                         .absolute()
                         .left(panel_left)
                         .top(panel_top)
                         .p(px(12.0))
-                        .flex()
-                        .flex_col()
                         .gap(px(4.0))
-                        .bg(c.dialog_surface)
-                        .border(px(d.dialog_border_width))
-                        .border_color(c.dialog_border)
-                        .rounded(px(d.menu_panel_radius))
-                        .shadow_lg()
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                             cx.stop_propagation();
                         })

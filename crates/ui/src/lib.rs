@@ -6,12 +6,9 @@
 
 
 
+pub mod components;
 pub mod split;
-pub mod ui_components;
 
-pub use ui_components::{
-    button, dialog, empty_state, input, menu_item, popover, select, stepper, switch,
-};
-pub use ui_components::*;
+pub use components::*;
 
 

@@ -17,7 +17,7 @@ use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_sc
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, EntityId, InteractiveElement,
     IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, px, relative,
+    StatefulInteractiveElement, Styled, Window, div, px,
 };
 
 use crate::model::Document;
@@ -478,22 +478,11 @@ impl WysiwygDocumentController {
                     left_f32 = (pane_width - max_width.min(pane_width) - 16.0).max(8.0);
                 }
                 let left = px(left_f32.max(8.0));
-                div()
+                ui::tooltip_container(c, d)
                     .absolute()
-                    .occlude()
                     .left(left)
                     .top(top)
                     .max_w(px(max_width))
-                    .px(px(10.0))
-                    .py(px(6.0))
-                    .rounded(px(5.0))
-                    .bg(c.dialog_surface)
-                    .border(px(1.0))
-                    .border_color(c.dialog_border)
-                    .shadow_md()
-                    .text_size(px(13.0))
-                    .text_color(c.dialog_muted)
-                    .line_height(relative(1.5))
                     .child(tooltip.content.clone())
                     .into_any_element()
             });

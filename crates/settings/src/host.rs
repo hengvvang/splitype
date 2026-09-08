@@ -503,16 +503,7 @@ fn render_nav_item(
         });
 
     if is_active {
-        tab = tab.child(
-            div()
-                .absolute()
-                .left_0()
-                .top(px(8.0))
-                .bottom(px(8.0))
-                .w(px(3.0))
-                .rounded_full()
-                .bg(c.focus_accent),
-        );
+        tab = tab.child(ui::selection_indicator(c.focus_accent, px(8.0), px(8.0)));
     }
 
     tab.into_any_element()
@@ -607,7 +598,6 @@ fn render_appearance_page(
     cx: &mut App,
 ) -> AnyElement {
     let c = &theme.colors;
-    let d = &theme.dimensions;
     let mut sections = Vec::new();
 
     if let Some(m) = manifest {
@@ -618,54 +608,11 @@ fn render_appearance_page(
             .filter(|decl| query.is_empty() || declaration_matches(decl, query) || "theme".contains(query) || "appearance".contains(query))
             .collect();
 
-        let show_color_overrides = query.is_empty()
-            || "theme color overrides".contains(query)
-            || "color".contains(query)
-            || "overrides".contains(query)
-            || "appearance".contains(query);
-
-        if !theme_decls.is_empty() || show_color_overrides {
-            let mut rows: Vec<AnyElement> = theme_decls
+        if !theme_decls.is_empty() {
+            let rows: Vec<AnyElement> = theme_decls
                 .into_iter()
                 .map(|decl| render_setting_row(id_namespace, state, "splitype.core", decl, query, theme, cx))
                 .collect();
-
-            if show_color_overrides {
-                let nav_state = state.clone();
-                let goto_button = div()
-                    .id(ElementId::Name(format!("{id_namespace}-goto-color-overrides").into()))
-                    .px(px(12.0))
-                    .py(px(6.0))
-                    .rounded(px(d.button_radius))
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .cursor_pointer()
-                    .hover(|this| this.bg(c.panel_row_hover))
-                    .text_size(px(12.0))
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(c.text_default)
-                    .child("Customize Colors →")
-                    .on_click(move |_event, _window, cx| {
-                        nav_state.update(cx, |ui, _| {
-                            ui.active_plugin = NAV_COLOR_OVERRIDES.to_string();
-                        });
-                        cx.refresh_windows();
-                    })
-                    .into_any_element();
-
-                let color_overrides_row = settings_card_row(
-                    c,
-                    d,
-                    Some("plugin://splitype.settings/sun.svg"),
-                    "Theme Color Overrides",
-                    "Fine-tune individual token colors, UI dimensions, and typography scales",
-                    query,
-                    None,
-                    goto_button,
-                    true,
-                );
-                rows.push(color_overrides_row);
-            }
 
             if !rows.is_empty() {
                 sections.push(render_setting_group("Theme", rows, query, c));
@@ -1263,79 +1210,47 @@ fn render_text_control(
     let on_paste = editable_paste_handler(state.clone(), key.clone(), false);
 
     let is_active = is_editing;
-    let (box_bg, border_color) = if is_active {
-        (c.dialog_secondary_button_bg, c.dialog_border)
-    } else {
-        (
-            c.dialog_secondary_button_bg.opacity(0.55),
-            c.dialog_border.opacity(0.7),
-        )
-    };
 
-    div()
-        .id(ElementId::Name(format!("{id_namespace}-text-{key}").into()))
-        .key_context("SettingsInput")
-        .track_focus(&focus_handle)
-        .relative()
-        .overflow_hidden()
-        .cursor_text()
-        .w(px(160.0))
-        .h(px(28.0))
-        .px(px(8.0))
-        .rounded(px(d.select_trigger_radius))
-        .bg(box_bg)
-        .border_1()
-        .border_color(border_color)
-        .when(!is_active, |this| {
-            this.hover(|this| this.bg(c.panel_row_hover).border_color(c.dialog_border))
-        })
-        .flex()
-        .items_center()
-        .child(
-            div()
-                .flex_1()
-                .min_w(px(0.0))
-                .truncate()
-                .text_size(px(12.0))
-                .text_color(if display.is_empty() {
-                    c.dialog_muted
-                } else {
-                    c.text_default
-                })
-                .child(if display.is_empty() {
-                    "Empty".to_string()
-                } else {
-                    display
-                }),
-        )
-        .child(
-            div()
-                .absolute()
-                .bottom_0()
-                .left_0()
-                .right_0()
-                .h(if is_active { px(2.0) } else { px(1.5) })
-                .rounded_b(px(d.select_trigger_radius))
-                .bg(if is_active {
-                    c.focus_accent
-                } else {
-                    c.focus_accent.opacity(0.4)
-                }),
-        )
-        .on_click(start_edit(
-            state.clone(),
-            key.clone(),
-            value.clone(),
-            focus_handle.clone(),
-        ))
-        .on_key_down(on_key_down)
-        .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
-            on_dismiss(action, window, cx);
-        })
-        .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
-            on_paste(action, window, cx);
-        })
-        .into_any_element()
+    ui::input_trigger(
+        ElementId::Name(format!("{id_namespace}-text-{key}").into()),
+        px(130.0),
+        is_active,
+        c,
+        d,
+    )
+    .key_context("SettingsInput")
+    .track_focus(&focus_handle)
+    .child(
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .truncate()
+            .text_size(px(12.0))
+            .text_color(if display.is_empty() {
+                c.dialog_muted
+            } else {
+                c.text_default
+            })
+            .child(if display.is_empty() {
+                "Empty".to_string()
+            } else {
+                display
+            }),
+    )
+    .on_click(start_edit(
+        state.clone(),
+        key.clone(),
+        value.clone(),
+        focus_handle.clone(),
+    ))
+    .on_key_down(on_key_down)
+    .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+        on_dismiss(action, window, cx);
+    })
+    .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+        on_paste(action, window, cx);
+    })
+    .into_any_element()
 }
 
 /// Renders a dropdown picker over the given options. The selected value is
@@ -1436,14 +1351,20 @@ fn render_picker(
                     c,
                     d,
                 )
-                .bg(c.dialog_surface)
+                .when(is_selected, |this| this.bg(c.panel_row_hover))
                 .text_size(px(12.0))
                 .text_color(if is_selected {
                     c.dialog_primary_button_bg
                 } else {
                     c.text_default
                 })
-                .child(option_label)
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .truncate()
+                        .child(option_label),
+                )
                 .child(if is_selected {
                     svg()
                         .path("plugin://splitype.settings/checkmark.svg")
@@ -1480,7 +1401,7 @@ fn render_picker(
                     search_query,
                     focus_handle.unwrap(),
                 )
-                .placeholder("Search language…")
+                .placeholder("Search…")
                 .autofocus(true)
                 .colors(c.clone())
                 .dimensions(d.clone())
@@ -1495,7 +1416,7 @@ fn render_picker(
             let list_container = div()
                 .id(ElementId::Name(format!("{id_namespace}-picker-{key}-list").into()))
                 .w_full()
-                .max_h(px(220.0))
+                .max_h(px(240.0))
                 .overflow_y_scroll()
                 .flex()
                 .flex_col()
@@ -1503,8 +1424,8 @@ fn render_picker(
                 .children(items);
 
             let panel = select_panel(c, d)
-                .w(px(210.0))
-                .max_h(px(280.0))
+                .w(px(220.0))
+                .max_h(px(290.0))
                 .child(search_box)
                 .child(list_container);
 
@@ -2093,90 +2014,45 @@ fn render_editable_number_control(
     let on_paste = editable_paste_handler(state.clone(), commit_key, true);
 
     let is_active = is_editing || overridden;
-    let (box_bg, border_color) = if is_active {
-        (
-            c.dialog_secondary_button_bg,
-            if overridden {
-                c.focus_accent
-            } else {
-                c.dialog_border
-            },
-        )
-    } else {
-        (
-            c.dialog_secondary_button_bg.opacity(0.55),
-            c.dialog_border.opacity(0.7),
-        )
-    };
 
-    div()
-        .id(ElementId::Name(
+    ui::input_trigger(
+        ElementId::Name(
             format!("{id_namespace}-number-{edit_key}").into(),
-        ))
-        .key_context("SettingsInput")
-        .track_focus(&focus_handle)
-        .relative()
-        .overflow_hidden()
-        .cursor_text()
-        .w(px(150.0))
-        .h(px(28.0))
-        .px(px(8.0))
-        .rounded(px(d.select_trigger_radius))
-        .bg(box_bg)
-        .border_1()
-        .border_color(border_color)
-        .when(!is_active, |this| {
-            this.hover(|this| {
-                this.bg(c.panel_row_hover).border_color(if overridden {
-                    c.focus_accent
-                } else {
-                    c.dialog_border
-                })
+        ),
+        px(130.0),
+        is_active,
+        c,
+        d,
+    )
+    .key_context("SettingsInput")
+    .track_focus(&focus_handle)
+    .child(
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .truncate()
+            .text_size(px(12.0))
+            .text_color(if overridden {
+                c.text_default
+            } else {
+                c.dialog_muted
             })
-        })
-        .flex()
-        .items_center()
-        .child(
-            div()
-                .flex_1()
-                .min_w(px(0.0))
-                .truncate()
-                .text_size(px(12.0))
-                .text_color(if overridden {
-                    c.text_default
-                } else {
-                    c.dialog_muted
-                })
-                .child(display),
-        )
-        .child(
-            div()
-                .absolute()
-                .bottom_0()
-                .left_0()
-                .right_0()
-                .h(if is_active { px(2.0) } else { px(1.5) })
-                .rounded_b(px(d.select_trigger_radius))
-                .bg(if is_active {
-                    c.focus_accent
-                } else {
-                    c.focus_accent.opacity(0.4)
-                }),
-        )
-        .on_click(start_edit(
-            state.clone(),
-            edit_key.to_string(),
-            format_number(effective, 0.01),
-            focus_handle.clone(),
-        ))
-        .on_key_down(on_key_down)
-        .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
-            on_dismiss(action, window, cx);
-        })
-        .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
-            on_paste(action, window, cx);
-        })
-        .into_any_element()
+            .child(display),
+    )
+    .on_click(start_edit(
+        state.clone(),
+        edit_key.to_string(),
+        format_number(effective, 0.01),
+        focus_handle.clone(),
+    ))
+    .on_key_down(on_key_down)
+    .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+        on_dismiss(action, window, cx);
+    })
+    .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+        on_paste(action, window, cx);
+    })
+    .into_any_element()
 }
 
 /// Weight picker committing `theme.typography_overrides` weight names.
@@ -2254,14 +2130,20 @@ fn render_weight_control(
                     c,
                     d,
                 )
-                .bg(c.dialog_surface)
+                .when(weight == effective, |this| this.bg(c.panel_row_hover))
                 .text_size(px(12.0))
                 .text_color(if weight == effective {
                     c.dialog_primary_button_bg
                 } else {
                     c.text_default
                 })
-                .child(weight)
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .truncate()
+                        .child(weight),
+                )
                 .child(if weight == effective {
                     svg()
                         .path("plugin://splitype.settings/checkmark.svg")
@@ -2358,101 +2240,56 @@ fn render_color_control(
     let on_paste = editable_paste_handler(state.clone(), edit_key.clone(), false);
 
     let is_active = is_editing || overridden;
-    let (box_bg, border_color) = if is_active {
-        (
-            c.dialog_secondary_button_bg,
-            if overridden {
-                c.focus_accent
-            } else {
-                c.dialog_border
-            },
-        )
-    } else {
-        (
-            c.dialog_secondary_button_bg.opacity(0.55),
-            c.dialog_border.opacity(0.7),
-        )
-    };
 
-    div()
-        .id(ElementId::Name(
+    ui::input_trigger(
+        ElementId::Name(
             format!("{id_namespace}-color-{token_key}").into(),
-        ))
-        .key_context("SettingsInput")
-        .track_focus(&focus_handle)
-        .relative()
-        .overflow_hidden()
-        .cursor_text()
-        .w(px(150.0))
-        .h(px(28.0))
-        .px(px(8.0))
-        .rounded(px(d.select_trigger_radius))
-        .bg(box_bg)
-        .border_1()
-        .border_color(border_color)
-        .when(!is_active, |this| {
-            this.hover(|this| {
-                this.bg(c.panel_row_hover).border_color(if overridden {
-                    c.focus_accent
-                } else {
-                    c.dialog_border
-                })
+        ),
+        px(130.0),
+        is_active,
+        c,
+        d,
+    )
+    .key_context("SettingsInput")
+    .track_focus(&focus_handle)
+    .gap(px(6.0))
+    .child(
+        div()
+            .flex_shrink_0()
+            .w(px(14.0))
+            .h(px(14.0))
+            .rounded(px(d.select_trigger_radius))
+            .border_1()
+            .border_color(c.dialog_border)
+            .bg(effective.unwrap_or(hsla(0.0, 0.0, 0.0, 0.0))),
+    )
+    .child(
+        div()
+            .flex_1()
+            .min_w(px(0.0))
+            .truncate()
+            .text_size(px(12.0))
+            .text_color(if overridden {
+                c.text_default
+            } else {
+                c.dialog_muted
             })
-        })
-        .flex()
-        .items_center()
-        .gap(px(6.0))
-        .child(
-            div()
-                .flex_shrink_0()
-                .w(px(14.0))
-                .h(px(14.0))
-                .rounded(px(d.select_trigger_radius))
-                .border_1()
-                .border_color(c.dialog_border)
-                .bg(effective.unwrap_or(hsla(0.0, 0.0, 0.0, 0.0))),
-        )
-        .child(
-            div()
-                .flex_1()
-                .min_w(px(0.0))
-                .truncate()
-                .text_size(px(12.0))
-                .text_color(if overridden {
-                    c.text_default
-                } else {
-                    c.dialog_muted
-                })
-                .child(display),
-        )
-        .child(
-            div()
-                .absolute()
-                .bottom_0()
-                .left_0()
-                .right_0()
-                .h(if is_active { px(2.0) } else { px(1.5) })
-                .rounded_b(px(d.select_trigger_radius))
-                .bg(if is_active {
-                    c.focus_accent
-                } else {
-                    c.focus_accent.opacity(0.4)
-                }),
-        )
-        .on_click(start_edit(
-            state.clone(),
-            edit_key.clone(),
-            effective.map(hsla_to_hex).unwrap_or_default(),
-            focus_handle.clone(),
-        ))
-        .on_key_down(on_key_down)
-        .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
-            on_dismiss(action, window, cx);
-        })
-        .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
-            on_paste(action, window, cx);
-        })
-        .into_any_element()
+            .child(display),
+    )
+    .on_click(start_edit(
+        state.clone(),
+        edit_key.clone(),
+        effective.map(hsla_to_hex).unwrap_or_default(),
+        focus_handle.clone(),
+    ))
+    .on_key_down(on_key_down)
+    .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+        on_dismiss(action, window, cx);
+    })
+    .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+        on_paste(action, window, cx);
+    })
+    .into_any_element()
 }
 
 /// Writes (or, with `None`, removes) one theme color override through the
@@ -2511,26 +2348,24 @@ fn render_installed_themes_panel(id_namespace: &str, theme: &Theme, cx: &mut App
                 remove_installed_theme(cx, &remove_family);
             },
         );
-        let control = div()
-            .id(ElementId::Name(
+        let control = ui::compact_secondary_button(
+            ElementId::Name(
                 format!("{id_namespace}-remove-{family_id}").into(),
-            ))
-            .cursor_pointer()
-            .px(px(8.0))
-            .py(px(4.0))
-            .rounded(px(d.button_radius))
-            .border_1()
-            .border_color(c.dialog_border)
-            .hover(|this| this.bg(c.panel_row_hover))
-            .text_size(px(11.5))
-            .text_color(if is_current {
-                c.dialog_muted
-            } else {
-                c.text_default
-            })
-            .child(if is_current { "Active" } else { "Remove" })
-            .on_click(remove)
-            .into_any_element();
+            ),
+            c,
+            d,
+        )
+        .h(px(28.0))
+        .px(px(12.0))
+        .text_size(px(12.0))
+        .text_color(if is_current {
+            c.dialog_muted
+        } else {
+            c.text_default
+        })
+        .child(if is_current { "Active" } else { "Remove" })
+        .on_click(remove)
+        .into_any_element();
         rows.push(settings_card_row(
             c,
             d,

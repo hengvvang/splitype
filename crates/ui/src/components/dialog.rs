@@ -22,3 +22,14 @@ pub fn dialog_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .shadow_lg()
         .bg(c.dialog_surface)
 }
+
+/// Fullscreen modal backdrop overlay with standard WinUI 3 dialog_backdrop color.
+pub fn dialog_backdrop(c: &ThemeColors) -> Div {
+    div()
+        .absolute()
+        .inset_0()
+        .bg(c.dialog_backdrop)
+        .flex()
+        .items_center()
+        .justify_center()
+}

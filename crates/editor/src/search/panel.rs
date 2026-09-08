@@ -68,7 +68,7 @@ pub fn render_search_panel_overlay(
         .id("search-filter-case")
         .px(px(4.0))
         .py(px(1.0))
-        .rounded(px(d.select_trigger_radius))
+        .rounded(px(d.icon_button_radius))
         .when(match_case, |this| this.bg(c.panel_row_hover))
         .text_color(if match_case {
             c.focus_accent
@@ -88,7 +88,7 @@ pub fn render_search_panel_overlay(
         .id("search-filter-word")
         .px(px(4.0))
         .py(px(1.0))
-        .rounded(px(d.select_trigger_radius))
+        .rounded(px(d.icon_button_radius))
         .when(whole_word, |this| this.bg(c.panel_row_hover))
         .text_color(if whole_word {
             c.focus_accent
@@ -114,7 +114,7 @@ pub fn render_search_panel_overlay(
         .id("search-filter-regex")
         .px(px(4.0))
         .py(px(1.0))
-        .rounded(px(d.select_trigger_radius))
+        .rounded(px(d.icon_button_radius))
         .when(use_regex, |this| this.bg(c.panel_row_hover))
         .text_color(if use_regex {
             c.focus_accent
@@ -271,7 +271,7 @@ pub fn render_search_panel_overlay(
             .id("replace-filter-preserve-case")
             .px(px(4.0))
             .py(px(1.0))
-            .rounded(px(d.select_trigger_radius))
+            .rounded(px(d.icon_button_radius))
             .when(preserve_case, |this| this.bg(c.panel_row_hover))
             .text_color(if preserve_case {
                 c.focus_accent

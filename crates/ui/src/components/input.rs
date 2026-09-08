@@ -1430,6 +1430,57 @@ pub type TextInput = SearchInput;
 /// Canonical alias: [`SearchInput`] serves as the unified input component across the application.
 pub type Input = SearchInput;
 
+/// Builds a standardized clickable input trigger container matching the design system
+/// (28px height, 4px rounded corners, secondary button background, 1px border, and bottom accent line).
+pub fn input_trigger(
+    id: impl Into<ElementId>,
+    width: Pixels,
+    is_active: bool,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+) -> Stateful<Div> {
+    let (box_bg, border_color) = if is_active {
+        (c.dialog_secondary_button_bg, c.dialog_border)
+    } else {
+        (
+            c.dialog_secondary_button_bg.opacity(0.55),
+            c.dialog_border.opacity(0.7),
+        )
+    };
+
+    div()
+        .id(id)
+        .relative()
+        .overflow_hidden()
+        .cursor_text()
+        .w(width)
+        .h(px(28.0))
+        .px(px(8.0))
+        .rounded(px(d.select_trigger_radius))
+        .bg(box_bg)
+        .border_1()
+        .border_color(border_color)
+        .when(!is_active, |this| {
+            this.hover(|this| this.bg(c.panel_row_hover).border_color(c.dialog_border))
+        })
+        .flex()
+        .items_center()
+        .child(
+            div()
+                .absolute()
+                .bottom_0()
+                .left_0()
+                .right_0()
+                .h(if is_active { px(2.0) } else { px(1.5) })
+                .rounded_b(px(d.select_trigger_radius))
+                .bg(if is_active {
+                    c.focus_accent
+                } else {
+                    c.focus_accent.opacity(0.4)
+                }),
+        )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

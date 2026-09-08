@@ -90,16 +90,8 @@ pub fn render_settings_bottombar(
             .flex()
             .items_center()
             .child(
-                div()
+                ui::icon_chip_button(c, d)
                     .id(ElementId::Name(format!("{id_namespace}-menu-toggle").into()))
-                    .cursor_pointer()
-                    .p(px(5.0))
-                    .rounded(px(4.0))
-                    .hover(|s| s.bg(c.panel_row_hover))
-                    .active(|s| s.bg(c.panel_row_hover))
-                    .flex()
-                    .items_center()
-                    .justify_center()
                     .child(
                         svg()
                             .path("plugin://splitype.settings/menu.svg")
