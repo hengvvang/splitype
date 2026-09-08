@@ -13,150 +13,208 @@ registration = "wysiwyg"
 panes = ["splitype.pane.wysiwyg"]
 panels = []
 
-[[commands]]
+# =============================================================================
+# Commands Contribution Architecture (CommandGroup Tree)
+# =============================================================================
+
+[commands.editing]
+title = "Text Editing"
+description = "Character and word insertion and deletion"
+context = "EditorContent"
+
+[[commands.editing.items]]
 id = "newline"
+title = "Insert Line Break"
+description = "Insert a newline or split the current block"
 shortcuts = ["enter"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.editing.items]]
 id = "delete-backward"
+title = "Delete Backward"
+description = "Delete previous character or join with previous block"
 shortcuts = ["backspace"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.editing.items]]
 id = "delete"
+title = "Delete Forward"
+description = "Delete next character or join with next block"
 shortcuts = ["delete"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.editing.items]]
 id = "word-delete-backward"
+title = "Delete Word Backward"
+description = "Delete the previous whole word"
 shortcuts = ["ctrl-backspace", "alt-backspace"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.editing.items]]
 id = "word-delete-forward"
+title = "Delete Word Forward"
+description = "Delete the next whole word"
 shortcuts = ["ctrl-delete", "alt-delete"]
+
+[commands.navigation]
+title = "Cursor Navigation"
+description = "Block and inline cursor movement"
 context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "focus-previous"
+title = "Focus Previous Block"
+description = "Move focus to the previous block"
 shortcuts = ["up"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "focus-next"
+title = "Focus Next Block"
+description = "Move focus to the next block"
 shortcuts = ["down"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "move-left"
+title = "Move Left"
+description = "Move cursor left by one character"
 shortcuts = ["left"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "move-right"
+title = "Move Right"
+description = "Move cursor right by one character"
 shortcuts = ["right"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "word-move-left"
+title = "Move Word Backward"
+description = "Move cursor backward by one word"
 shortcuts = ["ctrl-left", "alt-left"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "word-move-right"
+title = "Move Word Forward"
+description = "Move cursor forward by one word"
 shortcuts = ["ctrl-right", "alt-right"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "home"
+title = "Move to Line Start"
+description = "Move cursor to the start of current line"
 shortcuts = ["home"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "end"
+title = "Move to Line End"
+description = "Move cursor to the end of current line"
 shortcuts = ["end"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "block-up"
+title = "Move Block Up"
+description = "Move cursor or block upward"
 shortcuts = ["ctrl-up", "alt-up"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.navigation.items]]
 id = "block-down"
+title = "Move Block Down"
+description = "Move cursor or block downward"
 shortcuts = ["ctrl-down", "alt-down"]
+
+[commands.selection]
+title = "Text Selection"
+description = "Inline character and word selection"
 context = "EditorContent"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-left"
+title = "Select Left"
+description = "Extend selection left by one character"
 shortcuts = ["shift-left"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-right"
+title = "Select Right"
+description = "Extend selection right by one character"
 shortcuts = ["shift-right"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.selection.items]]
 id = "word-select-left"
+title = "Select Word Backward"
+description = "Extend selection backward by one word"
 shortcuts = ["ctrl-shift-left", "alt-shift-left"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.selection.items]]
 id = "word-select-right"
+title = "Select Word Forward"
+description = "Extend selection forward by one word"
 shortcuts = ["ctrl-shift-right", "alt-shift-right"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-home"
+title = "Select to Line Start"
+description = "Extend selection to the beginning of current line"
 shortcuts = ["shift-home"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-end"
+title = "Select to Line End"
+description = "Extend selection to the end of current line"
 shortcuts = ["shift-end"]
+
+[commands.formatting]
+title = "Inline Formatting"
+description = "Markdown inline styling and formatting"
 context = "EditorContent"
 
-[[commands]]
+[[commands.formatting.items]]
 id = "bold-selection"
+title = "Toggle Bold"
+description = "Apply or remove bold formatting on selection"
 shortcuts = ["cmd-b", "ctrl-b"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.formatting.items]]
 id = "italic-selection"
+title = "Toggle Italic"
+description = "Apply or remove italic formatting on selection"
 shortcuts = ["cmd-i", "ctrl-i"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.formatting.items]]
 id = "underline-selection"
+title = "Toggle Underline"
+description = "Apply or remove underline formatting on selection"
 shortcuts = ["cmd-u", "ctrl-u"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.formatting.items]]
 id = "code-selection"
+title = "Toggle Inline Code"
+description = "Apply or remove inline code formatting on selection"
 shortcuts = ["cmd-`", "ctrl-`"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.formatting.items]]
 id = "strikethrough-selection"
+title = "Toggle Strikethrough"
+description = "Apply or remove strikethrough formatting on selection"
 shortcuts = ["cmd-shift-x", "ctrl-shift-x", "alt-shift-5"]
+
+[commands.structure]
+title = "Block Structure"
+description = "Block indentation, nesting, and breakout operations"
 context = "EditorContent"
 
-[[commands]]
+[[commands.structure.items]]
 id = "indent-block"
+title = "Indent Block"
+description = "Increase block nesting or tab indentation"
 shortcuts = ["tab"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.structure.items]]
 id = "outdent-block"
+title = "Outdent Block"
+description = "Decrease block nesting or tab indentation"
 shortcuts = ["shift-tab"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.structure.items]]
 id = "exit-code-block"
+title = "Exit Code Block"
+description = "Break out of a code block to a new paragraph"
 shortcuts = ["cmd-enter", "ctrl-enter"]
-context = "EditorContent"
 
 # =============================================================================
 # Settings Declaration

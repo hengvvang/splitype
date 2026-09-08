@@ -10,117 +10,174 @@ description = "Application window, file, preference, and help commands."
 kind = "in_process"
 registration = "core"
 
-[[commands]]
+# =============================================================================
+# Commands Contribution Architecture (CommandGroup Tree)
+#
+# Commands are organized into functional groups with inherited context and menu
+# locations, providing full metadata for menus, shortcuts, and command palette.
+# =============================================================================
+
+[commands.app]
+title = "Application"
+description = "Core application lifecycle and settings commands"
+menu = "app"
+
+[[commands.app.items]]
 id = "about"
-menu = "app"
-shortcuts = []
+title = "About Splitype"
+description = "Show version, build, and license information"
 
-[[commands]]
+[[commands.app.items]]
 id = "check-updates"
-menu = "app"
-shortcuts = []
+title = "Check for Updates"
+description = "Check for newer application releases"
 
-[[commands]]
+[[commands.app.items]]
 id = "open-settings"
-menu = "app"
-shortcuts = []
+title = "Preferences"
+description = "Open the settings dialog"
 
-[[commands]]
+[[commands.app.items]]
 id = "quit"
-menu = "app"
+title = "Quit Splitype"
+description = "Close all windows and exit the application"
 shortcuts = ["cmd-q"]
 
-[[commands]]
-id = "new-window"
+[commands.window]
+title = "Window Management"
+description = "Application window lifecycle and layout commands"
 menu = "file"
+
+[[commands.window.items]]
+id = "new-window"
+title = "New Window"
+description = "Open a new independent Splitype window"
 shortcuts = ["cmd-n", "ctrl-n"]
 
-[[commands]]
+[[commands.window.items]]
 id = "close-window"
-menu = "file"
+title = "Close Window"
+description = "Close the current active window"
 shortcuts = ["cmd-w", "ctrl-q"]
 
-[[commands]]
-id = "open-file"
+[commands.file]
+title = "File Operations"
+description = "Document opening and folder management"
 menu = "file"
+
+[[commands.file.items]]
+id = "open-file"
+title = "Open File"
+description = "Open a document from disk"
 shortcuts = ["cmd-o", "ctrl-o"]
 
-[[commands]]
+[[commands.file.items]]
 id = "close-explorer-folder"
-menu = "file"
-shortcuts = []
+title = "Close Workspace Folder"
+description = "Close the current open folder in the explorer"
 
-[[commands]]
+[commands.layout]
+title = "Layout & UI"
+description = "Workspace layout toggles and transient UI dismissals"
+
+[[commands.layout.items]]
 id = "toggle-explorer"
+title = "Toggle Explorer Sidebar"
+description = "Show or hide the explorer sidebar panel"
 shortcuts = ["ctrl-w"]
 
-[[commands]]
+[[commands.layout.items]]
 id = "toggle-maximize-area"
+title = "Toggle Maximize Editor Area"
+description = "Maximize the editor area by collapsing panels"
 shortcuts = ["ctrl-space", "cmd-space"]
 
-[[commands]]
+[[commands.layout.items]]
 id = "dismiss-transient-ui"
+title = "Dismiss Transient UI"
+description = "Dismiss open popovers, dropdowns, or overlays"
 shortcuts = ["escape"]
 
-[[commands]]
+[commands.clipboard]
+title = "Clipboard"
+description = "Standard clipboard cut, copy, and paste operations"
+context = "EditorContent"
+
+[[commands.clipboard.items]]
 id = "copy"
+title = "Copy"
+description = "Copy selected text or blocks to clipboard"
 shortcuts = ["cmd-c", "ctrl-c"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.clipboard.items]]
 id = "cut"
+title = "Cut"
+description = "Cut selected text or blocks to clipboard"
 shortcuts = ["cmd-x", "ctrl-x"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.clipboard.items]]
 id = "paste"
+title = "Paste"
+description = "Paste content from clipboard"
 shortcuts = ["cmd-v", "ctrl-v"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.clipboard.items]]
 id = "select-all"
+title = "Select All"
+description = "Select all document content"
 shortcuts = ["cmd-a", "ctrl-a"]
+
+[commands.history]
+title = "History"
+description = "Document undo and redo operations"
 context = "EditorContent"
 
-[[commands]]
+[[commands.history.items]]
 id = "undo"
+title = "Undo"
+description = "Undo the last editing operation"
 shortcuts = ["cmd-z", "ctrl-z"]
-context = "EditorContent"
 
-[[commands]]
+[[commands.history.items]]
 id = "redo"
+title = "Redo"
+description = "Redo the previously undone operation"
 shortcuts = ["cmd-shift-z", "ctrl-y"]
-context = "EditorContent"
 
-[[commands]]
+[commands.help]
+title = "Help & Support"
+description = "Documentation, feedback, and command-line tools"
+menu = "help"
+
+[[commands.help.items]]
 id = "repository"
-menu = "help"
-shortcuts = []
+title = "GitHub Repository"
+description = "Open the Splitype GitHub repository in default browser"
 
-[[commands]]
+[[commands.help.items]]
 id = "bug-report"
-menu = "help"
-shortcuts = []
+title = "Report a Bug"
+description = "Submit a bug report on GitHub issues"
 
-[[commands]]
+[[commands.help.items]]
 id = "feature-request"
-menu = "help"
-shortcuts = []
+title = "Request a Feature"
+description = "Submit a feature proposal on GitHub"
 
-[[commands]]
+[[commands.help.items]]
 id = "discussions"
-menu = "help"
-shortcuts = []
+title = "Community Discussions"
+description = "Join community discussions on GitHub"
 
-[[commands]]
+[[commands.help.items]]
 id = "install-cli"
-menu = "help"
-shortcuts = []
+title = "Install Shell Command"
+description = "Install the splitype CLI tool into system PATH"
 
-[[commands]]
+[[commands.help.items]]
 id = "uninstall-cli"
-menu = "help"
-shortcuts = []
+title = "Uninstall Shell Command"
+description = "Remove the splitype CLI tool from system PATH"
 
 [[setting_categories]]
 id = "core.general"

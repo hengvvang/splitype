@@ -13,64 +13,112 @@ registration = "editor"
 panes = []
 panels = ["splitype.panel.editor"]
 
-[[commands]]
-id = "save"
+# =============================================================================
+# Commands Contribution Architecture (CommandGroup Tree)
+# =============================================================================
+
+[commands.persistence]
+title = "File Persistence"
+description = "Document saving and disk operations"
 menu = "file"
+
+[[commands.persistence.items]]
+id = "save"
+title = "Save Document"
+description = "Save the active document to disk"
 shortcuts = ["cmd-s", "ctrl-s"]
 
-[[commands]]
+[[commands.persistence.items]]
 id = "save-as"
-menu = "file"
+title = "Save Document As..."
+description = "Save the active document under a new file path"
 shortcuts = ["cmd-shift-s", "ctrl-shift-s"]
 
-[[commands]]
+[commands.export]
+title = "Export Document"
+description = "Export document to alternative formats"
+menu = "file.export"
+
+[[commands.export.items]]
 id = "export-html"
-menu = "file.export"
-shortcuts = []
+title = "Export as HTML"
+description = "Render and export the current document to standalone HTML"
 
-[[commands]]
+[[commands.export.items]]
 id = "export-pdf"
-menu = "file.export"
-shortcuts = []
+title = "Export as PDF"
+description = "Render and print the current document to PDF format"
 
-[[commands]]
+[commands.navigation]
+title = "Scrolling & Navigation"
+description = "Viewport scrolling and document cursor jumping"
+
+[[commands.navigation.items]]
 id = "page-up"
+title = "Page Up"
+description = "Scroll the viewport up by one page"
 shortcuts = ["pageup"]
 
-[[commands]]
+[[commands.navigation.items]]
 id = "page-down"
+title = "Page Down"
+description = "Scroll the viewport down by one page"
 shortcuts = ["pagedown"]
 
-[[commands]]
+[[commands.navigation.items]]
 id = "jump-to-top"
+title = "Jump to Document Top"
+description = "Move cursor and viewport to the beginning of document"
 shortcuts = ["ctrl-home", "cmd-up"]
 
-[[commands]]
+[[commands.navigation.items]]
 id = "jump-to-bottom"
+title = "Jump to Document Bottom"
+description = "Move cursor and viewport to the end of document"
 shortcuts = ["ctrl-end", "cmd-down"]
 
-[[commands]]
+[commands.layout]
+title = "Pane & Workspace Layout"
+description = "Switching and toggling editor panes"
+
+[[commands.layout.items]]
 id = "toggle-pane-kind"
+title = "Toggle Editor Mode"
+description = "Cycle active pane between WYSIWYG, Source Code, and Preview"
 shortcuts = ["ctrl-tab", "cmd-tab"]
 
-[[commands]]
+[[commands.layout.items]]
 id = "toggle-maximize-pane"
+title = "Toggle Maximize Pane"
+description = "Maximize the active editor pane within the workspace"
 shortcuts = ["ctrl-shift-m", "cmd-shift-m"]
 
-[[commands]]
+[commands.search]
+title = "Find & Replace"
+description = "Document text search and replacement"
+
+[[commands.search.items]]
 id = "toggle-search"
+title = "Find in Document"
+description = "Open or close the document find bar"
 shortcuts = ["cmd-f", "ctrl-f"]
 
-[[commands]]
+[[commands.search.items]]
 id = "toggle-replace"
+title = "Replace in Document"
+description = "Open or close the document replace bar"
 shortcuts = ["cmd-h", "ctrl-h"]
 
-[[commands]]
+[[commands.search.items]]
 id = "find-next"
+title = "Find Next Match"
+description = "Jump to the next search occurrence"
 shortcuts = ["f3"]
 
-[[commands]]
+[[commands.search.items]]
 id = "find-previous"
+title = "Find Previous Match"
+description = "Jump to the previous search occurrence"
 shortcuts = ["shift-f3"]
 
 # =============================================================================

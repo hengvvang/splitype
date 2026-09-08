@@ -12,8 +12,8 @@ pub mod registry;
 pub use asset::PluginAssetProvider;
 pub use id::PluginId;
 pub use manifest::{
-    ManifestCommand, PLUGIN_MANIFEST_VERSION, PluginCapabilities, PluginEntry, PluginManifest,
-    PluginManifestError, PluginResources, ThemeFamilyDeclaration,
+    CommandDeclaration, CommandGroupDeclaration, PLUGIN_MANIFEST_VERSION, PluginCapabilities,
+    PluginEntry, PluginManifest, PluginManifestError, PluginResources, ThemeFamilyDeclaration,
 };
 pub use registry::{PluginRegistry, PluginRegistryError};
 

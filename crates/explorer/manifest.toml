@@ -74,67 +74,98 @@ description = "Reveal and select the active document's file in the tree"
 key = "splitype.explorer.selection_accent"
 description = "Accent bar color of the selected file-tree row"
 
-[[commands]]
-id = "rename"
-shortcuts = ["f2"]
+# =============================================================================
+# Commands Contribution Architecture (CommandGroup Tree)
+# =============================================================================
+
+[commands.operations]
+title = "File Operations"
+description = "File and folder manipulation in workspace tree"
 context = "ExplorerPanel"
 
-[[commands]]
-id = "delete"
-shortcuts = ["delete"]
-context = "ExplorerPanel"
-
-[[commands]]
-id = "trash"
-shortcuts = []
-context = "ExplorerPanel"
-
-[[commands]]
+[[commands.operations.items]]
 id = "new-file"
+title = "New File"
+description = "Create a new file in the selected directory"
 shortcuts = ["alt-n"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.operations.items]]
 id = "new-directory"
+title = "New Folder"
+description = "Create a new folder in the selected directory"
 shortcuts = ["alt-shift-n"]
+
+[[commands.operations.items]]
+id = "rename"
+title = "Rename Entry"
+description = "Rename the selected file or directory"
+shortcuts = ["f2"]
+
+[[commands.operations.items]]
+id = "delete"
+title = "Delete Permanently"
+description = "Permanently delete the selected file or directory"
+shortcuts = ["delete"]
+
+[[commands.operations.items]]
+id = "trash"
+title = "Move to Trash"
+description = "Move the selected file or directory to system trash"
+
+[commands.selection]
+title = "Tree Selection"
+description = "File tree item navigation and cursor movement"
 context = "ExplorerPanel"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-previous"
+title = "Select Previous Entry"
+description = "Move tree selection up"
 shortcuts = ["up"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-next"
+title = "Select Next Entry"
+description = "Move tree selection down"
 shortcuts = ["down"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-parent"
+title = "Select Parent Folder"
+description = "Navigate selection to parent folder"
 shortcuts = ["alt-up"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-first"
+title = "Select First Entry"
+description = "Navigate selection to the top of the tree"
 shortcuts = ["home"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.selection.items]]
 id = "select-last"
+title = "Select Last Entry"
+description = "Navigate selection to the bottom of the tree"
 shortcuts = ["end"]
+
+[commands.tree]
+title = "Tree Operations"
+description = "Tree node expand, collapse, and activation"
 context = "ExplorerPanel"
 
-[[commands]]
+[[commands.tree.items]]
 id = "expand-selected"
+title = "Expand Selected Folder"
+description = "Expand the highlighted folder"
 shortcuts = ["right"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.tree.items]]
 id = "collapse-selected"
+title = "Collapse Selected Folder"
+description = "Collapse the highlighted folder"
 shortcuts = ["left"]
-context = "ExplorerPanel"
 
-[[commands]]
+[[commands.tree.items]]
 id = "open-selected"
+title = "Open Selected Document"
+description = "Open the selected document in active editor pane"
 shortcuts = ["enter"]
-context = "ExplorerPanel"

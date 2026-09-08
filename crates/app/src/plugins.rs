@@ -161,25 +161,35 @@ pub(crate) fn init_plugins() {
         if let Some(hooks) = &factory.explorer_hooks {
             crate::routing::register_explorer_hooks(hooks.clone());
         }
-        for command in &commands {
-            let full_id = format!("{}.{}", plugin, command.id);
-            assert!(
-                crate::commands::binding_for(plugin.as_str(), &command.id).is_some(),
-                "command '{full_id}' declared by '{plugin}' has no composition-root binding"
-            );
-            platform_contracts::CommandRegistry::register_global(
-                platform_contracts::CommandContribution {
-                    id: platform_contracts::CommandId::new(full_id),
-                    menu: command.menu.clone().map(std::sync::Arc::from),
-                    shortcuts: command
-                        .shortcuts
-                        .iter()
-                        .map(|shortcut| std::sync::Arc::from(shortcut.as_str()))
-                        .collect(),
-                    context: command.context.clone().map(std::sync::Arc::from),
-                },
-            )
-            .expect("bundled command ids must be unique");
+        for (group_id, group) in &commands {
+            for command in &group.items {
+                let full_id = format!("{}.{}", plugin, command.id);
+                assert!(
+                    crate::commands::binding_for(plugin.as_str(), &command.id).is_some(),
+                    "command '{full_id}' declared by '{plugin}' has no composition-root binding"
+                );
+                let effective_context = command.context.as_deref().or(group.context.as_deref());
+                let effective_menu = command.menu.as_deref().or(group.menu.as_deref());
+                let effective_icon = command.icon.as_deref().or(group.icon.as_deref());
+
+                platform_contracts::CommandRegistry::register_global(
+                    platform_contracts::CommandContribution {
+                        id: platform_contracts::CommandId::new(full_id),
+                        group: std::sync::Arc::from(group_id.as_str()),
+                        title: std::sync::Arc::from(command.title.as_str()),
+                        description: command.description.as_ref().map(|s| std::sync::Arc::from(s.as_str())),
+                        icon: effective_icon.map(std::sync::Arc::from),
+                        menu: effective_menu.map(std::sync::Arc::from),
+                        shortcuts: command
+                            .shortcuts
+                            .iter()
+                            .map(|shortcut| std::sync::Arc::from(shortcut.as_str()))
+                            .collect(),
+                        context: effective_context.map(std::sync::Arc::from),
+                    },
+                )
+                .expect("bundled command ids must be unique");
+            }
         }
         if let Some(asset_provider) = factory.asset_provider {
             PluginRegistry::register_asset_provider_global(plugin.clone(), asset_provider)
@@ -331,7 +341,7 @@ mod tests {
         for source in BUNDLED_MANIFESTS {
             let manifest: PluginManifest =
                 toml::from_str(source).expect("manifest must be valid TOML");
-            for command in &manifest.commands {
+            for command in manifest.all_commands() {
                 assert!(
                     crate::commands::binding_for(manifest.plugin.as_str(), &command.id).is_some(),
                     "command '{}.{}' has no composition-root binding",

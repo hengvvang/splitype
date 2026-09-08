@@ -126,7 +126,7 @@ mod tests {
                 panels: vec![PanelKind::from_static("com.example.missing-test.panel")],
             },
             resources: platform_contracts::PluginResources::default(),
-            commands: Vec::new(),
+            commands: std::collections::BTreeMap::new(),
             setting_categories: Vec::new(),
             settings: std::collections::BTreeMap::new(),
             themes: Vec::new(),

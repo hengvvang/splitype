@@ -22,6 +22,14 @@ pub enum CommandRegistryError {
 #[derive(Clone, Debug)]
 pub struct CommandContribution {
     pub id: CommandId,
+    /// Functional command group ID (e.g. "formatting", "navigation").
+    pub group: Arc<str>,
+    /// Human-readable command title (e.g. "Toggle Bold").
+    pub title: Arc<str>,
+    /// Detailed description of what the command does.
+    pub description: Option<Arc<str>>,
+    /// Optional command icon resource path.
+    pub icon: Option<Arc<str>>,
     /// Menu skeleton location, e.g. `file` or `file.export`. `None` for
     /// keybinding-only commands.
     pub menu: Option<Arc<str>>,
@@ -115,6 +123,10 @@ mod tests {
     fn command(id: &'static str) -> CommandContribution {
         CommandContribution {
             id: CommandId::from_static(id),
+            group: Arc::from("test"),
+            title: Arc::from("Test Command"),
+            description: None,
+            icon: None,
             menu: None,
             shortcuts: Vec::new(),
             context: None,

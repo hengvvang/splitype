@@ -34,9 +34,9 @@ pub struct PluginManifest {
     pub capabilities: PluginCapabilities,
     #[serde(default)]
     pub resources: PluginResources,
-    /// Commands the plugin exposes to menus and shortcuts.
+    /// Commands the plugin exposes to menus and shortcuts, organized by functional groups.
     #[serde(default)]
-    pub commands: Vec<ManifestCommand>,
+    pub commands: BTreeMap<String, CommandGroupDeclaration>,
     /// Settings categories the plugin contributes to the settings navigation rail.
     #[serde(default)]
     pub setting_categories: Vec<SettingCategoryDeclaration>,
@@ -60,23 +60,52 @@ pub struct ThemeFamilyDeclaration {
     pub json: String,
 }
 
-/// One command contribution declared by a manifest.
+/// One functional group of commands declared by a manifest.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct ManifestCommand {
-    /// Plugin-local command id; the full id is `<plugin-id>.<id>`.
-    pub id: String,
-    /// Menu skeleton location (e.g. `file`, `file.export`). Absent for
-    /// keybinding-only commands.
+pub struct CommandGroupDeclaration {
+    /// Human-readable title of the command group.
+    pub title: String,
+    /// Detailed description of the command group.
     #[serde(default)]
-    pub menu: Option<String>,
-    /// Default shortcuts as gpui keystroke strings. Empty for menu-only
-    /// commands.
+    pub description: Option<String>,
+    /// Optional group icon asset path.
     #[serde(default)]
-    pub shortcuts: Vec<String>,
-    /// Optional gpui keybinding context (e.g. `BlockEditor`); the binding
-    /// only fires while a focus handle with that context is focused.
+    pub icon: Option<String>,
+    /// Default context for all commands in this group (e.g. "EditorContent", "ExplorerPanel").
+    /// Inherited by items unless explicitly overridden.
     #[serde(default)]
     pub context: Option<String>,
+    /// Default menu location for all commands in this group (e.g. "file", "app", "help").
+    /// Inherited by items unless explicitly overridden.
+    #[serde(default)]
+    pub menu: Option<String>,
+    /// The concrete command declarations belonging to this group.
+    #[serde(default)]
+    pub items: Vec<CommandDeclaration>,
+}
+
+/// One concrete command contribution declared within a group.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CommandDeclaration {
+    /// Plugin-local command id; the full id is `<plugin-id>.<id>`.
+    pub id: String,
+    /// Human-readable title for the command (e.g. "Toggle Bold").
+    pub title: String,
+    /// Optional detailed description of what the command does.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Optional icon asset path (falls back to group icon if omitted).
+    #[serde(default)]
+    pub icon: Option<String>,
+    /// Default shortcuts as gpui keystroke strings. Empty for menu-only commands.
+    #[serde(default)]
+    pub shortcuts: Vec<String>,
+    /// Optional context override; if absent, inherits from the group.
+    #[serde(default)]
+    pub context: Option<String>,
+    /// Optional menu location override; if absent, inherits from the group.
+    #[serde(default)]
+    pub menu: Option<String>,
 }
 
 /// How a plugin provides its code.
@@ -111,6 +140,12 @@ pub enum PluginManifestError {
     EmptyName,
     #[error("in-process entry registration key must not be empty")]
     EmptyRegistration,
+    #[error("command '{0}' must declare a non-empty id")]
+    InvalidCommandId(String),
+    #[error("command '{0}' must declare a non-empty title")]
+    EmptyCommandTitle(String),
+    #[error("command '{0}' is declared more than once")]
+    DuplicateCommandId(String),
     #[error("setting '{0}' must declare a non-empty dotted key")]
     InvalidSettingKey(String),
     #[error("setting '{0}' must declare a non-empty title")]
@@ -132,6 +167,22 @@ pub enum PluginManifestError {
 }
 
 impl PluginManifest {
+    /// Returns a flat list of all command declarations across all groups.
+    pub fn all_commands(&self) -> Vec<CommandDeclaration> {
+        self.commands
+            .values()
+            .flat_map(|group| group.items.clone())
+            .collect()
+    }
+
+    /// Finds a command declaration by id across all groups.
+    pub fn find_command(&self, id: &str) -> Option<&CommandDeclaration> {
+        self.commands
+            .values()
+            .flat_map(|group| &group.items)
+            .find(|item| item.id == id)
+    }
+
     /// Returns a flat list of all setting declarations across all groups.
     pub fn all_settings(&self) -> Vec<SettingDeclaration> {
         self.settings
@@ -169,8 +220,40 @@ impl PluginManifest {
         if registration.trim().is_empty() {
             return Err(PluginManifestError::EmptyRegistration);
         }
+        self.validate_commands()?;
         self.validate_settings()?;
         self.validate_theme_contributions()?;
+        Ok(())
+    }
+
+    fn validate_commands(&self) -> Result<(), PluginManifestError> {
+        let mut seen_ids = std::collections::BTreeSet::new();
+        for (group_id, group) in &self.commands {
+            if group_id.trim().is_empty() {
+                return Err(PluginManifestError::InvalidCommandId(format!(
+                    "{}.<empty-group>",
+                    self.plugin
+                )));
+            }
+            if group.title.trim().is_empty() {
+                return Err(PluginManifestError::EmptyCommandTitle(format!(
+                    "{}.{}",
+                    self.plugin, group_id
+                )));
+            }
+            for command in &group.items {
+                let id = format!("{}.{}", self.plugin, command.id);
+                if command.id.trim().is_empty() {
+                    return Err(PluginManifestError::InvalidCommandId(id));
+                }
+                if command.title.trim().is_empty() {
+                    return Err(PluginManifestError::EmptyCommandTitle(id));
+                }
+                if !seen_ids.insert(command.id.clone()) {
+                    return Err(PluginManifestError::DuplicateCommandId(id));
+                }
+            }
+        }
         Ok(())
     }
 
