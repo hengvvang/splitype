@@ -24,6 +24,7 @@ pub fn extract_preview_headings(blocks: &[PreviewBlock]) -> Vec<OutlineNode> {
             level,
             block_index,
             block_id: None,
+            kind: editor_contracts::OutlineNodeKind::Heading,
         });
     }
     list

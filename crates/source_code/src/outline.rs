@@ -1,7 +1,22 @@
-//! Source code pane outline extraction from the raw Markdown source text.
-
 use editor_contracts::OutlineNode;
 use markdown_parser::parse::BlockKind;
+use syntax_highlighter::language::CodeLanguageKey;
+
+/// Extracts an outline from the buffer text based on the document's language.
+/// Markdown files extract headings; code files extract Tree-Sitter AST symbols.
+pub fn extract_outline(language: Option<CodeLanguageKey>, text: &str) -> Vec<OutlineNode> {
+    match language {
+        Some(CodeLanguageKey::Markdown) | None => extract_outline_headings(text),
+        Some(lang) => {
+            let symbols = syntax_highlighter::extract_symbols(lang, text);
+            if symbols.is_empty() {
+                extract_outline_headings(text)
+            } else {
+                symbols
+            }
+        }
+    }
+}
 
 /// Extracts all heading nodes from the raw Markdown source text. Heading
 /// line recognition is delegated to the canonical Markdown parser helpers.
@@ -47,6 +62,7 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
                 level,
                 block_index: line_idx,
                 block_id: None,
+                kind: editor_contracts::OutlineNodeKind::Heading,
             });
             line_idx += 1;
             continue;
@@ -67,6 +83,7 @@ pub fn extract_outline_headings(markdown: &str) -> Vec<OutlineNode> {
                     level,
                     block_index: line_idx,
                     block_id: None,
+                    kind: editor_contracts::OutlineNodeKind::Heading,
                 });
                 line_idx += 2;
                 continue;
@@ -93,5 +110,22 @@ mod tests {
         assert_eq!(headings[1].level, 2);
         assert_eq!(headings[2].label, "Setext Title");
         assert_eq!(headings[2].level, 1);
+    }
+
+    #[test]
+    fn extracts_symbols_when_language_specified() {
+        let rust_code = "pub fn add(a: i32, b: i32) -> i32 { a + b }\nstruct Point { x: i32 }";
+        let nodes = extract_outline(Some(CodeLanguageKey::Rust), rust_code);
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].label, "add");
+        assert_eq!(nodes[0].kind, editor_contracts::OutlineNodeKind::Function);
+        assert_eq!(nodes[1].label, "Point");
+        assert_eq!(nodes[1].kind, editor_contracts::OutlineNodeKind::Struct);
+
+        // Markdown fallback when None
+        let md = "# Doc Title";
+        let md_nodes = extract_outline(None, md);
+        assert_eq!(md_nodes.len(), 1);
+        assert_eq!(md_nodes[0].label, "Doc Title");
     }
 }

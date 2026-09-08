@@ -24,7 +24,7 @@ pub use edit::{CursorHint, EditTransaction};
 pub use export::ExportFormat;
 pub use highlight::{CodeHighlightClass, CodeHighlightSpan, HighlightSnapshot};
 pub use outline::{
-    OutlineHost, OutlineHudState, OutlineNode, render_outline_indicator_strip,
+    OutlineHost, OutlineHudState, OutlineNode, OutlineNodeKind, render_outline_indicator_strip,
 };
 pub use pane::{
     PaneCapabilities, PaneDescriptor, PaneHost, PaneId, PaneKind, PaneOutlineHost, PaneRegistry,

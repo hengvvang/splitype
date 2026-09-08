@@ -12,4 +12,4 @@ mod state;
 pub use host::OutlineHost;
 pub use hud::render_floating_outline_hud;
 pub use indicator::render_outline_indicator_strip;
-pub use state::{OutlineHudState, OutlineNode};
+pub use state::{OutlineHudState, OutlineNode, OutlineNodeKind};

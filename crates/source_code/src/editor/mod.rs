@@ -28,12 +28,15 @@ use std::ops::Range;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use std::path::Path;
+
 use config::settings::PluginSettings;
 use editor_contracts::{
     CursorHint, DocumentSnapshot, EditTransaction, HighlightSnapshot, OutlineNode, PaneHost,
 };
 use gpui::*;
-use syntax_highlighter::highlight::CodeHighlightSpan;
+use syntax_highlighter::highlight::{CodeHighlightSpan, resolve_code_language_key};
+use syntax_highlighter::language::CodeLanguageKey;
 
 use crate::Rope;
 use crate::display_map::{DisplaySnapshot, FoldMap, FoldRange, RowIndex, TabMap, WrapState};
@@ -157,11 +160,20 @@ pub struct SourceCodeEditor {
     deferred_commit: Option<(bool, CursorHint)>,
     /// When true, the editor behaves as a read-only code viewer (no edits, no cursor).
     pub read_only: bool,
+    /// Code language key determined from the document file path.
+    pub language: Option<CodeLanguageKey>,
+}
+
+fn detect_language(path: Option<&Path>) -> Option<CodeLanguageKey> {
+    let path = path?;
+    let ext = path.extension()?.to_str()?;
+    resolve_code_language_key(Some(ext))
 }
 
 impl SourceCodeEditor {
     pub fn new(document: &DocumentSnapshot, cx: &mut Context<Self>) -> Self {
         let settings = PluginSettings::<SourceCodeSettings>::get(cx);
+        let language = detect_language(document.path.as_deref());
         let mut editor = Self {
             host: None,
             scroll: None,
@@ -199,6 +211,7 @@ impl SourceCodeEditor {
             frame_rows: Vec::new(),
             deferred_commit: None,
             read_only: false,
+            language,
         };
         editor.apply_document(document.rope.clone(), document.revision, cx);
         editor.highlights = document.highlights.clone();
@@ -234,6 +247,11 @@ impl SourceCodeEditor {
         if settings != self.settings {
             self.settings = settings;
             self.invalidate_wrap();
+        }
+        let new_lang = detect_language(document.path.as_deref());
+        if new_lang != self.language {
+            self.language = new_lang;
+            self.schedule_highlight(cx);
         }
         // Highlights track the buffer's engine; adopt every broadcast.
         if let Some(highlights) = &document.highlights {
@@ -783,15 +801,19 @@ impl SourceCodeEditor {
                 cx.background_executor()
                     .timer(Duration::from_millis(150))
                     .await;
-                let Ok((text, generation)) = entity.update(cx, |editor, _cx| {
-                    (editor.text.materialize(), editor.highlight.generation)
+                let Ok((text, generation, language)) = entity.update(cx, |editor, _cx| {
+                    (
+                        editor.text.materialize(),
+                        editor.highlight.generation,
+                        editor.language,
+                    )
                 }) else {
                     return;
                 };
                 let computed = cx
                     .background_executor()
                     .spawn(async move {
-                        let outline = crate::outline::extract_outline_headings(&text);
+                        let outline = crate::outline::extract_outline(language, &text);
                         let rope = Rope::new(&text);
                         let mut folds = FoldMap::discover_markdown_folds(&rope);
                         folds.sort_by_key(|range| range.start_row);

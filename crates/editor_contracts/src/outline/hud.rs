@@ -75,6 +75,19 @@ pub fn render_floating_outline_hud(
                     } else {
                         None
                     })
+                    .children(node.kind.badge_label().map(|tag| {
+                        div()
+                            .flex_shrink_0()
+                            .px(px(4.0))
+                            .py(px(0.5))
+                            .rounded(px(2.0))
+                            .bg(c.panel_row_hover)
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .text_size(px(10.0))
+                            .text_color(c.focus_accent)
+                            .child(tag)
+                    }))
                     .child(
                         div()
                             .flex_1()

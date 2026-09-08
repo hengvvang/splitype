@@ -38,6 +38,7 @@ impl WysiwygDocumentController {
                         level: heading.level,
                         block_index: heading.block_index,
                         block_id: Some(heading.entity_id),
+                        kind: editor_contracts::OutlineNodeKind::Heading,
                     })
                     .collect()
             })
