@@ -185,7 +185,12 @@ impl SourceCodeEditor {
                             editor.open_context_menu(event.position, window, cx);
                         });
                     })
-                    .child(EditorElement::new(editor_entity, pane_id, ctx.is_focused, self.read_only)),
+                    .child(EditorElement::new(
+                        editor_entity,
+                        pane_id,
+                        ctx.is_focused,
+                        self.read_only,
+                    )),
             )
             .children(context_menu_element)
             .into_any_element();
@@ -447,7 +452,10 @@ impl Element for EditorElement {
             );
 
             // 1. Active line highlight (subtle background bar).
-            if highlight_active_line && is_focused && !self.read_only && frame.display_row == primary_head_display_row
+            if highlight_active_line
+                && is_focused
+                && !self.read_only
+                && frame.display_row == primary_head_display_row
             {
                 active_line_quads.push(fill(
                     Bounds::new(

@@ -105,18 +105,39 @@ fn walk_rust_node(
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Trait);
             }
-            walk_children(node, text, CodeLanguageKey::Rust, level.saturating_add(1), true, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Rust,
+                level.saturating_add(1),
+                true,
+                out,
+            );
         }
         "impl_item" => {
             let label = extract_rust_impl_title(node, text);
             push_symbol(out, node, &label, 1, OutlineNodeKind::Section);
-            walk_children(node, text, CodeLanguageKey::Rust, level.saturating_add(1), true, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Rust,
+                level.saturating_add(1),
+                true,
+                out,
+            );
         }
         "mod_item" => {
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Module);
             }
-            walk_children(node, text, CodeLanguageKey::Rust, level.saturating_add(1), in_container, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Rust,
+                level.saturating_add(1),
+                in_container,
+                out,
+            );
         }
         "const_item" | "static_item" => {
             if let Some(name) = find_name_node(node, text) {
@@ -164,7 +185,14 @@ fn walk_python_node(
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Class);
             }
-            walk_children(node, text, CodeLanguageKey::Python, level.saturating_add(1), true, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Python,
+                level.saturating_add(1),
+                true,
+                out,
+            );
         }
         "function_definition" => {
             if let Some(name) = find_name_node(node, text) {
@@ -176,10 +204,24 @@ fn walk_python_node(
                 let sym_level = if in_container { 2 } else { 1 };
                 push_symbol(out, node, name, sym_level, kind);
             }
-            walk_children(node, text, CodeLanguageKey::Python, level.saturating_add(1), in_container, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Python,
+                level.saturating_add(1),
+                in_container,
+                out,
+            );
         }
         _ => {
-            walk_children(node, text, CodeLanguageKey::Python, level, in_container, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Python,
+                level,
+                in_container,
+                out,
+            );
         }
     }
 }
@@ -198,7 +240,14 @@ fn walk_js_ts_node(
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Class);
             }
-            walk_children(node, text, CodeLanguageKey::TypeScript, level.saturating_add(1), true, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::TypeScript,
+                level.saturating_add(1),
+                true,
+                out,
+            );
         }
         "function_declaration" | "generator_function_declaration" => {
             if let Some(name) = find_name_node(node, text) {
@@ -241,7 +290,14 @@ fn walk_js_ts_node(
             }
         }
         _ => {
-            walk_children(node, text, CodeLanguageKey::TypeScript, level, in_container, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::TypeScript,
+                level,
+                in_container,
+                out,
+            );
         }
     }
 }
@@ -306,19 +362,40 @@ fn walk_c_cpp_node(
                 let sym_level = if in_container { 2 } else { 1 };
                 push_symbol(out, node, name, sym_level, kind);
             }
-            walk_children(node, text, CodeLanguageKey::Cpp, level.saturating_add(1), in_container, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Cpp,
+                level.saturating_add(1),
+                in_container,
+                out,
+            );
         }
         "struct_specifier" => {
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Struct);
             }
-            walk_children(node, text, CodeLanguageKey::Cpp, level.saturating_add(1), true, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Cpp,
+                level.saturating_add(1),
+                true,
+                out,
+            );
         }
         "class_specifier" => {
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Class);
             }
-            walk_children(node, text, CodeLanguageKey::Cpp, level.saturating_add(1), true, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Cpp,
+                level.saturating_add(1),
+                true,
+                out,
+            );
         }
         "enum_specifier" => {
             if let Some(name) = find_name_node(node, text) {
@@ -329,7 +406,14 @@ fn walk_c_cpp_node(
             if let Some(name) = find_name_node(node, text) {
                 push_symbol(out, node, name, 1, OutlineNodeKind::Module);
             }
-            walk_children(node, text, CodeLanguageKey::Cpp, level.saturating_add(1), in_container, out);
+            walk_children(
+                node,
+                text,
+                CodeLanguageKey::Cpp,
+                level.saturating_add(1),
+                in_container,
+                out,
+            );
         }
         _ => {
             walk_children(node, text, CodeLanguageKey::Cpp, level, in_container, out);
@@ -385,7 +469,11 @@ fn walk_json_node(node: &Node, text: &str, level: u8, out: &mut Vec<OutlineNode>
             }
         }
         "document" | "object" => {
-            let next_level = if node.kind() == "object" { level.saturating_add(1) } else { 1 };
+            let next_level = if node.kind() == "object" {
+                level.saturating_add(1)
+            } else {
+                1
+            };
             if next_level <= 2 {
                 walk_children(node, text, CodeLanguageKey::Json, next_level, false, out);
             }
@@ -434,9 +522,8 @@ fn walk_generic_node(
         }
     }
 
-    let is_new_container = kind_str.contains("class")
-        || kind_str.contains("struct")
-        || kind_str.contains("impl");
+    let is_new_container =
+        kind_str.contains("class") || kind_str.contains("struct") || kind_str.contains("impl");
 
     walk_children(
         node,
@@ -495,10 +582,7 @@ fn find_name_node<'a>(node: &Node<'a>, text: &'a str) -> Option<&'a str> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "identifier"
-            | "type_identifier"
-            | "field_identifier"
-            | "property_identifier" => {
+            "identifier" | "type_identifier" | "field_identifier" | "property_identifier" => {
                 let name = node_slice(&child, text);
                 if !name.is_empty() {
                     return Some(name);
@@ -562,13 +646,37 @@ fn helper() {}
             .map(|s| (s.label.as_str(), s.kind, s.level))
             .collect();
 
-        assert!(names.iter().any(|(name, kind, _)| *name == "parser" && *kind == OutlineNodeKind::Module));
-        assert!(names.iter().any(|(name, kind, _)| *name == "Editor" && *kind == OutlineNodeKind::Struct));
-        assert!(names.iter().any(|(name, kind, _)| *name == "State" && *kind == OutlineNodeKind::Enum));
-        assert!(names.iter().any(|(name, kind, _)| *name == "Runnable" && *kind == OutlineNodeKind::Trait));
-        assert!(names.iter().any(|(name, kind, _)| name.starts_with("impl") && *kind == OutlineNodeKind::Section));
-        assert!(names.iter().any(|(name, kind, lvl)| *name == "new" && *kind == OutlineNodeKind::Method && *lvl == 2));
-        assert!(names.iter().any(|(name, kind, lvl)| *name == "helper" && *kind == OutlineNodeKind::Function && *lvl == 1));
+        assert!(
+            names
+                .iter()
+                .any(|(name, kind, _)| *name == "parser" && *kind == OutlineNodeKind::Module)
+        );
+        assert!(
+            names
+                .iter()
+                .any(|(name, kind, _)| *name == "Editor" && *kind == OutlineNodeKind::Struct)
+        );
+        assert!(
+            names
+                .iter()
+                .any(|(name, kind, _)| *name == "State" && *kind == OutlineNodeKind::Enum)
+        );
+        assert!(
+            names
+                .iter()
+                .any(|(name, kind, _)| *name == "Runnable" && *kind == OutlineNodeKind::Trait)
+        );
+        assert!(
+            names.iter().any(
+                |(name, kind, _)| name.starts_with("impl") && *kind == OutlineNodeKind::Section
+            )
+        );
+        assert!(names.iter().any(|(name, kind, lvl)| *name == "new"
+            && *kind == OutlineNodeKind::Method
+            && *lvl == 2));
+        assert!(names.iter().any(|(name, kind, lvl)| *name == "helper"
+            && *kind == OutlineNodeKind::Function
+            && *lvl == 1));
     }
 
     #[test]

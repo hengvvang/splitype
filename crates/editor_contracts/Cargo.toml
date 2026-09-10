@@ -16,13 +16,11 @@ workspace = true
 rope = { workspace = true }
 platform_contracts = { path = "../platform_contracts" }
 splitter = { path = "../splitter" }
-config = { path = "../config" }
 gpui = { workspace = true }
 markdown_parser = { path = "../markdown_parser" }
 theme = { path = "../theme" }
 regex = "1.10"
 uuid = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
 

@@ -63,7 +63,10 @@ mod tests {
     use splitter::geometry::SplitAxis;
 
     fn leaf(id: u32, kind: &'static str) -> SplitTree<PanelKind> {
-        SplitTree::Leaf(SplitterContainer::new(splitter::LeafId::new(id), PanelKind::from_static(kind)))
+        SplitTree::Leaf(SplitterContainer::new(
+            splitter::LeafId::new(id),
+            PanelKind::from_static(kind),
+        ))
     }
 
     #[test]

@@ -83,7 +83,8 @@ impl ExplorerFilenameEditor {
         if self.text.is_empty() {
             return 0;
         }
-        let (Some(bounds), Some(line)) = (self.last_bounds.as_ref(), self.last_layout.as_ref()) else {
+        let (Some(bounds), Some(line)) = (self.last_bounds.as_ref(), self.last_layout.as_ref())
+        else {
             return 0;
         };
         let rel_x = position.x - bounds.left();

@@ -19,7 +19,10 @@ pub fn run() -> Result<()> {
         filters: Vec::new(),
     })?;
 
-    audit::run(audit::AuditArgs { strict: true })?;
+    audit::run(audit::AuditArgs {
+        strict: true,
+        offline: false,
+    })?;
 
     println!("\n✓ All local CI checks passed successfully. Safe to push!");
     Ok(())

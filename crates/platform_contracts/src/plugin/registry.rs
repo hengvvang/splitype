@@ -30,7 +30,6 @@ pub struct PluginRegistry {
     asset_providers: HashMap<PluginId, Arc<dyn PluginAssetProvider>>,
 }
 
-
 impl PluginRegistry {
     pub fn new() -> Self {
         Self::default()
@@ -148,7 +147,6 @@ impl PluginRegistry {
         Ok(provider.and_then(|p| p.load_asset(path)))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

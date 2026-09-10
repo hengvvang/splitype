@@ -16,4 +16,3 @@ pub trait OutlineHost: Send + Sync + 'static {
     /// Toggle or close outline docked/pinned state.
     fn toggle_docked(&self, _cx: &mut App) {}
 }
-

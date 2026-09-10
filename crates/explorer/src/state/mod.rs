@@ -262,7 +262,7 @@ impl DragExplorerTarget {
 
 // ── Explorer State ─────────────────────────────────────────────────────
 
-    /// Top-level explorer file-tree state.
+/// Top-level explorer file-tree state.
 pub struct ExplorerState {
     pub tree_visible: bool,
     /// Sorting mode (directories first, files first, mixed).
@@ -446,10 +446,7 @@ pub fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
         }
     }
 
-    a_bytes
-        .len()
-        .cmp(&b_bytes.len())
-        .then_with(|| a.cmp(b))
+    a_bytes.len().cmp(&b_bytes.len()).then_with(|| a.cmp(b))
 }
 
 /// Compare two entries in the same directory using ergonomic rules:
@@ -1004,7 +1001,10 @@ mod tests {
                 "splitype_test_{}_{}_{}",
                 std::process::id(),
                 COUNTER.fetch_add(1, Ordering::Relaxed),
-                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
             ));
             let _ = std::fs::create_dir_all(&dir);
             Self(dir)
@@ -1033,7 +1033,7 @@ mod tests {
 
         // 1. With disambiguate = true (drag-copy with collision): creates "file copy.txt"
         let changes = crate::state::utils::execute_entry_ops(
-            &[src_file.clone()],
+            std::slice::from_ref(&src_file),
             &target_dir,
             false,
             true,
@@ -1048,7 +1048,7 @@ mod tests {
 
         // 2. With disambiguate = false (external replace drop): overwrites "file.txt"
         let changes = crate::state::utils::execute_entry_ops(
-            &[src_file.clone()],
+            std::slice::from_ref(&src_file),
             &target_dir,
             false,
             false,
@@ -1109,9 +1109,9 @@ mod tests {
 
         // 1. Moving file1 from folder_a into folder_b (dragging onto folder_b or file in folder_b)
         let changes = crate::state::utils::execute_entry_ops(
-            &[file1.clone()],
+            std::slice::from_ref(&file1),
             &folder_b,
-            true,  // is_cut (move)
+            true, // is_cut (move)
             false,
         );
         assert_eq!(changes.len(), 1);
@@ -1122,12 +1122,16 @@ mod tests {
 
         // 2. Moving file1 into folder_b again (same parent directory / sibling file): should be a no-op
         let noop_changes = crate::state::utils::execute_entry_ops(
-            &[dest.clone()],
+            std::slice::from_ref(&dest),
             &folder_b,
             true,
             false,
         );
-        assert_eq!(noop_changes.len(), 0, "moving a file into its own parent directory is a no-op");
+        assert_eq!(
+            noop_changes.len(),
+            0,
+            "moving a file into its own parent directory is a no-op"
+        );
         assert!(dest.exists());
     }
 
@@ -1155,7 +1159,11 @@ mod tests {
         if !marked.contains(&target_selection) {
             marked.clear();
         }
-        assert_eq!(marked.len(), 2, "multi-selection should remain intact when right-clicking a marked item");
+        assert_eq!(
+            marked.len(),
+            2,
+            "multi-selection should remain intact when right-clicking a marked item"
+        );
         assert_eq!(selected, Some(entry1));
 
         // Case 2: Right-clicking entry3 (not in multi-selection)
@@ -1169,7 +1177,10 @@ mod tests {
         if !marked.contains(&target_selection_unmarked) {
             marked.clear();
         }
-        assert!(marked.is_empty(), "marked entries should clear when right-clicking an unmarked item");
+        assert!(
+            marked.is_empty(),
+            "marked entries should clear when right-clicking an unmarked item"
+        );
         assert_eq!(selected, Some(entry3));
 
         // Case 3: Context menu open state marks target path as active highlight target
@@ -1184,7 +1195,13 @@ mod tests {
 
         let is_menu_target_path1 = file_menu.as_ref().is_some_and(|m| m.path == path1);
         let is_menu_target_path2 = file_menu.as_ref().is_some_and(|m| m.path == path2);
-        assert!(is_menu_target_path1, "file1 should be recognized as active context menu target");
-        assert!(!is_menu_target_path2, "file2 should not be recognized as active context menu target");
+        assert!(
+            is_menu_target_path1,
+            "file1 should be recognized as active context menu target"
+        );
+        assert!(
+            !is_menu_target_path2,
+            "file2 should not be recognized as active context menu target"
+        );
     }
 }

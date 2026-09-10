@@ -14,7 +14,6 @@ config = { path = "../config" }
 platform_contracts = { path = "../platform_contracts" }
 gpui = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
 editor_contracts = { path = "../editor_contracts" }
 ui = { path = "../ui" }
 markdown_parser = { path = "../markdown_parser" }

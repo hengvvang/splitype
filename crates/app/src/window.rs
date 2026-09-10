@@ -7,6 +7,7 @@ use anyhow::Context as _;
 use gpui::*;
 
 use crate::chrome::MenuBarState;
+use crate::chrome::custom_titlebar::splitype_window_options;
 use crate::layout::WindowPanels;
 use crate::menus::install_menus;
 use crate::shell::Shell;
@@ -14,7 +15,6 @@ use config::recent::record_recent_file;
 use platform_contracts::{PanelId, PanelKind};
 use splitter::LeafId;
 use splitter::tree::SplitTree;
-use crate::chrome::custom_titlebar::splitype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {
@@ -127,7 +127,8 @@ pub fn open_restored_window(
     let mut retained = HashMap::new();
     let panels = std::mem::take(&mut state.panels);
     for panel in panels {
-        let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(panel.kind.clone()) else {
+        let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(panel.kind.clone())
+        else {
             tracing::warn!(
                 kind = %panel.kind,
                 "skipping persisted panel without a registered descriptor"

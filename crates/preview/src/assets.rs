@@ -1,7 +1,7 @@
 //! Embedded SVG icon asset catalog for the Preview plugin.
 
-use std::borrow::Cow;
 use platform_contracts::PluginAssetProvider;
+use std::borrow::Cow;
 
 pub struct PreviewAssets;
 

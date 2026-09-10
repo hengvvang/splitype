@@ -90,11 +90,12 @@ impl Shell {
             .child(panel_card);
 
         if !is_maximized {
-            let titlebar_height = crate::chrome::custom_titlebar::custom_titlebar_height_for_target_os(
-                std::env::consts::OS,
-                Decorations::Server,
-                &theme.dimensions,
-            );
+            let titlebar_height =
+                crate::chrome::custom_titlebar::custom_titlebar_height_for_target_os(
+                    std::env::consts::OS,
+                    Decorations::Server,
+                    &theme.dimensions,
+                );
 
             let shell_corner = cx.entity().downgrade();
             let overlay_style = OverlayStyle::from_theme(theme);

@@ -6,7 +6,7 @@
 //! - Bottom: Horizontal Scrollbar
 
 use crate::pane::PaneId;
-use gpui::{InteractiveElement, div, px, AnyElement, IntoElement, ParentElement, Styled};
+use gpui::{AnyElement, InteractiveElement, IntoElement, ParentElement, Styled, div, px};
 
 /// Assembles a pane's visual tree using parallel non-floating columns.
 pub fn render_pane_layout(

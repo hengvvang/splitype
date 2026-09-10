@@ -16,4 +16,3 @@ pub use manifest::{
     PluginEntry, PluginManifest, PluginManifestError, PluginResources, ThemeFamilyDeclaration,
 };
 pub use registry::{PluginRegistry, PluginRegistryError};
-

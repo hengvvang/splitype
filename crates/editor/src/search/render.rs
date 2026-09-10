@@ -24,12 +24,6 @@ impl Editor {
         }
         let host: Arc<dyn SearchHost> =
             crate::editor::search_host::EditorSearchHost::new(cx.weak_entity());
-        crate::search::panel::render_search_panel_overlay(
-            &self.search,
-            &host,
-            theme,
-            window,
-            cx,
-        )
+        crate::search::panel::render_search_panel_overlay(&self.search, &host, theme, window, cx)
     }
 }

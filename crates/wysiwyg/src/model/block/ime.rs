@@ -28,7 +28,6 @@ impl EntityInputHandler for Block {
             let start = range.start.min(text.len());
             let end = range.end.min(text.len());
             return Some(text[start..end].to_string());
-
         }
 
         let range = self.range_from_utf16(&range_utf16);

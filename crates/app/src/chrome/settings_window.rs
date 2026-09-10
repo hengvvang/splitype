@@ -3,13 +3,15 @@
 
 use gpui::*;
 
-use config::language::I18nManager;
-use theme::ThemeManager;
 use crate::chrome::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
+use config::language::I18nManager;
+use theme::ThemeManager;
 
-use settings::{SettingsUiState, render_settings_body, render_settings_bottombar, COMPACT_BREAKPOINT};
+use settings::{
+    COMPACT_BREAKPOINT, SettingsUiState, render_settings_body, render_settings_bottombar,
+};
 
 /// Independent standalone settings window view.
 pub struct SettingsWindow {

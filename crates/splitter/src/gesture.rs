@@ -43,10 +43,7 @@ impl AreaDockTarget {
     /// Returns `true` if this target represents docking to an edge (Top, Bottom, Left, or Right).
     #[inline]
     pub const fn is_edge_dock(self) -> bool {
-        matches!(
-            self,
-            Self::Top | Self::Bottom | Self::Left | Self::Right
-        )
+        matches!(self, Self::Top | Self::Bottom | Self::Left | Self::Right)
     }
 
     /// Returns `true` if this target represents hovering the center for an area swap.

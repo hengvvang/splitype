@@ -4,16 +4,16 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::actions::{NoRecentFiles, SelectLanguage, SelectTheme};
+use crate::chrome::menu_geometry::{
+    menu_item_visual_height, menu_items_visual_height_with_gaps, menu_panel_left,
+    menu_panel_width_for_labels, owned_menu_item_labels, submenu_panel_top,
+};
 use crate::menus::{MenuDispatchTarget, dispatch_menu_action};
 use crate::shell::Shell;
 use config::language::I18nManager;
 use config::settings::Appearance;
 use platform_contracts::PanelId;
 use theme::{Theme, ThemeManager};
-use crate::chrome::menu_geometry::{
-    menu_item_visual_height, menu_items_visual_height_with_gaps, menu_panel_left,
-    menu_panel_width_for_labels, owned_menu_item_labels, submenu_panel_top,
-};
 use ui::menu_item::{menu_item, menu_item_row};
 use ui::popover::menu_panel;
 

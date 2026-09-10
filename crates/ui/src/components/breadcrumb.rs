@@ -164,7 +164,10 @@ mod tests {
         );
 
         let normal = Path::new(r"C:\Users\test\project\README.md");
-        assert_eq!(strip_verbatim_prefix(normal), PathBuf::from(r"C:\Users\test\project\README.md"));
+        assert_eq!(
+            strip_verbatim_prefix(normal),
+            PathBuf::from(r"C:\Users\test\project\README.md")
+        );
     }
 
     #[test]
@@ -177,4 +180,3 @@ mod tests {
         assert!(formatted.ends_with("README.md"));
     }
 }
-

@@ -198,4 +198,3 @@ mod tests {
         assert_eq!(code_language_display_name("unknown_xyz"), "unknown_xyz");
     }
 }
-

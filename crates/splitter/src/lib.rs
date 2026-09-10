@@ -34,8 +34,8 @@ pub use geometry::{
     calculate_join_slice_rect, id_at_point,
 };
 pub use gesture::{
-    AreaDockTarget, BorderMenuState, CornerDragModifier, CornerDragSession,
-    MODIFIER_THRESHOLD_PX, SplitterDragSession, past_shortcut_threshold,
+    AreaDockTarget, BorderMenuState, CornerDragModifier, CornerDragSession, MODIFIER_THRESHOLD_PX,
+    SplitterDragSession, past_shortcut_threshold,
 };
 pub use id::{LeafId, NodeId, NodeIdAllocator, SplitId};
 pub use interaction::LayoutInteraction;

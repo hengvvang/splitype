@@ -1,7 +1,7 @@
 //! Embedded SVG icon asset catalog for the Explorer plugin.
 
-use std::borrow::Cow;
 use platform_contracts::PluginAssetProvider;
+use std::borrow::Cow;
 
 pub struct ExplorerAssets;
 
@@ -69,9 +69,7 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         ))),
 
         // ── Explorer: panel top bar (panel header) ──────────────
-        "panel.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/panel.svg"
-        ))),
+        "panel.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/panel.svg"))),
         "topbar/check.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/check.svg"
         ))),

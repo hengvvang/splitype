@@ -73,9 +73,11 @@ impl Editor {
                                         )
                                     })
                                     .unwrap_or(pos);
-                                ed.session_mut()
-                                    .root
-                                    .start_corner_drag(pane_id.leaf_id(), local, modifier);
+                                ed.session_mut().root.start_corner_drag(
+                                    pane_id.leaf_id(),
+                                    local,
+                                    modifier,
+                                );
                                 cx.notify();
                             });
                         },
@@ -332,7 +334,8 @@ impl Editor {
             .find_leaf_kind(pane_id.leaf_id())
             .or_else(|| self.pane_state_ref(pane_id).map(|s| s.pane().kind()))
             .unwrap_or_else(|| self.default_pane_kind());
-        let (effective_kind, read_only) = Self::resolve_effective_pane(&configured_kind, Some(&document));
+        let (effective_kind, read_only) =
+            Self::resolve_effective_pane(&configured_kind, Some(&document));
         let is_outline_docked = self.is_outline_enabled_for_kind(&configured_kind);
 
         if let Some(state) = self.pane_state_mut(pane_id) {

@@ -61,7 +61,6 @@ pub fn render_floating_outline_hud(
                     .gap(px(6.0))
                     .when(is_active, |this| this.bg(c.panel_row_hover))
                     .hover(|style| style.bg(c.panel_row_hover))
-
                     .children(node.kind.badge_label().map(|tag| {
                         div()
                             .flex_shrink_0()

@@ -189,11 +189,23 @@ mod tests {
         let mut state = SettingsUiState::new();
         assert!(state.search_queries.is_empty());
 
-        state.search_queries.insert("font_family".to_string(), "cascadia".to_string());
-        assert_eq!(state.search_queries.get("font_family").map(|s| s.as_str()), Some("cascadia"));
+        state
+            .search_queries
+            .insert("font_family".to_string(), "cascadia".to_string());
+        assert_eq!(
+            state.search_queries.get("font_family").map(|s| s.as_str()),
+            Some("cascadia")
+        );
 
-        state.search_queries.insert("theme-overrides".to_string(), "border".to_string());
-        assert_eq!(state.search_queries.get("theme-overrides").map(|s| s.as_str()), Some("border"));
+        state
+            .search_queries
+            .insert("theme-overrides".to_string(), "border".to_string());
+        assert_eq!(
+            state
+                .search_queries
+                .get("theme-overrides")
+                .map(|s| s.as_str()),
+            Some("border")
+        );
     }
 }
-

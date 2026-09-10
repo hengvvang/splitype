@@ -282,13 +282,13 @@ mod tests {
 
     #[test]
     fn test_code_language_picker_cursor_offset() {
-        let mut picker = CodeLanguagePickerState::default();
-        picker.selected_range = 2..5;
-        picker.selection_reversed = false;
+        let mut picker = CodeLanguagePickerState {
+            selected_range: 2..5,
+            ..Default::default()
+        };
         assert_eq!(picker.cursor_offset(), 5);
 
         picker.selection_reversed = true;
         assert_eq!(picker.cursor_offset(), 2);
     }
 }
-

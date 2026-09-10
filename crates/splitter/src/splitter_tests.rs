@@ -91,12 +91,18 @@ fn split_is_disallowed_when_maximized() {
 
     // Attempt to split while maximized - must fail with LayoutMaximized error
     let split_attempt = root.split_leaf(1, SplitAxis::Vertical, 0.5);
-    assert!(matches!(split_attempt, Err(SplitterError::LayoutMaximized(_))));
+    assert!(matches!(
+        split_attempt,
+        Err(SplitterError::LayoutMaximized(_))
+    ));
     assert_eq!(root.tree.count_leaves(), 2);
 
     // Attempt to split leaf 2 while leaf 1 is maximized - must fail
     let split_attempt2 = root.split_leaf(new_id, SplitAxis::Vertical, 0.5);
-    assert!(matches!(split_attempt2, Err(SplitterError::LayoutMaximized(_))));
+    assert!(matches!(
+        split_attempt2,
+        Err(SplitterError::LayoutMaximized(_))
+    ));
     assert_eq!(root.tree.count_leaves(), 2);
 
     // Start corner drag while maximized - must be a no-op
@@ -195,10 +201,7 @@ fn structured_error_handling_in_topology() {
     let mut root = new_root();
 
     // Cannot remove or close the sole remaining leaf
-    assert_eq!(
-        root.close_leaf(1),
-        Err(SplitterError::CannotRemoveLastLeaf)
-    );
+    assert_eq!(root.close_leaf(1), Err(SplitterError::CannotRemoveLastLeaf));
 
     // Invalid split ratio
     assert_eq!(
@@ -226,7 +229,9 @@ fn structured_error_handling_in_topology() {
     let leaf2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
     let split_id = SplitId::from_usize(leaf2.as_usize() - 1);
 
-    let leaf3 = root.split_divider(split_id, SplitAxis::Vertical, 0.5).unwrap();
+    let leaf3 = root
+        .split_divider(split_id, SplitAxis::Vertical, 0.5)
+        .unwrap();
     assert_eq!(root.tree.count_leaves(), 3);
     assert!(root.tree.contains_leaf(leaf3));
 }

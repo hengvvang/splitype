@@ -21,7 +21,6 @@ impl AssetSource for SplitypeAssets {
     }
 }
 
-
 impl SplitypeAssets {
     /// Populate the [`TextSystem`] with all 9 embedded Lexend font variants.
     pub fn load_fonts(cx: &App) -> gpui::Result<()> {

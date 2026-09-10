@@ -194,7 +194,8 @@ impl Shell {
             let Some(state) = view.clone_state(cx) else {
                 continue;
             };
-            let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(view.kind()) else {
+            let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(view.kind())
+            else {
                 continue;
             };
             let Some(json) = descriptor.serialize_state(state.as_ref()) else {
@@ -307,7 +308,10 @@ impl Shell {
         panel_id: impl Into<PanelId>,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.interaction.toggle_dropdown(panel_id.into().leaf_id());
+        self.panels
+            .layout
+            .interaction
+            .toggle_dropdown(panel_id.into().leaf_id());
         cx.notify();
     }
 
@@ -357,7 +361,10 @@ impl Shell {
         panel_id: impl Into<PanelId>,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.interaction.toggle_maximize(panel_id.into().leaf_id());
+        self.panels
+            .layout
+            .interaction
+            .toggle_maximize(panel_id.into().leaf_id());
         self.push_active_document_context(cx);
         cx.notify();
     }

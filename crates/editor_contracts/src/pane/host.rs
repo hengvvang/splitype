@@ -88,4 +88,3 @@ impl crate::outline::OutlineHost for PaneOutlineHost {
         self.host.toggle_outline_docked(self.pane_id, cx);
     }
 }
-

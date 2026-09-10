@@ -4,8 +4,8 @@ use gpui::OwnedMenuItem;
 use theme::ThemeDimensions;
 
 pub use ui::popover::{
-    estimated_menu_label_width, is_wide_menu_char, menu_panel_width_for_labels,
-    menu_panel_width_for_labels_with_size, MENU_PANEL_MAX_WIDTH,
+    MENU_PANEL_MAX_WIDTH, estimated_menu_label_width, is_wide_menu_char,
+    menu_panel_width_for_labels, menu_panel_width_for_labels_with_size,
 };
 
 // ── Menu bar button geometry ──────────────────────────────────────────────

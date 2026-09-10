@@ -1,8 +1,8 @@
 //! Editor pane operations of an Editor panel.
 
 use gpui::Context;
-use splitter::gesture::AreaDockTarget;
 use splitter::SplitAxis;
+use splitter::gesture::AreaDockTarget;
 
 use crate::editor::Editor;
 use crate::session::{EditorSession, PaneKind, PaneState};
@@ -32,7 +32,10 @@ impl Editor {
     }
 
     pub fn toggle_pane_dropdown(&mut self, pane_id: impl Into<PaneId>, cx: &mut Context<Self>) {
-        self.session.root.interaction.toggle_dropdown(pane_id.into().leaf_id());
+        self.session
+            .root
+            .interaction
+            .toggle_dropdown(pane_id.into().leaf_id());
         if let Some(host) = self.host.clone() {
             host.clear_outer_dropdowns(cx);
         }
@@ -86,7 +89,10 @@ impl Editor {
     }
 
     pub fn toggle_pane_maximize(&mut self, pane_id: impl Into<PaneId>) {
-        self.session.root.interaction.toggle_maximize(pane_id.into().leaf_id());
+        self.session
+            .root
+            .interaction
+            .toggle_maximize(pane_id.into().leaf_id());
     }
 
     /// Toggles the active pane's maximized state and refreshes the view.

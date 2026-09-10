@@ -15,19 +15,18 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 use serde_json::Value;
 
-use config::language::I18nManager;
-use config::settings::{CoreSettings, PluginSettings, PluginSettingsDefinition, SettingsStore};
-use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, SettingKind};
-use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
-use ui::select::{select_option, select_panel, select_trigger};
-use ui::switch::Switch;
-use ui::SearchInput;
 use crate::form::{
     NumberFieldProps, SearchableFontPickerProps, SettingsClickHandler, SettingsDismissHandler,
     SettingsKeyHandler, SettingsPasteHandler, nav_tab, render_number_field,
     render_searchable_font_picker, settings_expander_group, settings_group_item_row,
 };
-
+use config::language::I18nManager;
+use config::settings::{CoreSettings, PluginSettings, PluginSettingsDefinition, SettingsStore};
+use platform_contracts::{PluginManifest, PluginRegistry, SettingDeclaration, SettingKind};
+use theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
+use ui::SearchInput;
+use ui::select::{select_option, select_panel, select_trigger};
+use ui::switch::Switch;
 
 use crate::state::SettingsUiState;
 
@@ -57,12 +56,16 @@ pub fn declaration_matches(declaration: &SettingDeclaration, query: &str) -> boo
     }
 
     let title = declaration.title.to_lowercase();
-    let desc = declaration.description.as_deref().unwrap_or("").to_lowercase();
+    let desc = declaration
+        .description
+        .as_deref()
+        .unwrap_or("")
+        .to_lowercase();
     let key = declaration.key.to_lowercase();
 
-    words.iter().all(|w| {
-        title.contains(w) || desc.contains(w) || key.contains(w)
-    })
+    words
+        .iter()
+        .all(|w| title.contains(w) || desc.contains(w) || key.contains(w))
 }
 
 /// Whether a category matches the search query or contains matching settings.
@@ -97,26 +100,40 @@ pub fn category_matches(
                     .filter(|g| g.category == category_id)
                     .any(|g| {
                         g.title.to_lowercase().contains(query)
-                            || g.description.as_deref().unwrap_or_default().to_lowercase().contains(query)
+                            || g.description
+                                .as_deref()
+                                .unwrap_or_default()
+                                .to_lowercase()
+                                .contains(query)
                             || g.items.iter().any(|s| declaration_matches(s, query))
                     })
-                    || words.iter().all(|w| category_id.contains(w) || label_lower.contains(w))
+                    || words
+                        .iter()
+                        .all(|w| category_id.contains(w) || label_lower.contains(w))
             } else {
                 false
             }
         }
         NAV_COLOR_OVERRIDES => {
-            words.iter().all(|w| "color overrides".contains(w) || "colors".contains(w) || "tokens".contains(w))
-                || ThemeColors::TOKEN_FIELD_NAMES.iter().any(|field| {
-                    let field_lower = field.to_lowercase();
-                    words.iter().all(|w| field_lower.contains(w))
-                })
+            words.iter().all(|w| {
+                "color overrides".contains(w) || "colors".contains(w) || "tokens".contains(w)
+            }) || ThemeColors::TOKEN_FIELD_NAMES.iter().any(|field| {
+                let field_lower = field.to_lowercase();
+                words.iter().all(|w| field_lower.contains(w))
+            })
         }
         plugin_id => {
-            if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == plugin_id) {
+            if let Some(manifest) = panel_plugins
+                .iter()
+                .find(|m| m.plugin.as_str() == plugin_id)
+            {
                 manifest.settings.values().any(|g| {
                     g.title.to_lowercase().contains(query)
-                        || g.description.as_deref().unwrap_or_default().to_lowercase().contains(query)
+                        || g.description
+                            .as_deref()
+                            .unwrap_or_default()
+                            .to_lowercase()
+                            .contains(query)
                         || g.items.iter().any(|s| declaration_matches(s, query))
                 })
             } else {
@@ -145,7 +162,10 @@ pub fn count_total_search_matches(query: &str) -> usize {
     for field in ThemeColors::TOKEN_FIELD_NAMES {
         let field_lower = field.to_lowercase();
         let words: Vec<&str> = q.split_whitespace().collect();
-        if words.iter().all(|w| field_lower.contains(&w.to_lowercase())) {
+        if words
+            .iter()
+            .all(|w| field_lower.contains(&w.to_lowercase()))
+        {
             count += 1;
         }
     }
@@ -203,7 +223,9 @@ pub fn render_settings_body(
 
     let panel_plugins: Vec<Arc<PluginManifest>> = manifests
         .into_iter()
-        .filter(|manifest| manifest.plugin.as_str() != "splitype.core" && !manifest.settings.is_empty())
+        .filter(|manifest| {
+            manifest.plugin.as_str() != "splitype.core" && !manifest.settings.is_empty()
+        })
         .collect();
 
     let query = state.read(cx).search_query.trim().to_string();
@@ -220,7 +242,10 @@ pub fn render_settings_body(
             vec![
                 (NAV_GENERAL.to_string(), "General".to_string()),
                 (NAV_APPEARANCE.to_string(), "Appearance".to_string()),
-                (NAV_COLOR_OVERRIDES.to_string(), "Color Overrides".to_string()),
+                (
+                    NAV_COLOR_OVERRIDES.to_string(),
+                    "Color Overrides".to_string(),
+                ),
                 (NAV_TYPOGRAPHY.to_string(), "Typography".to_string()),
             ]
         });
@@ -228,7 +253,13 @@ pub fn render_settings_body(
     let visible_pref_items: Vec<_> = pref_items
         .into_iter()
         .filter(|(item_id, label)| {
-            category_matches(item_id, label, core_manifest.as_deref(), &panel_plugins, &query)
+            category_matches(
+                item_id,
+                label,
+                core_manifest.as_deref(),
+                &panel_plugins,
+                &query,
+            )
         })
         .collect();
 
@@ -255,8 +286,12 @@ pub fn render_settings_body(
 
     // Auto-switch to first visible category if current active category is hidden by search
     let active_id = if !query.is_empty() {
-        let is_active_visible = visible_pref_items.iter().any(|(id, _)| *id == initial_active_id)
-            || visible_panel_plugins.iter().any(|m| m.plugin.as_str() == initial_active_id);
+        let is_active_visible = visible_pref_items
+            .iter()
+            .any(|(id, _)| *id == initial_active_id)
+            || visible_panel_plugins
+                .iter()
+                .any(|m| m.plugin.as_str() == initial_active_id);
         if !is_active_visible {
             if let Some((first_pref, _)) = visible_pref_items.first() {
                 let first_id = first_pref.to_string();
@@ -344,24 +379,80 @@ pub fn render_settings_body(
         );
     }
 
-    let content = if visible_pref_items.is_empty() && visible_panel_plugins.is_empty() && !query.is_empty() {
+    let content = if visible_pref_items.is_empty()
+        && visible_panel_plugins.is_empty()
+        && !query.is_empty()
+    {
         render_no_results(&query, c)
     } else {
         match active_id.as_str() {
-            NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
-            NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
-            NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, &query, theme, cx),
-            NAV_TYPOGRAPHY => render_typography_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+            NAV_GENERAL => render_general_page(
+                id_namespace,
+                &state,
+                core_manifest.as_deref(),
+                &query,
+                theme,
+                cx,
+            ),
+            NAV_APPEARANCE => render_appearance_page(
+                id_namespace,
+                &state,
+                core_manifest.as_deref(),
+                &query,
+                theme,
+                cx,
+            ),
+            NAV_COLOR_OVERRIDES => {
+                render_color_overrides_page(id_namespace, &state, &query, theme, cx)
+            }
+            NAV_TYPOGRAPHY => render_typography_page(
+                id_namespace,
+                &state,
+                core_manifest.as_deref(),
+                &query,
+                theme,
+                cx,
+            ),
             other => {
                 if let Some(manifest) = panel_plugins.iter().find(|m| m.plugin.as_str() == other) {
                     render_plugin_page(id_namespace, &state, manifest, &query, theme, cx)
                 } else if let Some((first_pref, _)) = visible_pref_items.first() {
                     match first_pref.as_str() {
-                        NAV_GENERAL => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
-                        NAV_APPEARANCE => render_appearance_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
-                        NAV_COLOR_OVERRIDES => render_color_overrides_page(id_namespace, &state, &query, theme, cx),
-                        NAV_TYPOGRAPHY => render_typography_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
-                        _ => render_general_page(id_namespace, &state, core_manifest.as_deref(), &query, theme, cx),
+                        NAV_GENERAL => render_general_page(
+                            id_namespace,
+                            &state,
+                            core_manifest.as_deref(),
+                            &query,
+                            theme,
+                            cx,
+                        ),
+                        NAV_APPEARANCE => render_appearance_page(
+                            id_namespace,
+                            &state,
+                            core_manifest.as_deref(),
+                            &query,
+                            theme,
+                            cx,
+                        ),
+                        NAV_COLOR_OVERRIDES => {
+                            render_color_overrides_page(id_namespace, &state, &query, theme, cx)
+                        }
+                        NAV_TYPOGRAPHY => render_typography_page(
+                            id_namespace,
+                            &state,
+                            core_manifest.as_deref(),
+                            &query,
+                            theme,
+                            cx,
+                        ),
+                        _ => render_general_page(
+                            id_namespace,
+                            &state,
+                            core_manifest.as_deref(),
+                            &query,
+                            theme,
+                            cx,
+                        ),
                     }
                 } else {
                     render_no_results(&query, c)
@@ -415,7 +506,9 @@ pub fn render_settings_body(
         if is_menu_open {
             let backdrop_state = state.clone();
             let backdrop = div()
-                .id(ElementId::Name(format!("{id_namespace}-menu-backdrop").into()))
+                .id(ElementId::Name(
+                    format!("{id_namespace}-menu-backdrop").into(),
+                ))
                 .absolute()
                 .inset_0()
                 .bg(rgba(0x00000033))
@@ -427,7 +520,9 @@ pub fn render_settings_body(
                 });
 
             let floating_drawer = div()
-                .id(ElementId::Name(format!("{id_namespace}-floating-menu").into()))
+                .id(ElementId::Name(
+                    format!("{id_namespace}-floating-menu").into(),
+                ))
                 .absolute()
                 .top_0()
                 .bottom_0()
@@ -488,11 +583,7 @@ fn render_nav_item(
     };
 
     tab = tab
-        .child(
-            div()
-                .text_size(px(13.0))
-                .child(label_elem),
-        )
+        .child(div().text_size(px(13.0)).child(label_elem))
         .on_click(move |_event, _window, cx| {
             nav_state.update(cx, |ui, _| {
                 ui.active_plugin = target.clone();
@@ -524,7 +615,9 @@ fn render_setting_group(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    let is_collapsed = state.read(cx).is_group_collapsed(group_id, default_collapsed);
+    let is_collapsed = state
+        .read(cx)
+        .is_group_collapsed(group_id, default_collapsed);
     let state_clone = state.clone();
     let gid = group_id.to_string();
 
@@ -604,7 +697,11 @@ fn render_group_descriptors(
         let filtered_decls: Vec<_> = group
             .declarations
             .iter()
-            .filter(|d| query.is_empty() || declaration_matches(d, query) || group.title.to_lowercase().contains(query))
+            .filter(|d| {
+                query.is_empty()
+                    || declaration_matches(d, query)
+                    || group.title.to_lowercase().contains(query)
+            })
             .collect();
 
         if filtered_decls.is_empty() {
@@ -614,7 +711,16 @@ fn render_group_descriptors(
         let rows: Vec<AnyElement> = filtered_decls
             .into_iter()
             .map(|declaration| {
-                render_setting_row(id_namespace, state, plugin_id, declaration, query, true, theme, cx)
+                render_setting_row(
+                    id_namespace,
+                    state,
+                    plugin_id,
+                    declaration,
+                    query,
+                    true,
+                    theme,
+                    cx,
+                )
             })
             .collect();
 
@@ -749,7 +855,13 @@ fn render_color_overrides_page(
         .flex()
         .flex_col()
         .gap(px(12.0))
-        .child(render_theme_overrides_panel(id_namespace, state, query, theme, cx))
+        .child(render_theme_overrides_panel(
+            id_namespace,
+            state,
+            query,
+            theme,
+            cx,
+        ))
         .into_any_element()
 }
 
@@ -805,7 +917,8 @@ fn render_plugin_page(
     let plugin_id = manifest.plugin.as_str();
 
     let groups = settings_groups(manifest);
-    let section_elements = render_group_descriptors(id_namespace, state, plugin_id, groups, query, theme, cx);
+    let section_elements =
+        render_group_descriptors(id_namespace, state, plugin_id, groups, query, theme, cx);
 
     if section_elements.is_empty() && !query.is_empty() {
         return render_no_results(query, c);
@@ -1273,12 +1386,16 @@ fn render_text_control(
         focus_handle.clone(),
     ))
     .on_key_down(on_key_down)
-    .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
-        on_dismiss(action, window, cx);
-    })
-    .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
-        on_paste(action, window, cx);
-    })
+    .on_action(
+        move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            on_dismiss(action, window, cx);
+        },
+    )
+    .on_action(
+        move |action: &platform_contracts::actions::Paste, window, cx| {
+            on_paste(action, window, cx);
+        },
+    )
     .into_any_element()
 }
 
@@ -1387,13 +1504,7 @@ fn render_picker(
                 } else {
                     c.text_default
                 })
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .child(option_label),
-                )
+                .child(div().flex_1().min_w(px(0.0)).truncate().child(option_label))
                 .child(if is_selected {
                     svg()
                         .path("plugin://splitype.settings/checkmark.svg")
@@ -1443,7 +1554,9 @@ fn render_picker(
             );
 
             let list_container = div()
-                .id(ElementId::Name(format!("{id_namespace}-picker-{key}-list").into()))
+                .id(ElementId::Name(
+                    format!("{id_namespace}-picker-{key}-list").into(),
+                ))
                 .w_full()
                 .max_h(px(240.0))
                 .overflow_y_scroll()
@@ -1561,10 +1674,7 @@ fn editable_key_handler(
 
 /// Builds an inline-edit dismiss handler: Escape / DismissTransientUi cancels
 /// the buffer and stops propagation.
-fn editable_dismiss_handler(
-    state: Entity<SettingsUiState>,
-    key: String,
-) -> SettingsDismissHandler {
+fn editable_dismiss_handler(state: Entity<SettingsUiState>, key: String) -> SettingsDismissHandler {
     Box::new(
         move |_: &platform_contracts::actions::DismissTransientUi, _window, cx| {
             cx.stop_propagation();
@@ -1582,25 +1692,27 @@ fn editable_paste_handler(
     key: String,
     numeric_only: bool,
 ) -> SettingsPasteHandler {
-    Box::new(
-        move |_: &platform_contracts::actions::Paste, _window, cx| {
-            cx.stop_propagation();
-            let text = cx.read_from_clipboard().and_then(|item| item.text());
-            if let Some(text) = text {
-                let accepted = if numeric_only {
-                    text.chars().all(|ch| ch.is_ascii_digit() || ch == '.' || ch == '-')
-                } else {
-                    !text.chars().any(|ch| ch.is_control())
-                };
-                if accepted && !text.is_empty() {
-                    state.update(cx, |ui, _| {
-                        ui.edit_buffers.entry(key.clone()).or_default().push_str(&text);
-                    });
-                    cx.refresh_windows();
-                }
+    Box::new(move |_: &platform_contracts::actions::Paste, _window, cx| {
+        cx.stop_propagation();
+        let text = cx.read_from_clipboard().and_then(|item| item.text());
+        if let Some(text) = text {
+            let accepted = if numeric_only {
+                text.chars()
+                    .all(|ch| ch.is_ascii_digit() || ch == '.' || ch == '-')
+            } else {
+                !text.chars().any(|ch| ch.is_control())
+            };
+            if accepted && !text.is_empty() {
+                state.update(cx, |ui, _| {
+                    ui.edit_buffers
+                        .entry(key.clone())
+                        .or_default()
+                        .push_str(&text);
+                });
+                cx.refresh_windows();
             }
-        },
-    )
+        }
+    })
 }
 
 /// Writes a numeric setting value, clamping to the declared bounds.
@@ -1726,15 +1838,7 @@ fn render_theme_overrides_panel(
             cx,
         );
         rows.push(settings_group_item_row(
-            c,
-            d,
-            None,
-            &display,
-            &desc,
-            query,
-            reset,
-            control,
-            true,
+            c, d, None, &display, &desc, query, reset, control, true,
         ));
     }
 
@@ -1832,15 +1936,7 @@ fn render_dimension_overrides_card(
             format_number(effective, 0.01),
         );
         rows.push(settings_group_item_row(
-            c,
-            d,
-            None,
-            field,
-            &desc,
-            query,
-            reset,
-            control,
-            true,
+            c, d, None, field, &desc, query, reset, control, true,
         ));
     }
 
@@ -1884,7 +1980,8 @@ fn render_typography_overrides_card(
     let mut rows: Vec<AnyElement> = Vec::new();
     for field in theme::TYPOGRAPHY_SIZE_FIELDS {
         let is_matched = !query_lower.is_empty() && field.to_lowercase().contains(&query_lower);
-        if !query_lower.is_empty() && !is_matched && !"typography overrides".contains(&query_lower) {
+        if !query_lower.is_empty() && !is_matched && !"typography overrides".contains(&query_lower)
+        {
             continue;
         }
         let effective = resolved
@@ -1932,20 +2029,13 @@ fn render_typography_overrides_card(
             format_number(effective, 0.01),
         );
         rows.push(settings_group_item_row(
-            c,
-            d,
-            None,
-            field,
-            &desc,
-            query,
-            reset,
-            control,
-            true,
+            c, d, None, field, &desc, query, reset, control, true,
         ));
     }
     for field in theme::TYPOGRAPHY_WEIGHT_FIELDS {
         let is_matched = !query_lower.is_empty() && field.to_lowercase().contains(&query_lower);
-        if !query_lower.is_empty() && !is_matched && !"typography overrides".contains(&query_lower) {
+        if !query_lower.is_empty() && !is_matched && !"typography overrides".contains(&query_lower)
+        {
             continue;
         }
         let effective = resolved
@@ -1976,15 +2066,7 @@ fn render_typography_overrides_card(
             effective,
         );
         rows.push(settings_group_item_row(
-            c,
-            d,
-            None,
-            field,
-            &desc,
-            query,
-            reset,
-            control,
-            true,
+            c, d, None, field, &desc, query, reset, control, true,
         ));
     }
 
@@ -2062,9 +2144,10 @@ fn render_editable_number_control(
     let focus_handle = state.update(cx, |ui, cx| ui.focus_handle(edit_key, cx));
     let commit = Arc::new(commit);
     let commit_key = edit_key.to_string();
-    let on_key_down = editable_key_handler(state.clone(), commit_key.clone(), true, move |cx, text| {
-        commit(cx, text);
-    });
+    let on_key_down =
+        editable_key_handler(state.clone(), commit_key.clone(), true, move |cx, text| {
+            commit(cx, text);
+        });
 
     let on_dismiss = editable_dismiss_handler(state.clone(), commit_key.clone());
     let on_paste = editable_paste_handler(state.clone(), commit_key, true);
@@ -2072,9 +2155,7 @@ fn render_editable_number_control(
     let is_active = is_editing || overridden;
 
     ui::input_trigger(
-        ElementId::Name(
-            format!("{id_namespace}-number-{edit_key}").into(),
-        ),
+        ElementId::Name(format!("{id_namespace}-number-{edit_key}").into()),
         px(130.0),
         is_active,
         c,
@@ -2102,12 +2183,16 @@ fn render_editable_number_control(
         focus_handle.clone(),
     ))
     .on_key_down(on_key_down)
-    .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
-        on_dismiss(action, window, cx);
-    })
-    .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
-        on_paste(action, window, cx);
-    })
+    .on_action(
+        move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            on_dismiss(action, window, cx);
+        },
+    )
+    .on_action(
+        move |action: &platform_contracts::actions::Paste, window, cx| {
+            on_paste(action, window, cx);
+        },
+    )
     .into_any_element()
 }
 
@@ -2193,13 +2278,7 @@ fn render_weight_control(
                 } else {
                     c.text_default
                 })
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .child(weight),
-                )
+                .child(div().flex_1().min_w(px(0.0)).truncate().child(weight))
                 .child(if weight == effective {
                     svg()
                         .path("plugin://splitype.settings/checkmark.svg")
@@ -2298,9 +2377,7 @@ fn render_color_control(
     let is_active = is_editing || overridden;
 
     ui::input_trigger(
-        ElementId::Name(
-            format!("{id_namespace}-color-{token_key}").into(),
-        ),
+        ElementId::Name(format!("{id_namespace}-color-{token_key}").into()),
         px(130.0),
         is_active,
         c,
@@ -2339,12 +2416,16 @@ fn render_color_control(
         focus_handle.clone(),
     ))
     .on_key_down(on_key_down)
-    .on_action(move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
-        on_dismiss(action, window, cx);
-    })
-    .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
-        on_paste(action, window, cx);
-    })
+    .on_action(
+        move |action: &platform_contracts::actions::DismissTransientUi, window, cx| {
+            on_dismiss(action, window, cx);
+        },
+    )
+    .on_action(
+        move |action: &platform_contracts::actions::Paste, window, cx| {
+            on_paste(action, window, cx);
+        },
+    )
     .into_any_element()
 }
 
@@ -2410,9 +2491,7 @@ fn render_installed_themes_panel(
             },
         );
         let control = ui::compact_secondary_button(
-            ElementId::Name(
-                format!("{id_namespace}-remove-{family_id}").into(),
-            ),
+            ElementId::Name(format!("{id_namespace}-remove-{family_id}").into()),
             c,
             d,
         )
@@ -2556,7 +2635,13 @@ mod tests {
     fn test_category_matches() {
         // Label matches directly
         assert!(category_matches(NAV_GENERAL, "General", None, &[], "gen"));
-        assert!(category_matches(NAV_TYPOGRAPHY, "Typography", None, &[], "typo"));
+        assert!(category_matches(
+            NAV_TYPOGRAPHY,
+            "Typography",
+            None,
+            &[],
+            "typo"
+        ));
 
         // Child setting matches in core manifest
         let core_manifest: PluginManifest = serde_json::from_value(serde_json::json!({
@@ -2580,10 +2665,23 @@ mod tests {
                     ]
                 }
             }
-        })).expect("manifest deserialize");
+        }))
+        .expect("manifest deserialize");
 
-        assert!(category_matches(NAV_GENERAL, "General", Some(&core_manifest), &[], "startup"));
-        assert!(!category_matches(NAV_TYPOGRAPHY, "Typography", Some(&core_manifest), &[], "startup"));
+        assert!(category_matches(
+            NAV_GENERAL,
+            "General",
+            Some(&core_manifest),
+            &[],
+            "startup"
+        ));
+        assert!(!category_matches(
+            NAV_TYPOGRAPHY,
+            "Typography",
+            Some(&core_manifest),
+            &[],
+            "startup"
+        ));
     }
 
     #[test]
@@ -2596,4 +2694,3 @@ mod tests {
         assert_eq!(state.search_query, "");
     }
 }
-

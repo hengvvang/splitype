@@ -1,12 +1,12 @@
 //! Unit tests for modern strong-typed IDs, domain errors, and LayoutInteraction.
 
 use crate::error::SplitterError;
-use crate::id::{LeafId, NodeId, NodeIdAllocator, SplitId};
-use crate::interaction::LayoutInteraction;
 use crate::geometry::SplitAxis;
 use crate::gesture::{
     AreaDockTarget, BorderMenuState, CornerDragModifier, CornerDragSession, SplitterDragSession,
 };
+use crate::id::{LeafId, NodeId, NodeIdAllocator, SplitId};
+use crate::interaction::LayoutInteraction;
 use gpui::{point, px};
 
 #[test]
@@ -61,10 +61,16 @@ fn node_id_allocator_guarantees_collision_free_ids() {
 #[test]
 fn splitter_error_formatting() {
     let err_leaf = SplitterError::LeafNotFound(LeafId(5));
-    assert_eq!(err_leaf.to_string(), "Target leaf with id Leaf(5) was not found in layout");
+    assert_eq!(
+        err_leaf.to_string(),
+        "Target leaf with id Leaf(5) was not found in layout"
+    );
 
     let err_split = SplitterError::SplitNotFound(SplitId(7));
-    assert_eq!(err_split.to_string(), "Target split divider with id Split(7) was not found in layout");
+    assert_eq!(
+        err_split.to_string(),
+        "Target split divider with id Split(7) was not found in layout"
+    );
 
     let err_sole = SplitterError::CannotRemoveLastLeaf;
     assert_eq!(
@@ -159,10 +165,7 @@ fn interaction_manager_drag_sessions_and_overlays() {
     };
     interaction.start_splitter_drag(split_session);
     assert!(interaction.is_splitter_dragging());
-    assert_eq!(
-        interaction.active_splitter_drag(),
-        Some(&split_session)
-    );
+    assert_eq!(interaction.active_splitter_drag(), Some(&split_session));
     let finished = interaction.finish_splitter_drag();
     assert_eq!(finished, Some(split_session));
     assert!(!interaction.is_splitter_dragging());

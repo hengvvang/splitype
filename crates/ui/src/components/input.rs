@@ -95,7 +95,10 @@ pub fn find_prev_word_boundary(text: &str, cursor: usize) -> usize {
     }
     let cursor = cursor.min(text.len());
     let chars: Vec<(usize, char)> = text.char_indices().collect();
-    let idx = chars.iter().rposition(|&(offset, _)| offset < cursor).unwrap_or(0);
+    let idx = chars
+        .iter()
+        .rposition(|&(offset, _)| offset < cursor)
+        .unwrap_or(0);
     let mut i = idx;
     // Skip whitespace if starting on one
     while i > 0 && chars[i].1.is_whitespace() {
@@ -113,7 +116,10 @@ pub fn find_next_word_boundary(text: &str, cursor: usize) -> usize {
         return text.len();
     }
     let chars: Vec<(usize, char)> = text.char_indices().collect();
-    let idx = chars.iter().position(|&(offset, _)| offset >= cursor).unwrap_or(chars.len());
+    let idx = chars
+        .iter()
+        .position(|&(offset, _)| offset >= cursor)
+        .unwrap_or(chars.len());
     let mut i = idx;
     // Skip word characters
     while i < chars.len() && !chars[i].1.is_whitespace() {
@@ -265,7 +271,10 @@ impl SearchInputState {
         }
         let cursor = self.cursor();
         if cursor < self.value.len() {
-            let end = self.value.ceil_char_boundary(cursor + 1).min(self.value.len());
+            let end = self
+                .value
+                .ceil_char_boundary(cursor + 1)
+                .min(self.value.len());
             return self.replace_range(cursor..end, "");
         }
         self.value.clone()
@@ -320,7 +329,10 @@ impl SearchInputState {
             self.cursor_offset = new_cursor;
             return;
         }
-        let target = self.value.ceil_char_boundary(cursor + 1).min(self.value.len());
+        let target = self
+            .value
+            .ceil_char_boundary(cursor + 1)
+            .min(self.value.len());
         self.set_cursor(target, anchor, extend);
     }
 
@@ -365,7 +377,11 @@ fn get_or_create_input_state(id: &ElementId, initial_value: &str) -> Rc<RefCell<
         states
             .borrow_mut()
             .entry(id.clone())
-            .or_insert_with(|| Rc::new(RefCell::new(SearchInputState::new(initial_value.to_string()))))
+            .or_insert_with(|| {
+                Rc::new(RefCell::new(SearchInputState::new(
+                    initial_value.to_string(),
+                )))
+            })
             .clone()
     })
 }
@@ -475,28 +491,19 @@ impl SearchInput {
     }
 
     /// Sets the text change callback.
-    pub fn on_change(
-        mut self,
-        handler: impl Fn(String, &mut Window, &mut App) + 'static,
-    ) -> Self {
+    pub fn on_change(mut self, handler: impl Fn(String, &mut Window, &mut App) + 'static) -> Self {
         self.on_change = Some(Arc::new(handler));
         self
     }
 
     /// Sets the enter / submit callback.
-    pub fn on_submit(
-        mut self,
-        handler: impl Fn(&str, &mut Window, &mut App) + 'static,
-    ) -> Self {
+    pub fn on_submit(mut self, handler: impl Fn(&str, &mut Window, &mut App) + 'static) -> Self {
         self.on_submit = Some(Arc::new(handler));
         self
     }
 
     /// Sets the escape / dismiss callback.
-    pub fn on_dismiss(
-        mut self,
-        handler: impl Fn(&mut Window, &mut App) + 'static,
-    ) -> Self {
+    pub fn on_dismiss(mut self, handler: impl Fn(&mut Window, &mut App) + 'static) -> Self {
         self.on_dismiss = Some(Arc::new(handler));
         self
     }
@@ -787,11 +794,7 @@ impl RenderOnce for SearchInput {
                         }
                         window.refresh();
                     })
-                    .child(
-                        svg()
-                            .path(clear_icon_path)
-                            .size(px(8.5)),
-                    ),
+                    .child(svg().path(clear_icon_path).size(px(8.5))),
             )
         } else {
             None
@@ -1112,7 +1115,10 @@ impl Element for SearchInputContentElement {
         };
 
         let runs = if !is_placeholder
-            && let Some(marked_range) = state.marked_range.as_ref().filter(|_| !display_text.is_empty())
+            && let Some(marked_range) = state
+                .marked_range
+                .as_ref()
+                .filter(|_| !display_text.is_empty())
         {
             vec![
                 TextRun {
@@ -1120,7 +1126,8 @@ impl Element for SearchInputContentElement {
                     ..base_run.clone()
                 },
                 TextRun {
-                    len: (marked_range.end - marked_range.start).min(display_text.len().saturating_sub(marked_range.start)),
+                    len: (marked_range.end - marked_range.start)
+                        .min(display_text.len().saturating_sub(marked_range.start)),
                     underline: Some(UnderlineStyle {
                         color: Some(self.colors.text_default),
                         thickness: px(self.dimensions.underline_thickness),
@@ -1141,7 +1148,9 @@ impl Element for SearchInputContentElement {
         };
 
         let font_size = px(12.0);
-        let line = window.text_system().shape_line(display_text, font_size, &runs, None);
+        let line = window
+            .text_system()
+            .shape_line(display_text, font_size, &runs, None);
         state.last_line = Some(line.clone());
 
         let line_height = bounds.size.height;
@@ -1254,15 +1263,25 @@ pub struct SearchInputHandler {
 
 impl SearchInputHandler {
     /// Pure helper that calculates text and adjusted range for a UTF-16 range.
-    pub fn compute_text_for_range(value: &str, range_utf16: Range<usize>) -> (Option<String>, Option<Range<usize>>) {
+    pub fn compute_text_for_range(
+        value: &str,
+        range_utf16: Range<usize>,
+    ) -> (Option<String>, Option<Range<usize>>) {
         let utf16_chars: Vec<u16> = value.encode_utf16().collect();
         let start = range_utf16.start.min(utf16_chars.len());
         let end = range_utf16.end.min(utf16_chars.len());
-        (String::from_utf16(&utf16_chars[start..end]).ok(), Some(start..end))
+        (
+            String::from_utf16(&utf16_chars[start..end]).ok(),
+            Some(start..end),
+        )
     }
 
     /// Pure helper that computes the replacement text in range.
-    pub fn compute_replace_text_in_range(current: &str, replacement_range: Option<Range<usize>>, text: &str) -> String {
+    pub fn compute_replace_text_in_range(
+        current: &str,
+        replacement_range: Option<Range<usize>>,
+        text: &str,
+    ) -> String {
         if let Some(range) = replacement_range {
             let utf16_chars: Vec<u16> = current.encode_utf16().collect();
             let start = range.start.min(utf16_chars.len());
@@ -1321,7 +1340,10 @@ impl InputHandler for SearchInputHandler {
         cx: &mut App,
     ) {
         // Filter out control characters that should not be typed into single-line inputs
-        let filtered_text: String = text.chars().filter(|ch| !ch.is_control() || *ch == '\t').collect();
+        let filtered_text: String = text
+            .chars()
+            .filter(|ch| !ch.is_control() || *ch == '\t')
+            .collect();
         if filtered_text.is_empty() && !text.is_empty() {
             return;
         }
@@ -1488,7 +1510,8 @@ mod tests {
         assert_eq!(text, Some("Hello".to_string()));
         assert_eq!(actual, Some(0..5));
 
-        let (text_utf16, actual_utf16) = SearchInputHandler::compute_text_for_range("你好世界", 0..2);
+        let (text_utf16, actual_utf16) =
+            SearchInputHandler::compute_text_for_range("你好世界", 0..2);
         assert_eq!(text_utf16, Some("你好".to_string()));
         assert_eq!(actual_utf16, Some(0..2));
     }

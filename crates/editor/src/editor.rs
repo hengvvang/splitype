@@ -20,7 +20,9 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor_contracts::{DocumentHost, DocumentSnapshot, EditTransaction, OutlineHudState, PaneId, PaneKind, TabKind};
+use editor_contracts::{
+    DocumentHost, DocumentSnapshot, EditTransaction, OutlineHudState, PaneId, PaneKind, TabKind,
+};
 use platform_contracts::PanelId;
 
 use crate::document::{DocumentBuffer, DocumentStore};
@@ -668,13 +670,13 @@ mod tests {
         editor1_map.insert(wysiwyg.clone(), false);
 
         // All WYSIWYG panes in Editor 1 now observe false
-        assert_eq!(editor1_map.get(&wysiwyg).copied().unwrap_or(true), false);
+        assert!(!editor1_map.get(&wysiwyg).copied().unwrap_or(true));
 
         // Source code panes in Editor 1 remain true (independent)
-        assert_eq!(editor1_map.get(&source_code).copied().unwrap_or(true), true);
+        assert!(editor1_map.get(&source_code).copied().unwrap_or(true));
 
         // Editor 2 WYSIWYG panes remain true (Editor 2 is independent from Editor 1)
-        assert_eq!(editor2_map.get(&wysiwyg).copied().unwrap_or(true), true);
+        assert!(editor2_map.get(&wysiwyg).copied().unwrap_or(true));
     }
 
     #[test]
@@ -704,5 +706,3 @@ mod tests {
         assert!(ro_univ_rs);
     }
 }
-
-

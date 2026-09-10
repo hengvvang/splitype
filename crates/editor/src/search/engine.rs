@@ -233,8 +233,6 @@ impl Editor {
         }
     }
 
-
-
     /// Searches inside the currently active document's blocks or source code buffer.
     fn search_in_current_document(
         &self,

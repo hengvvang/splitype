@@ -18,9 +18,6 @@ workspace = true
 
 [dependencies]
 rope = { workspace = true }
-url = "2"
-unicode-segmentation = "1.13"
-regex = "1.10"
 uuid = { workspace = true }
 cssparser = "0.37"
 tree-sitter = { workspace = true }

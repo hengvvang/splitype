@@ -8,11 +8,11 @@ use gpui::*;
 use crate::model::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
 
+use crate::settings::WysiwygSettings;
 use config::language::I18nStrings;
 use config::settings::PluginSettings;
 use syntax_highlighter::language::{code_language_display_name, code_language_options_matching};
 use theme::Theme;
-use crate::settings::WysiwygSettings;
 
 impl Block {
     pub fn render_code_editor_section(
@@ -36,7 +36,8 @@ impl Block {
                 .into()
         };
 
-        let show_code_line_numbers = PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
+        let show_code_line_numbers =
+            PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
 
         let code_content_container = if show_code_line_numbers {
             let line_count = self.display_text().split('\n').count().max(1);
@@ -105,7 +106,8 @@ impl Block {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let toolbar_height = 26.0;
-        let show_code_line_numbers = PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
+        let show_code_line_numbers =
+            PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
 
         div()
             .id(ElementId::Name(
@@ -270,7 +272,6 @@ impl Block {
                     });
                 })
             })
-
             .child(
                 div()
                     .id(ElementId::Name(
@@ -325,7 +326,9 @@ impl Block {
                         .children(if is_selected {
                             Some(
                                 svg()
-                                    .path("plugin://splitype.wysiwyg/codeblock/select-checkmark.svg")
+                                    .path(
+                                        "plugin://splitype.wysiwyg/codeblock/select-checkmark.svg",
+                                    )
                                     .size(px(14.0))
                                     .text_color(c.dialog_primary_button_bg),
                             )

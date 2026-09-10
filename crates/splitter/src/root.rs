@@ -84,14 +84,8 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
             .ok_or(SplitterError::LeafNotFound(leaf_id))?;
         let split_id = self.allocator.next_split_id();
         let new_leaf_id = self.allocator.next_leaf_id();
-        self.tree.split_leaf_with_ratio(
-            leaf_id,
-            split_id,
-            new_leaf_id,
-            axis,
-            ratio,
-            kind,
-        )?;
+        self.tree
+            .split_leaf_with_ratio(leaf_id, split_id, new_leaf_id, axis, ratio, kind)?;
         self.interaction.clear_border_menu();
         Ok(new_leaf_id)
     }
@@ -209,11 +203,7 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
 
     /// Swap the kind of leaf `a` and leaf `b`. Both leaves leave the
     /// activation history (same rule as [`Self::set_kind`]).
-    pub fn swap_kinds<I1: Into<LeafId>, I2: Into<LeafId>>(
-        &mut self,
-        a: I1,
-        b: I2,
-    ) -> Result<()> {
+    pub fn swap_kinds<I1: Into<LeafId>, I2: Into<LeafId>>(&mut self, a: I1, b: I2) -> Result<()> {
         let a = a.into();
         let b = b.into();
         let kind_a = self
@@ -288,11 +278,7 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
                 false,
             ),
             AreaDockTarget::Top => (SplitAxis::Vertical, ratio.clamp(0.01, 0.99), true),
-            AreaDockTarget::Bottom => (
-                SplitAxis::Vertical,
-                (1.0 - ratio).clamp(0.01, 0.99),
-                false,
-            ),
+            AreaDockTarget::Bottom => (SplitAxis::Vertical, (1.0 - ratio).clamp(0.01, 0.99), false),
             _ => (SplitAxis::Horizontal, 0.5, true),
         };
 
@@ -342,14 +328,13 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
             return;
         }
         let split_id = split_id.into();
-        self.interaction
-            .start_splitter_drag(SplitterDragSession {
-                split_id,
-                axis,
-                start_pointer_pos,
-                start_ratio: current_ratio,
-                total_span: 1000.0,
-            });
+        self.interaction.start_splitter_drag(SplitterDragSession {
+            split_id,
+            axis,
+            start_pointer_pos,
+            start_ratio: current_ratio,
+            total_span: 1000.0,
+        });
     }
 
     /// Open the border context menu on a split bar (right click).
@@ -359,10 +344,7 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         }
         let split_id = split_id.into();
         self.interaction
-            .open_border_menu(BorderMenuState {
-                split_id,
-                position,
-            });
+            .open_border_menu(BorderMenuState { split_id, position });
     }
 
     /// Begin a corner-drag gesture from `target_id`'s panel at `pos`.
@@ -377,17 +359,16 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
         }
         let target_id = target_id.into();
         if self.tree.contains_leaf(target_id) {
-            self.interaction
-                .start_corner_drag(CornerDragSession {
-                    target_id,
-                    start_pos: pos,
-                    gesture_dir: None,
-                    modifier,
-                    pointer_pos: Some(pos),
-                    hover_leaf: None,
-                    dock_target: AreaDockTarget::None,
-                    dock_ratio: 0.5,
-                });
+            self.interaction.start_corner_drag(CornerDragSession {
+                target_id,
+                start_pos: pos,
+                gesture_dir: None,
+                modifier,
+                pointer_pos: Some(pos),
+                hover_leaf: None,
+                dock_target: AreaDockTarget::None,
+                dock_ratio: 0.5,
+            });
         }
     }
 
@@ -507,25 +488,21 @@ impl<T: Clone + PartialEq> SplitterRoot<T> {
             (AreaDockTarget::None, 0.5)
         };
 
-        self.interaction
-            .start_corner_drag(CornerDragSession {
-                target_id,
-                start_pos: session.start_pos,
-                gesture_dir: Some(dir),
-                modifier: session.modifier,
-                pointer_pos: Some(current_pos),
-                hover_leaf: over_id,
-                dock_target,
-                dock_ratio,
-            });
+        self.interaction.start_corner_drag(CornerDragSession {
+            target_id,
+            start_pos: session.start_pos,
+            gesture_dir: Some(dir),
+            modifier: session.modifier,
+            pointer_pos: Some(current_pos),
+            hover_leaf: over_id,
+            dock_target,
+            dock_ratio,
+        });
         true
     }
 
     /// Finish and apply the active corner-drag gesture on mouse release.
-    fn apply_corner_drag(
-        &mut self,
-        container_size: Size<Pixels>,
-    ) -> CornerDragResult<T> {
+    fn apply_corner_drag(&mut self, container_size: Size<Pixels>) -> CornerDragResult<T> {
         let Some(facts) = self.interaction.finish_corner_drag() else {
             return CornerDragResult::None;
         };

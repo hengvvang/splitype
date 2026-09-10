@@ -38,15 +38,16 @@ impl WindowLayoutBuilder {
         active_id: PanelId,
     ) -> Self {
         let split_id = splitter::SplitId::new(right_id.as_u32() + 1);
-        let max_id = left_id.as_u32().max(right_id.as_u32()).max(split_id.as_u32());
+        let max_id = left_id
+            .as_u32()
+            .max(right_id.as_u32())
+            .max(split_id.as_u32());
         self.layout = Some(SplitterRoot {
             tree: SplitTree::Split {
                 id: split_id,
                 axis: SplitAxis::Horizontal,
                 ratio,
-                first: Box::new(SplitTree::Leaf(SplitterContainer::new(
-                    left_id, left_kind,
-                ))),
+                first: Box::new(SplitTree::Leaf(SplitterContainer::new(left_id, left_kind))),
                 second: Box::new(SplitTree::Leaf(SplitterContainer::new(
                     right_id, right_kind,
                 ))),

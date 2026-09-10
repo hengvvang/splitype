@@ -100,7 +100,10 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// The container (panel) of the leaf with `leaf_id`, mutably.
-    pub fn find_leaf_mut<I: Into<LeafId>>(&mut self, leaf_id: I) -> Option<&mut SplitterContainer<T>> {
+    pub fn find_leaf_mut<I: Into<LeafId>>(
+        &mut self,
+        leaf_id: I,
+    ) -> Option<&mut SplitterContainer<T>> {
         let leaf_id = leaf_id.into();
         match self {
             Self::Leaf(container) => (container.id == leaf_id).then_some(container),
@@ -153,7 +156,9 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         let split_id = split_id.into();
         match self {
             Self::Leaf(_) => false,
-            Self::Split { id, first, second, .. } => {
+            Self::Split {
+                id, first, second, ..
+            } => {
                 *id == split_id || first.contains_split(split_id) || second.contains_split(split_id)
             }
         }
@@ -264,7 +269,10 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// Finds the second (secondary) leaf ID in the subtree rooted at `split_id`.
-    pub fn find_split_second_leaf_id<I: Into<SplitId>>(&self, target_split_id: I) -> Option<LeafId> {
+    pub fn find_split_second_leaf_id<I: Into<SplitId>>(
+        &self,
+        target_split_id: I,
+    ) -> Option<LeafId> {
         let target_split_id = target_split_id.into();
         match self {
             Self::Leaf(_) => None,
@@ -360,10 +368,9 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         let target_id = target_id.into();
         match self {
             Self::Leaf(_) => Err(SplitterError::CannotRemoveLastLeaf),
-            Self::Split { .. } => {
-                self.remove_leaf_internal(target_id)
-                    .ok_or(SplitterError::LeafNotFound(target_id))
-            }
+            Self::Split { .. } => self
+                .remove_leaf_internal(target_id)
+                .ok_or(SplitterError::LeafNotFound(target_id)),
         }
     }
 

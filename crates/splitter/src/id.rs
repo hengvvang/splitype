@@ -271,14 +271,7 @@ impl From<NodeId> for ElementId {
 /// Centralized, safe ID generator ensuring collision-free numbering across
 /// leaves and split dividers within a split root.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(transparent)]
 pub struct NodeIdAllocator {

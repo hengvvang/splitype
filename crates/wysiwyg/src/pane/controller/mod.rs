@@ -13,12 +13,12 @@ use editor_contracts::{
     CursorHint, PaneOutlineHost, PaneRenderContext, render_outline_indicator_strip,
     render_pane_layout,
 };
-use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, EntityId, InteractiveElement,
     IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, SharedString,
     StatefulInteractiveElement, Styled, Window, div, px,
 };
+use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 
 use crate::model::Document;
 use crate::model::block::Block;

@@ -1,7 +1,7 @@
 //! Embedded SVG icon asset catalog for the Settings plugin.
 
-use std::borrow::Cow;
 use platform_contracts::PluginAssetProvider;
+use std::borrow::Cow;
 
 pub struct SettingsAssets;
 
@@ -33,29 +33,15 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "chevron-up-down.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/chevron-up-down.svg"
         ))),
-        "sun.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/sun.svg"
-        ))),
-        "plus.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/plus.svg"
-        ))),
-        "minus.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/minus.svg"
-        ))),
-        "moon.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/moon.svg"
-        ))),
-        "undo.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/undo.svg"
-        ))),
-        "menu.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/menu.svg"
-        ))),
+        "sun.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/sun.svg"))),
+        "plus.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/plus.svg"))),
+        "minus.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/minus.svg"))),
+        "moon.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/moon.svg"))),
+        "undo.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/undo.svg"))),
+        "menu.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/menu.svg"))),
 
         // ── Settings: panel top bar (panel header) ──────────────
-        "panel.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/panel.svg"
-        ))),
+        "panel.svg" => Some(Cow::Borrowed(include_bytes!("../assets/icons/panel.svg"))),
         "topbar/check.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/check.svg"
         ))),
@@ -65,9 +51,9 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "topbar/split-v.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/split-v.svg"
         ))),
-        "topbar/close.svg" | "close.svg" | "icons/titlebar/chrome/close.svg" => Some(Cow::Borrowed(include_bytes!(
-            "../assets/icons/topbar/close.svg"
-        ))),
+        "topbar/close.svg" | "close.svg" | "icons/titlebar/chrome/close.svg" => Some(
+            Cow::Borrowed(include_bytes!("../assets/icons/topbar/close.svg")),
+        ),
         "topbar/maximize.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/topbar/maximize.svg"
         ))),

@@ -11,16 +11,13 @@ use theme::{ThemeColors, ThemeDimensions};
 use ui::SearchInput;
 use ui::select::{select_option, select_panel, select_trigger};
 
-
 pub use ui::components::card::{
     highlight_search_text, settings_expander_group, settings_group_item_row,
 };
 pub use ui::components::number_box::{
     NumberBoxClickHandler as SettingsClickHandler,
-    NumberBoxDismissHandler as SettingsDismissHandler,
-    NumberBoxKeyHandler as SettingsKeyHandler,
-    NumberBoxPasteHandler as SettingsPasteHandler,
-    NumberBoxProps as NumberFieldProps,
+    NumberBoxDismissHandler as SettingsDismissHandler, NumberBoxKeyHandler as SettingsKeyHandler,
+    NumberBoxPasteHandler as SettingsPasteHandler, NumberBoxProps as NumberFieldProps,
     render_number_box as render_number_field,
 };
 
@@ -186,7 +183,6 @@ pub fn render_searchable_font_picker(
             }),
         );
 
-
         // Popover body: Scrollable list of fonts
         let list_container = div()
             .id(ElementId::Name(format!("{id_prefix}-list").into()))
@@ -209,4 +205,3 @@ pub fn render_searchable_font_picker(
 
     btn_wrap.into_any_element()
 }
-

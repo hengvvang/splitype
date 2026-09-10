@@ -3,10 +3,10 @@
 //! Replaces floating HUD and heavy dock panels with an unobtrusive 18px indicator
 //! column placed to the right of the document text.
 
-use std::sync::Arc;
+use crate::outline::{OutlineHost, OutlineNode};
 use gpui::prelude::FluentBuilder;
 use gpui::*;
-use crate::outline::{OutlineHost, OutlineNode};
+use std::sync::Arc;
 use theme::Theme;
 
 /// Renders a slim (18px) outline indicator rail on the right side of the content.
@@ -49,7 +49,9 @@ pub fn render_outline_indicator_strip(
 
             items.push(
                 div()
-                    .id(ElementId::Name(format!("outline-popover-item-{pane_id}-{idx}").into()))
+                    .id(ElementId::Name(
+                        format!("outline-popover-item-{pane_id}-{idx}").into(),
+                    ))
                     .relative()
                     .w_full()
                     .pl(px(indent))
@@ -70,7 +72,6 @@ pub fn render_outline_indicator_strip(
                             host_item_hover.set_hovered(true, window, cx);
                         }
                     })
-
                     .child(
                         div()
                             .flex_1()
@@ -155,7 +156,9 @@ pub fn render_outline_indicator_strip(
 
         ticks.push(
             div()
-                .id(ElementId::Name(format!("outline-rail-tick-{pane_id}-{idx}").into()))
+                .id(ElementId::Name(
+                    format!("outline-rail-tick-{pane_id}-{idx}").into(),
+                ))
                 .h(px(7.0))
                 .w_full()
                 .flex()
@@ -173,7 +176,9 @@ pub fn render_outline_indicator_strip(
     let host_hover = host.clone();
     let host_rail_move = host.clone();
     div()
-        .id(ElementId::Name(format!("outline-indicator-strip-{pane_id}").into()))
+        .id(ElementId::Name(
+            format!("outline-indicator-strip-{pane_id}").into(),
+        ))
         .w(px(18.0))
         .h_full()
         .flex_shrink_0()

@@ -91,8 +91,8 @@ impl Editor {
         let focused_pane_id = self
             .focused_pane_id
             .or_else(|| self.session().root.tree.first_leaf_id().map(PaneId::from));
-        let focused_kind =
-            focused_pane_id.and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id.leaf_id()));
+        let focused_kind = focused_pane_id
+            .and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id.leaf_id()));
 
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
@@ -104,7 +104,11 @@ impl Editor {
                 .flatten()
                 .map(|descriptor| descriptor.display_name().to_string())
                 .unwrap_or_else(|| focused_kind.as_str().to_string());
-            let dropdown_open = self.session().root.interaction.is_dropdown_open(pane_id.leaf_id());
+            let dropdown_open = self
+                .session()
+                .root
+                .interaction
+                .is_dropdown_open(pane_id.leaf_id());
             let mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(c.text_default)
@@ -142,8 +146,12 @@ impl Editor {
             ));
         }
 
-        let is_pane_maximized = focused_pane_id
-            .is_some_and(|id| self.session().root.interaction.is_leaf_maximized(id.leaf_id()));
+        let is_pane_maximized = focused_pane_id.is_some_and(|id| {
+            self.session()
+                .root
+                .interaction
+                .is_leaf_maximized(id.leaf_id())
+        });
 
         if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind.clone()) {
             let editor = cx.entity().downgrade();
@@ -258,7 +266,11 @@ impl Editor {
             );
 
         if let Some(pane_id) = focused_pane_id {
-            let dropdown_open = self.session.root.interaction.is_dropdown_open(pane_id.leaf_id());
+            let dropdown_open = self
+                .session
+                .root
+                .interaction
+                .is_dropdown_open(pane_id.leaf_id());
             if dropdown_open && let Some(focused_kind) = focused_kind.clone() {
                 let menu = self.render_pane_type_dropdown_menu(pane_id, focused_kind, theme, cx);
                 bar = bar.child(menu);

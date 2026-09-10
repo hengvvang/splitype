@@ -40,31 +40,27 @@ pub fn render_settings_bottombar(
 
     let search_input_id = ElementId::Name(format!("{id_namespace}-settings-search").into());
 
-    let search_input = SearchInput::new(
-        search_input_id,
-        search_query.clone(),
-        search_focus,
-    )
-    .placeholder("Search settings…")
-    .colors(c.clone())
-    .dimensions(d.clone())
-    .show_clear_button(true)
-    .on_change(move |new_query, _window, cx| {
-        if let Some(state) = on_change_state.upgrade() {
-            state.update(cx, |ui, _| {
-                ui.search_query = new_query;
-            });
-            cx.refresh_windows();
-        }
-    })
-    .on_dismiss(move |_window, cx| {
-        if let Some(state) = on_dismiss_state.upgrade() {
-            state.update(cx, |ui, _| {
-                ui.clear_search();
-            });
-            cx.refresh_windows();
-        }
-    });
+    let search_input = SearchInput::new(search_input_id, search_query.clone(), search_focus)
+        .placeholder("Search settings…")
+        .colors(c.clone())
+        .dimensions(d.clone())
+        .show_clear_button(true)
+        .on_change(move |new_query, _window, cx| {
+            if let Some(state) = on_change_state.upgrade() {
+                state.update(cx, |ui, _| {
+                    ui.search_query = new_query;
+                });
+                cx.refresh_windows();
+            }
+        })
+        .on_dismiss(move |_window, cx| {
+            if let Some(state) = on_dismiss_state.upgrade() {
+                state.update(cx, |ui, _| {
+                    ui.clear_search();
+                });
+                cx.refresh_windows();
+            }
+        });
 
     let count_label = if !search_query.trim().is_empty() {
         let count = crate::host::count_total_search_matches(&search_query);
@@ -86,44 +82,39 @@ pub fn render_settings_bottombar(
     let is_menu_open = state.read(cx).is_menu_open;
     let left_side = if is_compact {
         let menu_state = state.clone();
-        div()
-            .flex()
-            .items_center()
-            .child(
-                ui::icon_chip_button(c, d)
-                    .id(ElementId::Name(format!("{id_namespace}-menu-toggle").into()))
-                    .child(
-                        svg()
-                            .path("plugin://splitype.settings/menu.svg")
-                            .size(px(16.0))
-                            .text_color(if is_menu_open { c.focus_accent } else { c.text_default }),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        menu_state.update(cx, |ui, _| {
-                            ui.toggle_menu();
-                        });
-                        cx.refresh_windows();
-                    }),
-            )
+        div().flex().items_center().child(
+            ui::icon_chip_button(c, d)
+                .id(ElementId::Name(
+                    format!("{id_namespace}-menu-toggle").into(),
+                ))
+                .child(
+                    svg()
+                        .path("plugin://splitype.settings/menu.svg")
+                        .size(px(16.0))
+                        .text_color(if is_menu_open {
+                            c.focus_accent
+                        } else {
+                            c.text_default
+                        }),
+                )
+                .on_click(move |_event, _window, cx| {
+                    menu_state.update(cx, |ui, _| {
+                        ui.toggle_menu();
+                    });
+                    cx.refresh_windows();
+                }),
+        )
     } else {
         div().flex().items_center()
     };
 
-    let mut right_side = div()
-        .flex()
-        .items_center()
-        .gap(px(8.0));
+    let mut right_side = div().flex().items_center().gap(px(8.0));
 
     if let Some(count) = count_label {
         right_side = right_side.child(count);
     }
 
-    right_side = right_side.child(
-        div()
-            .w(px(200.0))
-            .flex_shrink_0()
-            .child(search_input),
-    );
+    right_side = right_side.child(div().w(px(200.0)).flex_shrink_0().child(search_input));
 
     let bar_height = (d.bottombar_height + 8.0).max(36.0);
     let padding_x = d.bottombar_padding_x.max(8.0);

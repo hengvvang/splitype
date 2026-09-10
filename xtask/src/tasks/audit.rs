@@ -5,17 +5,21 @@ use clap::Args;
 
 use crate::runner::{cmd, is_runnable, run_step};
 
-#[derive(Args)]
+#[derive(Args, Default)]
 pub struct AuditArgs {
     /// Strict mode: fail immediately if audit tools are missing (mandatory in CI)
     #[arg(long, default_value_t = false)]
     pub strict: bool,
+
+    /// Offline mode: skip network fetching in cargo-deny
+    #[arg(long, default_value_t = false)]
+    pub offline: bool,
 }
 
 pub fn run(args: AuditArgs) -> Result<()> {
     // Audit unused dependencies across the workspace using cargo-machete
     if is_runnable("cargo-machete") {
-        run_step("cargo machete", cmd("cargo", &["machete"]))?;
+        run_step("cargo-machete", cmd("cargo-machete", &[]))?;
     } else if args.strict {
         bail!(
             "Tool 'cargo-machete' is required in strict mode (`cargo install cargo-machete --locked`)"
@@ -26,10 +30,12 @@ pub fn run(args: AuditArgs) -> Result<()> {
 
     // Verify vulnerability advisories, bans, and license compliance using cargo-deny
     if is_runnable("cargo-deny") {
-        run_step(
-            "cargo deny",
-            cmd("cargo", &["deny", "--workspace", "check"]),
-        )?;
+        let mut deny_args = vec!["--workspace"];
+        if args.offline {
+            deny_args.push("--offline");
+        }
+        deny_args.push("check");
+        run_step("cargo deny", cmd("cargo-deny", &deny_args))?;
     } else if args.strict {
         bail!("Tool 'cargo-deny' is required in strict mode (`cargo install cargo-deny --locked`)");
     } else {

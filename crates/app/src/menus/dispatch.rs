@@ -11,6 +11,7 @@ use crate::actions::{
     OpenFile, OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication,
     SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
 };
+use crate::chrome::settings_window::open_settings_window;
 use crate::dialogs::InfoDialogKind;
 use crate::shell::Shell;
 use crate::window::open_editor_window;
@@ -18,7 +19,6 @@ use config::language::{I18nManager, apply_language_selection};
 use editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use editor_contracts::{DocumentPanel, ExportFormat};
 use platform_contracts::PanelId;
-use crate::chrome::settings_window::open_settings_window;
 use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use theme::apply_theme_selection;
 

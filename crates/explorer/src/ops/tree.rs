@@ -140,7 +140,8 @@ impl ExplorerState {
 
     /// Synchronize the explorer with the worktrees.
     pub(crate) fn sync_explorer_file_tree(&mut self, cx: &mut App) {
-        let settings = config::settings::PluginSettings::<crate::settings::ExplorerSettings>::get(cx);
+        let settings =
+            config::settings::PluginSettings::<crate::settings::ExplorerSettings>::get(cx);
         self.sort_mode = settings.sort_mode;
         self.sort_order = settings.sort_order;
         self.snapshots = self

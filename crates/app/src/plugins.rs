@@ -177,7 +177,10 @@ pub(crate) fn init_plugins() {
                         id: platform_contracts::CommandId::new(full_id),
                         group: std::sync::Arc::from(group_id.as_str()),
                         title: std::sync::Arc::from(command.title.as_str()),
-                        description: command.description.as_ref().map(|s| std::sync::Arc::from(s.as_str())),
+                        description: command
+                            .description
+                            .as_ref()
+                            .map(|s| std::sync::Arc::from(s.as_str())),
                         icon: effective_icon.map(std::sync::Arc::from),
                         menu: effective_menu.map(std::sync::Arc::from),
                         shortcuts: command

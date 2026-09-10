@@ -102,11 +102,12 @@ pub fn render_number_box(
     }
 
     if let Some(on_paste) = props.on_paste {
-        center_box = center_box
-            .on_action(move |action: &platform_contracts::actions::Paste, window, cx| {
+        center_box = center_box.on_action(
+            move |action: &platform_contracts::actions::Paste, window, cx| {
                 cx.stop_propagation();
                 on_paste(action, window, cx);
-            });
+            },
+        );
     }
 
     let center_box = center_box

@@ -56,7 +56,11 @@ impl Shell {
         if self.panels.layout.interaction.is_maximized() {
             return None;
         }
-        let new_id = self.panels.layout.split_divider(split_id, axis, ratio).ok()?;
+        let new_id = self
+            .panels
+            .layout
+            .split_divider(split_id, axis, ratio)
+            .ok()?;
         if self.panels.layout.tree.find_leaf_kind(new_id).is_some() {
             self.materialize_panel_view(PanelId::from(new_id), copy_content, cx);
         }
@@ -134,7 +138,12 @@ impl Shell {
         state: Box<dyn std::any::Any>,
         cx: &mut Context<Self>,
     ) -> bool {
-        match window_assembly::PanelRegistry::restore_registered_panel(kind.clone(), panel_id, state, cx) {
+        match window_assembly::PanelRegistry::restore_registered_panel(
+            kind.clone(),
+            panel_id,
+            state,
+            cx,
+        ) {
             Ok(Some(view)) => {
                 self.insert_panel_view(panel_id, view, cx);
                 true
@@ -352,8 +361,7 @@ impl Shell {
             open_in_active(self, window, cx);
             return;
         };
-        let Some(new_panel) =
-            self.split_panel(active, SplitAxis::Horizontal, 0.5, false, cx)
+        let Some(new_panel) = self.split_panel(active, SplitAxis::Horizontal, 0.5, false, cx)
         else {
             open_in_active(self, window, cx);
             return;

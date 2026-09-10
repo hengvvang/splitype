@@ -17,7 +17,7 @@ pub mod state;
 pub mod topbar;
 pub use bottombar::render_settings_bottombar;
 pub use form::{settings_expander_group, settings_group_item_row};
-pub use host::{render_settings_body, COMPACT_BREAKPOINT};
+pub use host::{COMPACT_BREAKPOINT, render_settings_body};
 pub use plugin::*;
 pub use state::SettingsUiState;
 pub use topbar::render_settings_topbar;

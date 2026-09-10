@@ -114,7 +114,12 @@ pub fn settings_group_item_row(
             .min_w(px(0.0))
             .text_size(px(13.0))
             .font_weight(FontWeight::MEDIUM)
-            .child(highlight_search_text(title, query, c.text_default, c.text_highlight_bg))
+            .child(highlight_search_text(
+                title,
+                query,
+                c.text_default,
+                c.text_highlight_bg,
+            ))
             .into_any_element()
     } else {
         div()
@@ -163,7 +168,12 @@ pub fn settings_group_item_row(
                 .w_full()
                 .min_w(px(0.0))
                 .text_size(px(11.5))
-                .child(highlight_search_text(desc, query, c.dialog_muted, c.text_highlight_bg))
+                .child(highlight_search_text(
+                    desc,
+                    query,
+                    c.dialog_muted,
+                    c.text_highlight_bg,
+                ))
                 .into_any_element()
         } else {
             div()
@@ -245,9 +255,7 @@ pub fn settings_group_item_row(
         row = row.border_t_1().border_color(c.dialog_border);
     }
 
-    row.child(left_side)
-        .child(control_area)
-        .into_any_element()
+    row.child(left_side).child(control_area).into_any_element()
 }
 
 /// A complete Windows 11 Fluent Design SettingsExpander container:
@@ -272,7 +280,12 @@ pub fn settings_expander_group(
             .min_w(px(0.0))
             .text_size(px(13.5))
             .font_weight(FontWeight::SEMIBOLD)
-            .child(highlight_search_text(title, query, c.text_default, c.text_highlight_bg))
+            .child(highlight_search_text(
+                title,
+                query,
+                c.text_default,
+                c.text_highlight_bg,
+            ))
             .into_any_element()
     } else {
         div()
@@ -293,7 +306,12 @@ pub fn settings_expander_group(
                 .w_full()
                 .min_w(px(0.0))
                 .text_size(px(11.5))
-                .child(highlight_search_text(desc_str, query, c.dialog_muted, c.text_highlight_bg))
+                .child(highlight_search_text(
+                    desc_str,
+                    query,
+                    c.dialog_muted,
+                    c.text_highlight_bg,
+                ))
                 .into_any_element()
         } else {
             div()

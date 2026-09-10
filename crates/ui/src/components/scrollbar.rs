@@ -111,11 +111,10 @@ pub fn render_vertical_scrollbar(
     let min_thumb_h = 24.0f32;
 
     let id_val = id_suffix.into();
-    let state_entity = window.use_keyed_state(
-        (id_val.clone(), "v-drag-state"),
-        cx,
-        |_window, _cx| ScrollbarDragState::default(),
-    );
+    let state_entity =
+        window.use_keyed_state((id_val.clone(), "v-drag-state"), cx, |_window, _cx| {
+            ScrollbarDragState::default()
+        });
     let drag_state = *state_entity.read(cx);
 
     let Some(mut geom) = compute_scrollbar_geometry(
@@ -283,11 +282,10 @@ pub fn render_horizontal_scrollbar(
     let min_thumb_w = 24.0f32;
 
     let id_val = id_suffix.into();
-    let state_entity = window.use_keyed_state(
-        (id_val.clone(), "h-drag-state"),
-        cx,
-        |_window, _cx| ScrollbarDragState::default(),
-    );
+    let state_entity =
+        window.use_keyed_state((id_val.clone(), "h-drag-state"), cx, |_window, _cx| {
+            ScrollbarDragState::default()
+        });
     let drag_state = *state_entity.read(cx);
 
     let Some(mut geom) = compute_scrollbar_geometry(
