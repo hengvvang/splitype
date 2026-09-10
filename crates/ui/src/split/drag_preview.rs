@@ -7,15 +7,15 @@
 use gpui::*;
 
 use super::chrome::{OverlayStyle, overlay_container, preview_allowed};
+use splitter::geometry::{LeafRect, SplitAxis, calculate_join_slice_rect};
+use splitter::gesture::{AreaDockTarget, CornerDragModifier, CornerDragSession};
 use splitter::root::SplitterRoot;
-use splitter::sessions::{AreaDockTarget, calculate_join_slice_rect};
-use splitter::tree::{LeafRect, SplitAxis};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
 /// show yet (no gesture direction, or the modifier is not supported).
 pub fn render_corner_drag_preview<T: Clone + PartialEq>(
     root: &SplitterRoot<T>,
-    drag: &splitter::sessions::CornerDragSession,
+    drag: &CornerDragSession,
     container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> Option<AnyElement> {
@@ -28,7 +28,7 @@ pub fn render_corner_drag_preview<T: Clone + PartialEq>(
     let target_rect = rect_by_id(&rects, drag.target_id)?;
 
     // 0. Shift drag preview: Duplicate Area into New Window
-    if drag.modifier == splitter::sessions::CornerDragModifier::Shift {
+    if drag.modifier == CornerDragModifier::Shift {
         return Some(new_window_preview_overlay(
             target_rect,
             drag.pointer_pos,
@@ -42,7 +42,7 @@ pub fn render_corner_drag_preview<T: Clone + PartialEq>(
             let hover_target = rect_by_id(&rects, hover)?;
 
             // 1. Swap preview (Ctrl held or hovering Center)
-            if drag.modifier == splitter::sessions::CornerDragModifier::Ctrl
+            if drag.modifier == CornerDragModifier::Ctrl
                 || drag.dock_target == AreaDockTarget::Center
             {
                 return Some(swap_preview_overlay(
@@ -96,7 +96,8 @@ pub fn render_corner_drag_preview<T: Clone + PartialEq>(
     }
 }
 
-fn rect_by_id(rects: &[LeafRect], id: usize) -> Option<&LeafRect> {
+fn rect_by_id(rects: &[LeafRect], id: impl Into<splitter::LeafId>) -> Option<&LeafRect> {
+    let id = id.into();
     rects.iter().find(|rect| rect.id == id)
 }
 

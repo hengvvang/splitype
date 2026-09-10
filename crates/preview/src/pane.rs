@@ -150,7 +150,7 @@ impl PaneView for PreviewPane {
         let host_toggle = ctx.host.clone();
         let pane_id = ctx.pane_id;
         let breadcrumb = render_pane_breadcrumb(
-            ("preview-breadcrumb", pane_id.0),
+            ("preview-breadcrumb", pane_id.as_usize()),
             ctx.file_path,
             ctx.is_outline_docked,
             &theme,
@@ -161,7 +161,7 @@ impl PaneView for PreviewPane {
 
         let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
             Some(render_outline_indicator_strip(
-                pane_id.0,
+                pane_id,
                 &headings,
                 active_index,
                 ctx.is_outline_hovered,
@@ -173,7 +173,7 @@ impl PaneView for PreviewPane {
         };
 
         let v_scrollbar = render_vertical_scrollbar(
-            ("preview-v-scrollbar", pane_id.0),
+            ("preview-v-scrollbar", pane_id.as_usize()),
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,
@@ -182,7 +182,7 @@ impl PaneView for PreviewPane {
         );
 
         let h_scrollbar = render_horizontal_scrollbar(
-            ("preview-h-scrollbar", pane_id.0),
+            ("preview-h-scrollbar", pane_id.as_usize()),
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,

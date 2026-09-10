@@ -687,7 +687,6 @@ impl RenderOnce for SearchInput {
                         let mut state = state_rc_kd.borrow_mut();
                         state.select_all();
                         window.refresh();
-                        return;
                     }
                     "c" => {
                         cx.stop_propagation();
@@ -700,7 +699,6 @@ impl RenderOnce for SearchInput {
                         if !text.is_empty() {
                             cx.write_to_clipboard(ClipboardItem::new_string(text));
                         }
-                        return;
                     }
                     "x" => {
                         cx.stop_propagation();
@@ -727,7 +725,6 @@ impl RenderOnce for SearchInput {
                             }
                             window.refresh();
                         }
-                        return;
                     }
                     "v" => {
                         cx.stop_propagation();
@@ -743,7 +740,6 @@ impl RenderOnce for SearchInput {
                             }
                             window.refresh();
                         }
-                        return;
                     }
                     _ => {}
                 }

@@ -34,8 +34,8 @@ impl Editor {
     /// dropdowns. Returns whether anything was dismissed.
     pub fn dismiss_transient_ui(&mut self, cx: &mut Context<Self>) -> bool {
         let cancelled_drag = self.session.root.cancel_drag_gesture();
-        let closed_menu = self.session.root.active_border_menu.take().is_some();
-        let closed_dropdown = self.session.root.clear_dropdowns();
+        let closed_menu = self.session.root.interaction.clear_border_menu();
+        let closed_dropdown = self.session.root.interaction.clear_dropdowns();
         let handled = cancelled_drag || closed_menu || closed_dropdown;
         if handled {
             cx.notify();

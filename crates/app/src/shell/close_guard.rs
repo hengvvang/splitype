@@ -290,7 +290,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         if let Some(active) = self.panels.layout.active_leaf {
-            self.panels.layout.toggle_maximize(active);
+            self.panels.layout.interaction.toggle_maximize(active);
             cx.notify();
         }
     }
@@ -319,7 +319,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.toggle_dropdown(action.panel);
+        self.panels.layout.interaction.toggle_dropdown(action.panel.leaf_id());
         cx.notify();
     }
 
@@ -329,7 +329,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.split_panel(PanelId(action.panel), action.axis, 0.5, true, cx);
+        self.split_panel(action.panel, action.axis, 0.5, true, cx);
     }
 
     pub(crate) fn on_toggle_panel_maximized(
@@ -338,7 +338,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.toggle_maximize(action.panel);
+        self.panels.layout.interaction.toggle_maximize(action.panel.leaf_id());
         cx.notify();
     }
 
@@ -348,6 +348,6 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.close_panel(PanelId(action.panel), cx);
+        self.close_panel(action.panel, cx);
     }
 }

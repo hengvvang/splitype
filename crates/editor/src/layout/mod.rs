@@ -25,16 +25,16 @@ impl Editor {
         let inner_tree = self.session.root.tree.clone();
 
         if let Some(tab) = self.session.active_tab_mut() {
-            tab.panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
+            tab.panes.retain(|pane, _| inner_tree.contains_leaf(*pane));
         }
 
         if self.focused_pane_id.is_none() {
             if let Some(leaf_id) = inner_tree.first_leaf_id() {
-                self.focused_pane_id = Some(PaneId(leaf_id));
+                self.focused_pane_id = Some(PaneId::from(leaf_id));
             }
         }
 
-        let maximized_pane = inner_tree.find_maximized_leaf();
+        let maximized_pane = self.session.root.find_maximized_leaf();
         let inner_rendered = if let Some(maximized_pane) = maximized_pane {
             let single =
                 splitter::tree::SplitTree::Leaf(splitter::container::SplitterContainer::new(

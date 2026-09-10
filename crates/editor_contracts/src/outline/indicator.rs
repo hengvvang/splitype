@@ -14,13 +14,14 @@ use theme::Theme;
 /// Rest state: subtle micro-ticks representing document headings.
 /// Hover/Pinned state: opens a floating TOC card popover to the left over the content.
 pub fn render_outline_indicator_strip(
-    pane_id: usize,
+    pane_id: impl Into<crate::PaneId>,
     headings: &[OutlineNode],
     active_index: Option<usize>,
     is_hovered: bool,
     theme: &Theme,
     host: &Arc<dyn OutlineHost>,
 ) -> AnyElement {
+    let pane_id = pane_id.into().as_usize();
     if headings.is_empty() {
         return div().w(px(0.0)).into_any_element();
     }

@@ -18,7 +18,7 @@ pub fn render_pane_layout(
     h_scrollbar: AnyElement,
 ) -> AnyElement {
     div()
-        .id(("pane-layout-frame", pane_id.0))
+        .id(("pane-layout-frame", pane_id.as_usize()))
         .w_full()
         .h_full()
         .flex()

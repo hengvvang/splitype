@@ -10,7 +10,6 @@ use gpui::*;
 use crate::shell::Shell;
 use config::language::I18nStrings;
 use splitter::policy::CornerDragResult;
-use splitter::tree::NodeId;
 use theme::{Theme, ThemeManager};
 use ui::split::chrome::OverlayStyle;
 use ui::split::drag_preview::render_corner_drag_preview;
@@ -35,8 +34,8 @@ impl WindowPanels {
     /// panel on the right, when their plugins are present. No built-in kind
     /// names are hardcoded here.
     pub(crate) fn default_layout() -> WindowLayout {
-        let left_id = platform_contracts::PanelId(1);
-        let right_id = platform_contracts::PanelId(2);
+        let left_id = platform_contracts::PanelId::from(1);
+        let right_id = platform_contracts::PanelId::from(2);
         let builder = window_assembly::WindowLayoutBuilder::new();
         let document_kind = crate::routing::primary_document_kind();
         let explorer_kind = crate::routing::explorer_kind().filter(|kind| {
@@ -84,7 +83,7 @@ impl Shell {
         );
         let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
         let body_size = size(window.viewport_size().width, px(body_height));
-        let leaf_bounds: std::collections::HashMap<NodeId, Bounds<Pixels>> = self
+        let leaf_bounds: std::collections::HashMap<splitter::LeafId, Bounds<Pixels>> = self
             .panels
             .layout
             .leaf_rects(body_size)
@@ -100,7 +99,7 @@ impl Shell {
             })
             .collect();
 
-        let layout_tree = if let Some(maximized_leaf) = root.find_maximized_leaf() {
+        let layout_tree = if let Some(maximized_leaf) = self.panels.layout.find_maximized_leaf() {
             self.render_window_panel_tile(
                 maximized_leaf.id,
                 maximized_leaf.kind.clone(),
@@ -169,18 +168,17 @@ impl Shell {
         let overlay_style = OverlayStyle::from_theme(theme);
         let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
         let body_size = size(window.viewport_size().width, px(body_height));
-        let preview_overlay = self.panels.layout.corner_drag_panel().and_then(|panel_id| {
-            let drag = self
-                .panels
-                .layout
-                .tree
-                .find_leaf(panel_id)
-                .and_then(|p| p.active_corner_drag)?;
-            render_corner_drag_preview(&self.panels.layout, &drag, body_size, &overlay_style)
-        });
+        let preview_overlay = self
+            .panels
+            .layout
+            .interaction
+            .active_corner_drag()
+            .and_then(|drag| {
+                render_corner_drag_preview(&self.panels.layout, drag, body_size, &overlay_style)
+            });
         let container = container.children(preview_overlay);
 
-        if let Some(border_menu) = self.panels.layout.active_border_menu {
+        if let Some(border_menu) = self.panels.layout.interaction.active_border_menu().copied() {
             let menu_overlay = self.render_window_panel_border_menu(border_menu, theme, cx);
             container.child(menu_overlay).into_any_element()
         } else {
@@ -249,8 +247,8 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let cancelled_drag = self.panels.layout.cancel_drag_gesture();
-        let closed_menu = self.panels.layout.active_border_menu.take().is_some();
-        let closed_dropdown = self.panels.layout.clear_dropdowns();
+        let closed_menu = self.panels.layout.interaction.clear_border_menu();
+        let closed_dropdown = self.panels.layout.interaction.clear_dropdowns();
         let mut handled = cancelled_drag || closed_menu || closed_dropdown;
         for view in self.panel_views.values_mut() {
             handled |= view.handle_dismiss_transient_ui(cx);

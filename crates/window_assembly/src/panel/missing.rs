@@ -61,7 +61,7 @@ impl PanelView for MissingPanelView {
         let t = &ctx.theme.typography;
 
         div()
-            .id(("missing-panel", self.panel_id.0))
+            .id(("missing-panel", self.panel_id.as_usize()))
             .w_full()
             .h_full()
             .flex()
@@ -135,7 +135,7 @@ mod tests {
         platform_contracts::PluginRegistry::register_global(manifest).expect("register manifest");
 
         let view = MissingPanelView::new(
-            PanelId(1),
+            PanelId::from(1),
             PanelKind::from_static("com.example.missing-test.panel"),
         );
         assert_eq!(view.display_name(), SharedString::from("Missing Test"));

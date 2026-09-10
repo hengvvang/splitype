@@ -86,7 +86,7 @@ impl ExplorerState {
         let menu_toggle = weak.clone();
 
         let menu_btn = icon_chip_button(c, d)
-            .id(("explorer-bottombar-menu-btn", panel_id.0))
+            .id(("explorer-bottombar-menu-btn", panel_id.as_usize()))
             .when(is_menu_open, |this| this.bg(c.panel_row_hover))
             .child(
                 svg()
@@ -107,7 +107,7 @@ impl ExplorerState {
             });
 
         let mut bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id(("explorer-bottombar", panel_id.0))
+            .id(("explorer-bottombar", panel_id.as_usize()))
             .relative()
             .flex()
             .items_center()
@@ -148,7 +148,7 @@ impl ExplorerState {
                              handler: BottombarMenuItemHandler|
              -> AnyElement {
                 let weak = weak.clone();
-                menu_item((id, panel_id.0), c, d)
+                menu_item((id, panel_id.as_usize()), c, d)
                     .w_full()
                     .child(
                         div()
@@ -283,7 +283,7 @@ impl ExplorerState {
                 menu_panel_width_for_labels_with_size(&menu_labels, item_text_size, d);
 
             let menu = menu_panel(c, d)
-                .id(("explorer-bottombar-menu-panel", panel_id.0))
+                .id(("explorer-bottombar-menu-panel", panel_id.as_usize()))
                 .absolute()
                 .occlude()
                 .bottom(px(d.bottombar_height + 4.0))

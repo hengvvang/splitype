@@ -37,7 +37,7 @@ impl ExplorerState {
         // non-empty messages (e.g. scan errors) are still rendered.
         let has_message = !message.is_empty();
 
-        empty_state_container(("explorer-empty-state-scroll", panel_id.0))
+        empty_state_container(("explorer-empty-state-scroll", panel_id.as_usize()))
             .gap(px(10.0))
             .px(px(24.0))
             .pt(px(96.0))
@@ -84,7 +84,7 @@ impl ExplorerState {
                 div()
             })
             .child(
-                ui::compact_secondary_button(("explorer-empty-open-btn", panel_id.0), c, d)
+                ui::compact_secondary_button(("explorer-empty-open-btn", panel_id.as_usize()), c, d)
                     .mt(px(4.0))
                     .h(px(28.0))
                     .px(px(12.0))

@@ -66,13 +66,7 @@ impl Editor {
         &self,
         theme: &Theme,
     ) -> Option<AnyElement> {
-        let drag_panel = self.session.root.corner_drag_panel()?;
-        let drag = self
-            .session
-            .root
-            .tree
-            .find_leaf(drag_panel)?
-            .active_corner_drag?;
+        let drag = *self.session.root.interaction.active_corner_drag()?;
         let overlay_style = ui::split::chrome::OverlayStyle::from_theme(theme);
         let inner_size = self
             .panel_rect

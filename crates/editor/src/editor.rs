@@ -162,7 +162,7 @@ impl Editor {
                     .root
                     .tree
                     .find_leaf_kind(id)
-                    .map(|kind| (PaneId(id), kind))
+                    .map(|kind| (PaneId::from(id), kind))
             })
             .collect();
 
@@ -206,7 +206,7 @@ impl Editor {
                     .root
                     .tree
                     .find_leaf_kind(id)
-                    .map(|kind| (PaneId(id), kind))
+                    .map(|kind| (PaneId::from(id), kind))
             })
             .collect();
 
@@ -429,7 +429,12 @@ impl Editor {
         if let Some(pane_id) = self.focused_pane_id {
             return pane_id;
         }
-        PaneId(self.session.root.tree.first_leaf_id().unwrap_or(0))
+        self.session
+            .root
+            .tree
+            .first_leaf_id()
+            .map(PaneId::from)
+            .unwrap_or_default()
     }
 
     pub fn active_pane_scroll(&mut self) -> &ScrollState {
@@ -540,8 +545,8 @@ impl Editor {
     ) {
         let pane_id = pane_id.into();
         self.focused_pane_id = Some(pane_id);
-        self.session.root.activate_leaf(pane_id.0);
-        self.session.root.clear_dropdowns();
+        self.session.root.activate_leaf(pane_id.leaf_id());
+        self.session.root.interaction.clear_dropdowns();
         let panel_id = self.panel_id;
         self.defer_host_action(cx, move |host, cx| host.activate_panel(panel_id, cx));
         if !self.has_tabs() {

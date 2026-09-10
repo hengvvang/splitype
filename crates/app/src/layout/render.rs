@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::shell::Shell;
 use config::language::I18nStrings;
-use splitter::tree::{NodeId, SplitAxis, SplitTree};
+use splitter::tree::{SplitAxis, SplitTree};
 use theme::Theme;
 use ui::split::chrome::{OverlayStyle, splitter_bar_h, splitter_bar_v};
 
@@ -15,7 +15,7 @@ impl Shell {
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
-        leaf_bounds: &std::collections::HashMap<NodeId, Bounds<Pixels>>,
+        leaf_bounds: &std::collections::HashMap<splitter::LeafId, Bounds<Pixels>>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -70,11 +70,12 @@ impl Shell {
                         let bar_active = self
                             .panels
                             .layout
-                            .active_splitter_drag
+                            .interaction
+                            .active_splitter_drag()
                             .is_some_and(|drag| drag.split_id == split_id);
 
                         div()
-                            .id(("tiled-split-h", split_id))
+                            .id(("tiled-split-h", split_id.as_usize()))
                             .w_full()
                             .h_full()
                             .flex()
@@ -107,7 +108,7 @@ impl Shell {
                             )
                             .child(
                                 splitter_bar_h(
-                                    ("tiled-root-bar-h", split_id),
+                                    ("tiled-root-bar-h", split_id.as_usize()),
                                     r,
                                     bar_active,
                                     &overlay_style,
@@ -143,11 +144,12 @@ impl Shell {
                         let bar_active = self
                             .panels
                             .layout
-                            .active_splitter_drag
+                            .interaction
+                            .active_splitter_drag()
                             .is_some_and(|drag| drag.split_id == split_id);
 
                         div()
-                            .id(("tiled-split-v", split_id))
+                            .id(("tiled-split-v", split_id.as_usize()))
                             .w_full()
                             .h_full()
                             .flex()
@@ -180,7 +182,7 @@ impl Shell {
                             )
                             .child(
                                 splitter_bar_v(
-                                    ("tiled-root-bar-v", split_id),
+                                    ("tiled-root-bar-v", split_id.as_usize()),
                                     r,
                                     bar_active,
                                     &overlay_style,

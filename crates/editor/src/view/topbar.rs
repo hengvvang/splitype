@@ -44,7 +44,7 @@ impl Editor {
         let type_editor = editor.clone();
         let is_active_editor = self.is_active_panel;
         let type_button = small_pill_button(c, d)
-            .id(("panel-topbar-type", panel_id.0))
+            .id(("panel-topbar-type", panel_id.as_usize()))
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child("Editor")
@@ -69,7 +69,7 @@ impl Editor {
 
         let split_h_editor = editor.clone();
         let split_h_button = icon_chip_button(c, d)
-            .id(("panel-topbar-split-h", panel_id.0))
+            .id(("panel-topbar-split-h", panel_id.as_usize()))
             .child(
                 svg()
                     .path(topbar_icon(icon_prefix, "split-h"))
@@ -93,7 +93,7 @@ impl Editor {
 
         let split_v_editor = editor.clone();
         let split_v_button = icon_chip_button(c, d)
-            .id(("panel-topbar-split-v", panel_id.0))
+            .id(("panel-topbar-split-v", panel_id.as_usize()))
             .child(
                 svg()
                     .path(topbar_icon(icon_prefix, "split-v"))
@@ -118,7 +118,7 @@ impl Editor {
         let search_editor = editor.clone();
         let is_search_active = self.search.visible;
         let search_button = icon_chip_button(c, d)
-            .id(("panel-topbar-search", panel_id.0))
+            .id(("panel-topbar-search", panel_id.as_usize()))
             .when(is_search_active, |this| this.bg(c.panel_row_hover))
             .child(
                 svg()
@@ -147,7 +147,7 @@ impl Editor {
         if leaf_count > 1 {
             let max_editor = editor.clone();
             let max_button = icon_chip_button(c, d)
-                .id(("panel-topbar-max", panel_id.0))
+                .id(("panel-topbar-max", panel_id.as_usize()))
                 .child(
                     svg()
                         .path(if is_maximized {
@@ -169,7 +169,7 @@ impl Editor {
 
             let close_editor = editor.clone();
             let close_button = icon_chip_button(c, d)
-                .id(("panel-topbar-close", panel_id.0))
+                .id(("panel-topbar-close", panel_id.as_usize()))
                 .child(
                     svg()
                         .path(topbar_icon(icon_prefix, "close"))
@@ -326,7 +326,7 @@ impl Editor {
         }
 
         topbar_container(c, d.topbar_height, 8.0)
-            .id(("panel-topbar", panel_id.0))
+            .id(("panel-topbar", panel_id.as_usize()))
             .child(left_section)
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()

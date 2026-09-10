@@ -121,7 +121,7 @@ impl SourceCodeEditor {
 
         let host_toggle = host.clone();
         let breadcrumb = render_pane_breadcrumb(
-            ("source-breadcrumb", pane_id.0),
+            ("source-breadcrumb", pane_id.as_usize()),
             ctx.file_path,
             ctx.is_outline_docked,
             &theme,
@@ -132,7 +132,7 @@ impl SourceCodeEditor {
 
         let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
             Some(render_outline_indicator_strip(
-                pane_id.0,
+                pane_id,
                 &headings,
                 active_index,
                 ctx.is_outline_hovered,
@@ -144,7 +144,7 @@ impl SourceCodeEditor {
         };
 
         let v_scrollbar = render_vertical_scrollbar(
-            ("source-v-scrollbar", pane_id.0),
+            ("source-v-scrollbar", pane_id.as_usize()),
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,
@@ -153,7 +153,7 @@ impl SourceCodeEditor {
         );
 
         let h_scrollbar = render_horizontal_scrollbar(
-            ("source-h-scrollbar", pane_id.0),
+            ("source-h-scrollbar", pane_id.as_usize()),
             ctx.scroll,
             &theme.colors,
             &theme.dimensions,

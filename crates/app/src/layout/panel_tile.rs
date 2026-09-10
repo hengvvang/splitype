@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::shell::Shell;
 use config::language::I18nStrings;
-use splitter::tree::NodeId;
+use splitter::LeafId;
 use theme::Theme;
 use ui::menu_item::menu_item;
 use ui::popover::menu_panel;
@@ -13,13 +13,13 @@ use ui::split::chrome::{OverlayStyle, corner_drag_handles};
 impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
-        leaf_id: NodeId,
+        leaf_id: splitter::LeafId,
         kind: platform_contracts::PanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
         is_maximized: bool,
-        leaf_bounds: &std::collections::HashMap<NodeId, Bounds<Pixels>>,
+        leaf_bounds: &std::collections::HashMap<splitter::LeafId, Bounds<Pixels>>,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -28,7 +28,7 @@ impl Shell {
         let gap = d.panel_tile_gap;
         let radius = d.panel_tile_radius;
 
-        let panel_id = platform_contracts::PanelId(leaf_id);
+        let panel_id = platform_contracts::PanelId::from(leaf_id);
         let is_active = self.panels.layout.active_leaf == Some(leaf_id);
         let render_ctx = platform_contracts::PanelRenderContext {
             panel_id,
@@ -50,7 +50,7 @@ impl Shell {
                 rendered
             } else {
                 let card = div()
-                    .id(("panel-card", leaf_id))
+                    .id(("panel-card", leaf_id.as_usize()))
                     .w_full()
                     .h_full()
                     .flex()
@@ -72,7 +72,7 @@ impl Shell {
         let tile_focus = cx.entity().downgrade();
         let activates_on_click = Self::kind_is_document_panel(&kind);
         let mut wrapped = div()
-            .id(("panel-wrapper", leaf_id))
+            .id(("panel-wrapper", leaf_id.as_usize()))
             .w_full()
             .h_full()
             .min_w(px(0.0))
@@ -100,7 +100,7 @@ impl Shell {
             let overlay_style = OverlayStyle::from_theme(theme);
             let corner_handles = corner_drag_handles(
                 "panel-corner",
-                leaf_id,
+                leaf_id.as_usize(),
                 gap,
                 48.0,
                 &overlay_style,
@@ -119,12 +119,7 @@ impl Shell {
             wrapped = wrapped.child(corner_handles);
         }
 
-        let dropdown_open = self
-            .panels
-            .layout
-            .tree
-            .find_leaf(leaf_id)
-            .is_some_and(|p| p.open_dropdown);
+        let dropdown_open = self.panels.layout.interaction.is_dropdown_open(leaf_id);
         if dropdown_open {
             let menu = self.render_panel_type_dropdown_menu(leaf_id, kind, theme, cx);
             wrapped = wrapped.child(menu);
@@ -135,7 +130,7 @@ impl Shell {
 
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
-        leaf_id: NodeId,
+        leaf_id: LeafId,
         current_kind: platform_contracts::PanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
@@ -149,7 +144,7 @@ impl Shell {
             window_assembly::PanelRegistry::registered_descriptors().unwrap_or_default();
 
         menu_panel(c, d)
-            .id(("panel-dropdown-overlay", leaf_id))
+            .id(("panel-dropdown-overlay", leaf_id.as_usize()))
             .absolute()
             .occlude()
             .top(px(28.0))

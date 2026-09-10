@@ -7,8 +7,9 @@
 
 use platform_contracts::{PanelId, PanelKind};
 use serde::{Deserialize, Serialize};
+use splitter::NodeIdAllocator;
 use splitter::root::SplitterRoot;
-use splitter::tree::{NodeId, SplitTree};
+use splitter::tree::SplitTree;
 
 /// Current schema version of [`PersistedWindowState`]. Bump on breaking
 /// changes; loaders must reject versions they do not understand.
@@ -30,9 +31,10 @@ pub struct PersistedPanel {
 pub struct PersistedWindowState {
     pub version: u32,
     pub tree: SplitTree<PanelKind>,
-    pub next_node_id: NodeId,
-    pub active_leaf: Option<NodeId>,
-    pub activation_history: Vec<NodeId>,
+    #[serde(rename = "next_node_id")]
+    pub allocator: NodeIdAllocator,
+    pub active_leaf: Option<splitter::LeafId>,
+    pub activation_history: Vec<splitter::LeafId>,
     pub panels: Vec<PersistedPanel>,
     /// Open documents (buffers) captured with the snapshot. The shell
     /// restores them before rebuilding panel states, so panel sessions can
@@ -46,9 +48,8 @@ impl PersistedWindowState {
     pub fn into_layout(self) -> SplitterRoot<PanelKind> {
         SplitterRoot {
             tree: self.tree,
-            next_node_id: self.next_node_id,
-            active_splitter_drag: None,
-            active_border_menu: None,
+            allocator: self.allocator,
+            interaction: Default::default(),
             active_leaf: self.active_leaf,
             activation_history: self.activation_history,
         }
@@ -59,10 +60,10 @@ impl PersistedWindowState {
 mod tests {
     use super::*;
     use splitter::container::SplitterContainer;
-    use splitter::tree::SplitAxis;
+    use splitter::geometry::SplitAxis;
 
-    fn leaf(id: NodeId, kind: &'static str) -> SplitTree<PanelKind> {
-        SplitTree::Leaf(SplitterContainer::new(id, PanelKind::from_static(kind)))
+    fn leaf(id: u32, kind: &'static str) -> SplitTree<PanelKind> {
+        SplitTree::Leaf(SplitterContainer::new(splitter::LeafId::new(id), PanelKind::from_static(kind)))
     }
 
     #[test]
@@ -70,17 +71,17 @@ mod tests {
         let state = PersistedWindowState {
             version: WINDOW_STATE_VERSION,
             tree: SplitTree::Split {
-                id: 3,
+                id: 3.into(),
                 axis: SplitAxis::Horizontal,
                 ratio: 0.3,
                 first: Box::new(leaf(1, "splitype.panel.explorer")),
                 second: Box::new(leaf(2, "splitype.panel.editor")),
             },
-            next_node_id: 4,
-            active_leaf: Some(2),
-            activation_history: vec![2],
+            allocator: NodeIdAllocator::with_start(4),
+            active_leaf: Some(2.into()),
+            activation_history: vec![2.into()],
             panels: vec![PersistedPanel {
-                id: PanelId(2),
+                id: PanelId::from(2),
                 kind: PanelKind::from_static("splitype.panel.editor"),
                 state: serde_json::json!({ "text": "# hello" }),
             }],
@@ -91,13 +92,13 @@ mod tests {
         let restored: PersistedWindowState = serde_json::from_str(&json).expect("deserialize");
 
         assert_eq!(restored.version, WINDOW_STATE_VERSION);
-        assert_eq!(restored.next_node_id, 4);
-        assert_eq!(restored.activation_history, vec![2]);
+        assert_eq!(restored.allocator.peek_next(), 4);
+        assert_eq!(restored.activation_history, vec![2.into()]);
         assert_eq!(restored.panels.len(), 1);
         assert_eq!(restored.panels[0].state["text"], "# hello");
 
         let layout = restored.into_layout();
         assert_eq!(layout.tree.count_leaves(), 2);
-        assert_eq!(layout.active_leaf, Some(2));
+        assert_eq!(layout.active_leaf, Some(2.into()));
     }
 }

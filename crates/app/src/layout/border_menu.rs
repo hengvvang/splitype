@@ -14,8 +14,8 @@ impl Shell {
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        if self.panels.layout.tree.find_maximized_leaf().is_some() {
-            self.panels.layout.active_border_menu = None;
+        if self.panels.layout.interaction.is_maximized() {
+            self.panels.layout.interaction.clear_border_menu();
             return div().into_any_element();
         }
         let shell = cx.entity().downgrade();
@@ -32,28 +32,28 @@ impl Shell {
         let actions = BorderMenuActions {
             split_horizontal: Box::new(move |app| {
                 let _ = split_h_shell.update(app, |shell, cx| {
-                    shell.split_panel(split_id, SplitAxis::Horizontal, 0.5, true, cx);
-                    shell.panels.layout.active_border_menu = None;
+                    shell.split_panel_divider(split_id, SplitAxis::Horizontal, 0.5, true, cx);
+                    shell.panels.layout.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
             split_vertical: Box::new(move |app| {
                 let _ = split_v_shell.update(app, |shell, cx| {
-                    shell.split_panel(split_id, SplitAxis::Vertical, 0.5, true, cx);
-                    shell.panels.layout.active_border_menu = None;
+                    shell.split_panel_divider(split_id, SplitAxis::Vertical, 0.5, true, cx);
+                    shell.panels.layout.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
             swap: Box::new(move |app| {
                 let _ = swap_shell.update(app, |shell, cx| {
-                    shell.panels.layout.swap_split_sides(split_id);
+                    let _ = shell.panels.layout.swap_split_sides(split_id);
                     cx.notify();
                 });
             }),
             close: Box::new(move |app| {
                 let _ = close_shell.update(app, |shell, cx| {
-                    shell.close_panel(split_id, cx);
-                    shell.panels.layout.active_border_menu = None;
+                    shell.close_panel_divider(split_id, cx);
+                    shell.panels.layout.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
@@ -65,7 +65,7 @@ impl Shell {
             &menu_style,
             Box::new(move |app| {
                 let _ = dismiss_shell.update(app, |shell, cx| {
-                    shell.panels.layout.active_border_menu = None;
+                    shell.panels.layout.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),

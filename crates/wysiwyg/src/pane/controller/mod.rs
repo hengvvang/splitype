@@ -501,7 +501,7 @@ impl WysiwygDocumentController {
 
             let host_toggle = ctx.host.clone();
             let breadcrumb = render_pane_breadcrumb(
-                ("wysiwyg-breadcrumb", pane_id.0),
+                ("wysiwyg-breadcrumb", pane_id.as_usize()),
                 ctx.file_path,
                 ctx.is_outline_docked,
                 &theme,
@@ -512,7 +512,7 @@ impl WysiwygDocumentController {
 
             let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
                 Some(render_outline_indicator_strip(
-                    pane_id.0,
+                    pane_id,
                     &headings,
                     active_index,
                     ctx.is_outline_hovered,
@@ -524,7 +524,7 @@ impl WysiwygDocumentController {
             };
 
             let v_scrollbar = render_vertical_scrollbar(
-                ("wysiwyg-v-scrollbar", pane_id.0),
+                ("wysiwyg-v-scrollbar", pane_id.as_usize()),
                 ctx.scroll,
                 c,
                 d,
@@ -533,7 +533,7 @@ impl WysiwygDocumentController {
             );
 
             let h_scrollbar = render_horizontal_scrollbar(
-                ("wysiwyg-h-scrollbar", pane_id.0),
+                ("wysiwyg-h-scrollbar", pane_id.as_usize()),
                 ctx.scroll,
                 c,
                 d,

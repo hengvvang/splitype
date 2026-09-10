@@ -46,16 +46,16 @@ impl Editor {
 
         match node {
             SplitTree::Leaf(container) => {
-                let pane_id = PaneId(container.id);
+                let pane_id = PaneId::from(container.id);
                 let inner_editor = cx.entity().downgrade();
 
                 let inner_body = self.render_pane(pane_id, window, cx);
 
-                let is_inner_maximized = self.session.root.tree.find_maximized_leaf().is_some();
+                let is_inner_maximized = self.session.root.interaction.is_maximized();
                 let corner_handles = if !is_inner_maximized {
                     Some(ui::split::chrome::corner_drag_handles(
                         "inner-corner",
-                        pane_id.0,
+                        pane_id.leaf_id(),
                         d.pane_gap,
                         48.0,
                         &overlay_style,
@@ -75,7 +75,7 @@ impl Editor {
                                     .unwrap_or(pos);
                                 ed.session_mut()
                                     .root
-                                    .start_corner_drag(pane_id.0, local, modifier);
+                                    .start_corner_drag(pane_id.leaf_id(), local, modifier);
                                 cx.notify();
                             });
                         },
@@ -92,13 +92,13 @@ impl Editor {
                 let panel_gap = d.pane_gap;
 
                 div()
-                    .id(("pane-wrapper", pane_id.0))
+                    .id(("pane-wrapper", pane_id.as_usize()))
                     .w_full()
                     .h_full()
                     .relative()
                     .child(
                         div()
-                            .id(("pane-card", pane_id.0))
+                            .id(("pane-card", pane_id.as_usize()))
                             .absolute()
                             .inset(px(panel_gap))
                             .overflow_hidden()
@@ -147,7 +147,8 @@ impl Editor {
                         let bar_active = self
                             .session
                             .root
-                            .active_splitter_drag
+                            .interaction
+                            .active_splitter_drag()
                             .is_some_and(|drag| drag.split_id == split_id);
                         div()
                             .w_full()
@@ -182,7 +183,7 @@ impl Editor {
                             )
                             .child(
                                 ui::split::chrome::splitter_bar_h(
-                                    ("inner-root-bar-h", split_id),
+                                    ("inner-root-bar-h", split_id.as_usize()),
                                     r,
                                     bar_active,
                                     &overlay_style,
@@ -222,7 +223,8 @@ impl Editor {
                         let bar_active = self
                             .session
                             .root
-                            .active_splitter_drag
+                            .interaction
+                            .active_splitter_drag()
                             .is_some_and(|drag| drag.split_id == split_id);
                         div()
                             .w_full()
@@ -257,7 +259,7 @@ impl Editor {
                             )
                             .child(
                                 ui::split::chrome::splitter_bar_v(
-                                    ("inner-root-bar-v", split_id),
+                                    ("inner-root-bar-v", split_id.as_usize()),
                                     r,
                                     bar_active,
                                     &overlay_style,
@@ -307,7 +309,7 @@ impl Editor {
         let Some(buffer) = self.session.active_tab().map(|tab| tab.buffer.clone()) else {
             let theme = cx.global::<theme::ThemeManager>().current_arc();
             return div()
-                .id(("empty-pane", pane_id.0))
+                .id(("empty-pane", pane_id.as_usize()))
                 .w_full()
                 .h_full()
                 .bg(theme.colors.editor_background)
@@ -327,7 +329,7 @@ impl Editor {
             .session
             .root
             .tree
-            .find_leaf_kind(pane_id.0)
+            .find_leaf_kind(pane_id.leaf_id())
             .or_else(|| self.pane_state_ref(pane_id).map(|s| s.pane().kind()))
             .unwrap_or_else(|| self.default_pane_kind());
         let (effective_kind, read_only) = Self::resolve_effective_pane(&configured_kind, Some(&document));
@@ -353,7 +355,7 @@ impl Editor {
             let pane_content = state.pane_mut().render(&render_ctx, window, cx);
 
             div()
-                .id(("pane-container", pane_id.0))
+                .id(("pane-container", pane_id.as_usize()))
                 .w_full()
                 .h_full()
                 .overflow_hidden()

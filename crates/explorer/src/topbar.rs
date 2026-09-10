@@ -45,18 +45,18 @@ pub fn render_explorer_topbar(
     let d = &theme.dimensions;
 
     let type_button = small_pill_button(c, d)
-        .id(("panel-topbar-type", panel_id.0))
+        .id(("panel-topbar-type", panel_id.as_usize()))
         .text_size(px(12.0))
         .text_color(c.text_default)
         .child("Explorer")
         .on_click(move |_event, window, cx| {
-            window.dispatch_action(Box::new(ToggleKindDropdown { panel: panel_id.0 }), cx);
+            window.dispatch_action(Box::new(ToggleKindDropdown { panel: panel_id }), cx);
         });
 
     let btn_icon_size = toolbar_icon_size(d.topbar_height);
 
     let split_h_button = icon_chip_button(c, d)
-        .id(("panel-topbar-split-h", panel_id.0))
+        .id(("panel-topbar-split-h", panel_id.as_usize()))
         .child(
             svg()
                 .path(topbar_icon(icon_prefix, "split-h"))
@@ -71,7 +71,7 @@ pub fn render_explorer_topbar(
             this.on_click(move |_event, window, cx| {
                 window.dispatch_action(
                     Box::new(SplitPanel {
-                        panel: panel_id.0,
+                        panel: panel_id,
                         axis: SplitAxis::Horizontal,
                     }),
                     cx,
@@ -80,7 +80,7 @@ pub fn render_explorer_topbar(
         });
 
     let split_v_button = icon_chip_button(c, d)
-        .id(("panel-topbar-split-v", panel_id.0))
+        .id(("panel-topbar-split-v", panel_id.as_usize()))
         .child(
             svg()
                 .path(topbar_icon(icon_prefix, "split-v"))
@@ -95,7 +95,7 @@ pub fn render_explorer_topbar(
             this.on_click(move |_event, window, cx| {
                 window.dispatch_action(
                     Box::new(SplitPanel {
-                        panel: panel_id.0,
+                        panel: panel_id,
                         axis: SplitAxis::Vertical,
                     }),
                     cx,
@@ -112,7 +112,7 @@ pub fn render_explorer_topbar(
 
     if leaf_count > 1 {
         let max_button = icon_chip_button(c, d)
-            .id(("panel-topbar-max", panel_id.0))
+            .id(("panel-topbar-max", panel_id.as_usize()))
             .child(
                 svg()
                     .path(if is_maximized {
@@ -124,11 +124,11 @@ pub fn render_explorer_topbar(
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, window, cx| {
-                window.dispatch_action(Box::new(TogglePanelMaximized { panel: panel_id.0 }), cx);
+                window.dispatch_action(Box::new(TogglePanelMaximized { panel: panel_id }), cx);
             });
 
         let close_button = icon_chip_button(c, d)
-            .id(("panel-topbar-close", panel_id.0))
+            .id(("panel-topbar-close", panel_id.as_usize()))
             .child(
                 svg()
                     .path(topbar_icon(icon_prefix, "close"))
@@ -136,14 +136,14 @@ pub fn render_explorer_topbar(
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, window, cx| {
-                window.dispatch_action(Box::new(ClosePanel { panel: panel_id.0 }), cx);
+                window.dispatch_action(Box::new(ClosePanel { panel: panel_id }), cx);
             });
 
         actions = actions.child(max_button).child(close_button);
     }
 
     topbar_container(c, d.topbar_height, 8.0)
-        .id(("panel-topbar", panel_id.0))
+        .id(("panel-topbar", panel_id.as_usize()))
         .child(div().flex().items_center().gap(px(8.0)).child(type_button))
         .child(div().flex().items_center().gap(px(6.0)).child(actions))
         .into_any_element()

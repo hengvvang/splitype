@@ -68,7 +68,7 @@ impl DocumentHost for ShellDocumentHost {
     fn clear_outer_dropdowns(&self, cx: &mut App) {
         let _ = self
             .shell
-            .update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
+            .update(cx, |shell, _cx| shell.panels.layout.interaction.clear_dropdowns());
     }
 
     fn on_document_path_changed(&self, cx: &mut App) {

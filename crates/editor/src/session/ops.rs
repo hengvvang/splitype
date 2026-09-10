@@ -1,9 +1,8 @@
 //! Editor pane operations of an Editor panel.
 
 use gpui::Context;
-use splitter::NodeId;
-use splitter::sessions::AreaDockTarget;
-use splitter::tree::SplitAxis;
+use splitter::gesture::AreaDockTarget;
+use splitter::SplitAxis;
 
 use crate::editor::Editor;
 use crate::session::{EditorSession, PaneKind, PaneState};
@@ -28,12 +27,12 @@ impl Editor {
 
     pub fn close_pane(&mut self, pane_id: impl Into<PaneId>) {
         let pane_id = pane_id.into();
-        self.session.root.close_leaf(pane_id.0);
-        self.forget_pane_state(pane_id.0);
+        let _ = self.session.root.close_leaf(pane_id);
+        self.forget_pane_state(pane_id);
     }
 
     pub fn toggle_pane_dropdown(&mut self, pane_id: impl Into<PaneId>, cx: &mut Context<Self>) {
-        self.session.root.toggle_dropdown(pane_id.into().0);
+        self.session.root.interaction.toggle_dropdown(pane_id.into().leaf_id());
         if let Some(host) = self.host.clone() {
             host.clear_outer_dropdowns(cx);
         }
@@ -41,9 +40,9 @@ impl Editor {
 
     pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: PaneKind) {
         let pane_id = pane_id.into();
-        self.session.root.set_kind(pane_id.0, kind.clone());
-        self.session.root.activate_leaf(pane_id.0);
-        self.session.root.clear_dropdowns();
+        let _ = self.session.root.set_kind(pane_id, kind.clone());
+        self.session.root.activate_leaf(pane_id);
+        self.session.root.interaction.clear_dropdowns();
         self.focused_pane_id = Some(pane_id);
         if let Some(state) = self.pane_state_mut(pane_id) {
             state.ensure_kind(kind);
@@ -58,18 +57,36 @@ impl Editor {
     ) {
         // Splitting is disabled while a pane is maximized, mirroring the
         // window shell's panel-level behavior.
-        if self.session.root.tree.find_maximized_leaf().is_some() {
+        if self.session.root.interaction.is_maximized() {
             return;
         }
-        self.session.root.split_leaf(pane_id.into().0, axis, ratio);
+        let _ = self.session.root.split_leaf(pane_id.into(), axis, ratio);
     }
 
-    pub fn swap_pane_split_sides(&mut self, split_id: NodeId) {
-        self.session.root.swap_split_sides(split_id);
+    pub fn split_pane_divider_with_ratio(
+        &mut self,
+        split_id: impl Into<splitter::SplitId>,
+        axis: SplitAxis,
+        ratio: f32,
+    ) {
+        if self.session.root.interaction.is_maximized() {
+            return;
+        }
+        let _ = self.session.root.split_divider(split_id, axis, ratio);
+    }
+
+    pub fn close_pane_divider(&mut self, split_id: impl Into<splitter::SplitId>) {
+        if let Ok(closed_leaf) = self.session.root.close_divider(split_id) {
+            self.forget_pane_state(PaneId::from(closed_leaf));
+        }
+    }
+
+    pub fn swap_pane_split_sides(&mut self, split_id: impl Into<splitter::SplitId>) {
+        let _ = self.session.root.swap_split_sides(split_id);
     }
 
     pub fn toggle_pane_maximize(&mut self, pane_id: impl Into<PaneId>) {
-        self.session.root.toggle_maximize(pane_id.into().0);
+        self.session.root.interaction.toggle_maximize(pane_id.into().leaf_id());
     }
 
     /// Toggles the active pane's maximized state and refreshes the view.
@@ -90,25 +107,27 @@ impl Editor {
     }
 
     /// Drop a pane's state after its leaf was removed from the tree.
-    pub(crate) fn forget_pane_state(&mut self, pane_id: usize) {
+    pub(crate) fn forget_pane_state(&mut self, pane_id: impl Into<PaneId>) {
         if let Some(panes) = self.panes_mut() {
-            panes.remove(&PaneId(pane_id));
+            panes.remove(&pane_id.into());
         }
     }
 
     /// Swap two leaves' pane states after a kind swap (scroll and focus
     /// belong to the leaf position, not the kind).
-    pub(crate) fn swap_pane_states(&mut self, a: usize, b: usize) {
+    pub(crate) fn swap_pane_states(&mut self, a: impl Into<PaneId>, b: impl Into<PaneId>) {
         let Some(panes) = self.panes_mut() else {
             return;
         };
-        let state_a = panes.remove(&PaneId(a));
-        let state_b = panes.remove(&PaneId(b));
+        let a = a.into();
+        let b = b.into();
+        let state_a = panes.remove(&a);
+        let state_b = panes.remove(&b);
         if let Some(state) = state_a {
-            panes.insert(PaneId(b), state);
+            panes.insert(b, state);
         }
         if let Some(state) = state_b {
-            panes.insert(PaneId(a), state);
+            panes.insert(a, state);
         }
     }
 
@@ -116,30 +135,33 @@ impl Editor {
     /// shell's panel-view handling.
     pub(crate) fn move_and_dock_pane_states(
         &mut self,
-        source_id: usize,
-        target_id: usize,
-        new_leaf_id: usize,
+        source_id: impl Into<PaneId>,
+        target_id: impl Into<PaneId>,
+        new_leaf_id: impl Into<PaneId>,
         dock_target: AreaDockTarget,
     ) {
         let Some(panes) = self.panes_mut() else {
             return;
         };
-        let source = panes.remove(&PaneId(source_id));
-        let target = panes.remove(&PaneId(target_id));
+        let source_id = source_id.into();
+        let target_id = target_id.into();
+        let new_leaf_id = new_leaf_id.into();
+        let source = panes.remove(&source_id);
+        let target = panes.remove(&target_id);
         let source_first = matches!(dock_target, AreaDockTarget::Left | AreaDockTarget::Top);
         if source_first {
             if let Some(state) = source {
-                panes.insert(PaneId(target_id), state);
+                panes.insert(target_id, state);
             }
             if let Some(state) = target {
-                panes.insert(PaneId(new_leaf_id), state);
+                panes.insert(new_leaf_id, state);
             }
         } else {
             if let Some(state) = target {
-                panes.insert(PaneId(target_id), state);
+                panes.insert(target_id, state);
             }
             if let Some(state) = source {
-                panes.insert(PaneId(new_leaf_id), state);
+                panes.insert(new_leaf_id, state);
             }
         }
     }

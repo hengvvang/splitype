@@ -11,16 +11,15 @@ use crate::window::open_cloned_window;
 use editor_contracts::TabKind;
 use platform_contracts::actions::{OpenPath, OpenPathInSplit};
 use platform_contracts::{PanelId, PanelKind, PanelView};
-use splitter::NodeId;
+use splitter::gesture::AreaDockTarget;
 use splitter::policy::ClonedContainer;
-use splitter::sessions::AreaDockTarget;
 use splitter::tree::SplitAxis;
 
 impl Shell {
     /// Marks `panel_id` as the active editor area and re-pushes the
     /// active-flag to every editor entity.
     pub(crate) fn activate_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
-        self.panels.layout.activate_leaf(panel_id.into().0);
+        self.panels.layout.activate_leaf(panel_id.into().leaf_id());
         self.push_active_document_context(cx);
     }
 
@@ -33,17 +32,36 @@ impl Shell {
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<PanelId> {
-        if self.panels.layout.tree.find_maximized_leaf().is_some() {
+        if self.panels.layout.interaction.is_maximized() {
             return None;
         }
         let panel_id = panel_id.into();
-        let target_leaf_id = self.panels.layout.resolve_leaf(panel_id.0)?;
-        let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
+        let new_id = self.panels.layout.split_leaf(panel_id, axis, ratio).ok()?;
         if self.panels.layout.tree.find_leaf_kind(new_id).is_some() {
-            self.materialize_panel_view(PanelId(new_id), copy_content, cx);
+            self.materialize_panel_view(PanelId::from(new_id), copy_content, cx);
         }
         self.push_active_document_context(cx);
-        Some(PanelId(new_id))
+        Some(PanelId::from(new_id))
+    }
+
+    /// Split at an internal divider via context menu or shortcut.
+    pub(crate) fn split_panel_divider(
+        &mut self,
+        split_id: impl Into<splitter::SplitId>,
+        axis: SplitAxis,
+        ratio: f32,
+        copy_content: bool,
+        cx: &mut Context<Self>,
+    ) -> Option<PanelId> {
+        if self.panels.layout.interaction.is_maximized() {
+            return None;
+        }
+        let new_id = self.panels.layout.split_divider(split_id, axis, ratio).ok()?;
+        if self.panels.layout.tree.find_leaf_kind(new_id).is_some() {
+            self.materialize_panel_view(PanelId::from(new_id), copy_content, cx);
+        }
+        self.push_active_document_context(cx);
+        Some(PanelId::from(new_id))
     }
 
     /// Materialize the fresh sibling leaf of a plain-drag split (always
@@ -173,12 +191,34 @@ impl Shell {
     /// Close an area and drop its view and retained state.
     pub(crate) fn close_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
         let panel_id = panel_id.into();
-        if let Some(target_leaf_id) = self.panels.layout.resolve_leaf(panel_id.0) {
-            self.panels.layout.close_leaf(target_leaf_id);
+        if self.panels.layout.close_leaf(panel_id).is_ok() {
+            if let Some(mut view) = self.remove_panel_view(panel_id) {
+                view.release_documents(cx);
+            }
+            if let Some(retained) = self.retained_panel_states.remove(&panel_id) {
+                if let Ok(Some(descriptor)) =
+                    window_assembly::PanelRegistry::registered(retained.kind.clone())
+                {
+                    let mut state = retained.state;
+                    descriptor.release_retained(&mut state, cx);
+                }
+            }
+            self.push_active_document_context(cx);
+        }
+    }
+
+    /// Close an actionable panel adjacent to an internal divider.
+    pub(crate) fn close_panel_divider(
+        &mut self,
+        split_id: impl Into<splitter::SplitId>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Ok(removed_leaf) = self.panels.layout.close_divider(split_id) {
+            let target_leaf_id = PanelId::from(removed_leaf);
             if let Some(mut view) = self.remove_panel_view(target_leaf_id) {
                 view.release_documents(cx);
             }
-            if let Some(retained) = self.retained_panel_states.remove(&PanelId(target_leaf_id)) {
+            if let Some(retained) = self.retained_panel_states.remove(&target_leaf_id) {
                 if let Ok(Some(descriptor)) =
                     window_assembly::PanelRegistry::registered(retained.kind.clone())
                 {
@@ -191,12 +231,19 @@ impl Shell {
     }
 
     /// Clean up a joined panel's view and retained state.
-    pub(crate) fn handle_joined_panel(&mut self, removed_id: NodeId, cx: &mut Context<Self>) {
+    pub(crate) fn handle_joined_panel(
+        &mut self,
+        removed_id: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        let removed_id = removed_id.into();
         if let Some(mut view) = self.remove_panel_view(removed_id) {
             view.release_documents(cx);
         }
-        if let Some(retained) = self.retained_panel_states.remove(&PanelId(removed_id)) {
-            if let Ok(Some(descriptor)) = window_assembly::PanelRegistry::registered(retained.kind.clone()) {
+        if let Some(retained) = self.retained_panel_states.remove(&removed_id) {
+            if let Ok(Some(descriptor)) =
+                window_assembly::PanelRegistry::registered(retained.kind.clone())
+            {
                 let mut state = retained.state;
                 descriptor.release_retained(&mut state, cx);
             }
@@ -205,21 +252,29 @@ impl Shell {
     }
 
     /// Update panel contents when a swap operation has already swapped tree kinds.
-    pub(crate) fn handle_swapped_panels(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
-        self.swap_panel_contents(a, b, cx);
+    pub(crate) fn handle_swapped_panels(
+        &mut self,
+        a: impl Into<PanelId>,
+        b: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        let a = a.into();
+        let b = b.into();
+        self.swap_panel_contents(a.0, b.0, cx);
         self.push_active_document_context(cx);
     }
 
     /// Change an area's kind.
     pub(crate) fn change_panel_kind(
         &mut self,
-        panel_id: NodeId,
+        panel_id: impl Into<splitter::LeafId>,
         kind: PanelKind,
         cx: &mut Context<Self>,
     ) {
+        let panel_id = panel_id.into();
         let previous = self.panels.layout.tree.find_leaf_kind(panel_id);
         let was_document = previous.as_ref().is_some_and(Self::kind_is_document_panel);
-        self.panels.layout.set_kind(panel_id, kind.clone());
+        let _ = self.panels.layout.set_kind(panel_id, kind.clone());
         self.sync_panel_kind(panel_id, kind.clone(), cx);
         if !was_document && self.leaf_is_document_panel(panel_id) {
             self.panels.layout.activate_leaf(panel_id);
@@ -229,8 +284,8 @@ impl Shell {
 
     /// The document panel that a file open should target.
     #[inline]
-    pub(crate) fn active_document_panel(&self) -> Option<NodeId> {
-        self.active_document_panel_id().map(|panel_id| panel_id.0)
+    pub(crate) fn active_document_panel(&self) -> Option<PanelId> {
+        self.active_document_panel_id()
     }
 
     /// Opens `path` in the active document panel's tab list, if one exists.
@@ -244,7 +299,7 @@ impl Shell {
         let Some(panel_id) = self.active_document_panel() else {
             return false;
         };
-        self.panels.layout.activate_leaf(panel_id);
+        self.panels.layout.activate_leaf(panel_id.leaf_id());
         let Some(panel) = self.document_panel_mut_for(panel_id) else {
             return false;
         };
@@ -298,12 +353,12 @@ impl Shell {
             return;
         };
         let Some(new_panel) =
-            self.split_panel(PanelId(active), SplitAxis::Horizontal, 0.5, false, cx)
+            self.split_panel(active, SplitAxis::Horizontal, 0.5, false, cx)
         else {
             open_in_active(self, window, cx);
             return;
         };
-        self.panels.layout.activate_leaf(new_panel.0);
+        self.panels.layout.activate_leaf(new_panel.leaf_id());
         let Some(panel) = self.document_panel_mut_for(new_panel) else {
             open_in_active(self, window, cx);
             return;
@@ -439,18 +494,18 @@ impl Shell {
     ) {
         let mut retained = HashMap::new();
         for (old_id, new_id) in &cloned.id_map {
-            let Some(kind) = cloned.tree.find_leaf_kind(*new_id) else {
+            let Some(kind) = cloned.tree.find_leaf_kind(new_id.as_usize()) else {
                 continue;
             };
             let Some(state) = self
                 .panel_views
-                .get(&PanelId(*old_id))
+                .get(&PanelId::from(*old_id))
                 .and_then(|view| view.clone_state(cx))
             else {
                 continue;
             };
-            retained.insert(PanelId(*new_id), RetainedPanel { kind, state });
+            retained.insert(PanelId::from(*new_id), RetainedPanel { kind, state });
         }
-        open_cloned_window(cloned.tree, cloned.next_node_id, retained, cx);
+        open_cloned_window(cloned.tree, cloned.allocator, retained, cx);
     }
 }

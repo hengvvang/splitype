@@ -5,63 +5,10 @@
 //! `editor_contracts::PaneKind`.
 
 use crate::container::SplitterContainer;
+use crate::error::{Result, SplitterError};
+use crate::id::{LeafId, NodeIdAllocator, SplitId};
 
-/// The one id concept of the engine: every node of every container
-/// (leaves and split nodes alike) is numbered from this single space.
-pub type NodeId = usize;
-
-/// Split orientation between adjacent leaves in the layout tree.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
-)]
-pub enum SplitAxis {
-    Horizontal, // Splits left and right (vertical divider)
-    Vertical,   // Splits top and bottom (horizontal divider)
-}
-
-/// Cardinal direction used for corner-drag gesture routing.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
-)]
-pub enum Direction {
-    Up,
-    Down,
-    Right,
-    Left,
-}
-
-impl Direction {
-    pub fn is_vertical(self) -> bool {
-        matches!(self, Self::Up | Self::Down)
-    }
-}
-
-/// A leaf's rectangle in layout space, normalized to 0..1 (or scaled to
-/// pixels by the host when collected from `WindowLayout`).
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct LeafRect {
-    pub id: NodeId,
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
+pub use crate::geometry::{Direction, LeafRect, SplitAxis};
 
 /// Recursive binary layout tree representing tiled leaves and splitters.
 ///
@@ -71,9 +18,9 @@ pub struct LeafRect {
 /// window-clone (Shift) – with differentiated gesture thresholds and
 /// directional cursors.
 ///
-/// Every leaf is a [`SplitterContainer`] (a panel). Splitting a leaf
-/// replaces it with a `Split` node holding two containers — the original
-/// and the freshly created one — both hanging on this tree.
+/// Every leaf is a [`SplitterContainer`]. Splitting a leaf replaces it with a
+/// `Split` node holding two containers — the original and the freshly created one —
+/// both hanging on this tree.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
     serialize = "T: serde::Serialize",
@@ -82,7 +29,7 @@ pub struct LeafRect {
 pub enum SplitTree<T: Clone> {
     Leaf(SplitterContainer<T>),
     Split {
-        id: NodeId,
+        id: SplitId,
         axis: SplitAxis,
         ratio: f32,
         first: Box<SplitTree<T>>,
@@ -124,14 +71,15 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// Returns the ID of the very first leaf in depth-first order.
-    pub fn first_leaf_id(&self) -> Option<NodeId> {
+    pub fn first_leaf_id(&self) -> Option<LeafId> {
         match self {
             Self::Leaf(container) => Some(container.id),
             Self::Split { first, .. } => first.first_leaf_id(),
         }
     }
 
-    pub fn find_leaf_kind(&self, leaf_id: NodeId) -> Option<T> {
+    pub fn find_leaf_kind<I: Into<LeafId>>(&self, leaf_id: I) -> Option<T> {
+        let leaf_id = leaf_id.into();
         match self {
             Self::Leaf(container) => (container.id == leaf_id).then_some(container.kind.clone()),
             Self::Split { first, second, .. } => first
@@ -141,7 +89,8 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// The container (panel) of the leaf with `leaf_id`, if any.
-    pub fn find_leaf(&self, leaf_id: NodeId) -> Option<&SplitterContainer<T>> {
+    pub fn find_leaf<I: Into<LeafId>>(&self, leaf_id: I) -> Option<&SplitterContainer<T>> {
+        let leaf_id = leaf_id.into();
         match self {
             Self::Leaf(container) => (container.id == leaf_id).then_some(container),
             Self::Split { first, second, .. } => first
@@ -151,7 +100,8 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// The container (panel) of the leaf with `leaf_id`, mutably.
-    pub fn find_leaf_mut(&mut self, leaf_id: NodeId) -> Option<&mut SplitterContainer<T>> {
+    pub fn find_leaf_mut<I: Into<LeafId>>(&mut self, leaf_id: I) -> Option<&mut SplitterContainer<T>> {
+        let leaf_id = leaf_id.into();
         match self {
             Self::Leaf(container) => (container.id == leaf_id).then_some(container),
             Self::Split { first, second, .. } => first
@@ -160,18 +110,17 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         }
     }
 
-    /// Finds the first leaf container that is currently maximized, if any.
-    pub fn find_maximized_leaf(&self) -> Option<&SplitterContainer<T>> {
-        match self {
-            Self::Leaf(container) => container.maximized.then_some(container),
-            Self::Split { first, second, .. } => first
-                .find_maximized_leaf()
-                .or_else(|| second.find_maximized_leaf()),
+    /// Sets a leaf's kind by id, returning an error if the leaf was not found.
+    pub fn set_leaf_kind<I: Into<LeafId>>(&mut self, leaf_id: I, new_kind: T) -> Result<()> {
+        let leaf_id = leaf_id.into();
+        if self.set_leaf_kind_internal(leaf_id, new_kind) {
+            Ok(())
+        } else {
+            Err(SplitterError::LeafNotFound(leaf_id))
         }
     }
 
-    /// Sets a leaf's kind by id.
-    pub fn set_leaf_kind(&mut self, leaf_id: NodeId, new_kind: T) -> bool {
+    fn set_leaf_kind_internal(&mut self, leaf_id: LeafId, new_kind: T) -> bool {
         match self {
             Self::Leaf(container) => {
                 if container.id == leaf_id {
@@ -182,14 +131,15 @@ impl<T: Clone + PartialEq> SplitTree<T> {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.set_leaf_kind(leaf_id, new_kind.clone())
-                    || second.set_leaf_kind(leaf_id, new_kind)
+                first.set_leaf_kind_internal(leaf_id, new_kind.clone())
+                    || second.set_leaf_kind_internal(leaf_id, new_kind)
             }
         }
     }
 
     /// Does the subtree contain the leaf with `leaf_id`?
-    pub fn contains_leaf(&self, leaf_id: NodeId) -> bool {
+    pub fn contains_leaf<I: Into<LeafId>>(&self, leaf_id: I) -> bool {
+        let leaf_id = leaf_id.into();
         match self {
             Self::Leaf(container) => container.id == leaf_id,
             Self::Split { first, second, .. } => {
@@ -198,8 +148,19 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         }
     }
 
+    /// Does the subtree contain the split divider with `split_id`?
+    pub fn contains_split<I: Into<SplitId>>(&self, split_id: I) -> bool {
+        let split_id = split_id.into();
+        match self {
+            Self::Leaf(_) => false,
+            Self::Split { id, first, second, .. } => {
+                *id == split_id || first.contains_split(split_id) || second.contains_split(split_id)
+            }
+        }
+    }
+
     /// Collect all leaf ids in tree order.
-    pub fn leaf_ids(&self, out: &mut Vec<NodeId>) {
+    pub fn leaf_ids(&self, out: &mut Vec<LeafId>) {
         match self {
             Self::Leaf(container) => out.push(container.id),
             Self::Split { first, second, .. } => {
@@ -245,12 +206,13 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// Find layout-space span (0..1 width or height) for a target split node.
-    pub fn find_split_span(
+    pub fn find_split_span<I: Into<SplitId>>(
         &self,
-        target_split_id: NodeId,
+        target_split_id: I,
         w: f32,
         h: f32,
     ) -> Option<(SplitAxis, f32)> {
+        let target_split_id = target_split_id.into();
         match self {
             Self::Leaf { .. } => None,
             Self::Split {
@@ -281,7 +243,8 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// Finds the first (primary) leaf ID in the subtree rooted at `split_id`.
-    pub fn find_split_first_leaf_id(&self, target_split_id: NodeId) -> Option<NodeId> {
+    pub fn find_split_first_leaf_id<I: Into<SplitId>>(&self, target_split_id: I) -> Option<LeafId> {
+        let target_split_id = target_split_id.into();
         match self {
             Self::Leaf(_) => None,
             Self::Split {
@@ -301,7 +264,8 @@ impl<T: Clone + PartialEq> SplitTree<T> {
     }
 
     /// Finds the second (secondary) leaf ID in the subtree rooted at `split_id`.
-    pub fn find_split_second_leaf_id(&self, target_split_id: NodeId) -> Option<NodeId> {
+    pub fn find_split_second_leaf_id<I: Into<SplitId>>(&self, target_split_id: I) -> Option<LeafId> {
+        let target_split_id = target_split_id.into();
         match self {
             Self::Leaf(_) => None,
             Self::Split {
@@ -320,21 +284,38 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         }
     }
 
-    /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
-    ///
-    /// `split_id` is the ID assigned to the new `Split` parent node, and
-    /// `new_leaf_id` is the ID assigned to the newly created sibling leaf.
-    /// `next_kind` is the area kind assigned to the newly created sibling leaf.
-    pub fn split_leaf_with_ratio(
+    /// Split a leaf at a specific ratio.
+    pub fn split_leaf_with_ratio<L1: Into<LeafId>, S: Into<SplitId>, L2: Into<LeafId>>(
         &mut self,
-        target_id: NodeId,
-        split_id: NodeId,
-        new_leaf_id: NodeId,
+        target_id: L1,
+        split_id: S,
+        new_leaf_id: L2,
+        axis: SplitAxis,
+        ratio: f32,
+        next_kind: T,
+    ) -> Result<()> {
+        let target_id = target_id.into();
+        let split_id = split_id.into();
+        let new_leaf_id = new_leaf_id.into();
+        if !(0.01..=0.99).contains(&ratio) {
+            return Err(SplitterError::InvalidRatio(ratio));
+        }
+        if self.split_leaf_internal(target_id, split_id, new_leaf_id, axis, ratio, next_kind) {
+            Ok(())
+        } else {
+            Err(SplitterError::LeafNotFound(target_id))
+        }
+    }
+
+    fn split_leaf_internal(
+        &mut self,
+        target_id: LeafId,
+        split_id: SplitId,
+        new_leaf_id: LeafId,
         axis: SplitAxis,
         ratio: f32,
         next_kind: T,
     ) -> bool {
-        let ratio = ratio.clamp(0.01, 0.99);
         match self {
             Self::Leaf(container) => {
                 if container.id == target_id {
@@ -355,14 +336,14 @@ impl<T: Clone + PartialEq> SplitTree<T> {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.split_leaf_with_ratio(
+                first.split_leaf_internal(
                     target_id,
                     split_id,
                     new_leaf_id,
                     axis,
                     ratio,
                     next_kind.clone(),
-                ) || second.split_leaf_with_ratio(
+                ) || second.split_leaf_internal(
                     target_id,
                     split_id,
                     new_leaf_id,
@@ -374,73 +355,151 @@ impl<T: Clone + PartialEq> SplitTree<T> {
         }
     }
 
-    pub fn remove_leaf(&mut self, target_id: NodeId) -> bool {
+    /// Removes a leaf from the tree, collapsing its parent split node and returning the removed leaf's kind.
+    pub fn remove_leaf<I: Into<LeafId>>(&mut self, target_id: I) -> Result<T> {
+        let target_id = target_id.into();
         match self {
-            Self::Leaf(_) => false,
-            Self::Split { first, second, .. } => {
-                if let Self::Leaf(container) = &**first {
-                    if container.id == target_id {
-                        *self = (**second).clone();
-                        return true;
-                    }
-                }
-                if let Self::Leaf(container) = &**second {
-                    if container.id == target_id {
-                        *self = (**first).clone();
-                        return true;
-                    }
-                }
-                first.remove_leaf(target_id) || second.remove_leaf(target_id)
+            Self::Leaf(_) => Err(SplitterError::CannotRemoveLastLeaf),
+            Self::Split { .. } => {
+                self.remove_leaf_internal(target_id)
+                    .ok_or(SplitterError::LeafNotFound(target_id))
             }
+        }
+    }
+
+    fn remove_leaf_internal(&mut self, target_id: LeafId) -> Option<T> {
+        let (first_kind, second_kind) = match self {
+            Self::Leaf(_) => return None,
+            Self::Split { first, second, .. } => {
+                let first_match = match &**first {
+                    Self::Leaf(c) if c.id == target_id => Some(c.kind.clone()),
+                    _ => None,
+                };
+                let second_match = match &**second {
+                    Self::Leaf(c) if c.id == target_id => Some(c.kind.clone()),
+                    _ => None,
+                };
+                (first_match, second_match)
+            }
+        };
+
+        if let Some(kind) = first_kind {
+            let dummy = Self::Leaf(SplitterContainer::new(target_id, kind.clone()));
+            let old = std::mem::replace(self, dummy);
+            if let Self::Split { second, .. } = old {
+                *self = *second;
+                return Some(kind);
+            }
+        }
+
+        if let Some(kind) = second_kind {
+            let dummy = Self::Leaf(SplitterContainer::new(target_id, kind.clone()));
+            let old = std::mem::replace(self, dummy);
+            if let Self::Split { first, .. } = old {
+                *self = *first;
+                return Some(kind);
+            }
+        }
+
+        match self {
+            Self::Split { first, second, .. } => first
+                .remove_leaf_internal(target_id)
+                .or_else(|| second.remove_leaf_internal(target_id)),
+            _ => None,
         }
     }
 
     /// Join `target_id` into `into_id`. The `target_id` leaf is removed and
     /// `into_id` expands to fill the space. Both leaves must share an immediate
-    /// split parent (be adjacent siblings).  Returns true on success.
-    pub fn join_leaf(&mut self, into_id: NodeId, target_id: NodeId) -> bool {
+    /// split parent (be adjacent siblings).
+    pub fn join_leaf<I1: Into<LeafId>, I2: Into<LeafId>>(
+        &mut self,
+        into_id: I1,
+        target_id: I2,
+    ) -> Result<()> {
+        let into_id = into_id.into();
+        let target_id = target_id.into();
         if into_id == target_id {
-            return false;
+            return Err(SplitterError::SameLeaf(into_id));
         }
-        match self {
-            Self::Leaf { .. } => false,
+        if !self.contains_leaf(into_id) {
+            return Err(SplitterError::LeafNotFound(into_id));
+        }
+        if !self.contains_leaf(target_id) {
+            return Err(SplitterError::LeafNotFound(target_id));
+        }
+        if self.join_leaf_internal(into_id, target_id) {
+            Ok(())
+        } else {
+            Err(SplitterError::NotAdjacent(into_id, target_id))
+        }
+    }
+
+    fn join_leaf_internal(&mut self, into_id: LeafId, target_id: LeafId) -> bool {
+        let (in_first, target_is_first, target_is_second) = match self {
+            Self::Leaf { .. } => return false,
             Self::Split { first, second, .. } => {
                 let into_in_first = first.contains_leaf(into_id);
                 let target_in_first = first.contains_leaf(target_id);
 
                 if into_in_first && target_in_first {
-                    first.join_leaf(into_id, target_id)
+                    return first.join_leaf_internal(into_id, target_id);
                 } else if !into_in_first && !target_in_first {
-                    second.join_leaf(into_id, target_id)
+                    return second.join_leaf_internal(into_id, target_id);
+                }
+
+                let target_is_first = match &**first {
+                    Self::Leaf(c) if c.id == target_id => Some(c.kind.clone()),
+                    _ => None,
+                };
+                let target_is_second = match &**second {
+                    Self::Leaf(c) if c.id == target_id => Some(c.kind.clone()),
+                    _ => None,
+                };
+                (into_in_first, target_is_first, target_is_second)
+            }
+        };
+
+        if let Some(kind) = target_is_first {
+            let dummy = Self::Leaf(SplitterContainer::new(target_id, kind));
+            let old = std::mem::replace(self, dummy);
+            if let Self::Split { second, .. } = old {
+                *self = *second;
+                return true;
+            }
+        }
+
+        if let Some(kind) = target_is_second {
+            let dummy = Self::Leaf(SplitterContainer::new(target_id, kind));
+            let old = std::mem::replace(self, dummy);
+            if let Self::Split { first, .. } = old {
+                *self = *first;
+                return true;
+            }
+        }
+
+        match self {
+            Self::Split { first, second, .. } => {
+                if in_first {
+                    second.remove_leaf_internal(target_id).is_some()
                 } else {
-                    if target_in_first {
-                        if let Self::Leaf(container) = &**first
-                            && container.id == target_id
-                        {
-                            *self = (**second).clone();
-                            return true;
-                        }
-                        if !first.remove_leaf(target_id) {
-                            return false;
-                        }
-                    } else {
-                        if let Self::Leaf(container) = &**second
-                            && container.id == target_id
-                        {
-                            *self = (**first).clone();
-                            return true;
-                        }
-                        if !second.remove_leaf(target_id) {
-                            return false;
-                        }
-                    }
-                    true
+                    first.remove_leaf_internal(target_id).is_some()
                 }
             }
+            _ => false,
         }
     }
 
-    pub fn set_split_ratio(&mut self, split_id: NodeId, new_ratio: f32) -> bool {
+    pub fn set_split_ratio<I: Into<SplitId>>(&mut self, split_id: I, new_ratio: f32) -> Result<()> {
+        let split_id = split_id.into();
+        if self.set_split_ratio_internal(split_id, new_ratio) {
+            Ok(())
+        } else {
+            Err(SplitterError::SplitNotFound(split_id))
+        }
+    }
+
+    fn set_split_ratio_internal(&mut self, split_id: SplitId, new_ratio: f32) -> bool {
         match self {
             Self::Leaf { .. } => false,
             Self::Split {
@@ -454,23 +513,18 @@ impl<T: Clone + PartialEq> SplitTree<T> {
                     *ratio = new_ratio.clamp(0.08, 0.92);
                     true
                 } else {
-                    first.set_split_ratio(split_id, new_ratio)
-                        || second.set_split_ratio(split_id, new_ratio)
+                    first.set_split_ratio_internal(split_id, new_ratio)
+                        || second.set_split_ratio_internal(split_id, new_ratio)
                 }
             }
         }
     }
 
-    /// Deep-clone this subtree, assigning fresh node ids from a shared id
-    /// pool (`next_node_id`). Used when an Editor area is split: the new
-    /// panel's pane tree is an independent copy of the source panel's.
-    pub fn clone_with_new_ids(&self, next_id: &mut NodeId) -> SplitTree<T> {
+    /// Deep-clone this subtree, assigning fresh node ids from an id allocator.
+    pub fn clone_with_allocator(&self, allocator: &mut NodeIdAllocator) -> SplitTree<T> {
         match self {
             Self::Leaf(container) => {
-                let id = *next_id;
-                *next_id += 1;
-                // The clone is a fresh panel: same kind, no interaction
-                // state (no drag session, dropdown, or maximized).
+                let id = allocator.next_leaf_id();
                 Self::Leaf(SplitterContainer::new(id, container.kind.clone()))
             }
             Self::Split {
@@ -480,20 +534,28 @@ impl<T: Clone + PartialEq> SplitTree<T> {
                 second,
                 ..
             } => {
-                let id = *next_id;
-                *next_id += 1;
+                let id = allocator.next_split_id();
                 Self::Split {
                     id,
                     axis: *axis,
                     ratio: *ratio,
-                    first: Box::new(first.clone_with_new_ids(next_id)),
-                    second: Box::new(second.clone_with_new_ids(next_id)),
+                    first: Box::new(first.clone_with_allocator(allocator)),
+                    second: Box::new(second.clone_with_allocator(allocator)),
                 }
             }
         }
     }
 
-    pub fn swap_sibling_leaves(&mut self, split_id: NodeId) -> bool {
+    pub fn swap_sibling_leaves<I: Into<SplitId>>(&mut self, split_id: I) -> Result<()> {
+        let split_id = split_id.into();
+        if self.swap_sibling_leaves_internal(split_id) {
+            Ok(())
+        } else {
+            Err(SplitterError::SplitNotFound(split_id))
+        }
+    }
+
+    fn swap_sibling_leaves_internal(&mut self, split_id: SplitId) -> bool {
         match self {
             Self::Leaf { .. } => false,
             Self::Split {
@@ -503,7 +565,8 @@ impl<T: Clone + PartialEq> SplitTree<T> {
                     std::mem::swap(first, second);
                     true
                 } else {
-                    first.swap_sibling_leaves(split_id) || second.swap_sibling_leaves(split_id)
+                    first.swap_sibling_leaves_internal(split_id)
+                        || second.swap_sibling_leaves_internal(split_id)
                 }
             }
         }

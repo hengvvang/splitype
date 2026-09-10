@@ -9,7 +9,9 @@
 use gpui::*;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use splitter::tree::{NodeId, SplitAxis};
+use splitter::SplitAxis;
+
+use crate::panel::PanelId;
 
 actions!(splitype, [Copy, Cut, Paste, SelectAll, DismissTransientUi,]);
 
@@ -18,8 +20,8 @@ actions!(splitype, [Copy, Cut, Paste, SelectAll, DismissTransientUi,]);
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
 pub struct ToggleKindDropdown {
-    /// The window panel (split-tree leaf) whose kind dropdown toggles.
-    pub panel: NodeId,
+    /// The window panel whose kind dropdown toggles.
+    pub panel: PanelId,
 }
 
 /// Split the given window panel into two same-kind panels.
@@ -27,8 +29,8 @@ pub struct ToggleKindDropdown {
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
 pub struct SplitPanel {
-    /// The window panel (split-tree leaf) to split.
-    pub panel: NodeId,
+    /// The window panel to split.
+    pub panel: PanelId,
     /// The split direction.
     pub axis: SplitAxis,
 }
@@ -38,8 +40,8 @@ pub struct SplitPanel {
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
 pub struct TogglePanelMaximized {
-    /// The window panel (split-tree leaf) to maximize or restore.
-    pub panel: NodeId,
+    /// The window panel to maximize or restore.
+    pub panel: PanelId,
 }
 
 /// Close the given window panel.
@@ -47,8 +49,8 @@ pub struct TogglePanelMaximized {
 #[action(namespace = splitype)]
 #[serde(deny_unknown_fields)]
 pub struct ClosePanel {
-    /// The window panel (split-tree leaf) to close.
-    pub panel: NodeId,
+    /// The window panel to close.
+    pub panel: PanelId,
 }
 
 /// Open a path in the active panel area (explorer row clicks).

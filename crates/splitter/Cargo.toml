@@ -13,3 +13,4 @@ workspace = true
 gpui = { workspace = true }
 serde = { workspace = true }
 schemars = "1"
+thiserror = { workspace = true }

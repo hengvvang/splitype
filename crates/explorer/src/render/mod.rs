@@ -106,7 +106,7 @@ impl ExplorerState {
         let entries_len = self.entries.len();
         let scroll_handle = self.scroll_handle.clone();
         let row_theme = theme.clone();
-        let list = uniform_list(("explorer-tree", panel_id.0), entries_len, {
+        let list = uniform_list(("explorer-tree", panel_id.as_usize()), entries_len, {
             let weak = weak.clone();
             move |range: Range<usize>, window, cx| {
                 weak.update(cx, |state, cx| {
@@ -138,7 +138,7 @@ impl ExplorerState {
         .py(px(4.0));
 
         let mut root = div()
-            .id(("explorer-root", panel_id.0))
+            .id(("explorer-root", panel_id.as_usize()))
             .key_context("ExplorerPanel");
         if let Some(handle) = self.focus_handle.as_ref() {
             root = root.track_focus(handle);

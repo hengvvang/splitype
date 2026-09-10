@@ -12,7 +12,7 @@ use crate::menus::install_menus;
 use crate::shell::Shell;
 use config::recent::record_recent_file;
 use platform_contracts::{PanelId, PanelKind};
-use splitter::NodeId;
+use splitter::LeafId;
 use splitter::tree::SplitTree;
 use crate::chrome::custom_titlebar::splitype_window_options;
 
@@ -51,7 +51,7 @@ pub fn open_editor_window(
                 let panels = WindowPanels::default();
                 let mut leaf_ids = Vec::new();
                 panels.layout.tree.leaf_ids(&mut leaf_ids);
-                let leaf_kinds: Vec<(NodeId, PanelKind)> = leaf_ids
+                let leaf_kinds: Vec<(LeafId, PanelKind)> = leaf_ids
                     .iter()
                     .filter_map(|leaf_id| {
                         panels
@@ -77,7 +77,7 @@ pub fn open_editor_window(
                 });
                 shell.update(cx, |shell, cx| {
                     for (leaf_id, kind) in leaf_kinds {
-                        shell.ensure_registered_panel_view(PanelId(leaf_id), kind, cx);
+                        shell.ensure_registered_panel_view(PanelId::from(leaf_id), kind, cx);
                     }
                     shell.load_initial_document(markdown, file_path, cx);
                 });
@@ -99,15 +99,14 @@ pub fn open_editor_window(
 /// Opens a new window hosting a cloned sub-tree handed over by a Shift-drag gesture.
 pub fn open_cloned_window(
     tree: SplitTree<PanelKind>,
-    next_node_id: NodeId,
+    allocator: splitter::NodeIdAllocator,
     retained: HashMap<PanelId, crate::shell::RetainedPanel>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {
     let layout = window_assembly::WindowLayout {
         tree,
-        next_node_id,
-        active_splitter_drag: None,
-        active_border_menu: None,
+        allocator,
+        interaction: Default::default(),
         active_leaf: None,
         activation_history: Vec::new(),
     };
@@ -168,7 +167,7 @@ fn open_window_with_retained(
             move |_window, cx| {
                 let mut leaf_ids = Vec::new();
                 layout.tree.leaf_ids(&mut leaf_ids);
-                let leaf_kinds: Vec<(NodeId, platform_contracts::PanelKind)> = leaf_ids
+                let leaf_kinds: Vec<(LeafId, platform_contracts::PanelKind)> = leaf_ids
                     .iter()
                     .filter_map(|leaf_id| {
                         layout
@@ -207,7 +206,7 @@ fn open_window_with_retained(
                         shell.restore_retained_view(panel_id, parked.kind, parked.state, cx);
                     }
                     for (leaf_id, kind) in leaf_kinds {
-                        shell.ensure_registered_panel_view(PanelId(leaf_id), kind, cx);
+                        shell.ensure_registered_panel_view(PanelId::from(leaf_id), kind, cx);
                     }
                 });
                 shell

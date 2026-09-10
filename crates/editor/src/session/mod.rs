@@ -169,12 +169,12 @@ impl EditorSession {
             });
         }
         tab_list.set_active_tab(self.active_tab_index());
-        let mut next_id = self.root.next_node_id;
-        let tree = self.root.tree.clone_with_new_ids(&mut next_id);
+        let mut allocator = self.root.allocator;
+        let tree = self.root.tree.clone_with_allocator(&mut allocator);
         PersistedEditorSession {
             tab_list,
             tree,
-            next_node_id: next_id,
+            allocator,
         }
     }
 
@@ -195,9 +195,8 @@ impl EditorSession {
         tab_list.set_active_tab(active_index);
         let root = SplitterRoot {
             tree: persisted.tree,
-            next_node_id: persisted.next_node_id,
-            active_splitter_drag: None,
-            active_border_menu: None,
+            allocator: persisted.allocator,
+            interaction: Default::default(),
             active_leaf: None,
             activation_history: Vec::new(),
         };
@@ -293,7 +292,8 @@ impl EditorSession {
 pub struct PersistedEditorSession {
     pub tab_list: EditorTabList<PersistedTab>,
     pub tree: splitter::tree::SplitTree<PaneKind>,
-    pub next_node_id: splitter::tree::NodeId,
+    #[serde(rename = "next_node_id")]
+    pub allocator: splitter::NodeIdAllocator,
 }
 
 #[cfg(test)]
@@ -326,7 +326,7 @@ mod tests {
         let persisted = PersistedEditorSession {
             tab_list,
             tree: root.tree,
-            next_node_id: root.next_node_id,
+            allocator: root.allocator,
         };
 
         let json = serde_json::to_value(&persisted).expect("serialize");
@@ -335,6 +335,6 @@ mod tests {
         assert_eq!(restored.tab_list.len(), 1);
         assert_eq!(restored.tab_list.active_index(), 0);
         assert_eq!(restored.tree.count_leaves(), 1);
-        assert_eq!(restored.next_node_id, 2);
+        assert_eq!(restored.allocator.peek_next(), 2);
     }
 }

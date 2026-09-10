@@ -24,7 +24,7 @@ impl WindowLayoutBuilder {
     }
 
     pub fn with_single_panel(mut self, panel_id: PanelId, kind: PanelKind) -> Self {
-        self.layout = Some(SplitterRoot::single_leaf(panel_id.0, kind));
+        self.layout = Some(SplitterRoot::single_leaf(panel_id, kind));
         self
     }
 
@@ -37,24 +37,24 @@ impl WindowLayoutBuilder {
         ratio: f32,
         active_id: PanelId,
     ) -> Self {
-        let split_id = right_id.0;
+        let split_id = splitter::SplitId::new(right_id.as_u32() + 1);
+        let max_id = left_id.as_u32().max(right_id.as_u32()).max(split_id.as_u32());
         self.layout = Some(SplitterRoot {
             tree: SplitTree::Split {
                 id: split_id,
                 axis: SplitAxis::Horizontal,
                 ratio,
                 first: Box::new(SplitTree::Leaf(SplitterContainer::new(
-                    left_id.0, left_kind,
+                    left_id, left_kind,
                 ))),
                 second: Box::new(SplitTree::Leaf(SplitterContainer::new(
-                    right_id.0, right_kind,
+                    right_id, right_kind,
                 ))),
             },
-            next_node_id: split_id + 1,
-            active_splitter_drag: None,
-            active_border_menu: None,
-            active_leaf: Some(active_id.0),
-            activation_history: vec![active_id.0],
+            allocator: splitter::NodeIdAllocator::with_start(max_id + 1),
+            interaction: Default::default(),
+            active_leaf: Some(active_id.into()),
+            activation_history: vec![active_id.into()],
         });
         self
     }

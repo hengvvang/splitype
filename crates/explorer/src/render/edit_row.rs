@@ -106,7 +106,7 @@ impl ExplorerState {
             )
             .child(
                 div()
-                    .id(("explorer-filename-input-box", panel_id.0))
+                    .id(("explorer-filename-input-box", panel_id.as_usize()))
                     .key_context("ExplorerFilenameInput")
                     .track_focus(&focus_handle)
                     .flex_1()

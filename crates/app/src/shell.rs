@@ -17,7 +17,6 @@ use crate::dialogs::InfoDialogKind;
 use crate::layout::WindowPanels;
 use editor_contracts::DocumentPanel;
 use platform_contracts::{PanelId, PanelKind, PanelView};
-use splitter::tree::NodeId;
 use std::path::PathBuf;
 
 /// Scope of an unsaved-changes confirmation dialog.
@@ -96,8 +95,9 @@ impl Shell {
     ///
     /// Consults the live view first and falls back to the registered
     /// routing table so unmaterialized leaves still answer correctly.
-    pub(crate) fn leaf_is_document_panel(&self, leaf: NodeId) -> bool {
-        if let Some(view) = self.panel_views.get(&PanelId(leaf)) {
+    pub(crate) fn leaf_is_document_panel(&self, leaf: impl Into<splitter::LeafId>) -> bool {
+        let leaf = leaf.into();
+        if let Some(view) = self.panel_views.get(&PanelId::from(leaf)) {
             return crate::routing::is_document_kind(&view.kind());
         }
         let Some(kind) = self.panels.layout.tree.find_leaf_kind(leaf) else {
@@ -160,7 +160,7 @@ impl Shell {
             .layout
             .active_leaf
             .filter(|leaf| self.leaf_is_document_panel(*leaf))
-            .map(PanelId)
+            .map(PanelId::from)
             .or_else(|| self.primary_document_panel_id())
     }
 
@@ -209,7 +209,7 @@ impl Shell {
         let state = window_assembly::PersistedWindowState {
             version: window_assembly::WINDOW_STATE_VERSION,
             tree: self.panels.layout.tree.clone(),
-            next_node_id: self.panels.layout.next_node_id,
+            allocator: self.panels.layout.allocator,
             active_leaf: self.panels.layout.active_leaf,
             activation_history: self.panels.layout.activation_history.clone(),
             panels,
@@ -267,7 +267,7 @@ impl Shell {
             .panels
             .layout
             .active_leaf
-            .map(PanelId)
+            .map(PanelId::from)
             .filter(is_explorer)
             .or_else(|| self.panel_views.keys().copied().find(is_explorer));
         let Some(panel_id) = target else {
@@ -307,7 +307,7 @@ impl Shell {
         panel_id: impl Into<PanelId>,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.toggle_dropdown(panel_id.into().0);
+        self.panels.layout.interaction.toggle_dropdown(panel_id.into().leaf_id());
         cx.notify();
     }
 
@@ -357,7 +357,7 @@ impl Shell {
         panel_id: impl Into<PanelId>,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.toggle_maximize(panel_id.into().0);
+        self.panels.layout.interaction.toggle_maximize(panel_id.into().leaf_id());
         self.push_active_document_context(cx);
         cx.notify();
     }

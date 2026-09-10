@@ -9,8 +9,7 @@
 use gpui::*;
 use theme::Theme;
 
-use splitter::sessions::{CornerDragModifier, CornerDragSession, past_shortcut_threshold};
-use splitter::tree::NodeId;
+use splitter::gesture::{CornerDragModifier, CornerDragSession, past_shortcut_threshold};
 
 /// Visual parameters for split interaction overlays.
 #[derive(Clone, Copy, Debug)]
@@ -191,7 +190,7 @@ fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
 /// - `corner_span`: span of the corner drag zone along each edge (e.g. 48px).
 pub fn corner_drag_handles<F>(
     id_prefix: &'static str,
-    target_id: NodeId,
+    target_id: impl Into<splitter::LeafId>,
     gap: f32,
     corner_span: f32,
     style: &OverlayStyle,
@@ -200,6 +199,7 @@ pub fn corner_drag_handles<F>(
 where
     F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
 {
+    let target_id = target_id.into().as_usize();
     let gap_thickness = gap.max(6.0);
     let hover_bg = style.hover;
     let make_corner = |corner_str: &'static str, top: bool, left: bool| {

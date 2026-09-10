@@ -528,7 +528,7 @@ fn render_setting_group(
     let state_clone = state.clone();
     let gid = group_id.to_string();
 
-    let on_toggle: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)> = Box::new(move |_event, _window, cx| {
+    let on_toggle: SettingsClickHandler = Box::new(move |_event, _window, cx| {
         state_clone.update(cx, |ui, _| {
             ui.toggle_group_collapsed(&gid, default_collapsed);
         });
@@ -1835,7 +1835,7 @@ fn render_dimension_overrides_card(
             c,
             d,
             None,
-            *field,
+            field,
             &desc,
             query,
             reset,
@@ -1935,7 +1935,7 @@ fn render_typography_overrides_card(
             c,
             d,
             None,
-            *field,
+            field,
             &desc,
             query,
             reset,
@@ -1979,7 +1979,7 @@ fn render_typography_overrides_card(
             c,
             d,
             None,
-            *field,
+            field,
             &desc,
             query,
             reset,

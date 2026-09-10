@@ -35,7 +35,7 @@ impl Render for Editor {
         let is_maximized = self.is_maximized;
 
         let base = div()
-            .id(("editor-panel-tile", panel_id.0))
+            .id(("editor-panel-tile", panel_id.as_usize()))
             .w_full()
             .h_full()
             .flex()

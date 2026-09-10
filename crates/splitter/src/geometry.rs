@@ -1,101 +1,114 @@
-//! Drag-session records and the corner-drag fact vocabulary.
-//!
-//! These are pure state records plus pure geometry math over them. The
-//! gesture state machines live on [`crate::root::SplitterRoot`]; the
-//! policy decisions (what a drag means) live in [`crate::policy`]; and
-//! what an indicator looks like lives in the `ui` crate.
+//! Pure layout geometry, spatial coordinates, and Blender-style gesture mathematics.
 
 use gpui::{Pixels, Point};
 
-use crate::tree::{Direction, LeafRect, NodeId, SplitAxis};
+use crate::gesture::AreaDockTarget;
+use crate::id::LeafId;
 
-/// Modifier key held during a corner drag — a raw gesture fact.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum CornerDragModifier {
-    /// Plain drag.
-    #[default]
-    None,
-    /// Ctrl + drag — the host decides (default: swap area contents).
-    Ctrl,
-    /// Shift + drag — the host decides (default: open the dragged panel
-    /// in a new window).
-    Shift,
+/// Split orientation between adjacent leaves in the layout tree.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+pub enum SplitAxis {
+    /// Splits left and right (separated by a vertical divider bar).
+    Horizontal,
+    /// Splits top and bottom (separated by a horizontal divider bar).
+    Vertical,
 }
 
-/// Target edge or region within a hovered area during a move/dock/join/swap drag.
-/// Direct 1:1 match with Blender's `AreaDockTarget`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub enum AreaDockTarget {
-    /// No target / dragging within same area.
-    #[default]
-    None,
-    /// Dock to the top edge of target area (horizontal split).
-    Top,
-    /// Dock to the bottom edge of target area (horizontal split).
-    Bottom,
-    /// Dock to the left edge of target area (vertical split).
-    Left,
-    /// Dock to the right edge of target area (vertical split).
-    Right,
-    /// Hovering the center region of target area (triggers Swap Areas).
-    Center,
-}
+impl SplitAxis {
+    /// Returns `true` if this axis is horizontal (left/right split).
+    #[inline]
+    pub const fn is_horizontal(self) -> bool {
+        matches!(self, Self::Horizontal)
+    }
 
-/// Active drag session for resizing a split bar.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct SplitterDragSession {
-    pub split_id: NodeId,
-    pub axis: SplitAxis,
-    pub start_pointer_pos: f32,
-    pub start_ratio: f32,
-    pub total_span: f32,
-}
+    /// Returns `true` if this axis is vertical (top/bottom split).
+    #[inline]
+    pub const fn is_vertical(self) -> bool {
+        matches!(self, Self::Vertical)
+    }
 
-impl SplitterDragSession {
-    /// The split ratio for the current pointer position: the drag delta
-    /// over the split's pixel span, added to the start ratio and clamped.
-    /// Pure computation shared by every layout level.
-    pub fn ratio_at(&self, current_pointer_pos: f32) -> f32 {
-        let delta = current_pointer_pos - self.start_pointer_pos;
-        (self.start_ratio + delta / self.total_span).clamp(0.08, 0.92)
+    /// Returns the orthogonal axis.
+    #[inline]
+    pub const fn orthogonal(self) -> Self {
+        match self {
+            Self::Horizontal => Self::Vertical,
+            Self::Vertical => Self::Horizontal,
+        }
     }
 }
 
-/// Corner-drag gesture session — raw facts only.
-///
-/// Analogous to Blender's `sActionzoneData`: tracks which area corner was
-/// grabbed, the gesture direction, the modifier key, and the pointer
-/// facts. The engine never interprets them; hosts decide what the gesture
-/// means and whether / how to render an indicator.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CornerDragSession {
-    /// The area (outer level) or panel (inner level) whose corner was grabbed.
-    pub target_id: NodeId,
-    /// Where the drag started (in window coords).
-    pub start_pos: Point<Pixels>,
-    /// Cardinal direction deduced from the mouse delta so far.
-    pub gesture_dir: Option<Direction>,
-    /// Modifier key held during the drag.
-    pub modifier: CornerDragModifier,
-    /// The pointer's latest position (same coordinate space as the drag).
-    pub pointer_pos: Option<Point<Pixels>>,
-    /// The leaf the pointer is currently over, if any.
-    pub hover_leaf: Option<NodeId>,
-    /// The computed dock target when hovering another leaf.
-    pub dock_target: AreaDockTarget,
-    /// The computed dynamic dock/split ratio.
-    pub dock_ratio: f32,
+/// Cardinal direction used for corner-drag gesture routing.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+pub enum Direction {
+    Up,
+    Down,
+    Right,
+    Left,
 }
 
-/// Context menu state for right-clicking a border divider bar between leaves.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct BorderMenuState {
-    pub split_id: NodeId,
-    pub position: Point<Pixels>,
+impl Direction {
+    /// Returns `true` if the direction is vertical (Up or Down).
+    #[inline]
+    pub const fn is_vertical(self) -> bool {
+        matches!(self, Self::Up | Self::Down)
+    }
+
+    /// Returns `true` if the direction is horizontal (Left or Right).
+    #[inline]
+    pub const fn is_horizontal(self) -> bool {
+        matches!(self, Self::Left | Self::Right)
+    }
 }
 
-/// Minimum drag distance before a host's modifier-based shortcut fires.
-pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
+/// A leaf's rectangle in layout space (either normalized 0..1 or in pixels).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct LeafRect {
+    pub id: LeafId,
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl LeafRect {
+    /// Creates a new LeafRect with specified id and bounds.
+    #[inline]
+    pub const fn new(id: LeafId, x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            id,
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// Returns `true` if this rectangle contains the given point.
+    #[inline]
+    pub fn contains_point(&self, px: f32, py: f32) -> bool {
+        px >= self.x && px <= self.x + self.width && py >= self.y && py <= self.y + self.height
+    }
+}
 
 /// Snaps a split ratio with 0.5 center magnetic snapping and optional 1/12 grid snapping.
 /// Smoothly ranges from 0.0 (0% at outer edge) to 1.0 (100% at center).
@@ -256,27 +269,12 @@ pub fn calculate_dock_target(
     }
 }
 
-/// Whether a corner drag has moved far enough from its start for a
-/// modifier-based shortcut to fire (see [`MODIFIER_THRESHOLD_PX`]).
-/// Pure over the session facts; hosts and the drag policy share it so
-/// the threshold is checked in exactly one place.
-pub fn past_shortcut_threshold(facts: &CornerDragSession) -> bool {
-    let Some(pos) = facts.pointer_pos else {
-        return false;
-    };
-    let dx = f32::from(pos.x - facts.start_pos.x);
-    let dy = f32::from(pos.y - facts.start_pos.y);
-    (dx * dx + dy * dy).sqrt() >= MODIFIER_THRESHOLD_PX
-}
-
 /// Returns the id of the leaf whose rect contains `pos`.
-/// Generic over layout level: outer (window) rects and inner (pane) rects
-/// both map their leaves to [`NodeId`].
-pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<NodeId> {
+pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<LeafId> {
     let px = f32::from(pos.x);
     let py = f32::from(pos.y);
     for rect in rects {
-        if px >= rect.x && px <= rect.x + rect.width && py >= rect.y && py <= rect.y + rect.height {
+        if rect.contains_point(px, py) {
             return Some(rect.id);
         }
     }

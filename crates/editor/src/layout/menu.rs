@@ -14,9 +14,9 @@ impl Editor {
         _strings: &config::language::I18nStrings,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let border_menu = self.session.root.active_border_menu?;
-        if self.session.root.tree.find_maximized_leaf().is_some() {
-            self.session.root.active_border_menu = None;
+        let border_menu = *self.session.root.interaction.active_border_menu()?;
+        if self.session.root.interaction.is_maximized() {
+            self.session.root.interaction.clear_border_menu();
             return None;
         }
         let editor = cx.entity().downgrade();
@@ -33,15 +33,15 @@ impl Editor {
         let actions = BorderMenuActions {
             split_horizontal: Box::new(move |app| {
                 let _ = split_h_ed.update(app, |ed, cx| {
-                    ed.split_pane_with_ratio(split_id, SplitAxis::Horizontal, 0.5);
-                    ed.session_mut().root.active_border_menu = None;
+                    ed.split_pane_divider_with_ratio(split_id, SplitAxis::Horizontal, 0.5);
+                    ed.session_mut().root.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
             split_vertical: Box::new(move |app| {
                 let _ = split_v_ed.update(app, |ed, cx| {
-                    ed.split_pane_with_ratio(split_id, SplitAxis::Vertical, 0.5);
-                    ed.session_mut().root.active_border_menu = None;
+                    ed.split_pane_divider_with_ratio(split_id, SplitAxis::Vertical, 0.5);
+                    ed.session_mut().root.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
@@ -53,8 +53,8 @@ impl Editor {
             }),
             close: Box::new(move |app| {
                 let _ = close_ed.update(app, |ed, cx| {
-                    ed.close_pane(split_id);
-                    ed.session_mut().root.active_border_menu = None;
+                    ed.close_pane_divider(split_id);
+                    ed.session_mut().root.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
@@ -66,7 +66,7 @@ impl Editor {
             &menu_style,
             Box::new(move |app| {
                 let _ = dismiss_ed.update(app, |ed, cx| {
-                    ed.session_mut().root.active_border_menu = None;
+                    ed.session_mut().root.interaction.clear_border_menu();
                     cx.notify();
                 });
             }),
