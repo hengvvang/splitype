@@ -9,8 +9,10 @@ use crate::model::block::Block;
 use crate::render::inline::text_element::BlockTextElement;
 
 use config::language::I18nStrings;
+use config::settings::PluginSettings;
 use syntax_highlighter::language::{code_language_display_name, code_language_options_matching};
 use theme::Theme;
+use crate::settings::WysiwygSettings;
 
 impl Block {
     pub fn render_code_editor_section(
@@ -34,7 +36,9 @@ impl Block {
                 .into()
         };
 
-        let code_content_container = if self.show_code_line_numbers {
+        let show_code_line_numbers = PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
+
+        let code_content_container = if show_code_line_numbers {
             let line_count = self.display_text().split('\n').count().max(1);
             let line_numbers_text = (1..=line_count)
                 .map(|i| i.to_string())
@@ -101,6 +105,7 @@ impl Block {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let toolbar_height = 26.0;
+        let show_code_line_numbers = PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
 
         div()
             .id(ElementId::Name(
@@ -162,8 +167,8 @@ impl Block {
                         svg()
                             .path("plugin://splitype.wysiwyg/codeblock/line-numbers.svg")
                             .size(px(14.0))
-                            .text_color(if self.show_code_line_numbers {
-                                c.code_language_input_text
+                            .text_color(if show_code_line_numbers {
+                                c.focus_accent
                             } else {
                                 c.dialog_muted
                             }),

@@ -103,7 +103,6 @@ pub struct Block {
     /// suppressed, delimiters stored as-is).
     pub edit_mode: BlockEditMode,
     show_source_line_numbers: bool,
-    pub show_code_line_numbers: bool,
     pub table_grid: Option<TableGrid>,
     pub table_cell_position: Option<TableCellPosition>,
     pub table_cell_alignment: Option<TableColumnAlignment>,
@@ -177,7 +176,6 @@ impl Block {
             collapsed_caret_affinity: CollapsedCaretAffinity::Default,
             edit_mode,
             show_source_line_numbers: false,
-            show_code_line_numbers: false,
             table_grid: None,
             table_cell_position: None,
             table_cell_alignment: None,

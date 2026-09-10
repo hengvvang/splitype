@@ -275,7 +275,10 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.show_code_line_numbers = !self.show_code_line_numbers;
+        let current = config::settings::PluginSettings::<crate::settings::WysiwygSettings>::get(cx).show_code_line_numbers;
+        let _ = config::settings::PluginSettings::<crate::settings::WysiwygSettings>::update(cx, |settings| {
+            settings.show_code_line_numbers = !current;
+        });
         cx.notify();
     }
 }

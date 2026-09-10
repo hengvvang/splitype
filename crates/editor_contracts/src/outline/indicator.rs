@@ -70,20 +70,7 @@ pub fn render_outline_indicator_strip(
                             host_item_hover.set_hovered(true, window, cx);
                         }
                     })
-                    .children(if is_active {
-                        Some(
-                            div()
-                                .absolute()
-                                .left(px(4.0))
-                                .top(px(5.0))
-                                .bottom(px(5.0))
-                                .w(px(3.0))
-                                .rounded_full()
-                                .bg(c.focus_accent),
-                        )
-                    } else {
-                        None
-                    })
+
                     .child(
                         div()
                             .flex_1()

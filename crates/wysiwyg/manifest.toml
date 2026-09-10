@@ -245,3 +245,20 @@ options = [
   { value = "copy_to_assets_folder", label = "Copy image to assets folder (./assets/)" },
   { value = "copy_to_named_assets_folder", label = "Copy image to named assets folder (./.assets/)" },
 ]
+
+[settings.code_blocks]
+category = "wysiwyg"
+title = "Code Blocks"
+description = "Code block display and gutter line numbers"
+# icon field preserved in schema; omitted pending asset availability
+order = 2
+default_collapsed = false
+
+[[settings.code_blocks.items]]
+key = "show_code_line_numbers"
+# icon field preserved in schema; omitted pending asset availability
+kind = "bool"
+default = false
+title = "Show Line Numbers"
+description = "Display line numbers in code blocks"
+

@@ -65,12 +65,15 @@ impl std::str::FromStr for ImagePasteBehavior {
 pub struct WysiwygSettings {
     #[serde(default)]
     pub image_paste_behavior: ImagePasteBehavior,
+    #[serde(default)]
+    pub show_code_line_numbers: bool,
 }
 
 impl Default for WysiwygSettings {
     fn default() -> Self {
         Self {
             image_paste_behavior: ImagePasteBehavior::None,
+            show_code_line_numbers: false,
         }
     }
 }
