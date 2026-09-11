@@ -154,7 +154,9 @@ fn render_mermaid_raw(source: &str) -> anyhow::Result<String> {
     }
     let source_owned = source.to_string();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        mermaid_rs_renderer::render(&source_owned)
+        let mut options = mermaid_rs_renderer::RenderOptions::default();
+        options.theme.background = "none".to_string();
+        mermaid_rs_renderer::render_with_options(&source_owned, options)
     }));
     let svg = match result {
         Ok(Ok(svg)) => svg,
@@ -176,6 +178,7 @@ pub fn mermaid_cache_key(source: &str) -> String {
 pub fn mermaid_content_fingerprint(source: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     source.hash(&mut hasher);
+    "v2-transparent".hash(&mut hasher);
     hasher.finish()
 }
 
@@ -520,4 +523,17 @@ fn looks_like_supported_mermaid_source(source: &str) -> bool {
         .any(|prefix| lower.starts_with(prefix));
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mermaid_renders_transparent_background() {
+        let source = "graph TD\nA-->B";
+        let svg = render_mermaid_raw(source).unwrap();
+        assert!(svg.contains("fill=\"none\""));
+        assert!(!svg.contains("fill=\"#FFFFFF\""));
+    }
 }

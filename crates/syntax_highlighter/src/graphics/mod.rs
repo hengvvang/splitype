@@ -101,12 +101,11 @@ pub fn render_graphic_error_card(kind: GraphicKind, error: &str, theme: &Theme) 
 
 pub fn render_graphic_preview_box(preview_content: AnyElement, theme: &Theme) -> Div {
     let c = &theme.colors;
-    let d = &theme.dimensions;
 
     div()
         .w_full()
-        .rounded(px(d.code_block_radius))
-        .border(px(1.0))
+        .rounded(px(0.0))
+        .border(px(2.0))
         .border_color(c.code_bg)
         .p(px(8.0))
         .flex()

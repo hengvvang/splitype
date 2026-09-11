@@ -195,7 +195,7 @@ impl Block {
         }
 
         let cursor = self.cursor_offset();
-        if self.selected_range.is_empty() && cursor == 0 {
+        if self.selected_range.is_empty() && cursor == 0 && !self.is_empty() {
             cx.emit(BlockEvent::RequestNewlineAbove);
             return;
         }

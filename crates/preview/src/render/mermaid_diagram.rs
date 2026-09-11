@@ -89,7 +89,13 @@ pub(crate) fn render_preview_mermaid_diagram(
                     .into_any_element()
             };
 
+            let hover_bg = match theme.appearance {
+                theme::Appearance::Light => Hsla::from(rgba(0x0f172a07)),
+                _ => Hsla::from(rgba(0xffffff07)),
+            };
+
             base.w_full()
+                .hover(move |this| this.bg(hover_bg))
                 .py(px(d.block_padding_y.max(6.0)))
                 .child(content)
                 .into_any_element()
