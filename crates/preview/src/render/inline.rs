@@ -265,10 +265,16 @@ pub(crate) fn render_preview_span(
     if let Some(math) = &span.math {
         let math_size = inline_math_font_size(font_size);
         if let Ok(rendered) = render_inline_math_svg(&math.body, color, math_size) {
+            let hover_bg = match theme.appearance {
+                theme::Appearance::Light => Hsla::from(rgba(0x0f172a07)),
+                _ => Hsla::from(rgba(0xffffff07)),
+            };
             return div()
                 .flex()
                 .items_center()
                 .h(px(math_size * 1.65))
+                .px(px(2.0))
+                .hover(move |this| this.bg(hover_bg))
                 .child(
                     img(rendered.path.clone())
                         .max_h(px(math_size * 1.65))

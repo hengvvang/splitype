@@ -27,6 +27,11 @@ pub fn render_latex_math(
     if !is_editing {
         block.last_paints.clear();
 
+        let hover_bg = match theme.appearance {
+            theme::Appearance::Light => Hsla::from(rgba(0x0f172a07)),
+            _ => Hsla::from(rgba(0xffffff07)),
+        };
+
         let outer = if is_rendered_graphic {
             div()
                 .w_full()
@@ -39,7 +44,11 @@ pub fn render_latex_math(
             render_graphic_preview_box(math_preview, theme)
         };
 
-        focused_base.w_full().child(outer).into_any_element()
+        focused_base
+            .w_full()
+            .hover(move |this| this.bg(hover_bg))
+            .child(outer)
+            .into_any_element()
     } else {
         let show_toolbar = block.code_toolbar.is_hovered
             || block.code_toolbar.picker.is_open

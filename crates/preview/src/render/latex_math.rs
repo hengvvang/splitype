@@ -54,9 +54,15 @@ pub(crate) fn render_preview_latex_math(
             .into_any_element();
     }
 
+    let hover_bg = match theme.appearance {
+        theme::Appearance::Light => Hsla::from(rgba(0x0f172a07)),
+        _ => Hsla::from(rgba(0xffffff07)),
+    };
+
     match render_display_math_svg(&source, c.text_default, display_math_font_size(t.text_size)) {
         Ok(rendered) => base
             .w_full()
+            .hover(move |this| this.bg(hover_bg))
             .flex()
             .justify_center()
             .py(px(d.block_padding_y.max(6.0)))
