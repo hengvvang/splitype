@@ -327,9 +327,12 @@ impl Render for Block {
                     .bg(c.comment_bg)
                     .rounded(px(d.code_block_radius))
             } else if focused {
-                source_base
-                    .bg(c.source_mode_block_bg)
-                    .rounded(px(d.code_block_radius))
+                let base = source_base.bg(c.source_mode_block_bg);
+                if self.kind() == BlockKind::HtmlBlock {
+                    base
+                } else {
+                    base.rounded(px(d.code_block_radius))
+                }
             } else {
                 source_base
             };

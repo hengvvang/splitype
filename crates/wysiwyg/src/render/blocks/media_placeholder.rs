@@ -100,7 +100,7 @@ pub fn effective_table_width(block: &Block, viewport_width: f32, d: &ThemeDimens
     let visible_quote_guides = visible_quote_guides(block);
     let quote_inset = d.quote_padding_left * visible_quote_guides as f32;
     let callout_inset = if block.callout_depth > 0 {
-        d.callout_padding_x * 2.0 + d.callout_border_width
+        d.quote_padding_left * block.callout_depth as f32
     } else {
         0.0
     };
@@ -118,7 +118,7 @@ fn container_image_width_budget(block: &Block, viewport_width: f32, d: &ThemeDim
     let visible_quote_guides = visible_quote_guides(block);
     let quote_inset = d.quote_padding_left * visible_quote_guides as f32;
     let callout_inset = if block.callout_depth > 0 {
-        d.callout_padding_x * 2.0 + d.callout_border_width
+        d.quote_padding_left * block.callout_depth as f32
     } else {
         0.0
     };

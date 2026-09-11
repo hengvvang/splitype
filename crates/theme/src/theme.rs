@@ -240,8 +240,8 @@ impl Theme {
                 bottombar_background: Hsla::from(rgba(0x18181bff)),
                 bottombar_text: Hsla::from(rgba(0xa1a1aaff)),
                 bottombar_text_dim: Hsla::from(rgba(0x71717aff)),
-                // Subtle translucent white row highlight (Dark: 5.5% alpha)
-                panel_row_hover: Hsla::from(rgba(0xffffff0e)),
+                // Subtle translucent white row highlight (Dark: 3.5% alpha)
+                panel_row_hover: Hsla::from(rgba(0xffffff09)),
             },
             dimensions: ThemeDimensions {
                 editor_padding: 24.0,
@@ -263,7 +263,7 @@ impl Theme {
                 underline_thickness: 1.0,
                 h1_border_width: 1.0,
                 quote_border_width: 4.0,
-                quote_padding_left: 12.0,
+                quote_padding_left: 18.0,
                 callout_padding_x: 8.0,
                 callout_padding_y: 10.0,
                 callout_body_gap: 8.0,
@@ -493,8 +493,8 @@ impl Theme {
                 bottombar_background: Hsla::from(rgba(0xffffffff)),
                 bottombar_text: Hsla::from(rgba(0x52525bff)),
                 bottombar_text_dim: Hsla::from(rgba(0x71717aff)),
-                // Subtle translucent black row highlight (Light: 4.5% alpha)
-                panel_row_hover: Hsla::from(rgba(0x0000000b)),
+                // Subtle translucent cool slate row highlight (Light: clean & airy ~3.1% alpha)
+                panel_row_hover: Hsla::from(rgba(0x0f172a08)),
             },
             dimensions: base.dimensions,
             typography: base.typography,

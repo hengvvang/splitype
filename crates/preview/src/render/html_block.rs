@@ -46,8 +46,6 @@ pub(crate) fn render_preview_html_block(
     if !html.is_semantic() {
         return base
             .w_full()
-            .rounded(px(d.code_block_radius))
-            .bg(c.source_mode_block_bg)
             .px(px(d.block_padding_x))
             .py(px(d.block_padding_y))
             .text_size(px(t.code_size))
@@ -84,8 +82,6 @@ fn render_preview_html_node(
     if node.kind == HtmlNodeKind::RawTextBlock {
         return div()
             .w_full()
-            .rounded(px(d.code_block_radius))
-            .bg(c.source_mode_block_bg)
             .px(px(d.block_padding_x * 0.6))
             .py(px(d.block_padding_y * 0.6))
             .text_size(px(inherited.font_size))
@@ -123,7 +119,6 @@ fn render_preview_html_node(
         "code" | "kbd" => {
             let mut element = div()
                 .flex()
-                .rounded(px(theme.dimensions.code_bg_radius))
                 .px(px(4.0))
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
@@ -152,7 +147,6 @@ fn render_preview_html_node(
             if let Some(bg) = node_style.background {
                 element = element
                     .bg(bg)
-                    .rounded(px(theme.dimensions.code_bg_radius))
                     .px(px(2.0));
             }
             element.into_any_element()
@@ -163,7 +157,6 @@ fn render_preview_html_node(
             .h(px(d.separator_thickness))
             .my(px(d.separator_margin_y))
             .bg(c.separator)
-            .rounded(px(theme::dimensions::FULL_CORNER_RADIUS))
             .into_any_element(),
         "blockquote" => {
             let mut element = div()
@@ -184,7 +177,6 @@ fn render_preview_html_node(
         "pre" => {
             let mut element = div()
                 .w_full()
-                .rounded(px(d.code_block_radius))
                 .px(px(d.code_block_padding_x))
                 .py(px(d.code_block_padding_y))
                 .text_size(px(node_style.computed.font_size))
@@ -267,7 +259,7 @@ fn render_preview_html_node(
         "summary" => {
             let mut element = div()
                 .w_full()
-                .font_weight(FontWeight::SEMIBOLD)
+                .font_weight(FontWeight::NORMAL)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
                 .children(node.children.iter().map(|child| {
@@ -328,7 +320,6 @@ fn render_preview_html_inline_container(
     if let Some(bg) = node_style.background {
         element = element
             .bg(bg)
-            .rounded(px(theme.dimensions.code_bg_radius))
             .px(px(2.0));
     }
     match node.tag_name.as_str() {
@@ -424,23 +415,27 @@ fn render_preview_html_details(
 
     let mut container = div()
         .w_full()
-        .rounded(px(theme.dimensions.code_block_radius))
-        .border(px(1.0))
-        .border_color(theme.colors.table_border)
-        .px(px(theme.dimensions.block_padding_x))
-        .py(px(theme.dimensions.block_padding_y))
         .text_size(px(node_style.computed.font_size))
         .text_color(node_style.computed.color)
         .child(
             div()
                 .w_full()
                 .flex()
+                .items_center()
                 .gap(px(theme.dimensions.list_marker_gap))
-                .font_weight(FontWeight::SEMIBOLD)
+                .py(px(2.0))
                 .child(if is_open { "\u{25BE}" } else { "\u{25B8}" })
-                .children(summary.into_iter().map(|summary| {
-                    render_preview_html_node(summary, theme, node_style.computed, base_dir)
-                })),
+                .children(if let Some(summary) = summary {
+                    summary
+                        .children
+                        .iter()
+                        .map(|child| {
+                            render_preview_html_node(child, theme, node_style.computed, base_dir)
+                        })
+                        .collect()
+                } else {
+                    vec![div().child("Details").into_any_element()]
+                }),
         );
     if let Some(bg) = node_style.background {
         container = container.bg(bg);

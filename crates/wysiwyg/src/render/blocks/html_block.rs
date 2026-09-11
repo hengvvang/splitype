@@ -25,10 +25,15 @@ pub fn render_html_block(
         )
     });
 
+    let hover_bg = match theme.appearance {
+        theme::Appearance::Light => Hsla::from(rgba(0x0f172a07)),
+        _ => Hsla::from(rgba(0xffffff07)),
+    };
     focused_base
         .text_size(px(t.text_size))
         .text_color(c.text_default)
         .line_height(rems(t.text_line_height))
+        .hover(move |this| this.bg(hover_bg))
         .child(block.render_html_document(&html, theme, cx))
         .into_any_element()
 }

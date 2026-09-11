@@ -122,8 +122,6 @@ impl Block {
         if !document.is_semantic() {
             return div()
                 .w_full()
-                .rounded(px(d.code_block_radius))
-                .bg(c.source_mode_block_bg)
                 .px(px(d.block_padding_x))
                 .py(px(d.block_padding_y))
                 .text_size(px(t.code_size))
@@ -160,8 +158,6 @@ impl Block {
         if node.kind == HtmlNodeKind::RawTextBlock {
             return div()
                 .w_full()
-                .rounded(px(d.code_block_radius))
-                .bg(c.source_mode_block_bg)
                 .px(px(d.block_padding_x * 0.6))
                 .py(px(d.block_padding_y * 0.6))
                 .text_size(px(t.code_size))
@@ -195,7 +191,6 @@ impl Block {
                 let mut element =
                     div()
                         .flex()
-                        .rounded(px(d.code_bg_radius))
                         .px(px(4.0))
                         .text_size(px(node_style.computed.font_size))
                         .text_color(node_style.computed.color)
@@ -222,7 +217,7 @@ impl Block {
                         div().child("\u{201D}").into_any_element(),
                     ]);
                 if let Some(bg) = node_style.background {
-                    element = element.bg(bg).rounded(px(d.code_bg_radius)).px(px(2.0));
+                    element = element.bg(bg).px(px(2.0));
                 }
                 element.into_any_element()
             }
@@ -232,7 +227,6 @@ impl Block {
                 .h(px(d.separator_thickness))
                 .my(px(d.separator_margin_y))
                 .bg(c.separator)
-                .rounded(px(theme::dimensions::FULL_CORNER_RADIUS))
                 .into_any_element(),
             "blockquote" => {
                 let mut element =
@@ -254,7 +248,6 @@ impl Block {
             "pre" => {
                 let mut element = div()
                     .w_full()
-                    .rounded(px(d.code_block_radius))
                     .px(px(d.code_block_padding_x))
                     .py(px(d.code_block_padding_y))
                     .text_size(px(node_style.computed.font_size))
@@ -313,7 +306,7 @@ impl Block {
                 let mut element =
                     div()
                         .w_full()
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .font_weight(FontWeight::NORMAL)
                         .text_size(px(node_style.computed.font_size))
                         .text_color(node_style.computed.color)
                         .children(node.children.iter().map(|child| {
@@ -396,7 +389,6 @@ impl Block {
         if let Some(bg) = node_style.background {
             element = element
                 .bg(bg)
-                .rounded(px(theme.dimensions.code_bg_radius))
                 .px(px(2.0));
         }
         match node.tag_name.as_str() {
@@ -531,28 +523,32 @@ impl Block {
 
         let mut container = div()
             .w_full()
-            .rounded(px(theme.dimensions.code_block_radius))
-            .border(px(1.0))
-            .border_color(theme.colors.table_border)
-            .px(px(theme.dimensions.block_padding_x))
-            .py(px(theme.dimensions.block_padding_y))
             .text_size(px(node_style.computed.font_size))
             .text_color(node_style.computed.color)
             .child(
                 div()
                     .w_full()
                     .flex()
+                    .items_center()
                     .gap(px(theme.dimensions.list_marker_gap))
-                    .font_weight(FontWeight::SEMIBOLD)
+                    .py(px(2.0))
                     .cursor_pointer()
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(Self::on_html_details_toggle_mouse_down),
                     )
                     .child(if is_open { "\u{25BE}" } else { "\u{25B8}" })
-                    .children(summary.into_iter().map(|summary| {
-                        self.render_html_node(summary, theme, node_style.computed, cx)
-                    })),
+                    .children(if let Some(summary) = summary {
+                        summary
+                            .children
+                            .iter()
+                            .map(|child| {
+                                self.render_html_node(child, theme, node_style.computed, cx)
+                            })
+                            .collect()
+                    } else {
+                        vec![div().child("Details").into_any_element()]
+                    }),
             );
         if let Some(bg) = node_style.background {
             container = container.bg(bg);

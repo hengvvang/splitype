@@ -371,3 +371,28 @@ impl BlockKind {
         matches!(separator, b' ' | b'\t').then_some(digit_len + 2)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::BlockKind;
+
+    #[test]
+    fn test_parse_thematic_break_line() {
+        assert!(BlockKind::parse_thematic_break_line("---"));
+        assert!(BlockKind::parse_thematic_break_line("----"));
+        assert!(BlockKind::parse_thematic_break_line("- - -"));
+        assert!(BlockKind::parse_thematic_break_line("***"));
+        assert!(BlockKind::parse_thematic_break_line("*****"));
+        assert!(BlockKind::parse_thematic_break_line("* * *"));
+        assert!(BlockKind::parse_thematic_break_line("___"));
+        assert!(BlockKind::parse_thematic_break_line("____"));
+        assert!(BlockKind::parse_thematic_break_line("_ _ _"));
+        assert!(BlockKind::parse_thematic_break_line("   ---"));
+
+        assert!(!BlockKind::parse_thematic_break_line("--"));
+        assert!(!BlockKind::parse_thematic_break_line("   "));
+        assert!(!BlockKind::parse_thematic_break_line("--- text"));
+        assert!(!BlockKind::parse_thematic_break_line("-*-"));
+        assert!(!BlockKind::parse_thematic_break_line("    ---")); // 4 spaces is indented code
+    }
+}
