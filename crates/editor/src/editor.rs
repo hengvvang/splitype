@@ -51,6 +51,9 @@ pub struct Editor {
     pub buffer_subscriptions: HashMap<editor_contracts::DocumentId, Subscription>,
     /// Set once this panel released all of its document views.
     pub documents_released: bool,
+    /// Last known render width per pane id. Preserves pane layout width across tab switches
+    /// so newly mounted tabs do not suffer from a 0-width initial frame offset shift.
+    pub last_pane_widths: HashMap<PaneId, f32>,
 }
 
 impl Editor {
@@ -73,6 +76,7 @@ impl Editor {
             search: editor_contracts::SearchPanelState::new(cx),
             buffer_subscriptions: HashMap::new(),
             documents_released: false,
+            last_pane_widths: HashMap::new(),
         };
         let buffers: Vec<Entity<DocumentBuffer>> = editor
             .session

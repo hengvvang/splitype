@@ -338,6 +338,23 @@ impl Editor {
             Self::resolve_effective_pane(&configured_kind, Some(&document));
         let is_outline_docked = self.is_outline_enabled_for_kind(&configured_kind);
 
+        if let Some(state) = self.pane_state_ref(pane_id) {
+            let current_w = f32::from(state.scroll.handle.bounds().size.width);
+            if current_w > 0.0 {
+                self.last_pane_widths.insert(pane_id, current_w);
+            }
+        }
+
+        let fallback_width = self
+            .last_pane_widths
+            .get(&pane_id)
+            .copied()
+            .or_else(|| self.panel_rect.map(|r| f32::from(r.size.width)))
+            .or_else(|| {
+                let w = f32::from(window.viewport_size().width);
+                if w > 0.0 { Some(w) } else { None }
+            });
+
         if let Some(state) = self.pane_state_mut(pane_id) {
             state.ensure_kind(effective_kind);
             // Syncing here every frame is the activation catch-up: a kind
@@ -345,6 +362,14 @@ impl Editor {
             // guard makes this a no-op when nothing changed.
             let scroll = state.scroll.handle.clone();
             state.pane_mut().sync_document(&document, cx);
+
+            let current_w = f32::from(scroll.bounds().size.width);
+            let estimated_viewport_width = if current_w > 0.0 {
+                Some(current_w)
+            } else {
+                fallback_width
+            };
+
             let render_ctx = editor_contracts::PaneRenderContext {
                 pane_id,
                 is_focused,
@@ -354,6 +379,7 @@ impl Editor {
                 is_outline_docked,
                 file_path: document.path.as_deref(),
                 read_only,
+                estimated_viewport_width,
             };
             let pane_content = state.pane_mut().render(&render_ctx, window, cx);
 

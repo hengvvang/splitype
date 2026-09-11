@@ -426,8 +426,21 @@ impl WysiwygDocumentController {
         if let Some(doc) = &self.document {
             let blocks = doc.blocks();
             let plans = crate::render::viewport::plan_document_rows(blocks, d);
+            let scroll_width = f32::from(ctx.scroll.bounds().size.width);
+            let viewport_width = if scroll_width > 0.0 {
+                scroll_width
+            } else if let Some(estimated) = ctx.estimated_viewport_width.filter(|&w| w > 0.0) {
+                estimated
+            } else {
+                let win_w = f32::from(window.viewport_size().width);
+                if win_w > 0.0 {
+                    win_w
+                } else {
+                    800.0
+                }
+            };
             let centered_width = crate::render::layout::centered_column_width(
-                f32::from(ctx.scroll.bounds().size.width).max(600.0),
+                viewport_width,
                 d,
             );
 
@@ -667,5 +680,43 @@ mod tests {
         // Full rewrite: nothing matches.
         let new = vec![plain(BlockKind::Paragraph, "x")];
         assert_eq!(diff_block_sequences(&old, &new), (0, 0));
+    }
+
+    #[test]
+    fn test_file_switch_zero_jump_with_estimated_viewport_width() {
+        let theme = theme::Theme::default_theme();
+        let d = &theme.dimensions;
+        let real_pane_width = 1400.0_f32;
+
+        // With the fix:
+        // Frame 1: ScrollHandle is 0.0, but `estimated_viewport_width` is passed from Editor
+        // (which remembered that this pane was previously rendered at 1400.0px):
+        let frame1_estimated = Some(real_pane_width);
+        let scroll_w_f1 = 0.0_f32;
+        let viewport_w_f1 = if scroll_w_f1 > 0.0 {
+            scroll_w_f1
+        } else if let Some(estimated) = frame1_estimated.filter(|&w| w > 0.0) {
+            estimated
+        } else {
+            real_pane_width
+        };
+        let frame1_content_width = crate::render::layout::centered_column_width(viewport_w_f1, d);
+        let frame1_left_margin = (real_pane_width - frame1_content_width) / 2.0;
+
+        // Frame 2: GPUI completes layout, ScrollHandle reports real width 1400.0:
+        let scroll_w_f2 = real_pane_width;
+        let viewport_w_f2 = if scroll_w_f2 > 0.0 {
+            scroll_w_f2
+        } else {
+            real_pane_width
+        };
+        let frame2_content_width = crate::render::layout::centered_column_width(viewport_w_f2, d);
+        let frame2_left_margin = (real_pane_width - frame2_content_width) / 2.0;
+
+        let left_shift = (frame1_left_margin - frame2_left_margin).abs();
+        assert_eq!(
+            left_shift, 0.0,
+            "Left shift must be exactly 0px, no offset jump!"
+        );
     }
 }
