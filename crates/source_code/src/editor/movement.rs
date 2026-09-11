@@ -338,6 +338,32 @@ impl SourceCodeEditor {
         self.start_cursor_blink();
     }
 
+    /// Selects the range of whole lines between `from_line` and `to_line` (inclusive).
+    pub fn select_lines_range(&mut self, from_line: usize, to_line: usize) {
+        self.reset_typing_run();
+        let from_line = from_line.min(self.line_count().saturating_sub(1));
+        let to_line = to_line.min(self.line_count().saturating_sub(1));
+        let (anchor, head) = if to_line >= from_line {
+            let start = self.line_start_offset(from_line);
+            let end = if to_line + 1 < self.line_count() {
+                self.line_start_offset(to_line + 1)
+            } else {
+                self.line_end_offset(to_line)
+            };
+            (start, end)
+        } else {
+            let end = if from_line + 1 < self.line_count() {
+                self.line_start_offset(from_line + 1)
+            } else {
+                self.line_end_offset(from_line)
+            };
+            let start = self.line_start_offset(to_line);
+            (end, start)
+        };
+        self.selections.set_single_range(anchor, head);
+        self.start_cursor_blink();
+    }
+
     // ── Drag selection ────────────────────────────────────────────────────
 
     /// Starts a drag selection anchored at `offset`.
@@ -362,5 +388,6 @@ impl SourceCodeEditor {
     pub fn end_drag(&mut self) {
         self.is_dragging = false;
         self.drag_anchor = None;
+        self.line_drag_anchor = None;
     }
 }

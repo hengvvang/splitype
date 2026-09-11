@@ -158,6 +158,14 @@ pub struct SourceCodeEditor {
     /// pane's key handler runs inside the host editor's own update, so
     /// commits must not re-enter the editor entity synchronously.
     deferred_commit: Option<(bool, CursorHint)>,
+    /// When true, the mouse pointer is currently hovering inside the gutter column.
+    pub(crate) gutter_hovered: bool,
+    /// The buffer row whose fold marker is currently hovered by the mouse pointer, if any.
+    pub(crate) hovered_fold_row: Option<u32>,
+    /// The buffer row whose line number is currently hovered by the mouse pointer, if any.
+    pub(crate) hovered_line_number_row: Option<u32>,
+    /// The buffer line where line-drag selection started, if active.
+    pub(crate) line_drag_anchor: Option<usize>,
     /// When true, the editor behaves as a read-only code viewer (no edits, no cursor).
     pub read_only: bool,
     /// Code language key determined from the document file path.
@@ -210,6 +218,10 @@ impl SourceCodeEditor {
             cursor_blink_epoch: None,
             frame_rows: Vec::new(),
             deferred_commit: None,
+            gutter_hovered: false,
+            hovered_fold_row: None,
+            hovered_line_number_row: None,
+            line_drag_anchor: None,
             read_only: false,
             language,
         };
@@ -620,8 +632,8 @@ impl SourceCodeEditor {
     /// Rebuilds the wrap state for a new viewport width.
     fn rebuild_wrap(&mut self, viewport_width_px: f32, cx: &App) -> bool {
         let char_width = self.char_width_px(cx);
-        let text_width_px =
-            (viewport_width_px - self.gutter_width_px(cx) - 12.0).max(char_width * 8.0);
+        let text_offset = self.text_offset_px(cx);
+        let text_width_px = (viewport_width_px - text_offset).max(char_width * 8.0);
         let max_columns = (text_width_px / char_width).floor().max(8.0) as u32;
         let tab_map = TabMap::new(self.settings.tab_size);
 
@@ -881,14 +893,28 @@ impl SourceCodeEditor {
         theme.dimensions.editor_padding
     }
 
-    pub fn gutter_width_px(&self, cx: &App) -> f32 {
+    pub fn gutter_layout(&self, cx: &App) -> crate::gutter::GutterLayout {
         let theme = cx.global::<theme::ThemeManager>().current_arc();
         let font_size = theme.typography.code_size.max(12.0);
+        crate::gutter::GutterLayout::new(self.line_count(), font_size)
+    }
+
+    pub fn gutter_width_px(&self, cx: &App) -> f32 {
+        let layout = self.gutter_layout(cx);
         if self.settings.line_numbers {
-            crate::gutter::GutterLayout::new(self.line_count(), font_size).width()
+            layout.gutter_width()
         } else {
             // Fold chevrons need a gutter column even without line numbers.
-            20.0
+            (layout.padding_left + layout.fold_area_width).max(28.0)
+        }
+    }
+
+    pub fn text_offset_px(&self, cx: &App) -> f32 {
+        let layout = self.gutter_layout(cx);
+        if self.settings.line_numbers {
+            layout.text_offset()
+        } else {
+            self.gutter_width_px(cx) + layout.margin
         }
     }
 

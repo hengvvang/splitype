@@ -230,9 +230,18 @@ impl EditorElement {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FoldMarkerState {
+    pub display_row: u32,
+    pub is_folded: bool,
+    pub is_hovered: bool,
+}
+
 pub struct SourceCodePrepaintState {
     pub(crate) line_height: f32,
+    pub(crate) gutter_layout: crate::gutter::GutterLayout,
     pub(crate) gutter_width: f32,
+    pub(crate) text_offset: f32,
     pub(crate) editor_padding: f32,
     pub(crate) shaped_lines: Vec<(u32, ShapedLine)>,
     pub(crate) cursor_quads: Vec<PaintQuad>,
@@ -243,8 +252,10 @@ pub struct SourceCodePrepaintState {
     pub(crate) marked_range_quads: Vec<PaintQuad>,
     pub(crate) indent_guide_quads: Vec<PaintQuad>,
     pub(crate) gutter_numbers: Vec<(u32, ShapedLine, bool)>,
-    pub(crate) fold_markers: Vec<(u32, bool)>,
+    pub(crate) fold_markers: Vec<FoldMarkerState>,
     pub(crate) hitbox: Option<Hitbox>,
+    pub(crate) is_mouse_in_gutter: bool,
+    pub(crate) is_mouse_over_fold: bool,
 }
 
 impl IntoElement for EditorElement {
@@ -327,7 +338,7 @@ impl Element for EditorElement {
         let (
             text,
             frames,
-            line_count,
+            _line_count,
             primary_head_display_row,
             primary_cursor_buffer_row,
             highlight_active_line,
@@ -337,7 +348,12 @@ impl Element for EditorElement {
             search_matches,
             selection_ranges,
             cursor_rows,
+            gutter_layout,
             gutter_width,
+            text_offset,
+            gutter_hovered,
+            hovered_fold_row,
+            hovered_line_number_row,
             marked_range,
             matching_bracket_offset,
             is_focused,
@@ -350,7 +366,7 @@ impl Element for EditorElement {
             // Walk only the visible display rows, mapping each back to its
             // buffer row through the row index (O(log n) per row). Folded
             // and foldable markers are looked up per visible row.
-            let mut frames: Vec<(RowFrame, Option<bool>)> = Vec::new();
+            let mut frames: Vec<(RowFrame, bool, bool)> = Vec::new();
             let total_rows = snapshot.rows.total.min(end_visible_row);
             for display_row in start_visible_row..total_rows {
                 let buffer_row = snapshot.rows.buffer_row_at(display_row) as usize;
@@ -374,7 +390,8 @@ impl Element for EditorElement {
                         is_first: wrap_index == 0,
                         range: line_start + segment.start..line_start + segment.end,
                     },
-                    (folded || foldable).then_some(folded),
+                    folded,
+                    foldable,
                 ));
             }
 
@@ -407,7 +424,12 @@ impl Element for EditorElement {
                 editor.search_matches().to_vec(),
                 selection_ranges,
                 cursor_rows,
+                editor.gutter_layout(cx),
                 editor.gutter_width_px(cx),
+                editor.text_offset_px(cx),
+                editor.gutter_hovered,
+                editor.hovered_fold_row,
+                editor.hovered_line_number_row,
                 editor.marked_range(),
                 editor.bracket_offset,
                 is_focused,
@@ -425,11 +447,10 @@ impl Element for EditorElement {
         let mut marked_range_quads = Vec::new();
         let mut indent_guide_quads = Vec::new();
 
-        let text_origin_x = bounds.left() + px(gutter_width + 12.0);
+        let text_origin_x = bounds.left() + px(text_offset);
         let char_width = font_size * 0.6;
-        let gutter_layout = crate::gutter::GutterLayout::new(line_count, font_size);
 
-        for (frame, fold_marker) in &frames {
+        for (frame, folded, foldable) in &frames {
             let line_y = bounds.top() + px(editor_padding + frame.display_row as f32 * line_height);
             let segment = text.slice_owned(frame.range.clone());
             let spans = highlight_spans
@@ -577,12 +598,17 @@ impl Element for EditorElement {
                         let head_in_segment =
                             head.saturating_sub(frame.range.start).min(segment.len());
                         let cursor_x = shaped_line.x_for_index(head_in_segment);
+                        let cursor_color = if *folded {
+                            theme.colors.focus_accent
+                        } else {
+                            theme.colors.cursor
+                        };
                         cursor_quads.push(fill(
                             Bounds::new(
                                 point(text_origin_x + cursor_x, line_y),
                                 size(px(theme.dimensions.cursor_width.max(2.0)), px(line_height)),
                             ),
-                            theme.colors.cursor,
+                            cursor_color,
                         ));
                     }
                 }
@@ -595,7 +621,10 @@ impl Element for EditorElement {
                 if line_numbers {
                     let num_str = gutter_layout.format_line_number(frame.buffer_row);
                     let is_active_row = frame.buffer_row == primary_cursor_buffer_row;
-                    let num_color = if is_active_row {
+                    let is_hovered = hovered_line_number_row == Some(frame.buffer_row);
+                    let num_color = if is_hovered || *folded {
+                        theme.colors.focus_accent
+                    } else if is_active_row {
                         theme.colors.text_default
                     } else {
                         theme.colors.dialog_muted
@@ -616,15 +645,22 @@ impl Element for EditorElement {
                     gutter_numbers.push((frame.display_row, shaped_num, is_active_row));
                 }
 
-                if let Some(folded) = fold_marker {
-                    fold_markers.push((frame.display_row, *folded));
+                let is_active_row = frame.buffer_row == primary_cursor_buffer_row;
+                let should_show_fold = *folded || (*foldable && (is_active_row || gutter_hovered));
+                if should_show_fold {
+                    let is_hovered = hovered_fold_row == Some(frame.buffer_row);
+                    fold_markers.push(FoldMarkerState {
+                        display_row: frame.display_row,
+                        is_folded: *folded,
+                        is_hovered,
+                    });
                 }
             }
         }
 
         // Store the frame layout for mouse hit-testing and the bounds for
         // coordinate math.
-        let stored_frames: Vec<RowFrame> = frames.iter().map(|(frame, _)| frame.clone()).collect();
+        let stored_frames: Vec<RowFrame> = frames.iter().map(|(frame, _, _)| frame.clone()).collect();
         self.editor.update(cx, |editor, _cx| {
             editor.frame_rows = stored_frames;
             editor.set_last_bounds(bounds);
@@ -634,7 +670,9 @@ impl Element for EditorElement {
 
         SourceCodePrepaintState {
             line_height,
+            gutter_layout,
             gutter_width,
+            text_offset,
             editor_padding,
             shaped_lines,
             cursor_quads,
@@ -647,6 +685,8 @@ impl Element for EditorElement {
             gutter_numbers,
             fold_markers,
             hitbox,
+            is_mouse_in_gutter: gutter_hovered,
+            is_mouse_over_fold: hovered_fold_row.is_some(),
         }
     }
 
@@ -664,7 +704,13 @@ impl Element for EditorElement {
 
         if let Some(hitbox) = prepaint.hitbox.as_ref() {
             if hitbox.is_hovered(window) {
-                window.set_cursor_style(gpui::CursorStyle::IBeam, hitbox);
+                if prepaint.is_mouse_over_fold {
+                    window.set_cursor_style(gpui::CursorStyle::PointingHand, hitbox);
+                } else if prepaint.is_mouse_in_gutter {
+                    window.set_cursor_style(gpui::CursorStyle::Arrow, hitbox);
+                } else {
+                    window.set_cursor_style(gpui::CursorStyle::IBeam, hitbox);
+                }
             }
         }
 
@@ -705,11 +751,14 @@ impl Element for EditorElement {
             window.paint_quad(m_quad);
         }
 
-        // 8. Gutter line numbers (right-aligned with 10px padding).
+        // 8. Gutter line numbers (right-aligned against fold area).
         for (visible_row, shaped_num, _) in prepaint.gutter_numbers.drain(..) {
             let line_y = bounds.top()
                 + px(prepaint.editor_padding + visible_row as f32 * prepaint.line_height);
-            let num_x = bounds.left() + px(prepaint.gutter_width - 10.0) - shaped_num.width;
+            let num_x = bounds.left()
+                + px(prepaint
+                    .gutter_layout
+                    .line_number_x(f32::from(shaped_num.width)));
             shaped_num
                 .paint(
                     point(num_x, line_y),
@@ -722,37 +771,58 @@ impl Element for EditorElement {
                 .ok();
         }
 
-        // 9. Fold markers at the left of the gutter: settings chevrons
-        // (down = folded, right = foldable), matching the settings UI.
-        for (visible_row, folded) in prepaint.fold_markers.drain(..) {
+        // 9. Fold markers in the fold area (between line numbers and text):
+        // Zed convention: chevron-right = folded (collapsed), chevron-down = foldable (expanded).
+        // Hover highlight: draws rounded background chip and uses active icon color.
+        let icon_size = 9.0;
+        let chip_size = 15.0;
+        for marker in prepaint.fold_markers.drain(..) {
             let line_y = bounds.top()
-                + px(prepaint.editor_padding + visible_row as f32 * prepaint.line_height);
-            let icon_size = 12.0;
+                + px(prepaint.editor_padding + marker.display_row as f32 * prepaint.line_height);
+            let icon_x = bounds.left() + px(prepaint.gutter_layout.fold_icon_x(icon_size));
+            let icon_y = line_y + px((prepaint.line_height - icon_size) / 2.0);
             let icon_bounds = Bounds::new(
-                point(
-                    bounds.left() + px(4.0),
-                    line_y + px((prepaint.line_height - icon_size) / 2.0),
-                ),
+                point(icon_x, icon_y),
                 size(px(icon_size), px(icon_size)),
             );
-            let path: SharedString = if folded {
-                "plugin://splitype.source-code/chevron-down.svg"
-            } else {
+
+            if marker.is_hovered {
+                let chip_x = bounds.left() + px(prepaint.gutter_layout.fold_icon_x(chip_size));
+                let chip_y = line_y + px((prepaint.line_height - chip_size) / 2.0);
+                let chip_bounds = Bounds::new(
+                    point(chip_x, chip_y),
+                    size(px(chip_size), px(chip_size)),
+                );
+                let mut chip_quad = fill(chip_bounds, theme.colors.panel_row_hover);
+                chip_quad.corner_radii = (px(2.5)).into();
+                window.paint_quad(chip_quad);
+            }
+
+            let path: SharedString = if marker.is_folded {
                 "plugin://splitype.source-code/chevron-right.svg"
+            } else {
+                "plugin://splitype.source-code/chevron-down.svg"
             }
             .into();
+
+            let icon_color = if marker.is_hovered || marker.is_folded {
+                theme.colors.focus_accent
+            } else {
+                theme.colors.dialog_muted
+            };
+
             let _ = window.paint_svg(
                 icon_bounds,
                 path,
                 None,
                 TransformationMatrix::default(),
-                theme.colors.dialog_muted,
+                icon_color,
                 cx,
             );
         }
 
         // 10. Shaped syntax text lines.
-        let text_origin_x = bounds.left() + px(prepaint.gutter_width + 12.0);
+        let text_origin_x = bounds.left() + px(prepaint.text_offset);
         for (visible_row, shaped_line) in prepaint.shaped_lines.drain(..) {
             let line_y = bounds.top()
                 + px(prepaint.editor_padding + visible_row as f32 * prepaint.line_height);
