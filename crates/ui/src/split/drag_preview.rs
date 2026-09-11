@@ -127,6 +127,28 @@ fn split_line_vertical(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
         .bg(accent)
 }
 
+/// A prompt hint pairing a bold key/action tag (黑体字) with a muted functional explanation (灰体字).
+#[derive(Clone, Copy, Debug)]
+struct ActionHint {
+    key: &'static str,
+    desc: &'static str,
+}
+
+const SPLIT_HINTS: &[ActionHint] = &[
+    ActionHint { key: "Ctrl", desc: "Snap" },
+    ActionHint { key: "Shift", desc: "New" },
+    ActionHint { key: "Esc", desc: "Cancel" },
+];
+
+const DOCK_HINTS: &[ActionHint] = &[
+    ActionHint { key: "Ctrl", desc: "Snap" },
+    ActionHint { key: "Esc", desc: "Cancel" },
+];
+
+const CANCEL_HINTS: &[ActionHint] = &[
+    ActionHint { key: "Esc", desc: "Cancel" },
+];
+
 /// A full-window overlay drawing the split line plus a pure background highlight
 /// over the leaf being split. `rect` is normalized (0..1).
 fn split_preview_overlay(
@@ -137,9 +159,9 @@ fn split_preview_overlay(
     container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> AnyElement {
-    let line = match direction {
-        SplitAxis::Horizontal => split_line_horizontal(rect, ratio, style.accent),
-        SplitAxis::Vertical => split_line_vertical(rect, ratio, style.accent),
+    let (line, axis_title) = match direction {
+        SplitAxis::Horizontal => (split_line_horizontal(rect, ratio, style.accent), "Split Horizontal"),
+        SplitAxis::Vertical => (split_line_vertical(rect, ratio, style.accent), "Split Vertical"),
     };
     let ratio_percent = format!("{:.1}%", ratio * 100.0);
 
@@ -169,9 +191,9 @@ fn split_preview_overlay(
             pointer_pos,
             container_size,
             Some("icons/splitter/split-area.svg"),
-            "Split Area",
+            axis_title,
             Some(ratio_percent),
-            Some("Ctrl: 1/12 Snap • Esc: Cancel"),
+            SPLIT_HINTS,
             style,
         ))
         .into_any_element()
@@ -185,61 +207,106 @@ fn cursor_action_panel(
     icon_path: Option<&'static str>,
     title: &'static str,
     detail: Option<String>,
-    shortcut_hint: Option<&'static str>,
+    hints: &[ActionHint],
     style: &OverlayStyle,
 ) -> AnyElement {
     let (left_px, top_px) = if let Some(pos) = pointer_pos {
         let x = f32::from(pos.x) + 16.0;
         let y = f32::from(pos.y) + 16.0;
-        let max_x = (f32::from(container_size.width) - 210.0).max(8.0);
-        let max_y = (f32::from(container_size.height) - 65.0).max(8.0);
+        let max_x = (f32::from(container_size.width) - 320.0).max(8.0);
+        let max_y = (f32::from(container_size.height) - 80.0).max(8.0);
         (x.clamp(8.0, max_x), y.clamp(8.0, max_y))
     } else {
         (16.0, 16.0)
     };
 
-    div()
+    let mut hint_elements = Vec::new();
+    for (i, hint) in hints.iter().enumerate() {
+        if i > 0 {
+            hint_elements.push(
+                div()
+                    .text_size(px(10.0))
+                    .text_color(style.text.opacity(0.30))
+                    .child("•"),
+            );
+        }
+        hint_elements.push(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(4.0))
+                .child(
+                    // Key badge (黑体字, bold, tactile keycap style)
+                    div()
+                        .px(px(5.0))
+                        .py(px(1.5))
+                        .rounded(px(3.5))
+                        .bg(style.hover)
+                        .text_size(px(10.5))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(style.text)
+                        .child(hint.key),
+                )
+                .child(
+                    // Description (灰体字, muted, clean)
+                    div()
+                        .text_size(px(11.0))
+                        .font_weight(FontWeight::NORMAL)
+                        .text_color(style.text.opacity(0.60))
+                        .child(hint.desc),
+                ),
+        );
+    }
+
+    let mut card = div()
         .absolute()
         .left(px(left_px))
         .top(px(top_px))
-        .px(px(10.0))
-        .py(px(6.0))
-        .rounded(px(style.panel_radius))
+        .px(px(14.0))
+        .py(px(9.0))
+        .rounded(px(style.panel_radius.max(8.0)))
         .bg(style.surface)
         .border(px(1.0))
         .border_color(style.border)
         .shadow_md()
         .flex()
         .flex_col()
-        .gap(px(2.0))
+        .gap(px(6.0))
         .child(
             div()
                 .flex()
                 .items_center()
-                .gap(px(6.0))
-                .children(icon_path.map(|p| svg().path(p).size(px(14.0)).text_color(style.accent)))
+                .gap(px(7.0))
+                .children(icon_path.map(|p| svg().path(p).size(px(15.0)).text_color(style.accent)))
                 .child(
+                    // Title: Bold primary text
                     div()
-                        .text_size(px(12.0))
+                        .text_size(px(13.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(style.text)
                         .child(title),
                 )
                 .children(detail.map(|d| {
                     div()
-                        .text_size(px(11.5))
+                        .text_size(px(12.5))
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(style.accent)
                         .child(d)
                 })),
-        )
-        .children(shortcut_hint.map(|hint| {
+        );
+
+    if !hint_elements.is_empty() {
+        card = card.child(
             div()
-                .text_size(px(10.0))
-                .text_color(style.text.opacity(0.65))
-                .child(hint)
-        }))
-        .into_any_element()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap(px(7.0))
+                .children(hint_elements),
+        );
+    }
+
+    card.into_any_element()
 }
 
 /// A full-window overlay highlighting the dragged panel with a clean accent border.
@@ -266,9 +333,9 @@ fn new_window_preview_overlay(
             pointer_pos,
             container_size,
             None,
-            "Duplicate Area",
+            "New",
             None,
-            Some("Release to open in new window"),
+            CANCEL_HINTS,
             style,
         ))
         .into_any_element()
@@ -334,9 +401,9 @@ fn join_preview_overlay(
             pointer_pos,
             container_size,
             Some(icon_path),
-            "Join Area",
+            "Join",
             None,
-            Some("Release to merge • Esc: Cancel"),
+            CANCEL_HINTS,
             style,
         ))
         .into_any_element()
@@ -386,9 +453,9 @@ fn swap_preview_overlay(
             pointer_pos,
             container_size,
             Some("icons/splitter/swap.svg"),
-            "Swap Areas",
+            "Swap",
             None,
-            Some("Release to swap contents"),
+            CANCEL_HINTS,
             style,
         ))
         .into_any_element()
@@ -471,7 +538,7 @@ fn dock_preview_overlay(
             target.width,
             target.height,
             div().absolute(),
-            "Dock Area",
+            "Dock",
             None,
         ),
     };
@@ -517,7 +584,7 @@ fn dock_preview_overlay(
             dock_icon,
             target_label,
             Some(ratio_percent),
-            Some("Ctrl: 1/12 Snap • Esc: Cancel"),
+            DOCK_HINTS,
             style,
         ))
         .into_any_element()

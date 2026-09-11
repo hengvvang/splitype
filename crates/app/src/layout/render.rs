@@ -112,21 +112,18 @@ impl Shell {
                                     r,
                                     bar_active,
                                     &overlay_style,
-                                )
-                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                    let start_pos = f32::from(event.position.x);
-                                    let _ = bar_shell.update(cx, |shell, cx| {
-                                        shell.panels.layout.start_splitter_drag(
-                                            split_id,
-                                            SplitAxis::Horizontal,
-                                            start_pos,
-                                            r,
-                                        );
-                                        cx.notify();
-                                    });
-                                })
-                                .on_mouse_down(
-                                    MouseButton::Right,
+                                    move |event, _window, cx| {
+                                        let start_pos = f32::from(event.position.x);
+                                        let _ = bar_shell.update(cx, |shell, cx| {
+                                            shell.panels.layout.start_splitter_drag(
+                                                split_id,
+                                                SplitAxis::Horizontal,
+                                                start_pos,
+                                                r,
+                                            );
+                                            cx.notify();
+                                        });
+                                    },
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_shell.update(cx, |shell, cx| {
@@ -186,21 +183,18 @@ impl Shell {
                                     r,
                                     bar_active,
                                     &overlay_style,
-                                )
-                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                    let start_pos = f32::from(event.position.y);
-                                    let _ = bar_shell.update(cx, |shell, cx| {
-                                        shell.panels.layout.start_splitter_drag(
-                                            split_id,
-                                            SplitAxis::Vertical,
-                                            start_pos,
-                                            r,
-                                        );
-                                        cx.notify();
-                                    });
-                                })
-                                .on_mouse_down(
-                                    MouseButton::Right,
+                                    move |event, _window, cx| {
+                                        let start_pos = f32::from(event.position.y);
+                                        let _ = bar_shell.update(cx, |shell, cx| {
+                                            shell.panels.layout.start_splitter_drag(
+                                                split_id,
+                                                SplitAxis::Vertical,
+                                                start_pos,
+                                                r,
+                                            );
+                                            cx.notify();
+                                        });
+                                    },
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_shell.update(cx, |shell, cx| {

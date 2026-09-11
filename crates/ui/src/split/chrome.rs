@@ -59,117 +59,132 @@ pub fn overlay_container() -> Div {
     div().absolute().top_0().left_0().right_0().bottom_0()
 }
 
-/// Horizontal splitter bar (resizes rows).
+/// Default span for corner-drag handles along each edge (in pixels).
 ///
-/// An overlay, not a flex child: the split leaves tile seamlessly and the
-/// bar floats on the boundary at `ratio` (a fraction of the container
-/// width). The 12px hit zone sits on the second side; a 1px guide line
-/// marks the boundary. `active` is the drag-in-progress state: the guide
-/// line takes the selection color and grows to 2.5px.
-pub fn splitter_bar_h(
+/// Kept in sync between [`corner_drag_handles`] and the safe interactive
+/// zones of [`splitter_bar_h`] / [`splitter_bar_v`].
+pub const SPLITTER_CORNER_SPAN: f32 = 48.0;
+
+/// Horizontal splitter bar (resizes columns separated by a vertical divider).
+///
+/// An overlay floating at `ratio` across the container width:
+/// - The 1px guide line runs continuously from `top_0()` to `bottom_0()` across the full height.
+/// - The 12px interactive hit zone and resize cursor are inset by `SPLITTER_CORNER_SPAN` (48px)
+///   from the top and bottom edges, guaranteeing that corner drag handles belonging to the
+///   panel and panel-card four corners have complete, unobstructed priority.
+pub fn splitter_bar_h<OnDrag, OnMenu>(
     id: impl Into<ElementId>,
     ratio: f32,
     active: bool,
     style: &OverlayStyle,
-) -> Stateful<Div> {
+    on_drag: OnDrag,
+    on_menu: OnMenu,
+) -> Stateful<Div>
+where
+    OnDrag: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+    OnMenu: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+{
     let hit_width = 12.0;
     let offset = -hit_width / 2.0;
+    let line_width = if active { 2.5 } else { 1.0 };
+    let line_color = if active { style.active } else { style.border };
+
+    let mut handle = div()
+        .absolute()
+        .left_0()
+        .right_0()
+        .cursor_col_resize()
+        .on_mouse_down(MouseButton::Left, on_drag)
+        .on_mouse_down(MouseButton::Right, on_menu);
+
     if active {
-        // Drag-in-progress: highlight the boundary line with 2.5px thickness.
-        div()
-            .id(id)
-            .absolute()
-            .left(relative(ratio))
-            .ml(px(offset))
-            .top_0()
-            .bottom_0()
-            .w(px(hit_width))
-            .cursor_col_resize()
-            .child(
-                div()
-                    .absolute()
-                    .left(px((hit_width - 2.5) / 2.0))
-                    .top_0()
-                    .bottom_0()
-                    .w(px(2.5))
-                    .bg(style.active),
-            )
+        handle = handle.top_0().bottom_0().bg(style.hover);
     } else {
-        div()
-            .id(id)
-            .absolute()
-            .left(relative(ratio))
-            .ml(px(offset))
-            .top_0()
-            .bottom_0()
-            .w(px(hit_width))
-            .cursor_col_resize()
-            .child(
-                div()
-                    .absolute()
-                    .left(px((hit_width - 1.0) / 2.0))
-                    .top_0()
-                    .bottom_0()
-                    .w(px(1.0))
-                    .bg(style.border),
-            )
-            .hover(move |this| this.bg(style.hover))
+        handle = handle
+            .top(px(SPLITTER_CORNER_SPAN))
+            .bottom(px(SPLITTER_CORNER_SPAN))
+            .hover(move |this| this.bg(style.hover));
     }
+
+    div()
+        .id(id)
+        .absolute()
+        .left(relative(ratio))
+        .ml(px(offset))
+        .top_0()
+        .bottom_0()
+        .w(px(hit_width))
+        .child(
+            div()
+                .absolute()
+                .left(px((hit_width - line_width) / 2.0))
+                .top_0()
+                .bottom_0()
+                .w(px(line_width))
+                .bg(line_color),
+        )
+        .child(handle)
 }
 
-/// Vertical splitter bar (resizes columns).
+/// Vertical splitter bar (resizes rows separated by a horizontal divider).
 ///
-/// Same overlay model as [`splitter_bar_h`]: floats on the boundary at
-/// `ratio` of the container height, 12px hit zone plus a centered guide line.
-pub fn splitter_bar_v(
+/// An overlay floating at `ratio` across the container height:
+/// - The 1px guide line runs continuously from `left_0()` to `right_0()` across the full width.
+/// - The 12px interactive hit zone and resize cursor are inset by `SPLITTER_CORNER_SPAN` (48px)
+///   from the left and right edges, guaranteeing that corner drag handles belonging to the
+///   panel and panel-card four corners have complete, unobstructed priority.
+pub fn splitter_bar_v<OnDrag, OnMenu>(
     id: impl Into<ElementId>,
     ratio: f32,
     active: bool,
     style: &OverlayStyle,
-) -> Stateful<Div> {
+    on_drag: OnDrag,
+    on_menu: OnMenu,
+) -> Stateful<Div>
+where
+    OnDrag: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+    OnMenu: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+{
     let hit_height = 12.0;
     let offset = -hit_height / 2.0;
+    let line_height = if active { 2.5 } else { 1.0 };
+    let line_color = if active { style.active } else { style.border };
+
+    let mut handle = div()
+        .absolute()
+        .top_0()
+        .bottom_0()
+        .cursor_row_resize()
+        .on_mouse_down(MouseButton::Left, on_drag)
+        .on_mouse_down(MouseButton::Right, on_menu);
+
     if active {
-        // Drag-in-progress: highlight the boundary line with 2.5px thickness.
-        div()
-            .id(id)
-            .absolute()
-            .top(relative(ratio))
-            .mt(px(offset))
-            .left_0()
-            .right_0()
-            .h(px(hit_height))
-            .cursor_row_resize()
-            .child(
-                div()
-                    .absolute()
-                    .top(px((hit_height - 2.5) / 2.0))
-                    .left_0()
-                    .right_0()
-                    .h(px(2.5))
-                    .bg(style.active),
-            )
+        handle = handle.left_0().right_0().bg(style.hover);
     } else {
-        div()
-            .id(id)
-            .absolute()
-            .top(relative(ratio))
-            .mt(px(offset))
-            .left_0()
-            .right_0()
-            .h(px(hit_height))
-            .cursor_row_resize()
-            .child(
-                div()
-                    .absolute()
-                    .top(px((hit_height - 1.0) / 2.0))
-                    .left_0()
-                    .right_0()
-                    .h(px(1.0))
-                    .bg(style.border),
-            )
-            .hover(move |this| this.bg(style.hover))
+        handle = handle
+            .left(px(SPLITTER_CORNER_SPAN))
+            .right(px(SPLITTER_CORNER_SPAN))
+            .hover(move |this| this.bg(style.hover));
     }
+
+    div()
+        .id(id)
+        .absolute()
+        .top(relative(ratio))
+        .mt(px(offset))
+        .left_0()
+        .right_0()
+        .h(px(hit_height))
+        .child(
+            div()
+                .absolute()
+                .top(px((hit_height - line_height) / 2.0))
+                .left_0()
+                .right_0()
+                .h(px(line_height))
+                .bg(line_color),
+        )
+        .child(handle)
 }
 
 /// The modifier key held during a corner drag, decoded from a mouse event.

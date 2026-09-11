@@ -189,25 +189,22 @@ impl Editor {
                                     r,
                                     bar_active,
                                     &overlay_style,
-                                )
-                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                    let start_pos = f32::from(event.position.x);
-                                    let _ = bar_editor.update(cx, |ed, cx| {
-                                        let local_start = ed
-                                            .panel_rect
-                                            .map(|rect| start_pos - f32::from(rect.origin.x))
-                                            .unwrap_or(start_pos);
-                                        ed.session_mut().root.start_splitter_drag(
-                                            split_id,
-                                            SplitAxis::Horizontal,
-                                            local_start,
-                                            r,
-                                        );
-                                        cx.notify();
-                                    });
-                                })
-                                .on_mouse_down(
-                                    MouseButton::Right,
+                                    move |event, _window, cx| {
+                                        let start_pos = f32::from(event.position.x);
+                                        let _ = bar_editor.update(cx, |ed, cx| {
+                                            let local_start = ed
+                                                .panel_rect
+                                                .map(|rect| start_pos - f32::from(rect.origin.x))
+                                                .unwrap_or(start_pos);
+                                            ed.session_mut().root.start_splitter_drag(
+                                                split_id,
+                                                SplitAxis::Horizontal,
+                                                local_start,
+                                                r,
+                                            );
+                                            cx.notify();
+                                        });
+                                    },
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
@@ -265,25 +262,22 @@ impl Editor {
                                     r,
                                     bar_active,
                                     &overlay_style,
-                                )
-                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                    let start_pos = f32::from(event.position.y);
-                                    let _ = bar_editor.update(cx, |ed, cx| {
-                                        let local_start = ed
-                                            .panel_rect
-                                            .map(|rect| start_pos - f32::from(rect.origin.y))
-                                            .unwrap_or(start_pos);
-                                        ed.session_mut().root.start_splitter_drag(
-                                            split_id,
-                                            SplitAxis::Vertical,
-                                            local_start,
-                                            r,
-                                        );
-                                        cx.notify();
-                                    });
-                                })
-                                .on_mouse_down(
-                                    MouseButton::Right,
+                                    move |event, _window, cx| {
+                                        let start_pos = f32::from(event.position.y);
+                                        let _ = bar_editor.update(cx, |ed, cx| {
+                                            let local_start = ed
+                                                .panel_rect
+                                                .map(|rect| start_pos - f32::from(rect.origin.y))
+                                                .unwrap_or(start_pos);
+                                            ed.session_mut().root.start_splitter_drag(
+                                                split_id,
+                                                SplitAxis::Vertical,
+                                                local_start,
+                                                r,
+                                            );
+                                            cx.notify();
+                                        });
+                                    },
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
