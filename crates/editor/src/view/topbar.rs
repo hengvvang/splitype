@@ -224,11 +224,15 @@ impl Editor {
                 let close_editor = editor.clone();
                 let drop_editor = editor.clone();
 
+                let drag_view = cx.new(|_| crate::layout::tab_drag::DraggedTabView::new(file_name.clone()));
+                let active_hover_editor = std::sync::Arc::new(std::sync::Mutex::new(None));
                 let drag_payload = crate::layout::tab_drag::DraggedTab {
                     source_panel_id: panel_id,
                     source_tab_index: index,
                     document_id: *doc_id,
                     title: SharedString::from(file_name.clone()),
+                    drag_view: drag_view.clone(),
+                    active_hover_editor: active_hover_editor.clone(),
                 };
 
                 let mut title_div = div()
@@ -253,12 +257,20 @@ impl Editor {
                     .hover(|this| this.bg(c.panel_row_hover))
                     .text_size(px(11.0))
                     .cursor_pointer()
-                    .on_drag(drag_payload, move |payload, _offset, _window, cx| {
-                        cx.new(|_| crate::layout::tab_drag::DraggedTabView::new(payload.title.clone()))
+                    .on_drag(drag_payload, {
+                        let drag_view = drag_view.clone();
+                        move |_payload, _offset, _window, _cx| drag_view.clone()
                     })
                     .on_drop::<crate::layout::tab_drag::DraggedTab>({
                         let drop_editor = drop_editor.clone();
                         move |dragged, _window, cx| {
+                            if let Ok(mut active_guard) = dragged.active_hover_editor.lock() {
+                                *active_guard = None;
+                            }
+                            dragged.drag_view.update(cx, |view, cx| {
+                                view.set_hover(None);
+                                cx.notify();
+                            });
                             let _ = drop_editor.update(cx, |ed, cx| {
                                 if dragged.source_panel_id == panel_id {
                                     ed.reorder_tab(dragged.source_tab_index, index, cx);
@@ -341,15 +353,52 @@ impl Editor {
             );
 
             let bar_drop_editor = editor.clone();
+            let bar_drag_editor = editor.clone();
             left_section = left_section.child(
                 div()
                     .id(("tab-bar-container", panel_id.as_usize()))
                     .flex()
                     .items_center()
                     .gap(px(2.0))
+                    .on_drag_move::<crate::layout::tab_drag::DraggedTab>({
+                        let bar_drag_editor = bar_drag_editor.clone();
+                        move |event, _window, cx| {
+                            let drag = event.drag(cx);
+                            let drag_view = drag.drag_view.clone();
+                            let active_hover_editor = drag.active_hover_editor.clone();
+
+                            if let Ok(mut active_guard) = active_hover_editor.lock() {
+                                if let Some(prev_weak) = active_guard.take() {
+                                    if let Some(prev_ed) = prev_weak.upgrade() {
+                                        let _ = prev_ed.update(cx, |ed, cx| {
+                                            ed.tab_drag_hover = None;
+                                            cx.notify();
+                                        });
+                                    }
+                                }
+                            }
+                            drag_view.update(cx, |view, cx| {
+                                view.set_hover(None);
+                                cx.notify();
+                            });
+                            let _ = bar_drag_editor.update(cx, |ed, cx| {
+                                if ed.tab_drag_hover.is_some() {
+                                    ed.tab_drag_hover = None;
+                                    cx.notify();
+                                }
+                            });
+                        }
+                    })
                     .on_drop::<crate::layout::tab_drag::DraggedTab>({
                         let bar_drop_editor = bar_drop_editor.clone();
                         move |dragged, _window, cx| {
+                            if let Ok(mut active_guard) = dragged.active_hover_editor.lock() {
+                                *active_guard = None;
+                            }
+                            dragged.drag_view.update(cx, |view, cx| {
+                                view.set_hover(None);
+                                cx.notify();
+                            });
                             let _ = bar_drop_editor.update(cx, |ed, cx| {
                                 if dragged.source_panel_id == panel_id {
                                     let last = ed.session.tab_count().saturating_sub(1);

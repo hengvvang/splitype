@@ -102,6 +102,36 @@ impl Render for Editor {
                         let target = crate::layout::tab_drag::calc_tab_dock_target(rel_x, rel_y);
                         let shift_held = event.event.modifiers.shift;
                         let pointer_pos = point(pos.x - bounds.origin.x, pos.y - bounds.origin.y);
+
+                        let drag = event.drag(cx);
+                        let drag_view = drag.drag_view.clone();
+                        let active_hover_editor = drag.active_hover_editor.clone();
+
+                        // 1. Update the dragged tab view so its follow card expands into the unified card
+                        drag_view.update(cx, |view, cx| {
+                            view.set_hover(Some(crate::layout::tab_drag::TabDragHoverInfo {
+                                target,
+                                shift_held,
+                            }));
+                            cx.notify();
+                        });
+
+                        // 2. Ensure only the current editor shows the partition wireframe
+                        if let Ok(mut active_guard) = active_hover_editor.lock() {
+                            if let Some(prev_weak) = active_guard.as_ref() {
+                                if let Some(prev_ed) = prev_weak.upgrade() {
+                                    if prev_weak != &content_body_editor {
+                                        let _ = prev_ed.update(cx, |ed, cx| {
+                                            ed.tab_drag_hover = None;
+                                            cx.notify();
+                                        });
+                                    }
+                                }
+                            }
+                            *active_guard = Some(content_body_editor.clone());
+                        }
+
+                        // 3. Update this editor's tab_drag_hover
                         let _ = content_body_editor.update(cx, |ed, cx| {
                             ed.tab_drag_hover = Some(crate::layout::tab_drag::TabDragHoverState {
                                 target,
@@ -116,6 +146,13 @@ impl Render for Editor {
             .on_drop::<crate::layout::tab_drag::DraggedTab>({
                 let content_drop_editor = content_drop_editor.clone();
                 move |dragged, _window, cx| {
+                    if let Ok(mut active_guard) = dragged.active_hover_editor.lock() {
+                        *active_guard = None;
+                    }
+                    dragged.drag_view.update(cx, |view, cx| {
+                        view.set_hover(None);
+                        cx.notify();
+                    });
                     let _ = content_drop_editor.update(cx, |ed, cx| {
                         let hover = ed.tab_drag_hover.take();
                         if let Some(hover) = hover {
@@ -174,13 +211,8 @@ impl Render for Editor {
             .child(self.render_editor_pane_layout(&theme, &strings, window, cx));
 
         if let Some(hover) = &self.tab_drag_hover {
-            let container_size = self
-                .panel_rect
-                .map(|r| r.size)
-                .unwrap_or_else(|| window.viewport_size());
             content_body = content_body.child(crate::layout::tab_drag::render_tab_drag_compass(
                 hover,
-                container_size,
                 &theme,
             ));
         }
