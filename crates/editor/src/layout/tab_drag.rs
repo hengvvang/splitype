@@ -227,11 +227,12 @@ pub fn render_tab_drag_compass(
             let mx1 = ox + w * 0.60;
             let my1 = oy + h * 0.60;
 
-            let fill_color = accent.opacity(0.22);
-            let highlight_stroke_color = accent.opacity(0.85);
-            let guide_stroke_color = border_color.opacity(0.35);
+            let active_fill = accent.opacity(0.32);
+            let active_stroke = accent.opacity(0.95);
+            let inactive_fill = border_color.opacity(0.18);
+            let inactive_stroke = border_color.opacity(0.50);
 
-            let fill_poly = |pts: &[(f32, f32)], window: &mut Window| {
+            let fill_poly = |pts: &[(f32, f32)], color: Hsla, window: &mut Window| {
                 if pts.len() < 3 {
                     return;
                 }
@@ -242,7 +243,7 @@ pub fn render_tab_drag_compass(
                 }
                 builder.close();
                 if let Ok(path) = builder.build() {
-                    window.paint_path(path, fill_color);
+                    window.paint_path(path, color);
                 }
             };
 
@@ -261,62 +262,36 @@ pub fn render_tab_drag_compass(
                 }
             };
 
-            let draw_line = |p1: (f32, f32), p2: (f32, f32), stroke_color: Hsla, width: f32, window: &mut Window| {
-                let mut builder = PathBuilder::stroke(px(width));
-                builder.move_to(point(px(p1.0), px(p1.1)));
-                builder.line_to(point(px(p2.0), px(p2.1)));
-                if let Ok(path) = builder.build() {
-                    window.paint_path(path, stroke_color);
+            // All 9 partition zones of the editor
+            let zones: [(TabDockTarget, &[(f32, f32)]); 9] = [
+                // Outer 4 Editor zones (trapezoids)
+                (TabDockTarget::OuterEditor(Direction::Up), &[(x0, y0), (x1, y0), (ix1, iy0), (ix0, iy0)]),
+                (TabDockTarget::OuterEditor(Direction::Down), &[(ix0, iy1), (ix1, iy1), (x1, y1), (x0, y1)]),
+                (TabDockTarget::OuterEditor(Direction::Left), &[(x0, y0), (ix0, iy0), (ix0, iy1), (x0, y1)]),
+                (TabDockTarget::OuterEditor(Direction::Right), &[(ix1, iy0), (x1, y0), (x1, y1), (ix1, iy1)]),
+                // Inner 4 Pane zones (trapezoids)
+                (TabDockTarget::InnerPane(Direction::Up), &[(ix0, iy0), (ix1, iy0), (mx1, my0), (mx0, my0)]),
+                (TabDockTarget::InnerPane(Direction::Down), &[(ix0, iy1), (mx0, my1), (mx1, my1), (ix1, iy1)]),
+                (TabDockTarget::InnerPane(Direction::Left), &[(ix0, iy0), (mx0, my0), (mx0, my1), (ix0, iy1)]),
+                (TabDockTarget::InnerPane(Direction::Right), &[(mx1, my0), (ix1, iy0), (ix1, iy1), (mx1, my1)]),
+                // Center Merge zone (rectangle)
+                (TabDockTarget::MergeCenter, &[(mx0, my0), (mx1, my0), (mx1, my1), (mx0, my1)]),
+            ];
+
+            // 1. Draw inactive zones in neutral gray so the full partition layout is visible
+            for (zone_target, pts) in &zones {
+                if *zone_target != target {
+                    fill_poly(pts, inactive_fill, window);
+                    stroke_poly(pts, inactive_stroke, 1.2, window);
                 }
-            };
+            }
 
-            // 1. Draw base wireframe grid
-            // Outer rect
-            draw_line((x0, y0), (x1, y0), guide_stroke_color, 1.0, window);
-            draw_line((x1, y0), (x1, y1), guide_stroke_color, 1.0, window);
-            draw_line((x1, y1), (x0, y1), guide_stroke_color, 1.0, window);
-            draw_line((x0, y1), (x0, y0), guide_stroke_color, 1.0, window);
-
-            // Inner rect
-            draw_line((ix0, iy0), (ix1, iy0), guide_stroke_color, 1.0, window);
-            draw_line((ix1, iy0), (ix1, iy1), guide_stroke_color, 1.0, window);
-            draw_line((ix1, iy1), (ix0, iy1), guide_stroke_color, 1.0, window);
-            draw_line((ix0, iy1), (ix0, iy0), guide_stroke_color, 1.0, window);
-
-            // Center rect
-            draw_line((mx0, my0), (mx1, my0), guide_stroke_color, 1.0, window);
-            draw_line((mx1, my0), (mx1, my1), guide_stroke_color, 1.0, window);
-            draw_line((mx1, my1), (mx0, my1), guide_stroke_color, 1.0, window);
-            draw_line((mx0, my1), (mx0, my0), guide_stroke_color, 1.0, window);
-
-            // Diagonals (outer to inner)
-            draw_line((x0, y0), (ix0, iy0), guide_stroke_color, 1.0, window);
-            draw_line((x1, y0), (ix1, iy0), guide_stroke_color, 1.0, window);
-            draw_line((x1, y1), (ix1, iy1), guide_stroke_color, 1.0, window);
-            draw_line((x0, y1), (ix0, iy1), guide_stroke_color, 1.0, window);
-
-            // Diagonals (inner to center)
-            draw_line((ix0, iy0), (mx0, my0), guide_stroke_color, 1.0, window);
-            draw_line((ix1, iy0), (mx1, my0), guide_stroke_color, 1.0, window);
-            draw_line((ix1, iy1), (mx1, my1), guide_stroke_color, 1.0, window);
-            draw_line((ix0, iy1), (mx0, my1), guide_stroke_color, 1.0, window);
-
-            // 2. Active Zone Highlight (fill + 2px glow border)
-            let active_poly: Option<&[(f32, f32)]> = match target {
-                TabDockTarget::MergeCenter => Some(&[(mx0, my0), (mx1, my0), (mx1, my1), (mx0, my1)]),
-                TabDockTarget::InnerPane(Direction::Up) => Some(&[(ix0, iy0), (ix1, iy0), (mx1, my0), (mx0, my0)]),
-                TabDockTarget::InnerPane(Direction::Down) => Some(&[(ix0, iy1), (mx0, my1), (mx1, my1), (ix1, iy1)]),
-                TabDockTarget::InnerPane(Direction::Left) => Some(&[(ix0, iy0), (mx0, my0), (mx0, my1), (ix0, iy1)]),
-                TabDockTarget::InnerPane(Direction::Right) => Some(&[(mx1, my0), (ix1, iy0), (ix1, iy1), (mx1, my1)]),
-                TabDockTarget::OuterEditor(Direction::Up) => Some(&[(x0, y0), (x1, y0), (ix1, iy0), (ix0, iy0)]),
-                TabDockTarget::OuterEditor(Direction::Down) => Some(&[(ix0, iy1), (ix1, iy1), (x1, y1), (x0, y1)]),
-                TabDockTarget::OuterEditor(Direction::Left) => Some(&[(x0, y0), (ix0, iy0), (ix0, iy1), (x0, y1)]),
-                TabDockTarget::OuterEditor(Direction::Right) => Some(&[(ix1, iy0), (x1, y0), (x1, y1), (ix1, iy1)]),
-            };
-
-            if let Some(pts) = active_poly {
-                fill_poly(pts, window);
-                stroke_poly(pts, highlight_stroke_color, 2.0, window);
+            // 2. Draw active zone in vibrant blue with a prominent glowing border
+            for (zone_target, pts) in &zones {
+                if *zone_target == target {
+                    fill_poly(pts, active_fill, window);
+                    stroke_poly(pts, active_stroke, 2.5, window);
+                }
             }
         },
     );
