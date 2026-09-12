@@ -35,25 +35,22 @@ impl ExplorerState {
         // non-empty messages (e.g. scan errors) are rendered below the prompts.
         let has_message = !message.is_empty();
 
-        // Pure, bright, luminous pale styling with crisp right-angles
-        let is_dark = theme.appearance == theme::Appearance::Dark;
-        let strip_bg = if is_dark {
-            c.dialog_secondary_button_bg
-        } else {
-            hsla(220.0 / 360.0, 0.12, 0.98, 1.0)
-        };
-        let strip_text_color = c.dialog_muted;
-
         let has_recents = !recent_folders.is_empty() || !recent_files.is_empty();
 
-        // ── Upper section: 40% height (hints left, long strip right) ────────
+        // ── Upper section: 40% height (hints & open folder button) ───────────
         let upper_section = div()
             .id(("explorer-empty-upper-section", panel_id.as_usize()))
             .w_full()
             .h(relative(0.40))
             .flex_shrink_0()
             .flex()
-            .flex_row()
+            .flex_col()
+            .items_start()
+            .justify_start()
+            .pt(px(14.0))
+            .pl(px(16.0))
+            .pr(px(16.0))
+            .gap(px(5.0))
             // Dropping external folders/files directly opens them
             .drag_over::<ExternalPaths>(move |this, _, _, _| this.bg(drop_target_bg))
             .on_drop::<ExternalPaths>({
@@ -71,139 +68,96 @@ impl ExplorerState {
                     });
                 }
             })
-            // Left content area: Left-aligned prompt hints, closer to top, with button shifted right
             .child(
                 div()
-                    .flex_1()
-                    .h_full()
-                    .flex()
-                    .flex_col()
-                    .items_start()
-                    .justify_start()
-                    .pt(px(14.0))
-                    .pl(px(16.0))
-                    .pr(px(12.0))
-                    .gap(px(5.0))
-                    .child(
-                        div()
-                            .text_size(px(16.0))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child(display_title.to_string()),
-                    )
-                    .child(if has_message {
-                        div()
-                            .max_w(px(260.0))
-                            .text_size(px(12.0))
-                            .text_color(c.callout_caution_border)
-                            .child(message.to_string())
-                    } else {
-                        div()
-                            .max_w(px(260.0))
-                            .text_size(px(12.0))
-                            .text_color(c.dialog_muted)
-                            .child("Drop a folder here or open one to start:")
-                    })
-                    // Large rectangular button: transparent default, large hover area matching recent rows
-                    .child(
-                        div()
-                            .id(("explorer-empty-open-btn", panel_id.as_usize()))
-                            .cursor_pointer()
-                            .mt(px(20.0))
-                            .self_end()
-                            .mr(px(20.0))
-                            .w(px(240.0))
-                            .h(px(72.0))
-                            .rounded(px(d.tree_item_radius))
-                            .hover(move |this| this.bg(c.panel_row_hover))
-                            .active(move |this| this.bg(c.panel_row_hover))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .gap(px(8.0))
-                            .child(
-                                svg()
-                                    .path("plugin://splitype.explorer/worktree/big_plus.svg")
-                                    .size(px(16.0))
-                                    .text_color(c.text_default),
-                            )
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .font_weight(FontWeight::MEDIUM)
-                                    .text_color(c.text_default)
-                                    .child("Open Folder"),
-                            )
-                            .on_click({
-                                let weak = weak.clone();
-                                move |_event, window, cx| {
-                                    let _ = weak.update(cx, |state, cx| {
-                                        state.prompt_open_explorer_folder(window, cx);
-                                    });
-                                }
-                            }),
-                    ),
+                    .text_size(px(16.0))
+                    .font_weight(FontWeight::BOLD)
+                    .text_color(c.text_default)
+                    .child(display_title.to_string()),
             )
-            // Right vertical strip: 28px wide, h_full (spans all of 40%), right angles, pure bright pale, no border
+            .child(if has_message {
+                div()
+                    .max_w(px(260.0))
+                    .text_size(px(12.0))
+                    .text_color(c.callout_caution_border)
+                    .child(message.to_string())
+            } else {
+                div()
+                    .max_w(px(260.0))
+                    .text_size(px(12.0))
+                    .text_color(c.dialog_muted)
+                    .child("Drop a folder here or open one to start:")
+            })
+            // Large rectangular button: transparent default, large hover area matching recent rows
             .child(
                 div()
-                    .w(px(28.0))
-                    .h_full()
-                    .flex_shrink_0()
-                    .rounded_none()
-                    .bg(strip_bg)
+                    .id(("explorer-empty-open-btn", panel_id.as_usize()))
+                    .cursor_pointer()
+                    .mt(px(20.0))
+                    .w(px(240.0))
+                    .h(px(72.0))
+                    .rounded(px(d.tree_item_radius))
+                    .hover(move |this| this.bg(c.panel_row_hover))
+                    .active(move |this| this.bg(c.panel_row_hover))
                     .flex()
-                    .flex_col()
                     .items_center()
-                    .justify_start()
-                    .pt(px(20.0))
+                    .justify_center()
+                    .gap(px(8.0))
                     .child(
                         svg()
-                            .path("plugin://splitype.explorer/worktree/strip_open_folder.svg")
-                            .w(px(28.0))
-                            .h(px(140.0))
-                            .text_color(strip_text_color),
-                    ),
+                            .path("plugin://splitype.explorer/worktree/big_plus.svg")
+                            .size(px(16.0))
+                            .text_color(c.text_default),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(c.text_default)
+                            .child("Open Folder"),
+                    )
+                    .on_click({
+                        let weak = weak.clone();
+                        move |_event, window, cx| {
+                            let _ = weak.update(cx, |state, cx| {
+                                state.prompt_open_explorer_folder(window, cx);
+                            });
+                        }
+                    }),
             );
 
-        // ── Lower section: 60% height (strip left extends to bottom, recents right) ──
+        // ── Lower section: 60% height (Open recent title & scrollable recents) ─
         let lower_section = div()
             .id(("explorer-empty-lower-section", panel_id.as_usize()))
             .w_full()
             .h(relative(0.60))
             .min_h(px(0.0))
             .flex()
-            .flex_row()
-            // Left vertical strip: 28px wide, h_full (extends to bottom of panel), right angles, pure bright pale, no border
+            .flex_col()
+            // Title: Open recent in same size and weight as "Explorer is empty now"
             .child(
                 div()
-                    .w(px(28.0))
-                    .h_full()
-                    .flex_shrink_0()
-                    .rounded_none()
-                    .bg(strip_bg)
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .justify_start()
-                    .pt(px(20.0))
+                    .pt(px(14.0))
+                    .pl(px(16.0))
+                    .pr(px(16.0))
+                    .pb(px(8.0))
                     .child(
-                        svg()
-                            .path("plugin://splitype.explorer/worktree/strip_open_recent.svg")
-                            .w(px(28.0))
-                            .h(px(140.0))
-                            .text_color(strip_text_color),
+                        div()
+                            .text_size(px(16.0))
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(c.text_default)
+                            .child("Open recent"),
                     ),
             )
-            // Right scrollable list of recent folders and files
+            // Scrollable list of recent folders and files
             .child(
                 div()
                     .id(("explorer-empty-recent-scroll", panel_id.as_usize()))
                     .flex_1()
                     .h_full()
                     .overflow_y_scroll()
-                    .py(px(12.0))
-                    .px(px(12.0))
+                    .px(px(8.0))
+                    .pb(px(12.0))
                     .child(if !has_recents {
                         div()
                             .h_full()
