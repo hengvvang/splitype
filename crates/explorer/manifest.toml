@@ -70,6 +70,22 @@ default = true
 title = "Auto Reveal Active File"
 description = "Reveal and select the active document's file in the tree"
 
+[[settings.file_tree.items]]
+key = "auto_fold_dirs"
+# icon field preserved in schema; omitted pending asset availability
+kind = "bool"
+default = true
+title = "Compact Folders"
+description = "Collapse single-child directory chains into a single row"
+
+[[settings.file_tree.items]]
+key = "hide_gitignore"
+# icon field preserved in schema; omitted pending asset availability
+kind = "bool"
+default = false
+title = "Hide Git-Ignored Files"
+description = "Hide files and directories ignored by .gitignore rules"
+
 [[theme_tokens]]
 key = "splitype.explorer.selection_accent"
 description = "Accent bar color of the selected file-tree row"

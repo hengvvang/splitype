@@ -93,17 +93,36 @@ impl ExplorerState {
             .collect();
         let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx| {
-            cx.background_executor()
+            let trashed_items = cx
+                .background_executor()
                 .spawn(async move {
+                    let mut trashed = Vec::new();
                     for path in &paths {
-                        if let Err(err) = crate::fs::trash(path) {
-                            tracing::error!(path = %path.display(), error = %err, "failed to trash path");
+                        match crate::fs::trash_with_info(path) {
+                            Ok(entry) => {
+                                trashed.push(ExplorerChange::Trashed {
+                                    path: path.clone(),
+                                    entry,
+                                });
+                            }
+                            Err(err) => {
+                                tracing::error!(path = %path.display(), error = %err, "failed to trash path");
+                            }
                         }
                     }
+                    trashed
                 })
                 .await;
             cx.update(|cx| {
                 let _ = weak.update(cx, |state, cx| {
+                    if !trashed_items.is_empty() {
+                        let change = if trashed_items.len() == 1 {
+                            trashed_items.into_iter().next().unwrap()
+                        } else {
+                            ExplorerChange::Batch(trashed_items)
+                        };
+                        state.record_explorer_change(change);
+                    }
                     state.marked.clear();
                     state.rescan_explorer_worktrees(cx);
                     if let Some(next) = state.next_explorer_selection_after_deletion(&selections) {
@@ -185,12 +204,69 @@ impl ExplorerState {
         }
     }
 
-    /// Paste the in-panel clipboard into the target directory. Cut entries
+    /// Read external file paths from the system clipboard, if any (mirrors Zed).
+    pub(crate) fn external_paths_from_clipboard(&self, cx: &App) -> Option<Vec<PathBuf>> {
+        let item = cx.read_from_clipboard()?;
+        for entry in item.entries() {
+            if let gpui::ClipboardEntry::ExternalPaths(paths) = entry {
+                let p = paths.paths();
+                if !p.is_empty() {
+                    return Some(p.to_vec());
+                }
+            }
+        }
+        if let Some(text) = item.text() {
+            let lines: Vec<&str> = text
+                .lines()
+                .map(|l| l.trim().trim_matches('"'))
+                .filter(|l| !l.is_empty())
+                .collect();
+            if !lines.is_empty() {
+                let mut paths = Vec::new();
+                for line in lines {
+                    let p = PathBuf::from(line);
+                    if p.is_absolute() && p.exists() {
+                        paths.push(p);
+                    } else {
+                        paths.clear();
+                        break;
+                    }
+                }
+                if !paths.is_empty() {
+                    return Some(paths);
+                }
+            }
+        }
+        None
+    }
+
+    /// Whether there is pasteable content from either the panel's internal clipboard
+    /// or the system clipboard (mirrors Zed's `has_pasteable_content`).
+    pub(crate) fn has_pasteable_content(&self, cx: &App) -> bool {
+        if self
+            .clipboard
+            .as_ref()
+            .is_some_and(|c| !c.items().is_empty())
+        {
+            return true;
+        }
+        self.external_paths_from_clipboard(cx).is_some()
+    }
+
+    /// Paste the in-panel clipboard or external files into the target directory. Cut entries
     /// are moved (`fs::rename`), copied entries are duplicated; after the
     /// background operation the last successful result is selected, a
     /// disambiguated copy opens the inline rename editor, and a rescan is
     /// scheduled.
     pub(crate) fn explorer_paste(&mut self, window: &mut Window, cx: &mut App) {
+        if let Some(external_paths) = self.external_paths_from_clipboard(cx) {
+            let target_dir = self.explorer_paste_target_dir();
+            if let Some(target_dir) = target_dir {
+                self.drop_external_files(&external_paths, target_dir, window, cx);
+            }
+            return;
+        }
+
         let Some(clipboard) = self.clipboard.clone() else {
             return;
         };
@@ -280,19 +356,22 @@ impl ExplorerState {
         let Some(change) = self.undo_history.undo_stack.pop() else {
             return;
         };
-        let change_for_execution = change.clone();
+        let mut change_for_execution = change;
         let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
-            let result = cx
+            let (result, modified_change) = cx
                 .background_executor()
-                .spawn(async move { execute_explorer_change_inverse(&change_for_execution) })
+                .spawn(async move {
+                    let res = execute_explorer_change_inverse(&mut change_for_execution);
+                    (res, change_for_execution)
+                })
                 .await;
             if let Err(err) = result {
                 tracing::error!(error = %err, "failed to execute explorer undo");
             }
             cx.update(|cx| {
                 let _ = weak.update(cx, |state, cx| {
-                    state.undo_history.redo_stack.push(change);
+                    state.undo_history.redo_stack.push(modified_change);
                     state.rescan_explorer_worktrees(cx);
                     state.sync_explorer_models(cx);
                     cx.refresh_windows();
@@ -306,19 +385,22 @@ impl ExplorerState {
         let Some(change) = self.undo_history.redo_stack.pop() else {
             return;
         };
-        let change_for_execution = change.clone();
+        let mut change_for_execution = change;
         let weak = self.self_weak.clone();
         let _ = cx.spawn(async move |cx: &mut AsyncApp| {
-            let result = cx
+            let (result, modified_change) = cx
                 .background_executor()
-                .spawn(async move { execute_explorer_change(&change_for_execution) })
+                .spawn(async move {
+                    let res = execute_explorer_change(&mut change_for_execution);
+                    (res, change_for_execution)
+                })
                 .await;
             if let Err(err) = result {
                 tracing::error!(error = %err, "failed to execute explorer redo");
             }
             cx.update(|cx| {
                 let _ = weak.update(cx, |state, cx| {
-                    state.undo_history.undo_stack.push(change);
+                    state.undo_history.undo_stack.push(modified_change);
                     state.rescan_explorer_worktrees(cx);
                     state.sync_explorer_models(cx);
                     cx.refresh_windows();

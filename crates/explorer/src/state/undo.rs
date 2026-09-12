@@ -7,15 +7,32 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::fs::FsError;
+use crate::fs::{FsError, TrashedEntry};
 
 /// One reversible file-tree operation recorded in the undo history.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerChange {
-    Created { path: PathBuf, is_dir: bool },
-    Renamed { from: PathBuf, to: PathBuf },
-    Moved { from: PathBuf, to: PathBuf },
-    Copied { source: PathBuf, dest: PathBuf },
+    Created {
+        path: PathBuf,
+        is_dir: bool,
+        trashed_backup: Option<TrashedEntry>,
+    },
+    Trashed {
+        path: PathBuf,
+        entry: TrashedEntry,
+    },
+    Renamed {
+        from: PathBuf,
+        to: PathBuf,
+    },
+    Moved {
+        from: PathBuf,
+        to: PathBuf,
+    },
+    Copied {
+        source: PathBuf,
+        dest: PathBuf,
+    },
     DirCreated(PathBuf),
     DirRemoved(PathBuf),
     Batch(Vec<ExplorerChange>),
@@ -55,7 +72,7 @@ impl ExplorerUndoHistory {
 /// The destination path of a change (used to select the operation result).
 pub fn explorer_change_destination(change: &ExplorerChange) -> Option<&Path> {
     match change {
-        ExplorerChange::Created { path, .. } => Some(path),
+        ExplorerChange::Created { path, .. } | ExplorerChange::Trashed { path, .. } => Some(path),
         ExplorerChange::Renamed { to, .. } | ExplorerChange::Moved { to, .. } => Some(to),
         ExplorerChange::Copied { dest, .. } => Some(dest),
         ExplorerChange::DirCreated(path) => Some(path),
@@ -65,14 +82,36 @@ pub fn explorer_change_destination(change: &ExplorerChange) -> Option<&Path> {
 }
 
 /// Execute a recorded file operation (redo).
-pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), FsError> {
+pub fn execute_explorer_change(change: &mut ExplorerChange) -> Result<(), FsError> {
     match change {
-        ExplorerChange::Created { path, is_dir } => {
+        ExplorerChange::Created {
+            path,
+            is_dir,
+            trashed_backup,
+        } => {
             if *is_dir {
                 crate::fs::create_dir_all(path)?;
+            } else if let Some(backup) = trashed_backup.take() {
+                // Restore the trashed file rather than creating an empty file, preserving user content!
+                if let Err(e) = crate::fs::restore_trash(&backup) {
+                    tracing::warn!(path = %path.display(), error = %e, "failed to restore trashed backup on redo, recreating file");
+                    if !path.exists() {
+                        crate::fs::create_new_file(path)?;
+                    }
+                }
             } else if !path.exists() {
                 crate::fs::create_new_file(path)?;
             }
+            Ok(())
+        }
+        ExplorerChange::Trashed { path, entry } => {
+            // Redo a trash operation: move it back to trash and update stored entry
+            let new_entry =
+                crate::fs::trash_with_info(path).map_err(|source| FsError::DeleteFailed {
+                    path: path.clone(),
+                    source,
+                })?;
+            *entry = new_entry;
             Ok(())
         }
         ExplorerChange::DirCreated(path) => {
@@ -101,11 +140,30 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), FsError> {
 }
 
 /// Execute the inverse of a recorded operation (undo).
-pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), FsError> {
+pub fn execute_explorer_change_inverse(change: &mut ExplorerChange) -> Result<(), FsError> {
     match change {
-        ExplorerChange::Created { path, .. } => {
-            // First try trash (recoverable), fallback to delete
-            crate::fs::trash(path).map_err(|source| FsError::DeleteFailed {
+        ExplorerChange::Created {
+            path,
+            trashed_backup,
+            ..
+        } => {
+            // First try trash_with_info (recoverable), recording the backup for potential Redo!
+            match crate::fs::trash_with_info(path) {
+                Ok(backup) => {
+                    *trashed_backup = Some(backup);
+                    Ok(())
+                }
+                Err(_source) => {
+                    crate::fs::remove_symlink_safe(path).map_err(|source| FsError::DeleteFailed {
+                        path: path.clone(),
+                        source,
+                    })
+                }
+            }
+        }
+        ExplorerChange::Trashed { path, entry } => {
+            // Undo a trash operation: restore it from recycle bin!
+            crate::fs::restore_trash(entry).map_err(|source| FsError::WriteFailed {
                 path: path.clone(),
                 source,
             })?;
@@ -131,7 +189,7 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), Fs
             Ok(())
         }
         ExplorerChange::Batch(changes) => {
-            for change in changes.iter().rev() {
+            for change in changes.iter_mut().rev() {
                 execute_explorer_change_inverse(change)?;
             }
             Ok(())

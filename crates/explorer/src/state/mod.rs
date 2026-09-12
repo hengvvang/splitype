@@ -19,19 +19,19 @@
 //! - [`ExplorerState`] — file-tree interaction and view-model state.
 //! - [`WorktreeStore`] — the process-global registry of shared scanned trees.
 
+pub mod ignore;
 pub mod store;
 pub mod undo;
 pub mod utils;
 pub mod worktree;
 
 use std::collections::{BTreeSet, HashMap};
-use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use gpui::{
-    AnyWindowHandle, AppContext, Bounds, Entity, FocusHandle, Pixels, ShapedLine, Subscription,
-    Task, UniformListScrollHandle, WeakEntity,
+    AnyWindowHandle, AppContext, Entity, FocusHandle, Pixels, Subscription, Task,
+    UniformListScrollHandle, WeakEntity,
 };
 
 use crate::settings::{ExplorerSettings, ExplorerSortMode, ExplorerSortOrder};
@@ -121,6 +121,8 @@ pub struct VisibleExplorerEntry {
     pub kind: ExplorerEntryKind,
     pub is_expanded: bool,
     pub has_children: bool,
+    pub is_ignored: bool,
+    pub folded_ancestors: Vec<ExplorerEntryId>,
 }
 
 // ── Selection ───────────────────────────────────────────────────────────
@@ -139,21 +141,7 @@ pub enum ExplorerValidation {
     Error(String),
 }
 
-/// Text buffer of the inline filename editor.
-#[derive(Clone, Debug, Default)]
-pub struct ExplorerFilenameEditor {
-    pub text: String,
-    pub selection: Range<usize>,
-    pub reversed: bool,
-    pub marked_range: Option<Range<usize>>,
-    pub focus_handle: Option<FocusHandle>,
-    /// Bounds of the input element from the last frame (IME hit-testing).
-    pub last_bounds: std::cell::Cell<Option<Bounds<Pixels>>>,
-    pub last_layout: std::cell::RefCell<Option<ShapedLine>>,
-    pub is_selecting: bool,
-    pub opened_at: Option<std::time::Instant>,
-    pub scroll_offset: std::cell::Cell<Pixels>,
-}
+pub type ExplorerFilenameEditor = crate::filename_editor::FilenameEditor;
 
 /// Inline create/rename state (mirrors Zed's `EditState`).
 #[derive(Clone, Debug)]
@@ -165,12 +153,11 @@ pub struct ExplorerEditState {
     pub depth: usize,
     pub path: PathBuf,
     pub validation: Option<ExplorerValidation>,
-    pub filename: ExplorerFilenameEditor,
     pub previously_selected: Option<SelectedEntry>,
     pub processing: bool,
     pub processing_filename: Option<String>,
-    /// IME host entity registered as the filename input's window handler.
-    pub ime_host: Option<Entity<crate::filename_editor::ExplorerFilenameImeHost>>,
+    /// Folder that was temporarily unfolded for this edit and should be re-folded on cancel.
+    pub temporarily_unfolded: Option<(WorktreeId, ExplorerEntryId)>,
 }
 
 impl ExplorerEditState {
@@ -271,6 +258,10 @@ pub struct ExplorerState {
     pub sort_mode: ExplorerSortMode,
     /// Sorting order (ascending, descending).
     pub sort_order: ExplorerSortOrder,
+    /// Auto-collapse single-child directory chains into a single row.
+    pub auto_fold_dirs: bool,
+    /// Hide entries matching .gitignore rules.
+    pub hide_gitignore: bool,
     /// Shared worktree entities in this panel's display order. The trees
     /// themselves are process-global (see [`WorktreeStore`]); this list is
     /// the panel's view of which roots are visible.
@@ -325,6 +316,8 @@ pub struct ExplorerState {
     pub subscriptions: HashMap<WorktreeId, Subscription>,
     /// Keyboard focus handle for the explorer panel.
     pub focus_handle: Option<FocusHandle>,
+    /// Persistent single-line filename editor entity (mirrors Zed's `filename_editor: Entity<Editor>`).
+    pub filename_editor: Option<Entity<crate::filename_editor::FilenameEditor>>,
 }
 
 impl ExplorerState {
@@ -333,13 +326,61 @@ impl ExplorerState {
     pub fn entity(cx: &mut gpui::App) -> Entity<Self> {
         let settings = config::settings::PluginSettings::<ExplorerSettings>::get(cx);
         let focus_handle = cx.focus_handle();
-        cx.new(|cx| Self {
-            self_weak: cx.weak_entity(),
-            sort_mode: settings.sort_mode,
-            sort_order: settings.sort_order,
-            focus_handle: Some(focus_handle),
-            ..Default::default()
+        let filename_editor = cx.new(|cx| crate::filename_editor::FilenameEditor::new(cx));
+        let filename_editor_sub = filename_editor.clone();
+
+        cx.new(|cx| {
+            let state_weak = cx.weak_entity();
+            cx.subscribe(
+                &filename_editor_sub,
+                move |state: &mut ExplorerState, _, event: &crate::filename_editor::FilenameEditorEvent, cx| {
+                    match event {
+                        crate::filename_editor::FilenameEditorEvent::BufferEdited => {
+                            state.populate_explorer_validation(cx);
+                            state.autoscroll_explorer_edit(None, cx);
+                            cx.refresh_windows();
+                        }
+                        crate::filename_editor::FilenameEditorEvent::SelectionsChanged => {
+                            state.autoscroll_explorer_edit(None, cx);
+                            cx.refresh_windows();
+                        }
+                        crate::filename_editor::FilenameEditorEvent::Blurred => {
+                            if state.edit.as_ref().is_some_and(|e| e.processing) {
+                                return;
+                            }
+                            if state.edit.is_some() && !state.confirm_explorer_edit(None, cx) {
+                                state.discard_explorer_edit(None, cx);
+                            }
+                        }
+                        crate::filename_editor::FilenameEditorEvent::Confirmed => {
+                            state.confirm_explorer_edit(None, cx);
+                        }
+                        crate::filename_editor::FilenameEditorEvent::Cancelled => {
+                            state.discard_explorer_edit(None, cx);
+                        }
+                    }
+                },
+            )
+            .detach();
+
+            Self {
+                self_weak: state_weak,
+                sort_mode: settings.sort_mode,
+                sort_order: settings.sort_order,
+                auto_fold_dirs: settings.auto_fold_dirs,
+                hide_gitignore: settings.hide_gitignore,
+                focus_handle: Some(focus_handle),
+                filename_editor: Some(filename_editor),
+                ..Default::default()
+            }
         })
+    }
+
+    #[inline]
+    pub fn filename_editor(&self) -> &Entity<crate::filename_editor::FilenameEditor> {
+        self.filename_editor
+            .as_ref()
+            .expect("filename_editor initialized on panel entity creation")
     }
 }
 
@@ -349,6 +390,8 @@ impl Default for ExplorerState {
             tree_visible: false,
             sort_mode: ExplorerSortMode::DirectoriesFirst,
             sort_order: ExplorerSortOrder::Ascending,
+            auto_fold_dirs: true,
+            hide_gitignore: false,
             worktrees: Vec::new(),
             snapshots: Vec::new(),
             expanded: HashMap::new(),
@@ -376,6 +419,7 @@ impl Default for ExplorerState {
             self_weak: WeakEntity::new_invalid(),
             subscriptions: HashMap::new(),
             focus_handle: None,
+            filename_editor: None,
         };
         state.refresh_recent_cache();
         state
@@ -490,6 +534,19 @@ pub fn compare_worktree_entries(
     }
 }
 
+fn visible_children(
+    snapshot: &WorktreeSnapshot,
+    parent_id: ExplorerEntryId,
+    hide_gitignore: bool,
+) -> Vec<&WorktreeEntry> {
+    snapshot
+        .child_ids(parent_id)
+        .iter()
+        .filter_map(|id| snapshot.entry_for_id(*id))
+        .filter(|entry| !hide_gitignore || !entry.is_ignored)
+        .collect()
+}
+
 fn collect_visible_entries(
     snapshot: &WorktreeSnapshot,
     worktree_id: WorktreeId,
@@ -498,69 +555,110 @@ fn collect_visible_entries(
     expanded_set: Option<&BTreeSet<ExplorerEntryId>>,
     sort_mode: ExplorerSortMode,
     sort_order: ExplorerSortOrder,
+    auto_fold_dirs: bool,
+    hide_gitignore: bool,
     flat_entries: &mut Vec<VisibleExplorerEntry>,
 ) {
-    let child_ids = snapshot.child_ids(parent_id);
-    if child_ids.is_empty() {
+    let mut children = visible_children(snapshot, parent_id, hide_gitignore);
+    if children.is_empty() {
         return;
     }
-
-    let mut children: Vec<&WorktreeEntry> = child_ids
-        .iter()
-        .filter_map(|id| snapshot.entry_for_id(*id))
-        .collect();
 
     children.sort_by(|a, b| compare_worktree_entries(a, b, sort_mode, sort_order));
 
     for child in children {
         let is_dir = child.kind == WorktreeEntryKind::Directory;
-        let is_expanded = if is_dir {
-            expanded_set.is_some_and(|set| set.contains(&child.id))
-        } else {
-            false
-        };
-        let has_children = is_dir && snapshot.child_count(child.id) > 0;
-        let label = child
-            .path
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| child.path.to_string_lossy().into_owned());
+        if is_dir {
+            let mut folded_ancestors = Vec::new();
+            let mut current = child;
+            let mut combined_label = current
+                .path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| current.path.to_string_lossy().into_owned());
 
-        let kind = if is_dir {
-            ExplorerEntryKind::Directory
-        } else if child
-            .path
-            .extension()
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-        {
-            ExplorerEntryKind::MarkdownFile
-        } else {
-            ExplorerEntryKind::File
-        };
+            if auto_fold_dirs {
+                loop {
+                    let subchildren = visible_children(snapshot, current.id, hide_gitignore);
+                    if subchildren.len() == 1 && subchildren[0].kind == WorktreeEntryKind::Directory {
+                        let only_child = subchildren[0];
+                        folded_ancestors.push(current.id);
+                        let child_name = only_child
+                            .path
+                            .file_name()
+                            .map(|n| n.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| only_child.path.to_string_lossy().into_owned());
+                        combined_label.push_str(" / ");
+                        combined_label.push_str(&child_name);
+                        current = only_child;
+                    } else {
+                        break;
+                    }
+                }
+            }
 
-        flat_entries.push(VisibleExplorerEntry {
-            worktree_id,
-            id: child.id,
-            parent_id: Some(parent_id),
-            path: child.path.clone(),
-            label,
-            depth,
-            kind,
-            is_expanded,
-            has_children,
-        });
+            let is_expanded = expanded_set.is_some_and(|set| set.contains(&current.id));
+            let has_children = snapshot.child_count(current.id) > 0;
+            let is_ignored = current.is_ignored || child.is_ignored;
 
-        if is_dir && is_expanded {
-            collect_visible_entries(
-                snapshot,
+            flat_entries.push(VisibleExplorerEntry {
                 worktree_id,
-                child.id,
-                depth + 1,
-                expanded_set,
-                sort_mode,
-                sort_order,
-                flat_entries,
-            );
+                id: current.id,
+                parent_id: Some(parent_id),
+                path: current.path.clone(),
+                label: combined_label,
+                depth,
+                kind: ExplorerEntryKind::Directory,
+                is_expanded,
+                has_children,
+                is_ignored,
+                folded_ancestors,
+            });
+
+            if is_expanded {
+                collect_visible_entries(
+                    snapshot,
+                    worktree_id,
+                    current.id,
+                    depth + 1,
+                    expanded_set,
+                    sort_mode,
+                    sort_order,
+                    auto_fold_dirs,
+                    hide_gitignore,
+                    flat_entries,
+                );
+            }
+        } else {
+            let label = child
+                .path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| child.path.to_string_lossy().into_owned());
+
+            let kind = if child
+                .path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+            {
+                ExplorerEntryKind::MarkdownFile
+            } else {
+                ExplorerEntryKind::File
+            };
+
+            flat_entries.push(VisibleExplorerEntry {
+                worktree_id,
+                id: child.id,
+                parent_id: Some(parent_id),
+                path: child.path.clone(),
+                label,
+                depth,
+                kind,
+                is_expanded: false,
+                has_children: false,
+                is_ignored: child.is_ignored,
+                folded_ancestors: Vec::new(),
+            });
         }
     }
 }
@@ -574,6 +672,8 @@ pub fn build_explorer_rows(
     edit: Option<&ExplorerEditState>,
     sort_mode: ExplorerSortMode,
     sort_order: ExplorerSortOrder,
+    auto_fold_dirs: bool,
+    hide_gitignore: bool,
 ) -> Vec<ExplorerRow> {
     let mut rows = Vec::new();
 
@@ -616,6 +716,8 @@ pub fn build_explorer_rows(
             kind: root_kind,
             is_expanded: root_is_expanded,
             has_children: root_has_children,
+            is_ignored: root_entry.is_ignored,
+            folded_ancestors: Vec::new(),
         });
 
         if root_is_expanded && root_is_dir {
@@ -627,6 +729,8 @@ pub fn build_explorer_rows(
                 expanded_set,
                 sort_mode,
                 sort_order,
+                auto_fold_dirs,
+                hide_gitignore,
                 &mut flat_entries,
             );
         }
@@ -639,7 +743,13 @@ pub fn build_explorer_rows(
             {
                 let parent_index = flat_entries
                     .iter()
-                    .position(|entry| Some(entry.id) == edit_state.parent_id);
+                    .position(|entry| {
+                        Some(entry.id) == edit_state.parent_id
+                            || entry
+                                .folded_ancestors
+                                .iter()
+                                .any(|id| Some(*id) == edit_state.parent_id)
+                    });
                 let mut inserted = false;
                 for (index, entry) in flat_entries.into_iter().enumerate() {
                     segment.push(ExplorerRow::Entry(entry));
@@ -655,7 +765,12 @@ pub fn build_explorer_rows(
             }
             Some(edit_state) if edit_state.worktree_id == worktree_id => {
                 for entry in flat_entries {
-                    if Some(entry.id) == edit_state.target_id {
+                    if Some(entry.id) == edit_state.target_id
+                        || entry
+                            .folded_ancestors
+                            .iter()
+                            .any(|id| Some(*id) == edit_state.target_id)
+                    {
                         segment.push(ExplorerRow::Edit { worktree_id });
                     } else {
                         segment.push(ExplorerRow::Entry(entry));
@@ -703,12 +818,14 @@ mod tests {
             path: PathBuf::from("/root/z_folder"),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
         let file = WorktreeEntry {
             id: ExplorerEntryId(2),
             path: PathBuf::from("/root/a_file.txt"),
             kind: WorktreeEntryKind::File,
             inode: None,
+            is_ignored: false,
         };
 
         // Directories first: dir comes before file even though 'z' > 'a'
@@ -758,6 +875,7 @@ mod tests {
             path: root.clone(),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
         entries_by_path.insert(root.clone(), root_entry.clone());
         id_for_path.insert(root.clone(), ExplorerEntryId(0));
@@ -784,6 +902,7 @@ mod tests {
                 path: path.clone(),
                 kind,
                 inode: None,
+                is_ignored: false,
             };
             entries_by_path.insert(path.clone(), entry);
             id_for_path.insert(path.clone(), id);
@@ -813,6 +932,8 @@ mod tests {
             None,
             ExplorerSortMode::DirectoriesFirst,
             ExplorerSortOrder::Ascending,
+            false,
+            false,
         );
 
         let labels: Vec<String> = rows
@@ -843,6 +964,7 @@ mod tests {
             path: root.clone(),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
         entries_by_path.insert(root.clone(), root_entry.clone());
         id_for_path.insert(root.clone(), ExplorerEntryId(0));
@@ -857,6 +979,7 @@ mod tests {
                 path: src_path.clone(),
                 kind: WorktreeEntryKind::Directory,
                 inode: None,
+                is_ignored: false,
             },
         );
         id_for_path.insert(src_path.clone(), ExplorerEntryId(1));
@@ -870,6 +993,7 @@ mod tests {
                 path: root_file_path.clone(),
                 kind: WorktreeEntryKind::File,
                 inode: None,
+                is_ignored: false,
             },
         );
         id_for_path.insert(root_file_path.clone(), ExplorerEntryId(2));
@@ -889,6 +1013,7 @@ mod tests {
                 path: main_path.clone(),
                 kind: WorktreeEntryKind::File,
                 inode: None,
+                is_ignored: false,
             },
         );
         id_for_path.insert(main_path.clone(), ExplorerEntryId(3));
@@ -919,6 +1044,8 @@ mod tests {
             None,
             ExplorerSortMode::DirectoriesFirst,
             ExplorerSortOrder::Ascending,
+            false,
+            false,
         );
 
         let labels: Vec<String> = rows
@@ -1303,24 +1430,28 @@ mod tests {
             path: PathBuf::from("/workspace/src"),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
         let child_dir = WorktreeEntry {
             id: ExplorerEntryId(2),
             path: PathBuf::from("/workspace/src/nested"),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
         let child_file = WorktreeEntry {
             id: ExplorerEntryId(3),
             path: PathBuf::from("/workspace/src/nested/main.rs"),
             kind: WorktreeEntryKind::File,
             inode: None,
+            is_ignored: false,
         };
         let sibling_file = WorktreeEntry {
             id: ExplorerEntryId(4),
             path: PathBuf::from("/workspace/src/lib.rs"),
             kind: WorktreeEntryKind::File,
             inode: None,
+            is_ignored: false,
         };
 
         let mut entries_by_path = std::collections::BTreeMap::new();
@@ -1343,8 +1474,10 @@ mod tests {
             children_by_parent: std::collections::HashMap::new(),
         });
 
-        let mut state = ExplorerState::default();
-        state.snapshots = vec![snapshot];
+        let state = ExplorerState {
+            snapshots: vec![snapshot],
+            ..Default::default()
+        };
 
         // Scenario: Multi-selection has both `nested` (directory) and `main.rs` (child file)
         let selections = vec![
@@ -1388,6 +1521,7 @@ mod tests {
             path: PathBuf::from("/workspace/my_folder"),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
 
         let mut entries_by_path = std::collections::BTreeMap::new();
@@ -1408,8 +1542,10 @@ mod tests {
             children_by_parent: std::collections::HashMap::new(),
         });
 
-        let mut state = ExplorerState::default();
-        state.snapshots = vec![snapshot];
+        let mut state = ExplorerState {
+            snapshots: vec![snapshot],
+            ..Default::default()
+        };
 
         let selected = SelectedEntry {
             worktree_id: wt_id,
@@ -1458,13 +1594,14 @@ mod tests {
         // Write initial content
         std::fs::write(&file_path, "important content").unwrap();
 
-        let change = ExplorerChange::Created {
+        let mut change = ExplorerChange::Created {
             path: file_path.clone(),
             is_dir: false,
+            trashed_backup: None,
         };
 
         // Redo should NOT overwrite existing file with empty string!
-        let redo_result = crate::state::undo::execute_explorer_change(&change);
+        let redo_result = crate::state::undo::execute_explorer_change(&mut change);
         assert!(redo_result.is_ok());
 
         let content = std::fs::read_to_string(&file_path).unwrap();
@@ -1472,5 +1609,427 @@ mod tests {
             content, "important content",
             "redo must never overwrite existing content with empty string"
         );
+        let _ = std::fs::remove_file(&file_path);
+    }
+
+    #[test]
+    fn test_created_undo_redo_preserves_content() {
+        let unique_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let file_path = std::env::temp_dir().join(format!("splitype_test_created_preserves_{unique_id}.txt"));
+
+        // User created file and wrote content
+        std::fs::write(&file_path, "user critical data").unwrap();
+
+        let mut change = ExplorerChange::Created {
+            path: file_path.clone(),
+            is_dir: false,
+            trashed_backup: None,
+        };
+
+        // Undo creation (moves to trash, captures backup)
+        let undo_result = crate::state::undo::execute_explorer_change_inverse(&mut change);
+        assert!(undo_result.is_ok());
+
+        // File should not exist in original path anymore
+        assert!(!file_path.exists());
+
+        // Redo creation (should restore from trash rather than creating empty file)
+        let redo_result = crate::state::undo::execute_explorer_change(&mut change);
+        assert!(redo_result.is_ok());
+
+        // File should exist and contain the original critical data!
+        assert!(file_path.exists());
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(
+            content, "user critical data",
+            "redo of created entry must restore trashed content, not create an empty file"
+        );
+        let _ = std::fs::remove_file(&file_path);
+    }
+
+    #[test]
+    fn test_windows_trailing_dot_and_slash_normalization() {
+        let name_with_dot = "my_folder.";
+        let normalized = if cfg!(windows) {
+            name_with_dot.trim_end_matches('.')
+        } else {
+            name_with_dot
+        };
+        if cfg!(windows) {
+            assert_eq!(normalized, "my_folder");
+        }
+
+        let name_with_slashes = "nested/folder/file.rs";
+        let parts: Vec<&str> = name_with_slashes.split('/').filter(|s| !s.is_empty()).collect();
+        assert_eq!(parts, vec!["nested", "folder", "file.rs"]);
+    }
+
+    #[test]
+    fn test_temporary_unfolding_restore() {
+        let wt_id = WorktreeId(1);
+        let folder_id = ExplorerEntryId(42);
+
+        let mut expanded: std::collections::HashMap<WorktreeId, std::collections::BTreeSet<ExplorerEntryId>> =
+            std::collections::HashMap::new();
+
+        // Simulate folder being temporarily expanded
+        expanded.entry(wt_id).or_default().insert(folder_id);
+        assert!(expanded.get(&wt_id).unwrap().contains(&folder_id));
+
+        // When edit is discarded with temporarily_unfolded set:
+        let temporarily_unfolded = Some((wt_id, folder_id));
+        if let Some((worktree_id, parent_id)) = temporarily_unfolded {
+            if let Some(expanded_set) = expanded.get_mut(&worktree_id) {
+                expanded_set.remove(&parent_id);
+            }
+        }
+
+        // Folder is safely re-folded
+        assert!(!expanded.get(&wt_id).unwrap().contains(&folder_id));
+    }
+
+    #[test]
+    fn test_auto_fold_dirs_single_child_chain() {
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+        let mut children_by_parent = std::collections::HashMap::new();
+
+        let root = PathBuf::from("/project");
+        let root_entry = WorktreeEntry {
+            id: ExplorerEntryId(0),
+            path: root.clone(),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+            is_ignored: false,
+        };
+        entries_by_path.insert(root.clone(), root_entry);
+        id_for_path.insert(root.clone(), ExplorerEntryId(0));
+        path_for_id.insert(ExplorerEntryId(0), root.clone());
+
+        // Single child: /project/crates (id 1)
+        let crates_path = root.join("crates");
+        entries_by_path.insert(
+            crates_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(1),
+                path: crates_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(crates_path.clone(), ExplorerEntryId(1));
+        path_for_id.insert(ExplorerEntryId(1), crates_path.clone());
+        children_by_parent.insert(ExplorerEntryId(0), vec![ExplorerEntryId(1)]);
+
+        // Single child: /project/crates/explorer (id 2)
+        let explorer_path = crates_path.join("explorer");
+        entries_by_path.insert(
+            explorer_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(2),
+                path: explorer_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(explorer_path.clone(), ExplorerEntryId(2));
+        path_for_id.insert(ExplorerEntryId(2), explorer_path.clone());
+        children_by_parent.insert(ExplorerEntryId(1), vec![ExplorerEntryId(2)]);
+
+        // Single child: /project/crates/explorer/src (id 3)
+        let src_path = explorer_path.join("src");
+        entries_by_path.insert(
+            src_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(3),
+                path: src_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(src_path.clone(), ExplorerEntryId(3));
+        path_for_id.insert(ExplorerEntryId(3), src_path.clone());
+        children_by_parent.insert(ExplorerEntryId(2), vec![ExplorerEntryId(3)]);
+
+        // Multiple children inside src: lib.rs (id 4), main.rs (id 5)
+        let lib_path = src_path.join("lib.rs");
+        entries_by_path.insert(
+            lib_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(4),
+                path: lib_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(lib_path.clone(), ExplorerEntryId(4));
+        path_for_id.insert(ExplorerEntryId(4), lib_path);
+
+        let main_path = src_path.join("main.rs");
+        entries_by_path.insert(
+            main_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(5),
+                path: main_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(main_path.clone(), ExplorerEntryId(5));
+        path_for_id.insert(ExplorerEntryId(5), main_path);
+
+        children_by_parent.insert(
+            ExplorerEntryId(3),
+            vec![ExplorerEntryId(4), ExplorerEntryId(5)],
+        );
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: WorktreeId(1),
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent,
+        });
+
+        // Case 1: auto_fold_dirs = true
+        let mut expanded = HashMap::new();
+        let mut exp_set = BTreeSet::new();
+        exp_set.insert(ExplorerEntryId(0)); // root expanded
+        expanded.insert(WorktreeId(1), exp_set.clone());
+
+        let rows_folded = build_explorer_rows(
+            std::slice::from_ref(&snapshot),
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+            true, // auto_fold_dirs = true
+            false,
+        );
+
+        let labels_folded: Vec<String> = rows_folded
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label),
+                _ => None,
+            })
+            .collect();
+
+        // With auto_fold_dirs = true, crates/explorer/src collapses into a single row!
+        assert_eq!(labels_folded, vec!["project", "crates / explorer / src"]);
+
+        // When the folded row (id 3) is also expanded:
+        let mut exp_set_with_src = exp_set.clone();
+        exp_set_with_src.insert(ExplorerEntryId(3));
+        expanded.insert(WorktreeId(1), exp_set_with_src);
+
+        let rows_expanded = build_explorer_rows(
+            std::slice::from_ref(&snapshot),
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+            true,
+            false,
+        );
+        let labels_expanded: Vec<String> = rows_expanded
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            labels_expanded,
+            vec!["project", "crates / explorer / src", "lib.rs", "main.rs"]
+        );
+
+        // Case 2: auto_fold_dirs = false
+        expanded.insert(WorktreeId(1), exp_set);
+        let rows_unfolded = build_explorer_rows(
+            &[snapshot],
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+            false, // auto_fold_dirs = false
+            false,
+        );
+        let labels_unfolded: Vec<String> = rows_unfolded
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label),
+                _ => None,
+            })
+            .collect();
+        // Without folding, only "crates" is visible under root!
+        assert_eq!(labels_unfolded, vec!["project", "crates"]);
+    }
+
+    #[test]
+    fn test_hide_gitignore_filtering() {
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+        let mut children_by_parent = std::collections::HashMap::new();
+
+        let root = PathBuf::from("/project");
+        let root_entry = WorktreeEntry {
+            id: ExplorerEntryId(0),
+            path: root.clone(),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+            is_ignored: false,
+        };
+        entries_by_path.insert(root.clone(), root_entry);
+        id_for_path.insert(root.clone(), ExplorerEntryId(0));
+        path_for_id.insert(ExplorerEntryId(0), root.clone());
+
+        // Regular child: src (id 1)
+        let src_path = root.join("src");
+        entries_by_path.insert(
+            src_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(1),
+                path: src_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(src_path.clone(), ExplorerEntryId(1));
+        path_for_id.insert(ExplorerEntryId(1), src_path.clone());
+
+        // Ignored child: target (id 2)
+        let target_path = root.join("target");
+        entries_by_path.insert(
+            target_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(2),
+                path: target_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: true,
+            },
+        );
+        id_for_path.insert(target_path.clone(), ExplorerEntryId(2));
+        path_for_id.insert(ExplorerEntryId(2), target_path.clone());
+
+        // Regular file: Cargo.toml (id 3)
+        let cargo_path = root.join("Cargo.toml");
+        entries_by_path.insert(
+            cargo_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(3),
+                path: cargo_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(cargo_path.clone(), ExplorerEntryId(3));
+        path_for_id.insert(ExplorerEntryId(3), cargo_path);
+
+        // Ignored file: .env (id 4)
+        let env_path = root.join(".env");
+        entries_by_path.insert(
+            env_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(4),
+                path: env_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+                is_ignored: true,
+            },
+        );
+        id_for_path.insert(env_path.clone(), ExplorerEntryId(4));
+        path_for_id.insert(ExplorerEntryId(4), env_path);
+
+        children_by_parent.insert(
+            ExplorerEntryId(0),
+            vec![
+                ExplorerEntryId(1),
+                ExplorerEntryId(2),
+                ExplorerEntryId(3),
+                ExplorerEntryId(4),
+            ],
+        );
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: WorktreeId(1),
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent,
+        });
+
+        let mut expanded = HashMap::new();
+        let mut exp_set = BTreeSet::new();
+        exp_set.insert(ExplorerEntryId(0));
+        expanded.insert(WorktreeId(1), exp_set);
+
+        // When hide_gitignore = false: target and .env are present with is_ignored = true
+        let rows_with_ignored = build_explorer_rows(
+            std::slice::from_ref(&snapshot),
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+            false,
+            false, // hide_gitignore = false
+        );
+        let labels_with_ignored: Vec<(String, bool)> = rows_with_ignored
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some((e.label, e.is_ignored)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            labels_with_ignored,
+            vec![
+                ("project".to_string(), false),
+                ("src".to_string(), false),
+                ("target".to_string(), true),
+                (".env".to_string(), true),
+                ("Cargo.toml".to_string(), false),
+            ]
+        );
+
+        // When hide_gitignore = true: target and .env are filtered out
+        let rows_hidden = build_explorer_rows(
+            &[snapshot],
+            &expanded,
+            None,
+            ExplorerSortMode::DirectoriesFirst,
+            ExplorerSortOrder::Ascending,
+            false,
+            true, // hide_gitignore = true
+        );
+        let labels_hidden: Vec<String> = rows_hidden
+            .into_iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            labels_hidden,
+            vec!["project", "src", "Cargo.toml"]
+        );
     }
 }
+

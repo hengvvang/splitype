@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::state::ExplorerState;
@@ -69,6 +70,10 @@ impl ExplorerState {
             .as_ref()
             .is_some_and(|menu| menu.path == entry.path);
         let is_row_active = selected || is_marked || is_menu_target;
+        let is_cut = self
+            .clipboard
+            .as_ref()
+            .is_some_and(|c| c.is_cut() && c.items().contains(&mark_selection));
         let node_id = entry.id;
         let click_kind = entry.kind;
         let click_path = entry.path.clone();
@@ -110,7 +115,9 @@ impl ExplorerState {
             }
         };
 
-        let label_color = if is_row_active {
+        let label_color = if entry.is_ignored {
+            c.dialog_muted
+        } else if is_row_active {
             c.text_default
         } else {
             c.dialog_muted
@@ -176,6 +183,7 @@ impl ExplorerState {
             .bg(row_bg)
             .hover(|this| this.bg(c.panel_row_hover))
             .cursor_pointer()
+            .when(is_cut || entry.is_ignored, |this| this.opacity(0.45))
             .children(if is_row_active {
                 Some(ui::selection_indicator(
                     theme
@@ -198,11 +206,16 @@ impl ExplorerState {
             }))
             .child(arrow_el)
             .children(icon.map(|(path, color)| {
+                let icon_color = if entry.is_ignored {
+                    c.dialog_muted
+                } else {
+                    color
+                };
                 svg()
                     .path(path)
                     .size(px(19.0))
                     .flex_shrink_0()
-                    .text_color(color)
+                    .text_color(icon_color)
                     .into_any_element()
             }))
             .child(

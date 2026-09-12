@@ -97,10 +97,31 @@ impl ExplorerState {
         let Some((worktree_id, _)) = self.worktree_for_explorer_entry(id) else {
             return;
         };
+        let folded_ancestors = self
+            .entries
+            .iter()
+            .find_map(|row| {
+                if let ExplorerRow::Entry(e) = row
+                    && e.id == id
+                {
+                    Some(e.folded_ancestors.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default();
+
         let set = self.expanded.entry(worktree_id).or_default();
         let will_expand = !set.remove(&id);
         if will_expand {
             set.insert(id);
+            for ancestor_id in folded_ancestors {
+                set.insert(ancestor_id);
+            }
+        } else {
+            for ancestor_id in folded_ancestors {
+                set.remove(&ancestor_id);
+            }
         }
         self.rebuild_explorer_entries();
         cx.refresh_windows();
@@ -144,6 +165,8 @@ impl ExplorerState {
             config::settings::PluginSettings::<crate::settings::ExplorerSettings>::get(cx);
         self.sort_mode = settings.sort_mode;
         self.sort_order = settings.sort_order;
+        self.auto_fold_dirs = settings.auto_fold_dirs;
+        self.hide_gitignore = settings.hide_gitignore;
         self.snapshots = self
             .worktrees
             .iter()
@@ -168,6 +191,8 @@ impl ExplorerState {
             edit,
             self.sort_mode,
             self.sort_order,
+            self.auto_fold_dirs,
+            self.hide_gitignore,
         );
     }
 

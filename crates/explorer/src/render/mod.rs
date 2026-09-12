@@ -13,7 +13,7 @@ use crate::ops::selection::{DuplicateSelectedEntry, RedoFileOperation, UndoFileO
 use crate::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
 use platform_contracts::PanelId;
-use platform_contracts::actions::{Copy, Cut, Paste, SelectAll};
+use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste, SelectAll};
 use theme::Theme;
 
 /// Free-function entry point: renders the explorer body (file tree or
@@ -139,7 +139,8 @@ impl ExplorerState {
 
         let mut key_ctx = KeyContext::new_with_defaults();
         key_ctx.add("ExplorerPanel");
-        if self.edit.is_some() {
+        let is_editing = self.edit.is_some();
+        if is_editing {
             key_ctx.add("editing");
         } else {
             key_ctx.add("not_editing");
@@ -394,6 +395,14 @@ impl ExplorerState {
                 move |_: &RedoFileOperation, window, cx| {
                     let _ = weak.update(cx, |state, cx| {
                         state.explorer_redo(window, cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |action: &DismissTransientUi, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.on_explorer_escape(action, window, cx);
                     });
                 }
             })

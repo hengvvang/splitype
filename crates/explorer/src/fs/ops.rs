@@ -97,11 +97,153 @@ pub fn remove_empty_dir_only(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
+/// Represents a file or directory that has been moved to the system trash,
+/// retaining enough information to restore it to its original location.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TrashedEntry {
+    pub id: std::ffi::OsString,
+    pub name: std::ffi::OsString,
+    pub original_parent: PathBuf,
+}
+
+impl From<trash::TrashItem> for TrashedEntry {
+    fn from(item: trash::TrashItem) -> Self {
+        Self {
+            id: item.id,
+            name: item.name,
+            original_parent: item.original_parent,
+        }
+    }
+}
+
+impl TrashedEntry {
+    pub fn into_trash_item(self) -> trash::TrashItem {
+        trash::TrashItem {
+            id: self.id,
+            name: self.name,
+            original_parent: self.original_parent,
+            time_deleted: 0,
+        }
+    }
+}
+
+fn strip_windows_verbatim(path: &Path) -> PathBuf {
+    let s = path.to_string_lossy();
+    if let Some(stripped) = s.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{stripped}"))
+    } else if let Some(stripped) = s.strip_prefix(r"\\?\") {
+        PathBuf::from(stripped)
+    } else {
+        path.to_path_buf()
+    }
+}
+
+/// Move `path` to the OS trash and retain enough info to restore it if undone.
+pub fn trash_with_info(path: &Path) -> io::Result<TrashedEntry> {
+    let canonical = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    let normalized_path = strip_windows_verbatim(&canonical);
+    let name = path
+        .file_name()
+        .map(|n| n.to_os_string())
+        .unwrap_or_default();
+    let parent = path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    let normalized_parent = parent
+        .canonicalize()
+        .map(|p| strip_windows_verbatim(&p))
+        .unwrap_or_else(|_| parent.clone());
+
+    trash::delete(path).map_err(|e| io::Error::other(e.to_string()))?;
+
+    #[cfg(any(
+        target_os = "windows",
+        all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android"))
+    ))]
+    {
+        if let Ok(items) = trash::os_limited::list() {
+            if let Some(item) = items.into_iter().rev().find(|item| {
+                let match_name = item
+                    .name
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&name.to_string_lossy());
+                let match_parent = item
+                    .original_parent
+                    .as_os_str()
+                    .eq_ignore_ascii_case(normalized_parent.as_os_str())
+                    || item
+                        .original_parent
+                        .as_os_str()
+                        .eq_ignore_ascii_case(parent.as_os_str());
+                let match_path = item
+                    .original_path()
+                    .as_os_str()
+                    .eq_ignore_ascii_case(normalized_path.as_os_str())
+                    || item
+                        .original_path()
+                        .as_os_str()
+                        .eq_ignore_ascii_case(path.as_os_str());
+
+                match_name && (match_parent || match_path)
+            }) {
+                return Ok(TrashedEntry::from(item));
+            }
+        }
+    }
+
+    Ok(TrashedEntry {
+        id: std::ffi::OsString::new(),
+        name,
+        original_parent: normalized_parent,
+    })
+}
+
+/// Restore a previously trashed entry from the system recycle bin back to its original path.
+pub fn restore_trash(entry: &TrashedEntry) -> io::Result<PathBuf> {
+    let original_path = entry.original_parent.join(&entry.name);
+
+    #[cfg(any(
+        target_os = "windows",
+        all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android"))
+    ))]
+    {
+        if !entry.id.is_empty() {
+            let item = entry.clone().into_trash_item();
+            if trash::os_limited::restore_all([item]).is_ok() {
+                return Ok(original_path);
+            }
+        }
+        if let Ok(items) = trash::os_limited::list() {
+            if let Some(item) = items.into_iter().rev().find(|i| {
+                let match_name = i
+                    .name
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&entry.name.to_string_lossy());
+                let match_parent = i
+                    .original_parent
+                    .as_os_str()
+                    .eq_ignore_ascii_case(entry.original_parent.as_os_str());
+                match_name && match_parent
+            }) {
+                trash::os_limited::restore_all([item])
+                    .map_err(|e| io::Error::other(e.to_string()))?;
+                return Ok(original_path);
+            }
+        }
+    }
+
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        format!(
+            "Item '{}' could not be restored from trash",
+            original_path.display()
+        ),
+    ))
+}
+
 /// Move `path` to the OS trash (recoverable); falls back to a permanent
 /// delete when trash is unavailable.
 pub fn trash(path: &Path) -> io::Result<()> {
-    match trash::delete(path) {
-        Ok(()) => Ok(()),
+    match trash_with_info(path) {
+        Ok(_) => Ok(()),
         Err(_) => remove_symlink_safe(path),
     }
 }

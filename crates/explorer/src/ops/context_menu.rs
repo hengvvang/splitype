@@ -77,7 +77,7 @@ impl ExplorerState {
             .any(|wt| wt.read(cx).root() == path.as_path());
         let can_undo = self.undo_history.can_undo();
         let can_redo = self.undo_history.can_redo();
-        let has_pasteable = self.clipboard.is_some();
+        let has_pasteable = self.has_pasteable_content(cx);
         let entry_id = self.explorer_id_for_path(&path);
 
         type ContextMenuItemHandler =

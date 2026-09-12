@@ -530,7 +530,7 @@ impl ExplorerState {
     /// Copy external files into `target_dir`; same-named destinations
     /// prompt for confirmation before being replaced (mirrors Zed's
     /// `drop_external_files`).
-    fn drop_external_files(
+    pub(crate) fn drop_external_files(
         &mut self,
         paths: &[PathBuf],
         target_dir: PathBuf,

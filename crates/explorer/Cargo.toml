@@ -23,6 +23,7 @@ trash = "5"
 tracing = "0.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
+ignore = "0.4"
 
 [dev-dependencies]
 toml = "1"

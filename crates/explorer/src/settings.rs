@@ -93,10 +93,18 @@ pub struct ExplorerSettings {
     pub sort_order: ExplorerSortOrder,
     #[serde(default = "default_true")]
     pub auto_reveal: bool,
+    #[serde(default = "default_true")]
+    pub auto_fold_dirs: bool,
+    #[serde(default = "default_false")]
+    pub hide_gitignore: bool,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_false() -> bool {
+    false
 }
 
 impl Default for ExplorerSettings {
@@ -106,6 +114,8 @@ impl Default for ExplorerSettings {
             sort_mode: ExplorerSortMode::DirectoriesFirst,
             sort_order: ExplorerSortOrder::Ascending,
             auto_reveal: true,
+            auto_fold_dirs: true,
+            hide_gitignore: false,
         }
     }
 }

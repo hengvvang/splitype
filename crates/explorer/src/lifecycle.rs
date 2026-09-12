@@ -93,6 +93,8 @@ impl ExplorerState {
         let hide_hidden = settings.hide_hidden;
         explorer.sort_mode = settings.sort_mode;
         explorer.sort_order = settings.sort_order;
+        explorer.auto_fold_dirs = settings.auto_fold_dirs;
+        explorer.hide_gitignore = settings.hide_gitignore;
         // Resolve-or-scan the shared tree through the store; a folder already
         // open in another panel (or window) is shared live, not rescanned.
         let worktree = WorktreeStore::open(path, hide_hidden, window_handle, cx);

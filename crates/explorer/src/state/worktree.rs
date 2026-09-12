@@ -49,6 +49,8 @@ pub struct WorktreeEntry {
     pub kind: WorktreeEntryKind,
     /// Best-effort stable file id for rename detection.
     pub inode: Option<u64>,
+    /// Whether this entry matches .gitignore rules.
+    pub is_ignored: bool,
 }
 
 /// Immutable snapshot of a scanned worktree. Replaced wholesale after each
@@ -385,6 +387,9 @@ fn scan_worktree_dir(
     let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
     visited_dirs.insert(canonical);
 
+    let ignore_stack = crate::state::ignore::IgnoreStack::with_root(root);
+    let is_root_ignored = ignore_stack.is_ignored(root, meta.is_dir());
+
     entries.insert(
         root.to_path_buf(),
         WorktreeEntry {
@@ -396,10 +401,11 @@ fn scan_worktree_dir(
                 WorktreeEntryKind::File
             },
             inode: file_id(root, &meta),
+            is_ignored: is_root_ignored,
         },
     );
     if meta.is_dir() {
-        walk_dir(root, hide_hidden, 0, &mut visited_dirs, &mut entries)?;
+        walk_dir(root, hide_hidden, 0, &mut visited_dirs, &ignore_stack, &mut entries)?;
     }
     Ok(entries)
 }
@@ -409,6 +415,7 @@ fn walk_dir(
     hide_hidden: bool,
     depth: usize,
     visited_dirs: &mut std::collections::HashSet<PathBuf>,
+    ignore_stack: &crate::state::ignore::IgnoreStack,
     out: &mut BTreeMap<PathBuf, WorktreeEntry>,
 ) -> std::io::Result<()> {
     if depth >= MAX_SCAN_DEPTH {
@@ -425,10 +432,8 @@ fn walk_dir(
             Err(_) => continue,
         };
         let file_name = entry.file_name();
-        if is_ignored_entry(&file_name) {
-            continue;
-        }
-        if hide_hidden && file_name.to_string_lossy().starts_with('.') {
+        let file_name_str = file_name.to_string_lossy();
+        if hide_hidden && file_name_str.starts_with('.') && file_name_str != ".gitignore" {
             continue;
         }
         let path = entry.path();
@@ -446,7 +451,10 @@ fn walk_dir(
             meta.clone()
         };
 
-        if target_meta.is_dir() {
+        let is_dir = target_meta.is_dir();
+        let is_ignored = ignore_stack.is_ignored(&path, is_dir);
+
+        if is_dir {
             let canonical = match path.canonicalize() {
                 Ok(c) => c,
                 Err(_) => continue,
@@ -461,9 +469,16 @@ fn walk_dir(
                     path: path.clone(),
                     kind: WorktreeEntryKind::Directory,
                     inode: file_id(&path, &target_meta),
+                    is_ignored,
                 },
             );
-            walk_dir(&path, hide_hidden, depth + 1, visited_dirs, out)?;
+            // Prune traversal inside ignored directories (e.g. node_modules, target, .git)
+            // to keep scanning fast and prevent runaway memory usage.
+            if !is_ignored {
+                let mut child_stack = ignore_stack.clone();
+                child_stack.push_dir_gitignore(&path);
+                walk_dir(&path, hide_hidden, depth + 1, visited_dirs, &child_stack, out)?;
+            }
         } else {
             out.insert(
                 path.clone(),
@@ -472,19 +487,12 @@ fn walk_dir(
                     path: path.clone(),
                     kind: WorktreeEntryKind::File,
                     inode: file_id(&path, &target_meta),
+                    is_ignored,
                 },
             );
         }
     }
     Ok(())
-}
-
-/// Directory names the explorer scan prunes (build outputs, VCS metadata).
-fn is_ignored_entry(name: &std::ffi::OsStr) -> bool {
-    matches!(
-        name.to_str(),
-        Some("node_modules" | "target" | "dist" | "build" | ".git")
-    )
 }
 
 /// Best-effort stable file id (Windows: volume serial + file index, via
@@ -614,6 +622,7 @@ mod bench {
             path: root.clone(),
             kind: WorktreeEntryKind::Directory,
             inode: None,
+            is_ignored: false,
         };
         entries_by_path.insert(root.clone(), root_entry.clone());
         id_for_path.insert(root.clone(), ExplorerEntryId(0));
@@ -627,6 +636,7 @@ mod bench {
                 path: path.clone(),
                 kind,
                 inode: None,
+                is_ignored: false,
             };
             if kind == WorktreeEntryKind::Directory {
                 dir_ids.push(entry.id);
@@ -677,6 +687,8 @@ mod bench {
             None,
             ExplorerSortMode::DirectoriesFirst,
             ExplorerSortOrder::Ascending,
+            false,
+            false,
         );
         let elapsed = start.elapsed();
         println!(
