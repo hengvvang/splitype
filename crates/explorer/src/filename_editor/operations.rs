@@ -363,13 +363,12 @@ impl ExplorerState {
             return true;
         }
 
-        let missing_dirs = if let Some(snapshot) =
-            self.snapshots.iter().find(|snap| snap.id() == worktree_id)
-        {
-            crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
-        } else {
-            Vec::new()
-        };
+        let missing_dirs =
+            if let Some(snapshot) = self.snapshots.iter().find(|snap| snap.id() == worktree_id) {
+                crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
+            } else {
+                Vec::new()
+            };
 
         {
             let edit = self.edit.as_mut().unwrap();

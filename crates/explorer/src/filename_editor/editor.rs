@@ -281,7 +281,10 @@ impl FilenameEditor {
         }
         let cursor = self.cursor();
         if cursor < self.text.len() {
-            let end = self.text.ceil_char_boundary(cursor + 1).min(self.text.len());
+            let end = self
+                .text
+                .ceil_char_boundary(cursor + 1)
+                .min(self.text.len());
             self.replace_range(cursor..end, "");
         }
     }
@@ -374,7 +377,9 @@ impl FilenameEditor {
     pub fn move_right(&mut self, extend: bool) {
         let cursor = self.cursor();
         let target = if cursor < self.text.len() {
-            self.text.ceil_char_boundary(cursor + 1).min(self.text.len())
+            self.text
+                .ceil_char_boundary(cursor + 1)
+                .min(self.text.len())
         } else {
             self.text.len()
         };
@@ -869,34 +874,33 @@ impl Element for FilenameEditorContentElement {
             strikethrough: None,
         };
 
-        let runs = if let Some(marked_range) =
-            editor.marked_range.as_ref().filter(|_| !text.is_empty())
-        {
-            vec![
-                TextRun {
-                    len: marked_range.start,
-                    ..base_run.clone()
-                },
-                TextRun {
-                    len: marked_range.end.saturating_sub(marked_range.start),
-                    underline: Some(UnderlineStyle {
-                        color: Some(theme.colors.text_default),
-                        thickness: px(theme.dimensions.underline_thickness),
-                        wavy: false,
-                    }),
-                    ..base_run.clone()
-                },
-                TextRun {
-                    len: text.len().saturating_sub(marked_range.end),
-                    ..base_run
-                },
-            ]
-            .into_iter()
-            .filter(|r| r.len > 0)
-            .collect()
-        } else {
-            vec![base_run]
-        };
+        let runs =
+            if let Some(marked_range) = editor.marked_range.as_ref().filter(|_| !text.is_empty()) {
+                vec![
+                    TextRun {
+                        len: marked_range.start,
+                        ..base_run.clone()
+                    },
+                    TextRun {
+                        len: marked_range.end.saturating_sub(marked_range.start),
+                        underline: Some(UnderlineStyle {
+                            color: Some(theme.colors.text_default),
+                            thickness: px(theme.dimensions.underline_thickness),
+                            wavy: false,
+                        }),
+                        ..base_run.clone()
+                    },
+                    TextRun {
+                        len: text.len().saturating_sub(marked_range.end),
+                        ..base_run
+                    },
+                ]
+                .into_iter()
+                .filter(|r| r.len > 0)
+                .collect()
+            } else {
+                vec![base_run]
+            };
 
         let font_size = px(theme.typography.text_size * 0.9);
         let line = window

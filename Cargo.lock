@@ -8167,7 +8167,6 @@ dependencies = [
  "editor_contracts",
  "futures",
  "gpui",
- "image",
  "markdown_parser",
  "platform_contracts",
  "reqwest",

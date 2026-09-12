@@ -261,11 +261,6 @@ impl Block {
         self.show_source_line_numbers = false;
     }
 
-    pub fn set_source_document_mode(&mut self) {
-        self.set_verbatim_mode();
-        self.show_source_line_numbers = true;
-    }
-
     pub fn sync_edit_mode_from_kind(&mut self) {
         if self.table_cell_position.is_some() {
             self.edit_mode = BlockEditMode::RenderedRich;

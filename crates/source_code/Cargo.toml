@@ -11,15 +11,15 @@ workspace = true
 
 [dependencies]
 rope = { workspace = true }
-config = { path = "../config" }
-platform_contracts = { path = "../platform_contracts" }
+config = { workspace = true }
+platform_contracts = { workspace = true }
 gpui = { workspace = true }
 serde = { workspace = true }
-editor_contracts = { path = "../editor_contracts" }
-ui = { path = "../ui" }
-syntax_highlighter = { path = "../syntax_highlighter" }
-markdown_parser = { path = "../markdown_parser" }
-theme = { path = "../theme" }
+editor_contracts = { workspace = true }
+ui = { workspace = true }
+syntax_highlighter = { workspace = true }
+markdown_parser = { workspace = true }
+theme = { workspace = true }
 
 [dev-dependencies]
-toml = "1"
+toml = { workspace = true }

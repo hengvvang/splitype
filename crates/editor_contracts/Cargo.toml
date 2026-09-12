@@ -14,11 +14,11 @@ workspace = true
 
 [dependencies]
 rope = { workspace = true }
-platform_contracts = { path = "../platform_contracts" }
-splitter = { path = "../splitter" }
+platform_contracts = { workspace = true }
+splitter = { workspace = true }
 gpui = { workspace = true }
-markdown_parser = { path = "../markdown_parser" }
-theme = { path = "../theme" }
+markdown_parser = { workspace = true }
+theme = { workspace = true }
 regex = "1.10"
 uuid = { workspace = true }
 serde = { workspace = true }

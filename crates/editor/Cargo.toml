@@ -15,20 +15,20 @@ workspace = true
 [dependencies]
 rope = { workspace = true }
 anyhow = { workspace = true }
-config = { path = "../config" }
-editor_contracts = { path = "../editor_contracts" }
-platform_contracts = { path = "../platform_contracts" }
-futures = "0.3"
+config = { workspace = true }
+editor_contracts = { workspace = true }
+platform_contracts = { workspace = true }
+futures = { workspace = true }
 gpui = { workspace = true }
-markdown_parser = { path = "../markdown_parser" }
-syntax_highlighter = { path = "../syntax_highlighter" }
-splitter = { path = "../splitter" }
-theme = { path = "../theme" }
-ui = { path = "../ui" }
+markdown_parser = { workspace = true }
+syntax_highlighter = { workspace = true }
+splitter = { workspace = true }
+theme = { workspace = true }
+ui = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tracing = "0.1"
+tracing = { workspace = true }
 
 [dev-dependencies]
-toml = "1"
+toml = { workspace = true }
 

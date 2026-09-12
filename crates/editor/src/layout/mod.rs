@@ -7,8 +7,8 @@ pub(crate) mod node;
 pub mod tab_drag;
 
 pub use tab_drag::{
-    calc_tab_dock_target, render_tab_drag_compass, DraggedTab, DraggedTabView, TabDockTarget,
-    TabDragHoverState,
+    DraggedTab, DraggedTabView, TabDockTarget, TabDragHoverState, calc_tab_dock_target,
+    render_tab_drag_compass,
 };
 
 use gpui::*;

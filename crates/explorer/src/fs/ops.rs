@@ -156,7 +156,12 @@ pub fn trash_with_info(path: &Path) -> io::Result<TrashedEntry> {
 
     #[cfg(any(
         target_os = "windows",
-        all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android"))
+        all(
+            unix,
+            not(target_os = "macos"),
+            not(target_os = "ios"),
+            not(target_os = "android")
+        )
     ))]
     {
         if let Ok(items) = trash::os_limited::list() {
@@ -202,7 +207,12 @@ pub fn restore_trash(entry: &TrashedEntry) -> io::Result<PathBuf> {
 
     #[cfg(any(
         target_os = "windows",
-        all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android"))
+        all(
+            unix,
+            not(target_os = "macos"),
+            not(target_os = "ios"),
+            not(target_os = "android")
+        )
     ))]
     {
         if !entry.id.is_empty() {

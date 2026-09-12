@@ -1,4 +1,34 @@
+# Build and distribution artifacts
 /target
-.DS_Store
 /dist
 scripts/tools/icon-gen/target
+
+# IDE and Editor configurations
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.swp
+*.swo
+*~
+*.bak
+
+# Operating system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Profiling and coverage
+*.profraw
+*.profdata
+
+# Crash logs and core dumps
+*.core
+core.*

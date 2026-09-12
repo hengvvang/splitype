@@ -61,7 +61,9 @@ pub fn render_preview_pane(
         .iter()
         .enumerate()
         .filter(|(_, block)| !matches!(block.kind(), BlockKind::FootnoteDefinition))
-        .map(|(index, block)| render_preview_block(block, 0, 0, index == 0, settings, theme, window))
+        .map(|(index, block)| {
+            render_preview_block(block, 0, 0, index == 0, settings, theme, window)
+        })
         .collect();
     // Footnote definitions are collected out of the body flow and
     // rendered as one GitHub-style section at the bottom, behind a

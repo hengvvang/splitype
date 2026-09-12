@@ -13,9 +13,9 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
-config = { path = "../config" }
+config = { workspace = true }
 gpui = { workspace = true }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
 semver = "1"
-toml = "1"
-tracing = "0.1"
+toml = { workspace = true }
+tracing = { workspace = true }

@@ -135,19 +135,35 @@ pub struct ActionHint {
 }
 
 const SPLIT_HINTS: &[ActionHint] = &[
-    ActionHint { key: "Ctrl", desc: "Snap" },
-    ActionHint { key: "Shift", desc: "New" },
-    ActionHint { key: "Esc", desc: "Cancel" },
+    ActionHint {
+        key: "Ctrl",
+        desc: "Snap",
+    },
+    ActionHint {
+        key: "Shift",
+        desc: "New",
+    },
+    ActionHint {
+        key: "Esc",
+        desc: "Cancel",
+    },
 ];
 
 const DOCK_HINTS: &[ActionHint] = &[
-    ActionHint { key: "Ctrl", desc: "Snap" },
-    ActionHint { key: "Esc", desc: "Cancel" },
+    ActionHint {
+        key: "Ctrl",
+        desc: "Snap",
+    },
+    ActionHint {
+        key: "Esc",
+        desc: "Cancel",
+    },
 ];
 
-const CANCEL_HINTS: &[ActionHint] = &[
-    ActionHint { key: "Esc", desc: "Cancel" },
-];
+const CANCEL_HINTS: &[ActionHint] = &[ActionHint {
+    key: "Esc",
+    desc: "Cancel",
+}];
 
 /// A full-window overlay drawing the split line plus a pure background highlight
 /// over the leaf being split. `rect` is normalized (0..1).
@@ -160,8 +176,14 @@ fn split_preview_overlay(
     style: &OverlayStyle,
 ) -> AnyElement {
     let (line, axis_title) = match direction {
-        SplitAxis::Horizontal => (split_line_horizontal(rect, ratio, style.accent), "Split Horizontal"),
-        SplitAxis::Vertical => (split_line_vertical(rect, ratio, style.accent), "Split Vertical"),
+        SplitAxis::Horizontal => (
+            split_line_horizontal(rect, ratio, style.accent),
+            "Split Horizontal",
+        ),
+        SplitAxis::Vertical => (
+            split_line_vertical(rect, ratio, style.accent),
+            "Split Vertical",
+        ),
     };
     let ratio_percent = format!("{:.1}%", ratio * 100.0);
 

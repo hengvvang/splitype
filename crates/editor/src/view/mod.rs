@@ -165,7 +165,7 @@ impl Render for Editor {
                         if let Some(prev_weak) = active_guard.as_ref() {
                             if let Some(prev_ed) = prev_weak.upgrade() {
                                 if prev_weak != &content_body_editor {
-                                    let _ = prev_ed.update(cx, |ed, cx| {
+                                    prev_ed.update(cx, |ed, cx| {
                                         ed.tab_drag_hover = None;
                                         cx.notify();
                                     });
@@ -224,12 +224,18 @@ impl Render for Editor {
                                 }
                                 crate::layout::tab_drag::TabDockTarget::InnerPane(dir) => {
                                     if dragged.source_panel_id == ed.panel_id {
-                                        if dragged.source_tab_index != ed.session.active_tab_index() {
+                                        if dragged.source_tab_index != ed.session.active_tab_index()
+                                        {
                                             ed.activate_tab(dragged.source_tab_index, cx);
                                         }
                                         let axis = match dir {
-                                            splitter::Direction::Up | splitter::Direction::Down => splitter::SplitAxis::Vertical,
-                                            splitter::Direction::Left | splitter::Direction::Right => splitter::SplitAxis::Horizontal,
+                                            splitter::Direction::Up | splitter::Direction::Down => {
+                                                splitter::SplitAxis::Vertical
+                                            }
+                                            splitter::Direction::Left
+                                            | splitter::Direction::Right => {
+                                                splitter::SplitAxis::Horizontal
+                                            }
                                         };
                                         let active_pane = ed.active_pane_id();
                                         ed.split_pane_with_ratio(active_pane, axis, 0.5);
@@ -259,8 +265,7 @@ impl Render for Editor {
 
         if let Some(hover) = &self.tab_drag_hover {
             content_body = content_body.child(crate::layout::tab_drag::render_tab_drag_compass(
-                hover,
-                &theme,
+                hover, &theme,
             ));
         }
 

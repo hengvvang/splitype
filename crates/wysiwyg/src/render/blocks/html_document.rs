@@ -387,9 +387,7 @@ impl Block {
                     .map(|child| self.render_html_node(child, theme, node_style.computed, cx)),
             );
         if let Some(bg) = node_style.background {
-            element = element
-                .bg(bg)
-                .px(px(2.0));
+            element = element.bg(bg).px(px(2.0));
         }
         match node.tag_name.as_str() {
             "sup" => {

@@ -10,23 +10,23 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-config = { path = "../config" }
-platform_contracts = { path = "../platform_contracts" }
-theme = { path = "../theme" }
-ui = { path = "../ui" }
-splitter = { path = "../splitter" }
+config = { workspace = true }
+platform_contracts = { workspace = true }
+theme = { workspace = true }
+ui = { workspace = true }
+splitter = { workspace = true }
 gpui = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
 notify = "8"
 thiserror = { workspace = true }
 trash = "5"
-tracing = "0.1"
+tracing = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ignore = "0.4"
 
 [dev-dependencies]
-toml = "1"
+toml = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Storage_FileSystem", "Win32_Foundation"] }

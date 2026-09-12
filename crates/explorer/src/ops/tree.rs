@@ -231,7 +231,8 @@ impl ExplorerState {
         if self.reveal_active_file() {
             if reveal_and_scroll {
                 if let Some(index) = self.selection_anchor {
-                    self.scroll_handle.scroll_to_item(index, ScrollStrategy::Center);
+                    self.scroll_handle
+                        .scroll_to_item(index, ScrollStrategy::Center);
                 }
             }
             cx.refresh_windows();

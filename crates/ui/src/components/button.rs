@@ -17,32 +17,6 @@ use gpui::*;
 
 use theme::{ThemeColors, ThemeDimensions};
 
-/// Standard primary action button (36px height, standard radius).
-pub fn primary_button(
-    id: impl Into<ElementId>,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-) -> Stateful<Div> {
-    action_base(id, d, d.dialog_button_height, d.button_radius)
-        .bg(c.dialog_primary_button_bg)
-        .text_color(c.dialog_primary_button_text)
-        .hover(|this| this.bg(c.dialog_primary_button_hover))
-}
-
-/// Standard secondary action button (36px height, standard radius).
-pub fn secondary_button(
-    id: impl Into<ElementId>,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-) -> Stateful<Div> {
-    action_base(id, d, d.dialog_button_height, d.button_radius)
-        .border(px(d.dialog_border_width))
-        .border_color(c.dialog_border)
-        .bg(c.dialog_secondary_button_bg)
-        .text_color(c.dialog_secondary_button_text)
-        .hover(|this| this.bg(c.panel_row_hover))
-}
-
 /// Compact primary action button (32px height, standard radius).
 pub fn compact_primary_button(
     id: impl Into<ElementId>,

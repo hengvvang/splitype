@@ -121,4 +121,3 @@ mod tests {
         assert!(match_icon("worktree/strip_open_recent.svg").is_some());
     }
 }
-

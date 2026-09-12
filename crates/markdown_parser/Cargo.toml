@@ -19,6 +19,6 @@ workspace = true
 [dependencies]
 rope = { workspace = true }
 uuid = { workspace = true }
-cssparser = "0.37"
+cssparser = { workspace = true }
 tree-sitter = { workspace = true }
 tree-sitter-html = { workspace = true, optional = true }

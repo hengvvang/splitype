@@ -12,5 +12,5 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 serde = { workspace = true }
-schemars = "1"
+schemars = { workspace = true }
 thiserror = { workspace = true }

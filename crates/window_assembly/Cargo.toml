@@ -10,8 +10,8 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-platform_contracts = { path = "../platform_contracts" }
-splitter = { path = "../splitter" }
+platform_contracts = { workspace = true }
+splitter = { workspace = true }
 gpui = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -6,4 +6,3 @@ pub mod editor;
 pub(crate) mod operations;
 
 pub use editor::{FilenameEditor, FilenameEditorEvent};
-

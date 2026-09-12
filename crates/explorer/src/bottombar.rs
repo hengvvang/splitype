@@ -240,7 +240,11 @@ impl ExplorerState {
 
             // 5. Reveal Active File
             if has_worktrees {
-                let reveal_label = if is_zh { "定位活动文件" } else { "Reveal Active File" };
+                let reveal_label = if is_zh {
+                    "定位活动文件"
+                } else {
+                    "Reveal Active File"
+                };
                 menu_labels.push(reveal_label.to_string());
                 items.push(make_item(
                     "explorer-bb-menu-reveal-active",
@@ -255,7 +259,11 @@ impl ExplorerState {
             // 6. Toggle Compact Folders
             let auto_fold = self.auto_fold_dirs;
             let compact_label = if auto_fold {
-                if is_zh { "禁用紧凑目录折叠" } else { "Disable Compact Folders" }
+                if is_zh {
+                    "禁用紧凑目录折叠"
+                } else {
+                    "Disable Compact Folders"
+                }
             } else if is_zh {
                 "启用紧凑目录折叠"
             } else {
@@ -274,7 +282,11 @@ impl ExplorerState {
             // 7. Toggle Hide Git-Ignored Files
             let hide_git = self.hide_gitignore;
             let gitignore_label = if hide_git {
-                if is_zh { "显示 Git 忽略文件" } else { "Show Git-Ignored Files" }
+                if is_zh {
+                    "显示 Git 忽略文件"
+                } else {
+                    "Show Git-Ignored Files"
+                }
             } else if is_zh {
                 "隐藏 Git 忽略文件"
             } else {

@@ -11,23 +11,22 @@ workspace = true
 
 [dependencies]
 gpui = { workspace = true }
-theme = { path = "../theme" }
-editor_contracts = { path = "../editor_contracts" }
-platform_contracts = { path = "../platform_contracts" }
-markdown_parser = { path = "../markdown_parser" }
-syntax_highlighter = { path = "../syntax_highlighter" }
-config = { path = "../config" }
-ui = { path = "../ui" }
+theme = { workspace = true }
+editor_contracts = { workspace = true }
+platform_contracts = { workspace = true }
+markdown_parser = { workspace = true }
+syntax_highlighter = { workspace = true }
+config = { workspace = true }
+ui = { workspace = true }
 serde = { workspace = true }
 url = "2"
 unicode-segmentation = "1.13"
 uuid = { workspace = true }
 anyhow = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
-tracing = "0.1"
+tracing = { workspace = true }
 
 [dev-dependencies]
-toml = "1"
+toml = { workspace = true }
 

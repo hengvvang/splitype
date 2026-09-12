@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
+use editor_contracts::DocumentId;
 use gpui::*;
 use platform_contracts::PanelId;
-use editor_contracts::DocumentId;
 use splitter::Direction;
+use std::sync::{Arc, Mutex};
 use theme::Theme;
 use ui::split::{ActionHint, OverlayStyle};
 
@@ -181,7 +181,10 @@ impl Render for DraggedTabView {
                     Some("icons/splitter/swap.svg"),
                     "Merge into Tabs",
                     None,
-                    &[ActionHint { key: "Esc", desc: "Cancel" }],
+                    &[ActionHint {
+                        key: "Esc",
+                        desc: "Cancel",
+                    }],
                 ),
                 TabDockTarget::InnerPane(dir) => {
                     let dir_str = match dir {
@@ -194,7 +197,10 @@ impl Render for DraggedTabView {
                         Some("icons/splitter/split-area.svg"),
                         "Split Pane",
                         Some(dir_str),
-                        &[ActionHint { key: "Esc", desc: "Cancel" }],
+                        &[ActionHint {
+                            key: "Esc",
+                            desc: "Cancel",
+                        }],
                     )
                 }
                 TabDockTarget::OuterEditor(dir) => {
@@ -216,11 +222,20 @@ impl Render for DraggedTabView {
                         "Move to New Editor"
                     };
                     let hints = if hover.shift_held {
-                        &[ActionHint { key: "Esc", desc: "Cancel" }][..]
+                        &[ActionHint {
+                            key: "Esc",
+                            desc: "Cancel",
+                        }][..]
                     } else {
                         &[
-                            ActionHint { key: "Shift", desc: "Clone" },
-                            ActionHint { key: "Esc", desc: "Cancel" },
+                            ActionHint {
+                                key: "Shift",
+                                desc: "Clone",
+                            },
+                            ActionHint {
+                                key: "Esc",
+                                desc: "Cancel",
+                            },
                         ][..]
                     };
                     (icon, title, Some(dir_str), hints)
@@ -423,10 +438,7 @@ fn estimate_text_width(text: &str, font_size: f32) -> f32 {
 /// Renders the 8-quadrant surface wireframe and highlights the active drop zone
 /// as true geometric trapezoids and center rectangle. No text or badges are drawn
 /// on the overlay surface (all action text is in the floating cursor panel).
-pub fn render_tab_drag_compass(
-    hover: &TabDragHoverState,
-    theme: &Theme,
-) -> AnyElement {
+pub fn render_tab_drag_compass(hover: &TabDragHoverState, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let accent = c.split_indicator;
     let target = hover.target;
@@ -488,35 +500,63 @@ pub fn render_tab_drag_compass(
                 }
             };
 
-            let stroke_poly = |pts: &[(f32, f32)], stroke_color: Hsla, width: f32, window: &mut Window| {
-                if pts.len() < 2 {
-                    return;
-                }
-                let mut builder = PathBuilder::stroke(px(width));
-                builder.move_to(point(px(pts[0].0), px(pts[0].1)));
-                for pt in &pts[1..] {
-                    builder.line_to(point(px(pt.0), px(pt.1)));
-                }
-                builder.close();
-                if let Ok(path) = builder.build() {
-                    window.paint_path(path, stroke_color);
-                }
-            };
+            let stroke_poly =
+                |pts: &[(f32, f32)], stroke_color: Hsla, width: f32, window: &mut Window| {
+                    if pts.len() < 2 {
+                        return;
+                    }
+                    let mut builder = PathBuilder::stroke(px(width));
+                    builder.move_to(point(px(pts[0].0), px(pts[0].1)));
+                    for pt in &pts[1..] {
+                        builder.line_to(point(px(pt.0), px(pt.1)));
+                    }
+                    builder.close();
+                    if let Ok(path) = builder.build() {
+                        window.paint_path(path, stroke_color);
+                    }
+                };
 
             // The 9 exact recognition zones:
             let zones: [(TabDockTarget, &[(f32, f32)]); 9] = [
                 // Outer 4 Editor zones (19% golden perimeter edge snap trapezoids)
-                (TabDockTarget::OuterEditor(Direction::Up), &[(x0, y0), (x1, y0), (ix1, iy0), (ix0, iy0)]),
-                (TabDockTarget::OuterEditor(Direction::Down), &[(ix0, iy1), (ix1, iy1), (x1, y1), (x0, y1)]),
-                (TabDockTarget::OuterEditor(Direction::Left), &[(x0, y0), (ix0, iy0), (ix0, iy1), (x0, y1)]),
-                (TabDockTarget::OuterEditor(Direction::Right), &[(ix1, iy0), (x1, y0), (x1, y1), (ix1, iy1)]),
+                (
+                    TabDockTarget::OuterEditor(Direction::Up),
+                    &[(x0, y0), (x1, y0), (ix1, iy0), (ix0, iy0)],
+                ),
+                (
+                    TabDockTarget::OuterEditor(Direction::Down),
+                    &[(ix0, iy1), (ix1, iy1), (x1, y1), (x0, y1)],
+                ),
+                (
+                    TabDockTarget::OuterEditor(Direction::Left),
+                    &[(x0, y0), (ix0, iy0), (ix0, iy1), (x0, y1)],
+                ),
+                (
+                    TabDockTarget::OuterEditor(Direction::Right),
+                    &[(ix1, iy0), (x1, y0), (x1, y1), (ix1, iy1)],
+                ),
                 // Inner 4 Pane zones (comfortable directional trapezoids)
-                (TabDockTarget::InnerPane(Direction::Up), &[(ix0, iy0), (ix1, iy0), (mx1, my0), (mx0, my0)]),
-                (TabDockTarget::InnerPane(Direction::Down), &[(ix0, iy1), (mx0, my1), (mx1, my1), (ix1, iy1)]),
-                (TabDockTarget::InnerPane(Direction::Left), &[(ix0, iy0), (mx0, my0), (mx0, my1), (ix0, iy1)]),
-                (TabDockTarget::InnerPane(Direction::Right), &[(mx1, my0), (ix1, iy0), (ix1, iy1), (mx1, my1)]),
+                (
+                    TabDockTarget::InnerPane(Direction::Up),
+                    &[(ix0, iy0), (ix1, iy0), (mx1, my0), (mx0, my0)],
+                ),
+                (
+                    TabDockTarget::InnerPane(Direction::Down),
+                    &[(ix0, iy1), (mx0, my1), (mx1, my1), (ix1, iy1)],
+                ),
+                (
+                    TabDockTarget::InnerPane(Direction::Left),
+                    &[(ix0, iy0), (mx0, my0), (mx0, my1), (ix0, iy1)],
+                ),
+                (
+                    TabDockTarget::InnerPane(Direction::Right),
+                    &[(mx1, my0), (ix1, iy0), (ix1, iy1), (mx1, my1)],
+                ),
                 // Center Merge zone (30% x 28% golden center rectangle)
-                (TabDockTarget::MergeCenter, &[(mx0, my0), (mx1, my0), (mx1, my1), (mx0, my1)]),
+                (
+                    TabDockTarget::MergeCenter,
+                    &[(mx0, my0), (mx1, my0), (mx1, my1), (mx0, my1)],
+                ),
             ];
 
             // 1. Draw all inactive recognition zone fills in neutral gray
@@ -574,17 +614,41 @@ mod tests {
 
     #[core::prelude::v1::test]
     fn test_calc_tab_dock_target_inner() {
-        assert_eq!(calc_tab_dock_target(0.5, 0.25), TabDockTarget::InnerPane(Direction::Up));
-        assert_eq!(calc_tab_dock_target(0.5, 0.75), TabDockTarget::InnerPane(Direction::Down));
-        assert_eq!(calc_tab_dock_target(0.26, 0.5), TabDockTarget::InnerPane(Direction::Left));
-        assert_eq!(calc_tab_dock_target(0.74, 0.5), TabDockTarget::InnerPane(Direction::Right));
+        assert_eq!(
+            calc_tab_dock_target(0.5, 0.25),
+            TabDockTarget::InnerPane(Direction::Up)
+        );
+        assert_eq!(
+            calc_tab_dock_target(0.5, 0.75),
+            TabDockTarget::InnerPane(Direction::Down)
+        );
+        assert_eq!(
+            calc_tab_dock_target(0.26, 0.5),
+            TabDockTarget::InnerPane(Direction::Left)
+        );
+        assert_eq!(
+            calc_tab_dock_target(0.74, 0.5),
+            TabDockTarget::InnerPane(Direction::Right)
+        );
     }
 
     #[core::prelude::v1::test]
     fn test_calc_tab_dock_target_outer() {
-        assert_eq!(calc_tab_dock_target(0.5, 0.10), TabDockTarget::OuterEditor(Direction::Up));
-        assert_eq!(calc_tab_dock_target(0.5, 0.90), TabDockTarget::OuterEditor(Direction::Down));
-        assert_eq!(calc_tab_dock_target(0.10, 0.5), TabDockTarget::OuterEditor(Direction::Left));
-        assert_eq!(calc_tab_dock_target(0.90, 0.5), TabDockTarget::OuterEditor(Direction::Right));
+        assert_eq!(
+            calc_tab_dock_target(0.5, 0.10),
+            TabDockTarget::OuterEditor(Direction::Up)
+        );
+        assert_eq!(
+            calc_tab_dock_target(0.5, 0.90),
+            TabDockTarget::OuterEditor(Direction::Down)
+        );
+        assert_eq!(
+            calc_tab_dock_target(0.10, 0.5),
+            TabDockTarget::OuterEditor(Direction::Left)
+        );
+        assert_eq!(
+            calc_tab_dock_target(0.90, 0.5),
+            TabDockTarget::OuterEditor(Direction::Right)
+        );
     }
 }

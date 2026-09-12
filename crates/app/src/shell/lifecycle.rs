@@ -66,10 +66,17 @@ impl Shell {
             splitter::Direction::Up | splitter::Direction::Down => SplitAxis::Vertical,
             splitter::Direction::Left | splitter::Direction::Right => SplitAxis::Horizontal,
         };
-        let new_leaf = self.panels.layout.split_leaf(source_panel.0, axis, 0.5).ok()?;
+        let new_leaf = self
+            .panels
+            .layout
+            .split_leaf(source_panel.0, axis, 0.5)
+            .ok()?;
         let new_panel = PanelId::from(new_leaf);
 
-        let target_new_panel = if matches!(direction, splitter::Direction::Left | splitter::Direction::Up) {
+        let target_new_panel = if matches!(
+            direction,
+            splitter::Direction::Left | splitter::Direction::Up
+        ) {
             if let Some(mut existing_view) = self.panel_views.remove(&source_panel) {
                 existing_view.set_panel_id(new_panel, cx);
                 self.insert_panel_view(new_panel, existing_view, cx);

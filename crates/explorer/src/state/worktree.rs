@@ -405,7 +405,14 @@ fn scan_worktree_dir(
         },
     );
     if meta.is_dir() {
-        walk_dir(root, hide_hidden, 0, &mut visited_dirs, &ignore_stack, &mut entries)?;
+        walk_dir(
+            root,
+            hide_hidden,
+            0,
+            &mut visited_dirs,
+            &ignore_stack,
+            &mut entries,
+        )?;
     }
     Ok(entries)
 }
@@ -477,7 +484,14 @@ fn walk_dir(
             if !is_ignored {
                 let mut child_stack = ignore_stack.clone();
                 child_stack.push_dir_gitignore(&path);
-                walk_dir(&path, hide_hidden, depth + 1, visited_dirs, &child_stack, out)?;
+                walk_dir(
+                    &path,
+                    hide_hidden,
+                    depth + 1,
+                    visited_dirs,
+                    &child_stack,
+                    out,
+                )?;
             }
         } else {
             out.insert(

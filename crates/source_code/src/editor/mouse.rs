@@ -220,7 +220,10 @@ impl SourceCodeEditor {
         let rel_y = f32::from(y - bounds.origin.y - px(padding));
         let display_row = (rel_y / line_height).floor().max(0.0) as u32;
 
-        let row = match self.frame_rows.binary_search_by(|f| f.display_row.cmp(&display_row)) {
+        let row = match self
+            .frame_rows
+            .binary_search_by(|f| f.display_row.cmp(&display_row))
+        {
             Ok(idx) => self.frame_rows[idx].buffer_row as usize,
             Err(idx) => {
                 if idx == 0 {

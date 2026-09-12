@@ -106,33 +106,31 @@ impl Shell {
                                     .min_h(px(0.0))
                                     .child(second_elem),
                             )
-                            .child(
-                                splitter_bar_h(
-                                    ("tiled-root-bar-h", split_id.as_usize()),
-                                    r,
-                                    bar_active,
-                                    &overlay_style,
-                                    move |event, _window, cx| {
-                                        let start_pos = f32::from(event.position.x);
-                                        let _ = bar_shell.update(cx, |shell, cx| {
-                                            shell.panels.layout.start_splitter_drag(
-                                                split_id,
-                                                SplitAxis::Horizontal,
-                                                start_pos,
-                                                r,
-                                            );
-                                            cx.notify();
-                                        });
-                                    },
-                                    move |event, _window, cx| {
-                                        let pos = event.position;
-                                        let _ = menu_shell.update(cx, |shell, cx| {
-                                            shell.panels.layout.open_border_menu(split_id, pos);
-                                            cx.notify();
-                                        });
-                                    },
-                                ),
-                            )
+                            .child(splitter_bar_h(
+                                ("tiled-root-bar-h", split_id.as_usize()),
+                                r,
+                                bar_active,
+                                &overlay_style,
+                                move |event, _window, cx| {
+                                    let start_pos = f32::from(event.position.x);
+                                    let _ = bar_shell.update(cx, |shell, cx| {
+                                        shell.panels.layout.start_splitter_drag(
+                                            split_id,
+                                            SplitAxis::Horizontal,
+                                            start_pos,
+                                            r,
+                                        );
+                                        cx.notify();
+                                    });
+                                },
+                                move |event, _window, cx| {
+                                    let pos = event.position;
+                                    let _ = menu_shell.update(cx, |shell, cx| {
+                                        shell.panels.layout.open_border_menu(split_id, pos);
+                                        cx.notify();
+                                    });
+                                },
+                            ))
                             .into_any_element()
                     }
                     SplitAxis::Vertical => {
@@ -177,33 +175,31 @@ impl Shell {
                                     .min_h(px(0.0))
                                     .child(second_elem),
                             )
-                            .child(
-                                splitter_bar_v(
-                                    ("tiled-root-bar-v", split_id.as_usize()),
-                                    r,
-                                    bar_active,
-                                    &overlay_style,
-                                    move |event, _window, cx| {
-                                        let start_pos = f32::from(event.position.y);
-                                        let _ = bar_shell.update(cx, |shell, cx| {
-                                            shell.panels.layout.start_splitter_drag(
-                                                split_id,
-                                                SplitAxis::Vertical,
-                                                start_pos,
-                                                r,
-                                            );
-                                            cx.notify();
-                                        });
-                                    },
-                                    move |event, _window, cx| {
-                                        let pos = event.position;
-                                        let _ = menu_shell.update(cx, |shell, cx| {
-                                            shell.panels.layout.open_border_menu(split_id, pos);
-                                            cx.notify();
-                                        });
-                                    },
-                                ),
-                            )
+                            .child(splitter_bar_v(
+                                ("tiled-root-bar-v", split_id.as_usize()),
+                                r,
+                                bar_active,
+                                &overlay_style,
+                                move |event, _window, cx| {
+                                    let start_pos = f32::from(event.position.y);
+                                    let _ = bar_shell.update(cx, |shell, cx| {
+                                        shell.panels.layout.start_splitter_drag(
+                                            split_id,
+                                            SplitAxis::Vertical,
+                                            start_pos,
+                                            r,
+                                        );
+                                        cx.notify();
+                                    });
+                                },
+                                move |event, _window, cx| {
+                                    let pos = event.position;
+                                    let _ = menu_shell.update(cx, |shell, cx| {
+                                        shell.panels.layout.open_border_menu(split_id, pos);
+                                        cx.notify();
+                                    });
+                                },
+                            ))
                             .into_any_element()
                     }
                 }

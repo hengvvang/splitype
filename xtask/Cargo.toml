@@ -5,8 +5,11 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 # Fast command-line argument parsing with compile-time derive
-clap = { version = "4.5", default-features = false, features = ["derive", "std", "help", "usage"] }
+clap = { workspace = true }
 # Context-aware error handling and propagation
-anyhow = "1.0"
+anyhow = { workspace = true }

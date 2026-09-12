@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::model::block::Block;
-use markdown_parser::block::table::{TableAxis, TableAxisMarker};
+use markdown_parser::block::table::TableAxis;
 
 /// Selected row or column in a rendered native table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -11,44 +11,6 @@ pub struct TableAxisSelection {
     pub table_block_id: EntityId,
     pub kind: TableAxis,
     pub index: usize,
-}
-
-/// Converts a selection into an axis marker.
-pub fn table_axis_marker(selection: TableAxisSelection) -> TableAxisMarker {
-    TableAxisMarker {
-        kind: selection.kind,
-        index: selection.index,
-    }
-}
-
-/// Checks whether an axis selection is valid for the given table block.
-pub fn table_axis_selection_valid(
-    table_block: &Entity<Block>,
-    selection: TableAxisSelection,
-    cx: &App,
-) -> bool {
-    let Some(grid) = table_block.read(cx).table_grid.as_ref() else {
-        return false;
-    };
-    match selection.kind {
-        TableAxis::Column => selection.index < grid.header.len(),
-        TableAxis::Row => selection.index <= grid.rows.len(),
-    }
-}
-
-/// Checks whether an axis preview insertion boundary is valid for the given table block.
-pub fn table_axis_preview_valid(
-    table_block: &Entity<Block>,
-    preview: TableAxisSelection,
-    cx: &App,
-) -> bool {
-    let Some(grid) = table_block.read(cx).table_grid.as_ref() else {
-        return false;
-    };
-    match preview.kind {
-        TableAxis::Column => preview.index <= grid.header.len(),
-        TableAxis::Row => preview.index <= grid.rows.len() + 1,
-    }
 }
 
 /// Moves an axis (row or column) in the table block data.

@@ -207,7 +207,9 @@ impl Editor {
                 .collect();
 
             let mut tab_elements: Vec<AnyElement> = Vec::new();
-            for (index, (file_name, is_transient, _is_dirty, doc_id)) in tab_infos.iter().enumerate() {
+            for (index, (file_name, is_transient, _is_dirty, doc_id)) in
+                tab_infos.iter().enumerate()
+            {
                 // Visual insertion indicator before tab `index` when targeted
                 if self.tab_reorder_target == Some(index) {
                     tab_elements.push(
@@ -238,7 +240,8 @@ impl Editor {
                 let drop_editor = editor.clone();
                 let tab_drag_editor = editor.clone();
 
-                let drag_view = cx.new(|_| crate::layout::tab_drag::DraggedTabView::new(file_name.clone()));
+                let drag_view =
+                    cx.new(|_| crate::layout::tab_drag::DraggedTabView::new(file_name.clone()));
                 let active_hover_editor = std::sync::Arc::new(std::sync::Mutex::new(None));
                 let drag_payload = crate::layout::tab_drag::DraggedTab {
                     source_panel_id: panel_id,
@@ -291,7 +294,7 @@ impl Editor {
                             if let Ok(mut active_guard) = active_hover_editor.lock() {
                                 if let Some(prev_weak) = active_guard.take() {
                                     if let Some(prev_ed) = prev_weak.upgrade() {
-                                        let _ = prev_ed.update(cx, |ed, cx| {
+                                        prev_ed.update(cx, |ed, cx| {
                                             ed.tab_drag_hover = None;
                                             cx.notify();
                                         });
@@ -339,7 +342,11 @@ impl Editor {
                                 let target = ed.tab_reorder_target.take().unwrap_or(index);
                                 if dragged.source_panel_id == panel_id {
                                     let from = dragged.source_tab_index;
-                                    let to = if target > from { target.saturating_sub(1) } else { target };
+                                    let to = if target > from {
+                                        target.saturating_sub(1)
+                                    } else {
+                                        target
+                                    };
                                     ed.reorder_tab(from, to, cx);
                                 }
                                 ed.tab_drag_hover = None;
@@ -454,7 +461,7 @@ impl Editor {
                             if let Ok(mut active_guard) = active_hover_editor.lock() {
                                 if let Some(prev_weak) = active_guard.take() {
                                     if let Some(prev_ed) = prev_weak.upgrade() {
-                                        let _ = prev_ed.update(cx, |ed, cx| {
+                                        prev_ed.update(cx, |ed, cx| {
                                             ed.tab_drag_hover = None;
                                             cx.notify();
                                         });
@@ -538,7 +545,7 @@ impl Editor {
                     if let Ok(mut active_guard) = active_hover_editor.lock() {
                         if let Some(prev_weak) = active_guard.take() {
                             if let Some(prev_ed) = prev_weak.upgrade() {
-                                let _ = prev_ed.update(cx, |ed, cx| {
+                                prev_ed.update(cx, |ed, cx| {
                                     ed.tab_drag_hover = None;
                                     cx.notify();
                                 });

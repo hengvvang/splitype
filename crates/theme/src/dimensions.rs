@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 /// Global geometric corner radius primitives (WinUI 3 / Fluent Design System)
 pub const CONTROL_CORNER_RADIUS: f32 = 4.0;
-pub const OVERLAY_CORNER_RADIUS: f32 = 8.0;
 pub const FULL_CORNER_RADIUS: f32 = 999.0;
 
 theme_section!(

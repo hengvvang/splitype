@@ -137,7 +137,10 @@ mod tests {
         assert!(stack.is_ignored(&target_dir, true));
         assert!(stack.is_ignored(&node_modules, true));
         assert!(stack.is_ignored(&app_log, false));
-        assert!(!stack.is_ignored(&keep_log, false), "keep.log was whitelisted with !");
+        assert!(
+            !stack.is_ignored(&keep_log, false),
+            "keep.log was whitelisted with !"
+        );
         assert!(!stack.is_ignored(&src_rs, false));
 
         let _ = std::fs::remove_dir_all(&temp_dir);

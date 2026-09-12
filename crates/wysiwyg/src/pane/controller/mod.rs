@@ -433,16 +433,9 @@ impl WysiwygDocumentController {
                 estimated
             } else {
                 let win_w = f32::from(window.viewport_size().width);
-                if win_w > 0.0 {
-                    win_w
-                } else {
-                    800.0
-                }
+                if win_w > 0.0 { win_w } else { 800.0 }
             };
-            let centered_width = crate::render::layout::centered_column_width(
-                viewport_width,
-                d,
-            );
+            let centered_width = crate::render::layout::centered_column_width(viewport_width, d);
 
             let mut row_elements: Vec<AnyElement> = Vec::with_capacity(plans.len());
             for plan in &plans {

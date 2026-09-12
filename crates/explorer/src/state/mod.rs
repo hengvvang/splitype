@@ -39,7 +39,7 @@ use crate::state::undo::ExplorerUndoHistory;
 use crate::state::worktree::{Worktree, WorktreeEntry, WorktreeEntryKind, WorktreeSnapshot};
 
 pub use crate::state::store::WorktreeStore;
-pub use crate::state::worktree::{ExplorerEntryId, WorktreeEvent, WorktreeId, NEW_ENTRY_ID};
+pub use crate::state::worktree::{ExplorerEntryId, NEW_ENTRY_ID, WorktreeEvent, WorktreeId};
 
 /// Explorer row right-click menu: a window-level overlay rendered by the
 /// Shell (it must float over every area at window coordinates).
@@ -337,7 +337,10 @@ impl ExplorerState {
             let state_weak = cx.weak_entity();
             cx.subscribe(
                 &filename_editor_sub,
-                move |state: &mut ExplorerState, _, event: &crate::filename_editor::FilenameEditorEvent, cx| {
+                move |state: &mut ExplorerState,
+                      _,
+                      event: &crate::filename_editor::FilenameEditorEvent,
+                      cx| {
                     match event {
                         crate::filename_editor::FilenameEditorEvent::BufferEdited => {
                             state.populate_explorer_validation(cx);
@@ -587,7 +590,8 @@ fn collect_visible_entries(
             if auto_fold_dirs {
                 loop {
                     let subchildren = visible_children(snapshot, current.id, hide_gitignore);
-                    if subchildren.len() == 1 && subchildren[0].kind == WorktreeEntryKind::Directory {
+                    if subchildren.len() == 1 && subchildren[0].kind == WorktreeEntryKind::Directory
+                    {
                         let only_child = subchildren[0];
                         folded_ancestors.push(current.id);
                         let child_name = only_child
@@ -748,15 +752,13 @@ pub fn build_explorer_rows(
             Some(edit_state)
                 if edit_state.is_new_entry() && edit_state.worktree_id == worktree_id =>
             {
-                let parent_index = flat_entries
-                    .iter()
-                    .position(|entry| {
-                        Some(entry.id) == edit_state.parent_id
-                            || entry
-                                .folded_ancestors
-                                .iter()
-                                .any(|id| Some(*id) == edit_state.parent_id)
-                    });
+                let parent_index = flat_entries.iter().position(|entry| {
+                    Some(entry.id) == edit_state.parent_id
+                        || entry
+                            .folded_ancestors
+                            .iter()
+                            .any(|id| Some(*id) == edit_state.parent_id)
+                });
                 let mut inserted = false;
                 for (index, entry) in flat_entries.into_iter().enumerate() {
                     segment.push(ExplorerRow::Entry(entry));
@@ -795,9 +797,9 @@ pub fn build_explorer_rows(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::undo::ExplorerChange;
     use std::cmp::Ordering;
     use std::path::{Path, PathBuf};
-    use crate::state::undo::ExplorerChange;
 
     #[test]
     fn test_natural_cmp() {
@@ -1625,7 +1627,8 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let file_path = std::env::temp_dir().join(format!("splitype_test_created_preserves_{unique_id}.txt"));
+        let file_path =
+            std::env::temp_dir().join(format!("splitype_test_created_preserves_{unique_id}.txt"));
 
         // User created file and wrote content
         std::fs::write(&file_path, "user critical data").unwrap();
@@ -1670,7 +1673,10 @@ mod tests {
         }
 
         let name_with_slashes = "nested/folder/file.rs";
-        let parts: Vec<&str> = name_with_slashes.split('/').filter(|s| !s.is_empty()).collect();
+        let parts: Vec<&str> = name_with_slashes
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .collect();
         assert_eq!(parts, vec!["nested", "folder", "file.rs"]);
     }
 
@@ -1679,8 +1685,10 @@ mod tests {
         let wt_id = WorktreeId(1);
         let folder_id = ExplorerEntryId(42);
 
-        let mut expanded: std::collections::HashMap<WorktreeId, std::collections::BTreeSet<ExplorerEntryId>> =
-            std::collections::HashMap::new();
+        let mut expanded: std::collections::HashMap<
+            WorktreeId,
+            std::collections::BTreeSet<ExplorerEntryId>,
+        > = std::collections::HashMap::new();
 
         // Simulate folder being temporarily expanded
         expanded.entry(wt_id).or_default().insert(folder_id);
@@ -2033,10 +2041,7 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(
-            labels_hidden,
-            vec!["project", "src", "Cargo.toml"]
-        );
+        assert_eq!(labels_hidden, vec!["project", "src", "Cargo.toml"]);
     }
 
     #[test]
@@ -2132,7 +2137,10 @@ mod tests {
                 entry_id: ExplorerEntryId(4),
             })
         );
-        assert!(state.marked.is_empty(), "regular movement must clear range marks");
+        assert!(
+            state.marked.is_empty(),
+            "regular movement must clear range marks"
+        );
     }
 
     #[test]
@@ -2222,7 +2230,11 @@ mod tests {
         };
 
         // Initially only root is expanded
-        state.expanded.entry(wt_id).or_default().insert(ExplorerEntryId(0));
+        state
+            .expanded
+            .entry(wt_id)
+            .or_default()
+            .insert(ExplorerEntryId(0));
         state.rebuild_explorer_entries();
 
         // deep.rs is not visible yet because src and nested are collapsed
@@ -2276,4 +2288,3 @@ mod tests {
         assert_eq!(normalized, "crates/explorer/src/lib.rs");
     }
 }
-

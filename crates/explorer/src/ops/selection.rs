@@ -112,8 +112,10 @@ impl ExplorerState {
         if entries.is_empty() {
             return Vec::new();
         }
-        let mut dir_paths_by_wt: std::collections::HashMap<WorktreeId, std::collections::BTreeSet<PathBuf>> =
-            std::collections::HashMap::new();
+        let mut dir_paths_by_wt: std::collections::HashMap<
+            WorktreeId,
+            std::collections::BTreeSet<PathBuf>,
+        > = std::collections::HashMap::new();
         for entry in &entries {
             if let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == entry.worktree_id) {
                 if let Some(wentry) = snapshot.entry_for_id(entry.entry_id) {
@@ -130,16 +132,17 @@ impl ExplorerState {
         entries
             .into_iter()
             .filter(|entry| {
-                let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == entry.worktree_id) else {
+                let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == entry.worktree_id)
+                else {
                     return false;
                 };
                 let Some(wentry) = snapshot.entry_for_id(entry.entry_id) else {
                     return false;
                 };
                 if let Some(dirs) = dir_paths_by_wt.get(&entry.worktree_id) {
-                    let is_descendant = dirs.iter().any(|dir| {
-                        &wentry.path != dir && wentry.path.starts_with(dir)
-                    });
+                    let is_descendant = dirs
+                        .iter()
+                        .any(|dir| &wentry.path != dir && wentry.path.starts_with(dir));
                     !is_descendant
                 } else {
                     true
@@ -215,9 +218,9 @@ impl ExplorerState {
             .selection_anchor
             .or_else(|| {
                 self.selected.and_then(|sel| {
-                    rows.iter().position(|row| {
-                        matches!(row, ExplorerRow::Entry(entry) if entry.id == sel.entry_id)
-                    })
+                    rows.iter().position(
+                        |row| matches!(row, ExplorerRow::Entry(entry) if entry.id == sel.entry_id),
+                    )
                 })
             })
             .unwrap_or(target_index);
@@ -262,21 +265,33 @@ impl ExplorerState {
 
         // 1. Prefer selecting a surviving sibling in the same folder (Zed)
         if let Some(last_sel) = deleted_selections.last() {
-            if let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == last_sel.worktree_id) {
+            if let Some(snapshot) = self
+                .snapshots
+                .iter()
+                .find(|s| s.id() == last_sel.worktree_id)
+            {
                 if let Some(deleted_entry) = snapshot.entry_for_id(last_sel.entry_id) {
                     if let Some(parent_path) = deleted_entry.path.parent() {
                         if let Some(parent_entry) = snapshot.entry_for_path(parent_path) {
                             let child_ids = snapshot.child_ids(parent_entry.id);
-                            let all_children: Vec<&crate::state::worktree::WorktreeEntry> = child_ids
-                                .iter()
-                                .filter_map(|id| snapshot.entry_for_id(*id))
-                                .collect();
+                            let all_children: Vec<&crate::state::worktree::WorktreeEntry> =
+                                child_ids
+                                    .iter()
+                                    .filter_map(|id| snapshot.entry_for_id(*id))
+                                    .collect();
                             let mut sorted_all = all_children;
                             sorted_all.sort_by(|a, b| {
-                                crate::state::compare_worktree_entries(a, b, self.sort_mode, self.sort_order)
+                                crate::state::compare_worktree_entries(
+                                    a,
+                                    b,
+                                    self.sort_mode,
+                                    self.sort_order,
+                                )
                             });
 
-                            if let Some(pos) = sorted_all.iter().position(|e| e.id == deleted_entry.id) {
+                            if let Some(pos) =
+                                sorted_all.iter().position(|e| e.id == deleted_entry.id)
+                            {
                                 if let Some(next) = sorted_all[pos + 1..]
                                     .iter()
                                     .find(|e| !deleted.contains(&e.id))

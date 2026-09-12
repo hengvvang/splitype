@@ -31,10 +31,10 @@ workspace = true
 
 [dependencies]
 rope = { workspace = true }
-editor_contracts = { path = "../editor_contracts" }
+editor_contracts = { workspace = true }
 gpui = { workspace = true }
-theme = { path = "../theme" }
-markdown_parser = { path = "../markdown_parser" }
+theme = { workspace = true }
+markdown_parser = { workspace = true }
 ratex-parser = "0.1.13"
 ratex-layout = "0.1.13"
 ratex-svg = "0.1.13"

@@ -10,13 +10,13 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-config = { path = "../config" }
-platform_contracts = { path = "../platform_contracts" }
-theme = { path = "../theme" }
-ui = { path = "../ui" }
-splitter = { path = "../splitter" }
+config = { workspace = true }
+platform_contracts = { workspace = true }
+theme = { workspace = true }
+ui = { workspace = true }
+splitter = { workspace = true }
 gpui = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tracing = "0.1"
+tracing = { workspace = true }
 

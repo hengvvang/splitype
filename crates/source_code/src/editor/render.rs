@@ -660,7 +660,8 @@ impl Element for EditorElement {
 
         // Store the frame layout for mouse hit-testing and the bounds for
         // coordinate math.
-        let stored_frames: Vec<RowFrame> = frames.iter().map(|(frame, _, _)| frame.clone()).collect();
+        let stored_frames: Vec<RowFrame> =
+            frames.iter().map(|(frame, _, _)| frame.clone()).collect();
         self.editor.update(cx, |editor, _cx| {
             editor.frame_rows = stored_frames;
             editor.set_last_bounds(bounds);
@@ -781,18 +782,14 @@ impl Element for EditorElement {
                 + px(prepaint.editor_padding + marker.display_row as f32 * prepaint.line_height);
             let icon_x = bounds.left() + px(prepaint.gutter_layout.fold_icon_x(icon_size));
             let icon_y = line_y + px((prepaint.line_height - icon_size) / 2.0);
-            let icon_bounds = Bounds::new(
-                point(icon_x, icon_y),
-                size(px(icon_size), px(icon_size)),
-            );
+            let icon_bounds =
+                Bounds::new(point(icon_x, icon_y), size(px(icon_size), px(icon_size)));
 
             if marker.is_hovered {
                 let chip_x = bounds.left() + px(prepaint.gutter_layout.fold_icon_x(chip_size));
                 let chip_y = line_y + px((prepaint.line_height - chip_size) / 2.0);
-                let chip_bounds = Bounds::new(
-                    point(chip_x, chip_y),
-                    size(px(chip_size), px(chip_size)),
-                );
+                let chip_bounds =
+                    Bounds::new(point(chip_x, chip_y), size(px(chip_size), px(chip_size)));
                 let mut chip_quad = fill(chip_bounds, theme.colors.panel_row_hover);
                 chip_quad.corner_radii = (px(2.5)).into();
                 window.paint_quad(chip_quad);

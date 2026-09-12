@@ -145,9 +145,7 @@ fn render_preview_html_node(
                     div().child("\u{201D}").into_any_element(),
                 ]);
             if let Some(bg) = node_style.background {
-                element = element
-                    .bg(bg)
-                    .px(px(2.0));
+                element = element.bg(bg).px(px(2.0));
             }
             element.into_any_element()
         }
@@ -318,9 +316,7 @@ fn render_preview_html_inline_container(
                 render_preview_html_node(child, theme, node_style.computed, base_dir)
             }));
     if let Some(bg) = node_style.background {
-        element = element
-            .bg(bg)
-            .px(px(2.0));
+        element = element.bg(bg).px(px(2.0));
     }
     match node.tag_name.as_str() {
         "sup" => {

@@ -119,7 +119,10 @@ mod tests {
         let char_width = 13.0 * 0.6;
         assert_eq!(layout.line_number_width(), 3.0 * char_width);
         assert_eq!(layout.fold_area_left(), 10.0 + layout.line_number_width());
-        assert_eq!(layout.gutter_width(), 10.0 + layout.line_number_width() + 18.0);
+        assert_eq!(
+            layout.gutter_width(),
+            10.0 + layout.line_number_width() + 18.0
+        );
         assert_eq!(layout.text_offset(), layout.gutter_width() + 8.0);
 
         // Right-alignment: line number right edge must equal fold_area_left

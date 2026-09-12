@@ -10,16 +10,16 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-config = { path = "../config" }
-platform_contracts = { path = "../platform_contracts" }
+config = { workspace = true }
+platform_contracts = { workspace = true }
 gpui = { workspace = true }
 serde = { workspace = true }
-editor_contracts = { path = "../editor_contracts" }
-ui = { path = "../ui" }
-markdown_parser = { path = "../markdown_parser" }
-syntax_highlighter = { path = "../syntax_highlighter" }
-theme = { path = "../theme" }
+editor_contracts = { workspace = true }
+ui = { workspace = true }
+markdown_parser = { workspace = true }
+syntax_highlighter = { workspace = true }
+theme = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-toml = "1"
+toml = { workspace = true }

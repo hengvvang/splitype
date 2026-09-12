@@ -371,8 +371,7 @@ pub fn render_table(
             == Some(TableAxisMarker {
                 kind: TableAxis::Row,
                 index: 1,
-            })
-    {
+            }) {
         Some(
             div()
                 .absolute()

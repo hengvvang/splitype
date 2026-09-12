@@ -183,37 +183,35 @@ impl Editor {
                                     .min_h(px(0.0))
                                     .child(second_elem),
                             )
-                            .child(
-                                ui::split::chrome::splitter_bar_h(
-                                    ("inner-root-bar-h", split_id.as_usize()),
-                                    r,
-                                    bar_active,
-                                    &overlay_style,
-                                    move |event, _window, cx| {
-                                        let start_pos = f32::from(event.position.x);
-                                        let _ = bar_editor.update(cx, |ed, cx| {
-                                            let local_start = ed
-                                                .panel_rect
-                                                .map(|rect| start_pos - f32::from(rect.origin.x))
-                                                .unwrap_or(start_pos);
-                                            ed.session_mut().root.start_splitter_drag(
-                                                split_id,
-                                                SplitAxis::Horizontal,
-                                                local_start,
-                                                r,
-                                            );
-                                            cx.notify();
-                                        });
-                                    },
-                                    move |event, _window, cx| {
-                                        let pos = event.position;
-                                        let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.session_mut().root.open_border_menu(split_id, pos);
-                                            cx.notify();
-                                        });
-                                    },
-                                ),
-                            )
+                            .child(ui::split::chrome::splitter_bar_h(
+                                ("inner-root-bar-h", split_id.as_usize()),
+                                r,
+                                bar_active,
+                                &overlay_style,
+                                move |event, _window, cx| {
+                                    let start_pos = f32::from(event.position.x);
+                                    let _ = bar_editor.update(cx, |ed, cx| {
+                                        let local_start = ed
+                                            .panel_rect
+                                            .map(|rect| start_pos - f32::from(rect.origin.x))
+                                            .unwrap_or(start_pos);
+                                        ed.session_mut().root.start_splitter_drag(
+                                            split_id,
+                                            SplitAxis::Horizontal,
+                                            local_start,
+                                            r,
+                                        );
+                                        cx.notify();
+                                    });
+                                },
+                                move |event, _window, cx| {
+                                    let pos = event.position;
+                                    let _ = menu_editor.update(cx, |ed, cx| {
+                                        ed.session_mut().root.open_border_menu(split_id, pos);
+                                        cx.notify();
+                                    });
+                                },
+                            ))
                             .into_any_element()
                     }
                     SplitAxis::Vertical => {
@@ -256,37 +254,35 @@ impl Editor {
                                     .min_h(px(0.0))
                                     .child(second_elem),
                             )
-                            .child(
-                                ui::split::chrome::splitter_bar_v(
-                                    ("inner-root-bar-v", split_id.as_usize()),
-                                    r,
-                                    bar_active,
-                                    &overlay_style,
-                                    move |event, _window, cx| {
-                                        let start_pos = f32::from(event.position.y);
-                                        let _ = bar_editor.update(cx, |ed, cx| {
-                                            let local_start = ed
-                                                .panel_rect
-                                                .map(|rect| start_pos - f32::from(rect.origin.y))
-                                                .unwrap_or(start_pos);
-                                            ed.session_mut().root.start_splitter_drag(
-                                                split_id,
-                                                SplitAxis::Vertical,
-                                                local_start,
-                                                r,
-                                            );
-                                            cx.notify();
-                                        });
-                                    },
-                                    move |event, _window, cx| {
-                                        let pos = event.position;
-                                        let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.session_mut().root.open_border_menu(split_id, pos);
-                                            cx.notify();
-                                        });
-                                    },
-                                ),
-                            )
+                            .child(ui::split::chrome::splitter_bar_v(
+                                ("inner-root-bar-v", split_id.as_usize()),
+                                r,
+                                bar_active,
+                                &overlay_style,
+                                move |event, _window, cx| {
+                                    let start_pos = f32::from(event.position.y);
+                                    let _ = bar_editor.update(cx, |ed, cx| {
+                                        let local_start = ed
+                                            .panel_rect
+                                            .map(|rect| start_pos - f32::from(rect.origin.y))
+                                            .unwrap_or(start_pos);
+                                        ed.session_mut().root.start_splitter_drag(
+                                            split_id,
+                                            SplitAxis::Vertical,
+                                            local_start,
+                                            r,
+                                        );
+                                        cx.notify();
+                                    });
+                                },
+                                move |event, _window, cx| {
+                                    let pos = event.position;
+                                    let _ = menu_editor.update(cx, |ed, cx| {
+                                        ed.session_mut().root.open_border_menu(split_id, pos);
+                                        cx.notify();
+                                    });
+                                },
+                            ))
                             .into_any_element()
                     }
                 }
