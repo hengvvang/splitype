@@ -54,6 +54,7 @@ pub(crate) fn render_preview_fenced_code(
     };
 
     base.w_full()
+        .my(px(8.0))
         .child(
             div()
                 .w_full()

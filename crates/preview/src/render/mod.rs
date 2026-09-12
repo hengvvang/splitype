@@ -53,12 +53,15 @@ pub fn render_preview_pane(
     let d = &theme.dimensions;
     let settings = PluginSettings::<PreviewSettings>::get(cx);
 
+    let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
+    let centered_width = preview_centered_column_width(viewport_width, d);
+
     let mut block_elements: Vec<AnyElement> = state
         .blocks
         .iter()
         .enumerate()
         .filter(|(_, block)| !matches!(block.kind(), BlockKind::FootnoteDefinition))
-        .map(|(_, block)| render_preview_block(block, 0, 0, settings, theme, window))
+        .map(|(index, block)| render_preview_block(block, 0, 0, index == 0, settings, theme, window))
         .collect();
     // Footnote definitions are collected out of the body flow and
     // rendered as one GitHub-style section at the bottom, behind a
@@ -104,7 +107,14 @@ pub fn render_preview_pane(
                 .overflow_y_scroll()
                 .track_scroll(view.scroll)
                 .p(px(d.editor_padding))
-                .children(block_elements),
+                .child(
+                    div()
+                        .w(px(centered_width))
+                        .max_w_full()
+                        .flex()
+                        .flex_col()
+                        .children(block_elements),
+                ),
         )
         .into_any_element()
 }
@@ -118,6 +128,7 @@ pub(crate) fn render_preview_block(
     block: &PreviewBlock,
     depth: usize,
     quote_depth: usize,
+    is_first: bool,
     settings: PreviewSettings,
     theme: &Theme,
     window: &mut Window,
@@ -142,7 +153,9 @@ pub(crate) fn render_preview_block(
 
     let content = match block.kind() {
         BlockKind::ThematicBreak => thematic_break::render_preview_thematic_break(theme),
-        BlockKind::Heading { level } => heading::render_preview_heading(block, level, base, theme),
+        BlockKind::Heading { level } => {
+            heading::render_preview_heading(block, level, base, is_first, theme)
+        }
         BlockKind::BulletListItem => {
             list_item::render_preview_bulleted_list_item(block, depth, base, theme)
         }
@@ -205,12 +218,14 @@ pub(crate) fn render_preview_block(
     let children_elements: Vec<AnyElement> = block
         .children
         .iter()
-        .filter(|child| !matches!(child.kind(), BlockKind::FootnoteDefinition))
-        .map(|child| {
+        .enumerate()
+        .filter(|(_, child)| !matches!(child.kind(), BlockKind::FootnoteDefinition))
+        .map(|(child_idx, child)| {
             render_preview_block(
                 child,
                 depth + 1,
                 effective_quote_depth,
+                child_idx == 0,
                 settings,
                 theme,
                 window,
@@ -231,6 +246,7 @@ pub(crate) fn render_preview_block(
         div()
             .w_full()
             .relative()
+            .my(px(6.0))
             .pl(px(d.quote_padding_left))
             .child(combined)
             .child(
@@ -240,6 +256,7 @@ pub(crate) fn render_preview_block(
                     .bottom_0()
                     .left(px(d.block_padding_x))
                     .w(px(d.callout_border_width))
+                    .rounded(px(1.5))
                     .bg(accent),
             )
             .into_any_element()
@@ -303,6 +320,7 @@ pub(crate) fn wrap_with_preview_quote_guides(
     div()
         .w_full()
         .relative()
+        .my(px(6.0))
         .pl(px(total_padding))
         .child(content)
         .children((0..quote_depth).map(|level| {
@@ -312,6 +330,7 @@ pub(crate) fn wrap_with_preview_quote_guides(
                 .bottom_0()
                 .left(px(d.block_padding_x + guide_offset * level as f32))
                 .w(px(d.quote_border_width))
+                .rounded(px(1.5))
                 .bg(c.border_quote)
         }))
         .into_any_element()

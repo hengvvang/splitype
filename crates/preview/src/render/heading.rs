@@ -12,16 +12,45 @@ pub(crate) fn render_preview_heading(
     block: &PreviewBlock,
     level: u8,
     base: Div,
+    is_first: bool,
     theme: &Theme,
 ) -> AnyElement {
     let style = theme.heading_style(level);
 
+    // Ergonomic vertical hierarchy:
+    // Heading margin-top creates clear visual separation from preceding sections.
+    // The document-initial heading (is_first) gets zero top margin to avoid awkward whitespace.
+    let top_margin = if is_first {
+        0.0
+    } else {
+        match level {
+            1 => 32.0,
+            2 => 24.0,
+            3 => 18.0,
+            4 => 14.0,
+            5 => 12.0,
+            6 => 10.0,
+            _ => 10.0,
+        }
+    };
+
+    let heading_line_height = match level {
+        1 => 1.30,
+        2 => 1.35,
+        3 => 1.40,
+        _ => 1.45,
+    };
+
     let element = base
         .text_size(px(style.font_size))
         .font_weight(style.font_weight)
-        .text_color(style.text_color);
+        .text_color(style.text_color)
+        .line_height(rems(heading_line_height));
 
     let mut inner = div().w_full();
+    if top_margin > 0.0 {
+        inner = inner.mt(px(top_margin));
+    }
     if style.padding_bottom > 0.0 {
         inner = inner.pb(px(style.padding_bottom));
     }

@@ -83,6 +83,7 @@ pub(crate) fn render_preview_table(
         .collect::<Vec<_>>();
 
     base.w_full()
+        .my(px(8.0))
         .child(
             div()
                 .w_full()
