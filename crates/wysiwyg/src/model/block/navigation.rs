@@ -153,50 +153,44 @@ impl Block {
         cx.notify();
     }
 
-    /// Starts the cursor blink loop: a repeating background timer every 33ms
-    /// that refreshes the window to repaint the cursor — but only while the
-    /// cursor opacity is actually animating. During the first 0.5 s after
-    /// each `cursor_blink_epoch` reset (which arrow keys / typing trigger),
-    /// opacity is pinned to 1.0, so a repaint would just re-do the full
-    /// projection rebuild for no visible change.
+    /// Starts the cursor blink loop: a background timer that notifies this block
+    /// entity at 1Hz (500ms visible / 500ms hidden) — only repainting this focused
+    /// block instead of forcing a whole-window refresh. During the first 0.5s after
+    /// each `cursor_blink_epoch` reset (typing or navigation), opacity is pinned to 1.0.
     ///
-    /// The blink task is automatically cancelled when the block loses focus
-    /// (the task handle is dropped in [`Block::render`]).
-    ///
-    /// Repaints go through `AnyWindowHandle::update`, which uses
-    /// `try_borrow_mut`: a tick that lands while a frame is being rendered
-    /// is skipped instead of panicking with "RefCell already borrowed".
+    /// The blink task is automatically cancelled when the block loses focus.
     pub fn start_cursor_blink(&mut self, cx: &mut Context<Self>) {
         self.cursor_blink_epoch = Instant::now();
-        let Some(window) = self.window_handle else {
-            return;
-        };
         self.cursor_blink_task = Some(cx.spawn(
-            async move |_this: WeakEntity<Block>, cx: &mut AsyncApp| {
-                // Opacity is pinned to 1.0 for the first 0.5s after the
-                // epoch reset; sleep through it instead of repainting.
+            async move |this: WeakEntity<Block>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(500))
                     .await;
                 loop {
                     cx.background_executor()
-                        .timer(Duration::from_millis(33))
+                        .timer(Duration::from_millis(500))
                         .await;
-                    let _ = window.update(cx, |_, window, _| window.refresh());
+                    let result = this.update(cx, |_, cx| cx.notify());
+                    if result.is_err() {
+                        break;
+                    }
                 }
             },
         ));
     }
 
-    /// Cosine-based smooth blink: fully opaque for 0.5s, then oscillates
-    /// with a period of ~1s (33ms x 30 ticks ~= 1s).
+    /// Step-based cursor blink: fully opaque for 0.5s, then toggles visibility every 500ms.
     pub fn cursor_opacity(&self) -> f32 {
-        let elapsed = self.cursor_blink_epoch.elapsed().as_secs_f32();
-        if elapsed < 0.5 {
+        let elapsed_ms = self.cursor_blink_epoch.elapsed().as_millis();
+        if elapsed_ms < 500 {
             return 1.0;
         }
-        let t = elapsed - 0.5;
-        (f32::cos(t * std::f32::consts::TAU) + 1.0) / 2.0
+        let cycle = (elapsed_ms - 500) % 1000;
+        if cycle < 500 {
+            0.0
+        } else {
+            1.0
+        }
     }
 
     pub fn cursor_offset(&self) -> usize {

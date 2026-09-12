@@ -17,9 +17,7 @@ use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::BlockKind;
 impl Block {
     pub fn is_leaf_quote(&self) -> bool {
-        self.kind() == BlockKind::Blockquote
-            && self.children.is_empty()
-            && !self.display_text().contains('\n')
+        self.kind() == BlockKind::Blockquote && self.children.is_empty()
     }
 
     pub fn is_leaf_callout(&self) -> bool {
@@ -86,6 +84,18 @@ impl Block {
         }
 
         if self.is_verbatim_mode() {
+            if self.selected_range.is_empty()
+                && self.cursor_offset() == self.display_len()
+                && self.display_text().ends_with('\n')
+            {
+                let len = self.display_len();
+                self.replace_text_in_display_range(len - 1..len, "", None, false, cx);
+                cx.emit(BlockEvent::RequestNewline {
+                    trailing: BlockText::plain(String::new()),
+                    source_already_mutated: true,
+                });
+                return;
+            }
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
             }
@@ -144,6 +154,22 @@ impl Block {
         }
 
         if self.kind() == BlockKind::Blockquote {
+            if self.selected_range.is_empty() && self.is_empty() {
+                self.convert_to_paragraph(cx);
+                return;
+            }
+            if self.selected_range.is_empty()
+                && self.cursor_offset() == self.display_len()
+                && self.display_text().ends_with('\n')
+            {
+                let len = self.display_len();
+                self.replace_text_in_display_range(len - 1..len, "", None, false, cx);
+                cx.emit(BlockEvent::RequestNewline {
+                    trailing: BlockText::plain(String::new()),
+                    source_already_mutated: true,
+                });
+                return;
+            }
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
             }
@@ -153,6 +179,11 @@ impl Block {
 
         if matches!(self.kind(), BlockKind::Callout(_)) {
             cx.emit(BlockEvent::RequestEnterCalloutBody);
+            return;
+        }
+
+        if self.callout_depth > 0 && self.selected_range.is_empty() && self.is_empty() {
+            cx.emit(BlockEvent::RequestCalloutBreak);
             return;
         }
 
@@ -236,6 +267,10 @@ impl Block {
         }
 
         if self.is_verbatim_mode() {
+            if self.selected_range.is_empty() && self.cursor_offset() == 0 && self.is_empty() {
+                self.convert_to_paragraph(cx);
+                return;
+            }
             if self.selected_range.is_empty() {
                 self.select_to(self.previous_boundary(self.cursor_offset()), cx);
             }
@@ -265,10 +300,10 @@ impl Block {
                     return;
                 }
                 BlockKind::Blockquote => {
-                    if self.is_leaf_quote() {
+                    if self.is_empty() {
                         self.convert_to_paragraph(cx);
+                        return;
                     }
-                    return;
                 }
                 BlockKind::Callout(_) => {
                     if self.downgrade_leaf_callout_to_quote_at_start(cx) {
@@ -281,7 +316,10 @@ impl Block {
                     return;
                 }
                 BlockKind::CodeBlock { .. } => {
-                    self.convert_to_paragraph(cx);
+                    if self.is_empty() {
+                        self.convert_to_paragraph(cx);
+                        return;
+                    }
                     return;
                 }
                 _ => {}

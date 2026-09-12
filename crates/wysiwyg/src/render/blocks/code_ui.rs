@@ -40,11 +40,16 @@ impl Block {
             PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
 
         let code_content_container = if show_code_line_numbers {
-            let line_count = self.display_text().split('\n').count().max(1);
-            let line_numbers_text = (1..=line_count)
-                .map(|i| i.to_string())
-                .collect::<Vec<_>>()
-                .join("\n");
+            let text = self.display_text();
+            let line_count = text.as_bytes().iter().filter(|&&b| b == b'\n').count() + 1;
+            let mut line_numbers_text = String::with_capacity(line_count * 4);
+            use std::fmt::Write;
+            for i in 1..=line_count {
+                let _ = writeln!(&mut line_numbers_text, "{i}");
+            }
+            if line_numbers_text.ends_with('\n') {
+                line_numbers_text.pop();
+            }
 
             div()
                 .w_full()
@@ -109,6 +114,14 @@ impl Block {
         let show_code_line_numbers =
             PluginSettings::<WysiwygSettings>::get(cx).show_code_line_numbers;
 
+        if !show_toolbar {
+            return div()
+                .id(ElementId::Name(
+                    format!("code-toolbar-{}", self.data.id).into(),
+                ))
+                .into_any_element();
+        }
+
         div()
             .id(ElementId::Name(
                 format!("code-toolbar-{}", self.data.id).into(),
@@ -116,7 +129,6 @@ impl Block {
             .absolute()
             .top(px(4.0))
             .right(px(4.0))
-            .opacity(if show_toolbar { 1.0 } else { 0.0 })
             .flex()
             .items_center()
             .gap(px(2.0))

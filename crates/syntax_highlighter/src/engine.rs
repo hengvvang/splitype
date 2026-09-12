@@ -33,6 +33,8 @@ pub struct LanguageConfig {
     pub grammar: fn() -> tree_sitter::Language,
     pub highlights_query: &'static str,
     pub injections_query: &'static str,
+    pub query: Arc<Query>,
+    pub injection_query: Option<Arc<Query>>,
 }
 
 /// One injected language layer: the document byte ranges it covers plus the
@@ -100,11 +102,8 @@ impl HighlightMap {
     /// parse cost on the main thread.
     pub fn unparsed(key: CodeLanguageKey) -> Option<Self> {
         let config = language_config(key)?;
-        let query = Arc::new(Query::new(&(config.grammar)(), config.highlights_query).ok()?);
-        let injection_query = (!config.injections_query.is_empty())
-            .then(|| Query::new(&(config.grammar)(), config.injections_query).ok())
-            .flatten()
-            .map(Arc::new);
+        let query = config.query.clone();
+        let injection_query = config.injection_query.clone();
         let rope = Rope::new("");
         Some(Self {
             config: config.clone(),
@@ -321,14 +320,8 @@ impl HighlightMap {
                     layer.chunks = chunks;
                 }
             } else {
-                let Some(query) = Query::new(&(config.grammar)(), config.highlights_query).ok()
-                else {
-                    continue;
-                };
-                let injection_query = (!config.injections_query.is_empty())
-                    .then(|| Query::new(&(config.grammar)(), config.injections_query).ok())
-                    .flatten()
-                    .map(Arc::new);
+                let query = config.query.clone();
+                let injection_query = config.injection_query.clone();
                 // Parse with the coalesced ranges, never the raw discovered
                 // ones: tree-sitter's parse cost grows superlinearly with
                 // the included-range count (45k inline ranges make a 1MB
@@ -338,7 +331,7 @@ impl HighlightMap {
                 let tree = parse(&(config.grammar)(), text, &included, rope, None);
                 self.layers.push(Layer {
                     key,
-                    query: Arc::new(query),
+                    query,
                     injection_query,
                     tree,
                     chunks,

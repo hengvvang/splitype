@@ -82,6 +82,7 @@ pub struct WysiwygDocumentController {
     /// Local edits exist that the host's next snapshot has not acknowledged
     /// yet; `sync_document` consumes this instead of rebuilding.
     pub pending_edit: bool,
+    pub deferred_commit: bool,
     pub active_entity: Option<Entity<Block>>,
     pub tables: TableGrids,
     pub references: ReferenceRegistries,
@@ -113,6 +114,7 @@ impl WysiwygDocumentController {
             document: None,
             synced_revision: None,
             pending_edit: false,
+            deferred_commit: false,
             active_entity: None,
             tables: TableGrids::default(),
             references: ReferenceRegistries {
@@ -426,7 +428,13 @@ impl WysiwygDocumentController {
         if let Some(doc) = &self.document {
             let blocks = doc.blocks();
             let plans = crate::render::viewport::plan_document_rows(blocks, d);
-            let scroll_width = f32::from(ctx.scroll.bounds().size.width);
+            let scroll_bounds = ctx.scroll.bounds();
+            let origin = scroll_bounds.origin;
+            let pane_size = scroll_bounds.size;
+            let pane_width = f32::from(pane_size.width);
+            let pane_height = f32::from(pane_size.height);
+
+            let scroll_width = pane_width;
             let viewport_width = if scroll_width > 0.0 {
                 scroll_width
             } else if let Some(estimated) = ctx.estimated_viewport_width.filter(|&w| w > 0.0) {
@@ -437,8 +445,58 @@ impl WysiwygDocumentController {
             };
             let centered_width = crate::render::layout::centered_column_width(viewport_width, d);
 
-            let mut row_elements: Vec<AnyElement> = Vec::with_capacity(plans.len());
-            for plan in &plans {
+            let scroll_y = (-f32::from(ctx.scroll.offset().y)).max(0.0);
+            let viewport_height = if pane_height > 0.0 {
+                pane_height
+            } else {
+                let win_h = f32::from(window.viewport_size().height);
+                if win_h > 0.0 { win_h } else { 800.0 }
+            };
+
+            let offsets = crate::render::blocks::viewport::cumulative_row_offsets(&plans);
+            let (mut start_row, mut end_row) = crate::render::blocks::viewport::visible_row_window(
+                &offsets,
+                scroll_y,
+                scroll_y + viewport_height,
+                6,
+            );
+
+            if let Some(active) = &self.active_entity {
+                let active_id = active.entity_id();
+                if let Some(active_row) = plans.iter().position(|p| {
+                    blocks[p.start..p.end].iter().any(|b| b.entity.entity_id() == active_id)
+                }) {
+                    start_row = start_row.min(active_row);
+                    end_row = end_row.max(active_row + 1);
+                }
+            }
+
+            start_row = start_row.min(plans.len());
+            end_row = end_row.min(plans.len()).max(start_row);
+
+            let top_spacer = if start_row < offsets.len() {
+                offsets[start_row]
+            } else {
+                0.0
+            };
+            let bottom_spacer = if end_row < offsets.len() {
+                offsets.last().copied().unwrap_or(0.0) - offsets[end_row]
+            } else {
+                0.0
+            };
+
+            let mut row_elements: Vec<AnyElement> = Vec::with_capacity(end_row - start_row + 2);
+            if top_spacer > 0.0 {
+                row_elements.push(
+                    div()
+                        .id(ElementId::Name(format!("top-scroll-spacer-{pane_id}").into()))
+                        .w(px(centered_width))
+                        .h(px(top_spacer))
+                        .flex_shrink_0()
+                        .into_any_element(),
+                );
+            }
+            for plan in &plans[start_row..end_row] {
                 row_elements.push(crate::render::viewport::build_planned_row_element(
                     plan,
                     blocks,
@@ -455,8 +513,17 @@ impl WysiwygDocumentController {
                     },
                 ));
             }
+            if bottom_spacer > 0.0 {
+                row_elements.push(
+                    div()
+                        .id(ElementId::Name(format!("bottom-scroll-spacer-{pane_id}").into()))
+                        .w(px(centered_width))
+                        .h(px(bottom_spacer))
+                        .flex_shrink_0()
+                        .into_any_element(),
+                );
+            }
 
-            let scroll_y = -f32::from(ctx.scroll.offset().y);
             let headings = self.outline_headings(cx);
             let active_index = headings
                 .iter()
@@ -470,11 +537,6 @@ impl WysiwygDocumentController {
                     pane_id: ctx.pane_id,
                     host: ctx.host.clone(),
                 });
-
-            let scroll_bounds = ctx.scroll.bounds();
-            let origin = scroll_bounds.origin;
-            let pane_size = scroll_bounds.size;
-            let pane_width = f32::from(pane_size.width);
 
             let footnote_tooltip_element = self.footnote_tooltip.as_ref().map(|tooltip| {
                 let top = (tooltip.position.y - origin.y + px(4.0)).max(px(0.0));
@@ -710,6 +772,53 @@ mod tests {
         assert_eq!(
             left_shift, 0.0,
             "Left shift must be exactly 0px, no offset jump!"
+        );
+    }
+
+    #[test]
+    fn test_virtualized_viewport_window_and_spacers_invariant() {
+        use crate::render::blocks::viewport::{
+            PlannedRow, cumulative_row_offsets, visible_row_window,
+        };
+
+        // Construct 100 planned rows, each with estimated height 30.0
+        let row_count = 100;
+        let rows: Vec<PlannedRow> = (0..row_count)
+            .map(|i| PlannedRow {
+                start: i,
+                end: i + 1,
+                callout_variant: None,
+                outer_gap: 0.0,
+                segments: Vec::new(),
+                estimated_height: 30.0,
+            })
+            .collect();
+
+        let offsets = cumulative_row_offsets(&rows);
+        assert_eq!(offsets.len(), row_count + 1);
+        let total_height = *offsets.last().unwrap();
+        assert_eq!(total_height, 3000.0);
+
+        // Viewport at y = 600..1200 (view height 600px, 20 rows visible)
+        let min_y = 600.0_f32;
+        let max_y = 1200.0_f32;
+        let overscan = 5;
+
+        let (start, end) = visible_row_window(&offsets, min_y, max_y, overscan);
+        assert!(start < end);
+        assert!(end <= row_count);
+        // With overscan 5, rows visible is approximately (600/30) + 10 = ~30 rows, NOT 100!
+        let visible_count = end - start;
+        assert!(visible_count < 40, "Must virtualize and only materialize a window of rows");
+
+        let top_spacer = offsets[start];
+        let bottom_spacer = total_height - offsets[end];
+        let window_height = offsets[end] - offsets[start];
+
+        assert_eq!(
+            top_spacer + window_height + bottom_spacer,
+            total_height,
+            "Top spacer + visible rows height + bottom spacer must equal total document height exactly"
         );
     }
 }

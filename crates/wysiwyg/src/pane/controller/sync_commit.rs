@@ -222,6 +222,7 @@ impl WysiwygDocumentController {
     /// flag from the serialized text. One serialization serves the merge
     /// check, the caret hint, and the transaction itself.
     pub fn commit_typing_edit(&mut self, cx: &mut App) {
+        self.deferred_commit = false;
         let Some((lines, mappings)) = self
             .document
             .as_ref()
@@ -240,6 +241,7 @@ impl WysiwygDocumentController {
     /// updates the typing-run bookkeeping. Used both by direct commits and
     /// by contract methods that hand the transaction to the editor.
     pub fn take_edit_transaction(&mut self, merge: bool, cx: &App) -> Option<EditTransaction> {
+        self.deferred_commit = false;
         let (lines, mappings) = self
             .document
             .as_ref()?

@@ -236,7 +236,7 @@ pub fn build_code_text_runs(
     boundaries.dedup();
 
     let marked_range = input.marked_range.as_ref();
-    let mut runs = Vec::new();
+    let mut runs: Vec<TextRun> = Vec::new();
     let mut span_idx = 0usize;
     for boundary_pair in boundaries.windows(2) {
         let start = boundary_pair[0];
@@ -258,16 +258,30 @@ pub fn build_code_text_runs(
             .unwrap_or(base_run.color);
 
         let code_font = theme::TypographyStore::default_font(theme::TypographyScope::Code);
+        let underline = is_marked.then_some(UnderlineStyle {
+            color: Some(run_color),
+            thickness: underline_thickness,
+            wavy: false,
+        });
+
+        if let Some(last) = runs.last_mut() {
+            if last.font == code_font
+                && last.color == run_color
+                && last.background_color == base_run.background_color
+                && last.underline == underline
+                && last.strikethrough.is_none()
+            {
+                last.len += end - start;
+                continue;
+            }
+        }
+
         runs.push(TextRun {
             len: end - start,
             font: code_font,
             color: run_color,
             background_color: base_run.background_color,
-            underline: is_marked.then_some(UnderlineStyle {
-                color: Some(run_color),
-                thickness: underline_thickness,
-                wavy: false,
-            }),
+            underline,
             strikethrough: None,
         });
     }

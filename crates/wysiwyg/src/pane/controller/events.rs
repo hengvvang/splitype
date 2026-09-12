@@ -86,6 +86,38 @@ impl WysiwygDocumentController {
                     let table_block = binding.table_block.clone();
                     if let Some(grid) = table_block.read(cx).table_grid.clone() {
                         let total_rows = grid.rows.len() + 1;
+                        if *delta > 0 && current.row + 1 >= total_rows {
+                            table_block.update(cx, |b, _cx| {
+                                if let Some(table) = b.data.table.as_mut() {
+                                    crate::table::rows::append_table_row(table);
+                                }
+                            });
+                            self.rebuild_table_grids(
+                                std::slice::from_ref(&table_block),
+                                cx,
+                            );
+                            self.pending_edit = true;
+                            self.commit_document_edit(false, cx);
+                            let next_pos = TableCellPosition {
+                                row: current.row + 1,
+                                column: current.column,
+                            };
+                            if let Some(cell) = table_block
+                                .read(cx)
+                                .table_grid
+                                .as_ref()
+                                .and_then(|g| g.cell(next_pos))
+                            {
+                                self.active_entity = Some(cell.clone());
+                                cell.update(cx, |c, cx| {
+                                    c.start_cursor_blink(cx);
+                                    cx.notify();
+                                });
+                                cx.notify();
+                            }
+                            return;
+                        }
+
                         let next_row = if *delta > 0 {
                             (current.row + 1).min(total_rows.saturating_sub(1))
                         } else {
@@ -106,6 +138,32 @@ impl WysiwygDocumentController {
                     }
                     return;
                 }
+                BlockEvent::RequestNewline { .. } => {
+                    let table_block = binding.table_block.clone();
+                    if let Some(doc) = &mut self.document {
+                        if let Some(location) = doc.find_block_location(table_block.entity_id()) {
+                            let new_block = Self::new_block(
+                                cx,
+                                BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
+                            );
+                            doc.insert_blocks_at(
+                                location.parent,
+                                location.index + 1,
+                                vec![new_block.clone()],
+                                cx,
+                            );
+                            self.active_entity = Some(new_block.clone());
+                            new_block.update(cx, |b, cx| {
+                                b.start_cursor_blink(cx);
+                                cx.notify();
+                            });
+                            self.pending_edit = true;
+                            self.commit_document_edit(false, cx);
+                            cx.notify();
+                            return;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -113,7 +171,18 @@ impl WysiwygDocumentController {
         match event {
             BlockEvent::Changed => {
                 self.pending_edit = true;
-                self.commit_typing_edit(cx);
+                if !self.deferred_commit {
+                    self.deferred_commit = true;
+                    let entity = cx.entity();
+                    cx.defer(move |cx| {
+                        entity.update(cx, |this, cx| {
+                            if this.deferred_commit {
+                                this.deferred_commit = false;
+                                this.commit_typing_edit(cx);
+                            }
+                        });
+                    });
+                }
                 cx.notify();
             }
             BlockEvent::RequestFocus => {
@@ -586,6 +655,130 @@ impl WysiwygDocumentController {
                     },
                 });
                 cx.notify();
+            }
+            BlockEvent::RequestEnterCalloutBody => {
+                if let Some(doc) = &mut self.document {
+                    let target_child = if block.read(cx).children.is_empty() {
+                        let new_block = Self::new_block(
+                            cx,
+                            BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
+                        );
+                        doc.insert_blocks_at(
+                            Some(block.clone()),
+                            0,
+                            vec![new_block.clone()],
+                            cx,
+                        );
+                        self.pending_edit = true;
+                        self.commit_document_edit(false, cx);
+                        new_block
+                    } else {
+                        block.read(cx).children[0].clone()
+                    };
+                    self.active_entity = Some(target_child.clone());
+                    target_child.update(cx, |b, cx| {
+                        b.selected_range = 0..0;
+                        b.selection_reversed = false;
+                        b.marked_range = None;
+                        b.start_cursor_blink(cx);
+                        cx.notify();
+                    });
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestCalloutBreak => {
+                if let Some(doc) = &mut self.document {
+                    let location = doc.find_block_location(block.entity_id());
+                    let (target_parent, target_index) = if let Some(loc) = location {
+                        if let Some(parent) = loc.parent {
+                            let parent_loc = doc.find_block_location(parent.entity_id());
+                            if let Some(ploc) = parent_loc {
+                                (ploc.parent, ploc.index + 1)
+                            } else {
+                                (None, loc.index + 1)
+                            }
+                        } else {
+                            (None, loc.index + 1)
+                        }
+                    } else {
+                        return;
+                    };
+                    let new_block = Self::new_block(
+                        cx,
+                        BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
+                    );
+                    doc.insert_blocks_at(
+                        target_parent,
+                        target_index,
+                        vec![new_block.clone()],
+                        cx,
+                    );
+                    self.active_entity = Some(new_block.clone());
+                    new_block.update(cx, |b, cx| {
+                        b.start_cursor_blink(cx);
+                        cx.notify();
+                    });
+                    self.pending_edit = true;
+                    self.commit_document_edit(false, cx);
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestQuoteBreak => {
+                if let Some(doc) = &mut self.document {
+                    let Some(location) = doc.find_block_location(block.entity_id()) else {
+                        return;
+                    };
+                    let new_block = Self::new_block(
+                        cx,
+                        BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
+                    );
+                    doc.insert_blocks_at(
+                        location.parent,
+                        location.index + 1,
+                        vec![new_block.clone()],
+                        cx,
+                    );
+                    self.active_entity = Some(new_block.clone());
+                    new_block.update(cx, |b, cx| {
+                        b.start_cursor_blink(cx);
+                        cx.notify();
+                    });
+                    self.pending_edit = true;
+                    self.commit_document_edit(false, cx);
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestDowngradeNestedListItemToChildParagraph => {
+                if let Some(doc) = &mut self.document {
+                    if let Some(location) = doc.find_block_location(block.entity_id()) {
+                        if let Some(parent) = location.parent.clone() {
+                            if let Some(parent_location) =
+                                doc.find_block_location(parent.entity_id())
+                            {
+                                doc.remove_block(block.entity_id(), cx);
+                                doc.insert_blocks_at(
+                                    parent_location.parent,
+                                    parent_location.index + 1,
+                                    vec![block.clone()],
+                                    cx,
+                                );
+                                self.active_entity = Some(block.clone());
+                                block.update(cx, |b, cx| {
+                                    b.start_cursor_blink(cx);
+                                    cx.notify();
+                                });
+                            }
+                        } else {
+                            block.update(cx, |b, cx| b.convert_to_paragraph(cx));
+                        }
+                        self.pending_edit = true;
+                        self.commit_document_edit(false, cx);
+                        cx.notify();
+                    }
+                }
+            }
+            BlockEvent::RequestOpenLink { open_target, .. } => {
+                cx.open_url(open_target);
             }
             _ => {}
         }

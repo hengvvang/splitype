@@ -136,18 +136,26 @@ fn language_config_of(
     grammar: fn() -> tree_sitter::Language,
     highlights_query: &'static str,
     injections_query: &'static str,
-) -> LanguageConfig {
-    LanguageConfig {
+) -> Option<LanguageConfig> {
+    let lang = grammar();
+    let query = Arc::new(tree_sitter::Query::new(&lang, highlights_query).ok()?);
+    let injection_query = (!injections_query.is_empty())
+        .then(|| tree_sitter::Query::new(&lang, injections_query).ok())
+        .flatten()
+        .map(Arc::new);
+    Some(LanguageConfig {
         name,
         grammar,
         highlights_query,
         injections_query,
-    }
+        query,
+        injection_query,
+    })
 }
 
 #[cfg(feature = "code-highlight-core")]
 fn build_language_config(key: CodeLanguageKey) -> Option<LanguageConfig> {
-    Some(match key {
+    match key {
         CodeLanguageKey::Rust => language_config_of(
             "rust",
             || tree_sitter_rust::LANGUAGE.into(),
@@ -298,8 +306,8 @@ fn build_language_config(key: CodeLanguageKey) -> Option<LanguageConfig> {
             tree_sitter_toml::HIGHLIGHTS_QUERY,
             "",
         ),
-        _ => return None,
-    })
+        _ => None,
+    }
 }
 
 /// Lazily-built, per-language cached configuration.
