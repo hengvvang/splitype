@@ -421,8 +421,9 @@ impl WysiwygDocumentController {
                         }
                     }
                 }
+                let mut preview_changed = false;
                 block.update(cx, |b, cx| {
-                    b.table_axis_preview = if *hovered {
+                    let next_preview = if *hovered {
                         Some(TableAxisMarker {
                             kind: *kind,
                             index: *index,
@@ -430,9 +431,15 @@ impl WysiwygDocumentController {
                     } else {
                         None
                     };
-                    cx.notify();
+                    if b.table_axis_preview != next_preview {
+                        b.table_axis_preview = next_preview;
+                        preview_changed = true;
+                        cx.notify();
+                    }
                 });
-                cx.notify();
+                if preview_changed {
+                    cx.notify();
+                }
             }
             BlockEvent::RequestSelectTableAxis { kind, index } => {
                 let target_entity = block.entity_id();

@@ -381,20 +381,12 @@ impl TableColumnLayout {
 
         let column_count = preferred_widths.len();
         let safe_table_width = table_width.max(1.0);
-        let equal_share = safe_table_width / column_count as f32;
-        if preferred_widths
-            .iter()
-            .all(|preferred| *preferred <= equal_share + f32::EPSILON)
-        {
-            return Self::equal(column_count);
-        }
-
         let floor_width = min_column_width
             .max(0.0)
             .min(safe_table_width / column_count as f32);
         let weights = preferred_widths
             .iter()
-            .map(|preferred| preferred.max(equal_share))
+            .map(|preferred| preferred.max(floor_width))
             .collect::<Vec<_>>();
         let mut assigned_widths = vec![0.0; column_count];
         let mut remaining_indices = (0..column_count).collect::<Vec<_>>();
@@ -724,5 +716,41 @@ impl TableCellPosition {
 
     pub fn body_row_index(self) -> Option<usize> {
         self.row.checked_sub(1)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_preferred_widths_proportional() {
+        let widths = [50.0, 40.0, 50.0, 180.0];
+        let layout = TableColumnLayout::from_preferred_widths(&widths, 800.0, 20.0);
+        assert_eq!(layout.column_count(), 4);
+        // Column 3 (180.0) should get much more fraction than column 1 (40.0)
+        assert!(layout.fraction(3) > layout.fraction(1) * 3.0);
+        // Fractions should sum to 1.0
+        let sum: f32 = layout.fractions().iter().sum();
+        assert!((sum - 1.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn test_from_preferred_widths_equal_when_same() {
+        let widths = [100.0, 100.0, 100.0, 100.0];
+        let layout = TableColumnLayout::from_preferred_widths(&widths, 800.0, 20.0);
+        for f in layout.fractions() {
+            assert!((f - 0.25).abs() < 1e-4);
+        }
+    }
+
+    #[test]
+    fn test_from_preferred_widths_floor_respected() {
+        let widths = [5.0, 500.0];
+        let layout = TableColumnLayout::from_preferred_widths(&widths, 100.0, 20.0);
+        // Column 0 floor width is at least 20px (0.2 of 100px)
+        assert!(layout.fraction(0) >= 0.2 - 1e-4);
+        let sum: f32 = layout.fractions().iter().sum();
+        assert!((sum - 1.0).abs() < 1e-4);
     }
 }
