@@ -243,13 +243,14 @@ impl Shell {
     pub(crate) fn on_dismiss_transient_ui(
         &mut self,
         _: &platform_contracts::actions::DismissTransientUi,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let stopped_drag = cx.stop_active_drag(window);
         let cancelled_drag = self.panels.layout.cancel_drag_gesture();
         let closed_menu = self.panels.layout.interaction.clear_border_menu();
         let closed_dropdown = self.panels.layout.interaction.clear_dropdowns();
-        let mut handled = cancelled_drag || closed_menu || closed_dropdown;
+        let mut handled = stopped_drag || cancelled_drag || closed_menu || closed_dropdown;
         for view in self.panel_views.values_mut() {
             handled |= view.handle_dismiss_transient_ui(cx);
         }

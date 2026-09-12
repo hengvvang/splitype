@@ -27,6 +27,16 @@ impl Render for Editor {
             self.sync_window_title(window, &strings, cx);
         }
 
+        // Self-healing invariant: clear any dangling drag states if no GPUI drag is active
+        if !cx.has_active_drag() {
+            if self.tab_drag_hover.is_some() {
+                self.tab_drag_hover = None;
+            }
+            if self.tab_reorder_target.is_some() {
+                self.tab_reorder_target = None;
+            }
+        }
+
         let follow_modifier_active = window.modifiers().secondary();
         let d = &theme.dimensions;
         let c = &theme.colors;
@@ -96,51 +106,87 @@ impl Render for Editor {
                 move |event, _window, cx| {
                     let bounds = event.bounds;
                     let pos = event.event.position;
-                    if bounds.size.width > px(0.0) && bounds.size.height > px(0.0) {
-                        let rel_x = f32::from(pos.x - bounds.origin.x) / f32::from(bounds.size.width);
-                        let rel_y = f32::from(pos.y - bounds.origin.y) / f32::from(bounds.size.height);
-                        let target = crate::layout::tab_drag::calc_tab_dock_target(rel_x, rel_y);
-                        let shift_held = event.event.modifiers.shift;
-                        let pointer_pos = point(pos.x - bounds.origin.x, pos.y - bounds.origin.y);
 
-                        let drag = event.drag(cx);
-                        let drag_view = drag.drag_view.clone();
-                        let active_hover_editor = drag.active_hover_editor.clone();
-
-                        // 1. Update the dragged tab view so its follow card expands into the unified card
-                        drag_view.update(cx, |view, cx| {
-                            view.set_hover(Some(crate::layout::tab_drag::TabDragHoverInfo {
-                                target,
-                                shift_held,
-                            }));
-                            cx.notify();
-                        });
-
-                        // 2. Ensure only the current editor shows the partition wireframe
+                    // If pointer is outside the editor content body, immediately exit split docking
+                    if bounds.size.width <= px(0.0)
+                        || bounds.size.height <= px(0.0)
+                        || !bounds.contains(&pos)
+                    {
+                        let (drag_view, active_hover_editor) = {
+                            let drag = event.drag(cx);
+                            (drag.drag_view.clone(), drag.active_hover_editor.clone())
+                        };
+                        let mut was_active = false;
                         if let Ok(mut active_guard) = active_hover_editor.lock() {
                             if let Some(prev_weak) = active_guard.as_ref() {
-                                if let Some(prev_ed) = prev_weak.upgrade() {
-                                    if prev_weak != &content_body_editor {
-                                        let _ = prev_ed.update(cx, |ed, cx| {
-                                            ed.tab_drag_hover = None;
-                                            cx.notify();
-                                        });
-                                    }
+                                if prev_weak == &content_body_editor {
+                                    *active_guard = None;
+                                    was_active = true;
                                 }
                             }
-                            *active_guard = Some(content_body_editor.clone());
                         }
-
-                        // 3. Update this editor's tab_drag_hover
-                        let _ = content_body_editor.update(cx, |ed, cx| {
-                            ed.tab_drag_hover = Some(crate::layout::tab_drag::TabDragHoverState {
-                                target,
-                                shift_held,
-                                pointer_pos,
+                        if was_active {
+                            drag_view.update(cx, |view, cx| {
+                                view.set_hover(None);
+                                cx.notify();
                             });
-                            cx.notify();
+                        }
+                        let _ = content_body_editor.update(cx, |ed, cx| {
+                            if ed.tab_drag_hover.is_some() {
+                                ed.tab_drag_hover = None;
+                                cx.notify();
+                            }
                         });
+                        return;
                     }
+
+                    let rel_x = f32::from(pos.x - bounds.origin.x) / f32::from(bounds.size.width);
+                    let rel_y = f32::from(pos.y - bounds.origin.y) / f32::from(bounds.size.height);
+                    let target = crate::layout::tab_drag::calc_tab_dock_target(rel_x, rel_y);
+                    let shift_held = event.event.modifiers.shift;
+                    let pointer_pos = point(pos.x - bounds.origin.x, pos.y - bounds.origin.y);
+
+                    let (drag_view, active_hover_editor) = {
+                        let drag = event.drag(cx);
+                        (drag.drag_view.clone(), drag.active_hover_editor.clone())
+                    };
+
+                    // 1. Update the dragged tab view so its follow card expands into the unified card
+                    drag_view.update(cx, |view, cx| {
+                        view.set_hover(Some(crate::layout::tab_drag::TabDragHoverInfo {
+                            target,
+                            shift_held,
+                        }));
+                        cx.notify();
+                    });
+
+                    // 2. Ensure only the current editor shows the partition wireframe
+                    if let Ok(mut active_guard) = active_hover_editor.lock() {
+                        if let Some(prev_weak) = active_guard.as_ref() {
+                            if let Some(prev_ed) = prev_weak.upgrade() {
+                                if prev_weak != &content_body_editor {
+                                    let _ = prev_ed.update(cx, |ed, cx| {
+                                        ed.tab_drag_hover = None;
+                                        cx.notify();
+                                    });
+                                }
+                            }
+                        }
+                        *active_guard = Some(content_body_editor.clone());
+                    }
+
+                    // 3. Update this editor's tab_drag_hover and clear any tab reorder indicator
+                    let _ = content_body_editor.update(cx, |ed, cx| {
+                        ed.tab_drag_hover = Some(crate::layout::tab_drag::TabDragHoverState {
+                            target,
+                            shift_held,
+                            pointer_pos,
+                        });
+                        if ed.tab_reorder_target.is_some() {
+                            ed.tab_reorder_target = None;
+                        }
+                        cx.notify();
+                    });
                 }
             })
             .on_drop::<crate::layout::tab_drag::DraggedTab>({
@@ -154,6 +200,7 @@ impl Render for Editor {
                         cx.notify();
                     });
                     let _ = content_drop_editor.update(cx, |ed, cx| {
+                        ed.tab_reorder_target = None;
                         let hover = ed.tab_drag_hover.take();
                         if let Some(hover) = hover {
                             match hover.target {

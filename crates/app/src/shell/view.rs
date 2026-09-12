@@ -25,7 +25,16 @@ impl Render for Shell {
             .flex_col()
             .relative()
             .bg(theme.colors.editor_background)
-            .font(theme::TypographyStore::ui_font(cx))
+            .capture_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                if event.keystroke.key.as_str() == "escape" && cx.has_active_drag() {
+                    cx.stop_active_drag(window);
+                    for view in this.panel_views.values_mut() {
+                        view.handle_dismiss_transient_ui(cx);
+                    }
+                    cx.stop_propagation();
+                    cx.notify();
+                }
+            }))
             .on_action(cx.listener(Self::on_dismiss_transient_ui))
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))

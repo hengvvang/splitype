@@ -56,6 +56,8 @@ pub struct Editor {
     pub last_pane_widths: HashMap<PaneId, f32>,
     /// Active drag-hover state when a tab is dragged over this editor.
     pub tab_drag_hover: Option<crate::layout::tab_drag::TabDragHoverState>,
+    /// Active tab reorder target index when a tab is dragged over this editor's tab bar.
+    pub tab_reorder_target: Option<usize>,
 }
 
 impl Editor {
@@ -80,6 +82,7 @@ impl Editor {
             documents_released: false,
             last_pane_widths: HashMap::new(),
             tab_drag_hover: None,
+            tab_reorder_target: None,
         };
         let buffers: Vec<Entity<DocumentBuffer>> = editor
             .session
