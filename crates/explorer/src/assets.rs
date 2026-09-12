@@ -25,6 +25,15 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         "worktree/open_folder.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/worktree/open_folder.svg"
         ))),
+        "worktree/big_plus.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/worktree/big_plus.svg"
+        ))),
+        "worktree/strip_open_folder.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/worktree/strip_open_folder.svg"
+        ))),
+        "worktree/strip_open_recent.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/worktree/strip_open_recent.svg"
+        ))),
         "worktree/file_type_pdf.svg" => Some(Cow::Borrowed(include_bytes!(
             "../assets/icons/worktree/file_type_pdf.svg"
         ))),
@@ -100,3 +109,16 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_state_assets() {
+        assert!(match_icon("worktree/big_plus.svg").is_some());
+        assert!(match_icon("worktree/strip_open_folder.svg").is_some());
+        assert!(match_icon("worktree/strip_open_recent.svg").is_some());
+    }
+}
+
