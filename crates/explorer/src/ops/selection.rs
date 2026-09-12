@@ -38,6 +38,7 @@ actions!(
         DuplicateSelectedEntry,
         UndoFileOperation,
         RedoFileOperation,
+        RevealActiveFile,
     ]
 );
 
@@ -191,25 +192,36 @@ impl ExplorerState {
             self.marked.insert(selection);
         }
         self.selected = Some(selection);
+        if let Some(idx) = self
+            .entries
+            .iter()
+            .position(|r| matches!(r, ExplorerRow::Entry(e) if e.id == selection.entry_id))
+        {
+            self.selection_anchor = Some(idx);
+        }
         cx.refresh_windows();
     }
 
-    /// Range-select from the current selection to `target_id` (Shift+click).
+    /// Range-select from the current selection anchor to `target_id` (Shift+click).
     pub(crate) fn select_explorer_range(&mut self, target_id: ExplorerEntryId, cx: &mut App) {
-        let anchor = match self.selected {
-            Some(sel) => sel.entry_id,
-            _ => target_id,
-        };
         let rows = &self.entries;
-        let anchor_index = rows
-            .iter()
-            .position(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == anchor));
         let target_index = rows
             .iter()
             .position(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == target_id));
-        let (Some(anchor_index), Some(target_index)) = (anchor_index, target_index) else {
+        let Some(target_index) = target_index else {
             return;
         };
+        let anchor_index = self
+            .selection_anchor
+            .or_else(|| {
+                self.selected.and_then(|sel| {
+                    rows.iter().position(|row| {
+                        matches!(row, ExplorerRow::Entry(entry) if entry.id == sel.entry_id)
+                    })
+                })
+            })
+            .unwrap_or(target_index);
+
         self.marked.clear();
         let mut target_worktree_id = None;
         for row in &rows[anchor_index.min(target_index)..=anchor_index.max(target_index)] {
@@ -230,6 +242,7 @@ impl ExplorerState {
                 entry_id: target_id,
             });
         }
+        self.selection_anchor = Some(anchor_index);
         self.autoscroll_explorer_selection();
         cx.refresh_windows();
     }
@@ -343,9 +356,8 @@ impl ExplorerState {
         }
     }
 
-    /// Set the selection to the row at `index` and center it (Zed's
-    /// `autoscroll`). With `extend`, the row is also added to the marks.
-    fn set_explorer_selection_at_index(&mut self, index: usize, extend: bool, cx: &mut App) {
+    /// Update the selection to the row at `index`. With `extend`, range marks from the anchor to `index` are updated.
+    pub(crate) fn update_selection_at_index(&mut self, index: usize, extend: bool) {
         let Some(ExplorerRow::Entry(entry)) = self.entries.get(index) else {
             return;
         };
@@ -354,11 +366,33 @@ impl ExplorerState {
             entry_id: entry.id,
         };
         if extend {
-            self.marked.insert(selection);
+            let anchor = self
+                .selection_anchor
+                .or_else(|| self.explorer_selected_row_index())
+                .unwrap_or(index);
+            self.marked.clear();
+            for row in &self.entries[anchor.min(index)..=anchor.max(index)] {
+                if let ExplorerRow::Entry(e) = row {
+                    self.marked.insert(SelectedEntry {
+                        worktree_id: e.worktree_id,
+                        entry_id: e.id,
+                    });
+                }
+            }
+            self.selection_anchor = Some(anchor);
+        } else {
+            self.marked.clear();
+            self.selection_anchor = Some(index);
         }
         self.selected = Some(selection);
         self.scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
+    }
+
+    /// Set the selection to the row at `index` and center it (Zed's
+    /// `autoscroll`). With `extend`, range marks from the anchor to `index` are updated.
+    fn set_explorer_selection_at_index(&mut self, index: usize, extend: bool, cx: &mut App) {
+        self.update_selection_at_index(index, extend);
         cx.refresh_windows();
     }
 
@@ -749,5 +783,14 @@ impl ExplorerState {
         if !parent.as_os_str().is_empty() {
             self.begin_inline_create_folder(parent, window, cx);
         }
+    }
+
+    pub(crate) fn on_explorer_reveal_active_file(
+        &mut self,
+        _: &RevealActiveFile,
+        _window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.reveal_active_file_in_tree(true, cx);
     }
 }

@@ -9,7 +9,9 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::ops::selection::{DuplicateSelectedEntry, RedoFileOperation, UndoFileOperation};
+use crate::ops::selection::{
+    DuplicateSelectedEntry, RedoFileOperation, RevealActiveFile, UndoFileOperation,
+};
 use crate::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
 use config::language::I18nStrings;
 use platform_contracts::PanelId;
@@ -395,6 +397,14 @@ impl ExplorerState {
                 move |_: &RedoFileOperation, window, cx| {
                     let _ = weak.update(cx, |state, cx| {
                         state.explorer_redo(window, cx);
+                    });
+                }
+            })
+            .on_action({
+                let weak = weak.clone();
+                move |action: &RevealActiveFile, window, cx| {
+                    let _ = weak.update(cx, |state, cx| {
+                        state.on_explorer_reveal_active_file(action, window, cx);
                     });
                 }
             })

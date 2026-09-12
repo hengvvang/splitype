@@ -167,6 +167,7 @@ impl ExplorerState {
         self.sort_order = settings.sort_order;
         self.auto_fold_dirs = settings.auto_fold_dirs;
         self.hide_gitignore = settings.hide_gitignore;
+        self.auto_reveal = settings.auto_reveal;
         self.snapshots = self
             .worktrees
             .iter()
@@ -196,6 +197,47 @@ impl ExplorerState {
         );
     }
 
+    /// Core reveal routine: expands ancestor directories, rebuilds entries,
+    /// sets selection, clears marks, and sets selection_anchor (mirrors Zed's `reveal_entry`).
+    pub(crate) fn reveal_active_file(&mut self) -> bool {
+        let Some(path) = self.active_file.clone() else {
+            return false;
+        };
+        let Some(sel) = self.explorer_id_for_path(&path) else {
+            return false;
+        };
+
+        self.expand_to_path(&path);
+        self.rebuild_explorer_entries();
+
+        self.selected = Some(sel);
+        self.marked.clear();
+
+        if let Some(index) = self.entries.iter().position(
+            |row| matches!(row, ExplorerRow::Entry(entry_row) if entry_row.id == sel.entry_id),
+        ) {
+            self.selection_anchor = Some(index);
+        }
+        true
+    }
+
+    /// Reveal and select the active document (or given path) in the tree (mirrors Zed's `reveal_entry`).
+    /// Expands all ancestor directories, rebuilds the visible row list,
+    /// sets selection, clears marks, sets selection_anchor, and scrolls to the item.
+    pub(crate) fn reveal_active_file_in_tree(&mut self, reveal_and_scroll: bool, cx: &mut App) {
+        if self.worktrees.is_empty() {
+            return;
+        }
+        if self.reveal_active_file() {
+            if reveal_and_scroll {
+                if let Some(index) = self.selection_anchor {
+                    self.scroll_handle.scroll_to_item(index, ScrollStrategy::Center);
+                }
+            }
+            cx.refresh_windows();
+        }
+    }
+
     /// Follow the active document (or a pending inline-create target) in the
     /// tree. With `reveal`, ancestor directories are expanded so the entry
     /// becomes visible.
@@ -217,16 +259,20 @@ impl ExplorerState {
             }
             return;
         }
-        // Keep an existing file selection when the entry is still in any worktree snapshot.
-        if let Some(sel) = self.selected
-            && self.explorer_path_for_id(sel.entry_id).is_some()
-        {
-            return;
-        }
         let Some(path) = self.active_file.clone() else {
             return;
         };
-        if let Some(sel) = self.explorer_id_for_path(&path) {
+        let Some(sel) = self.explorer_id_for_path(&path) else {
+            return;
+        };
+        if self.auto_reveal {
+            if self.selected != Some(sel) {
+                self.selected = Some(sel);
+                if reveal {
+                    self.expand_to_path(&path);
+                }
+            }
+        } else if self.selected.is_none() {
             self.selected = Some(sel);
         }
     }

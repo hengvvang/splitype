@@ -18,8 +18,16 @@ impl ExplorerState {
     /// rebuild the visible rows, and scroll the selection into view.
     pub(crate) fn reveal_and_select(&mut self, path: &Path) {
         self.selected = self.explorer_id_for_path(path);
+        self.marked.clear();
         self.expand_to_path(path);
         self.rebuild_explorer_entries();
+        if let Some(sel) = self.selected {
+            if let Some(index) = self.entries.iter().position(
+                |row| matches!(row, crate::state::ExplorerRow::Entry(entry_row) if entry_row.id == sel.entry_id),
+            ) {
+                self.selection_anchor = Some(index);
+            }
+        }
         self.autoscroll_explorer_selection();
     }
 

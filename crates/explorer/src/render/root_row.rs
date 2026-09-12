@@ -6,7 +6,7 @@ use crate::state::ExplorerState;
 
 use crate::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::state::{
-    DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, FOLDER_ICON,
+    DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, ExplorerRow, FOLDER_ICON,
     VisibleExplorerEntry, file_type_icon,
 };
 use platform_contracts::PanelId;
@@ -207,6 +207,14 @@ impl ExplorerState {
                             return;
                         }
                         state.marked.clear();
+                        state.selected = Some(selection);
+                        if let Some(idx) = state
+                            .entries
+                            .iter()
+                            .position(|r| matches!(r, ExplorerRow::Entry(e) if e.id == id))
+                        {
+                            state.selection_anchor = Some(idx);
+                        }
                         if root_is_file {
                             // A file-rooted worktree opens its file on click.
                             state.open_explorer_file_click(

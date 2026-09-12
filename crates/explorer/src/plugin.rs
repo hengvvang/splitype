@@ -151,7 +151,12 @@ impl PanelView for ExplorerPanelView {
 /// Registered with the composition root's explorer hooks.
 pub fn set_active_document_path(view: &mut dyn PanelView, path: Option<PathBuf>, cx: &mut App) {
     if let Some(view) = view.as_any_mut().downcast_mut::<ExplorerPanelView>() {
-        view.state.update(cx, |state, _cx| state.active_file = path);
+        view.state.update(cx, |state, cx| {
+            state.active_file = path;
+            if state.auto_reveal {
+                state.reveal_active_file_in_tree(true, cx);
+            }
+        });
     }
 }
 

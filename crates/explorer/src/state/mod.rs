@@ -262,6 +262,10 @@ pub struct ExplorerState {
     pub auto_fold_dirs: bool,
     /// Hide entries matching .gitignore rules.
     pub hide_gitignore: bool,
+    /// Automatically reveal and select the active editor file in the file tree.
+    pub auto_reveal: bool,
+    /// Selection anchor index in the visible row list for range selection (Shift+Click / Shift+Up/Down).
+    pub selection_anchor: Option<usize>,
     /// Shared worktree entities in this panel's display order. The trees
     /// themselves are process-global (see [`WorktreeStore`]); this list is
     /// the panel's view of which roots are visible.
@@ -369,6 +373,7 @@ impl ExplorerState {
                 sort_order: settings.sort_order,
                 auto_fold_dirs: settings.auto_fold_dirs,
                 hide_gitignore: settings.hide_gitignore,
+                auto_reveal: settings.auto_reveal,
                 focus_handle: Some(focus_handle),
                 filename_editor: Some(filename_editor),
                 ..Default::default()
@@ -392,6 +397,8 @@ impl Default for ExplorerState {
             sort_order: ExplorerSortOrder::Ascending,
             auto_fold_dirs: true,
             hide_gitignore: false,
+            auto_reveal: true,
+            selection_anchor: None,
             worktrees: Vec::new(),
             snapshots: Vec::new(),
             expanded: HashMap::new(),
@@ -789,7 +796,7 @@ pub fn build_explorer_rows(
 mod tests {
     use super::*;
     use std::cmp::Ordering;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use crate::state::undo::ExplorerChange;
 
     #[test]
@@ -2030,6 +2037,243 @@ mod tests {
             labels_hidden,
             vec!["project", "src", "Cargo.toml"]
         );
+    }
+
+    #[test]
+    fn test_anchor_based_range_selection() {
+        let wt_id = WorktreeId(1);
+        let mut state = ExplorerState::default();
+
+        // Create 5 visible file rows: row 0 to row 4
+        for i in 0..5 {
+            state.entries.push(ExplorerRow::Entry(VisibleExplorerEntry {
+                worktree_id: wt_id,
+                id: ExplorerEntryId(i),
+                parent_id: None,
+                path: PathBuf::from(format!("/workspace/file_{i}.txt")),
+                label: format!("file_{i}.txt"),
+                depth: 0,
+                kind: ExplorerEntryKind::File,
+                is_expanded: false,
+                has_children: false,
+                is_ignored: false,
+                folded_ancestors: Vec::new(),
+            }));
+        }
+
+        // Step 1: User selects row 1 (file_1.txt) without Shift (extend = false)
+        state.update_selection_at_index(1, false);
+        assert_eq!(
+            state.selected,
+            Some(SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(1),
+            })
+        );
+        assert_eq!(state.selection_anchor, Some(1));
+        assert!(state.marked.is_empty());
+
+        // Step 2: User presses Shift+Down (extend = true) to row 2
+        state.update_selection_at_index(2, true);
+        assert_eq!(state.selection_anchor, Some(1));
+        assert_eq!(
+            state.selected,
+            Some(SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(2),
+            })
+        );
+        assert_eq!(state.marked.len(), 2);
+        assert!(state.marked.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(1),
+        }));
+        assert!(state.marked.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(2),
+        }));
+
+        // Step 3: User presses Shift+Down (extend = true) to row 3
+        state.update_selection_at_index(3, true);
+        assert_eq!(state.selection_anchor, Some(1));
+        assert_eq!(state.marked.len(), 3);
+        assert!(state.marked.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(1),
+        }));
+        assert!(state.marked.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(2),
+        }));
+        assert!(state.marked.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(3),
+        }));
+
+        // Step 4: User presses Shift+Up (extend = true) backtracking to row 2
+        state.update_selection_at_index(2, true);
+        assert_eq!(state.selection_anchor, Some(1));
+        assert_eq!(state.marked.len(), 2);
+        assert!(
+            !state.marked.contains(&SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(3),
+            }),
+            "backtracking with Shift must unselect row 3"
+        );
+
+        // Step 5: Normal movement without Shift to row 4 (extend = false)
+        state.update_selection_at_index(4, false);
+        assert_eq!(state.selection_anchor, Some(4));
+        assert_eq!(
+            state.selected,
+            Some(SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(4),
+            })
+        );
+        assert!(state.marked.is_empty(), "regular movement must clear range marks");
+    }
+
+    #[test]
+    fn test_auto_reveal_active_file() {
+        let wt_id = WorktreeId(1);
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+        let mut children_by_parent = std::collections::HashMap::new();
+
+        let root = PathBuf::from("/project");
+        let root_entry = WorktreeEntry {
+            id: ExplorerEntryId(0),
+            path: root.clone(),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+            is_ignored: false,
+        };
+        entries_by_path.insert(root.clone(), root_entry);
+        id_for_path.insert(root.clone(), ExplorerEntryId(0));
+        path_for_id.insert(ExplorerEntryId(0), root.clone());
+
+        // /project/src (id 1)
+        let src_path = root.join("src");
+        entries_by_path.insert(
+            src_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(1),
+                path: src_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(src_path.clone(), ExplorerEntryId(1));
+        path_for_id.insert(ExplorerEntryId(1), src_path.clone());
+
+        // /project/src/nested (id 2)
+        let nested_path = src_path.join("nested");
+        entries_by_path.insert(
+            nested_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(2),
+                path: nested_path.clone(),
+                kind: WorktreeEntryKind::Directory,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(nested_path.clone(), ExplorerEntryId(2));
+        path_for_id.insert(ExplorerEntryId(2), nested_path.clone());
+
+        // /project/src/nested/deep.rs (id 3)
+        let deep_path = nested_path.join("deep.rs");
+        entries_by_path.insert(
+            deep_path.clone(),
+            WorktreeEntry {
+                id: ExplorerEntryId(3),
+                path: deep_path.clone(),
+                kind: WorktreeEntryKind::File,
+                inode: None,
+                is_ignored: false,
+            },
+        );
+        id_for_path.insert(deep_path.clone(), ExplorerEntryId(3));
+        path_for_id.insert(ExplorerEntryId(3), deep_path.clone());
+
+        children_by_parent.insert(ExplorerEntryId(0), vec![ExplorerEntryId(1)]);
+        children_by_parent.insert(ExplorerEntryId(1), vec![ExplorerEntryId(2)]);
+        children_by_parent.insert(ExplorerEntryId(2), vec![ExplorerEntryId(3)]);
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: wt_id,
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent,
+        });
+
+        let mut state = ExplorerState {
+            snapshots: vec![snapshot],
+            auto_reveal: true,
+            auto_fold_dirs: false,
+            ..Default::default()
+        };
+
+        // Initially only root is expanded
+        state.expanded.entry(wt_id).or_default().insert(ExplorerEntryId(0));
+        state.rebuild_explorer_entries();
+
+        // deep.rs is not visible yet because src and nested are collapsed
+        let labels_before: Vec<String> = state
+            .entries
+            .iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(labels_before, vec!["project", "src"]);
+
+        // Active document set to /project/src/nested/deep.rs
+        state.active_file = Some(deep_path);
+        let revealed = state.reveal_active_file();
+        assert!(revealed);
+
+        // Ancestors (0, 1, 2) must be expanded
+        let exp = state.expanded.get(&wt_id).unwrap();
+        assert!(exp.contains(&ExplorerEntryId(0)));
+        assert!(exp.contains(&ExplorerEntryId(1)));
+        assert!(exp.contains(&ExplorerEntryId(2)));
+
+        // Visible entries must now contain deep.rs!
+        let labels_after: Vec<String> = state
+            .entries
+            .iter()
+            .filter_map(|r| match r {
+                ExplorerRow::Entry(e) => Some(e.label.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(labels_after, vec!["project", "src", "nested", "deep.rs"]);
+
+        // Selected entry must be deep.rs (id 3)
+        assert_eq!(
+            state.selected,
+            Some(SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(3),
+            })
+        );
+        assert_eq!(state.selection_anchor, Some(3));
+    }
+
+    #[test]
+    fn test_copy_relative_path_slash_normalization() {
+        let path = Path::new("crates\\explorer\\src\\lib.rs");
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        assert_eq!(normalized, "crates/explorer/src/lib.rs");
     }
 }
 

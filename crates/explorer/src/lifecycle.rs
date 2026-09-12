@@ -95,6 +95,7 @@ impl ExplorerState {
         explorer.sort_order = settings.sort_order;
         explorer.auto_fold_dirs = settings.auto_fold_dirs;
         explorer.hide_gitignore = settings.hide_gitignore;
+        explorer.auto_reveal = settings.auto_reveal;
         // Resolve-or-scan the shared tree through the store; a folder already
         // open in another panel (or window) is shared live, not rescanned.
         let worktree = WorktreeStore::open(path, hide_hidden, window_handle, cx);
@@ -326,6 +327,26 @@ impl ExplorerState {
         cx.refresh_windows();
     }
 
+    /// Toggle compact folders (auto_fold_dirs). Persists to settings and updates view.
+    pub(crate) fn toggle_auto_fold_dirs(&mut self, cx: &mut App) {
+        let _ = PluginSettings::<ExplorerSettings>::update(cx, |settings| {
+            settings.auto_fold_dirs = !settings.auto_fold_dirs;
+        });
+        self.auto_fold_dirs = PluginSettings::<ExplorerSettings>::get(cx).auto_fold_dirs;
+        self.rebuild_explorer_entries();
+        cx.refresh_windows();
+    }
+
+    /// Toggle hiding git-ignored entries. Persists to settings and updates view.
+    pub(crate) fn toggle_hide_gitignore(&mut self, cx: &mut App) {
+        let _ = PluginSettings::<ExplorerSettings>::update(cx, |settings| {
+            settings.hide_gitignore = !settings.hide_gitignore;
+        });
+        self.hide_gitignore = PluginSettings::<ExplorerSettings>::get(cx).hide_gitignore;
+        self.rebuild_explorer_entries();
+        cx.refresh_windows();
+    }
+
     pub(crate) fn reveal_in_file_explorer(&self, path: &Path) {
         #[cfg(target_os = "windows")]
         {
@@ -431,8 +452,8 @@ impl ExplorerState {
             .worktrees
             .iter()
             .find_map(|wt| path.strip_prefix(wt.read(cx).root()).ok())
-            .map(|path| path.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.to_string_lossy().into_owned());
+            .map(|path| path.to_string_lossy().replace('\\', "/"))
+            .unwrap_or_else(|| path.to_string_lossy().replace('\\', "/"));
         cx.write_to_clipboard(ClipboardItem::new_string(relative));
     }
 

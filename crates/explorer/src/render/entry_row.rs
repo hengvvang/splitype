@@ -286,6 +286,13 @@ impl ExplorerState {
                             return;
                         }
                         state.marked.clear();
+                        if let Some(idx) = state
+                            .entries
+                            .iter()
+                            .position(|r| matches!(r, ExplorerRow::Entry(e) if e.id == id))
+                        {
+                            state.selection_anchor = Some(idx);
+                        }
                         match kind {
                             ExplorerEntryKind::Directory => {
                                 // Select the directory so a click always gives

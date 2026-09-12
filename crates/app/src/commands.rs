@@ -365,6 +365,10 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
             label: |_| SharedString::from("Paste"),
             make_action: || Box::new(platform_contracts::actions::Paste),
         },
+        ("splitype.explorer", "reveal-active-file") => CommandBinding {
+            label: |_| SharedString::from("Reveal Active File"),
+            make_action: || Box::new(explorer::ops::selection::RevealActiveFile),
+        },
         _ => return None,
     })
 }

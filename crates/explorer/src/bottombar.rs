@@ -238,7 +238,59 @@ impl ExplorerState {
                 }),
             ));
 
-            // 5. Toggle Hidden Files
+            // 5. Reveal Active File
+            if has_worktrees {
+                let reveal_label = if is_zh { "定位活动文件" } else { "Reveal Active File" };
+                menu_labels.push(reveal_label.to_string());
+                items.push(make_item(
+                    "explorer-bb-menu-reveal-active",
+                    reveal_label.to_string(),
+                    c.text_default,
+                    Box::new(|state, _window, cx| {
+                        state.reveal_active_file_in_tree(true, cx);
+                    }),
+                ));
+            }
+
+            // 6. Toggle Compact Folders
+            let auto_fold = self.auto_fold_dirs;
+            let compact_label = if auto_fold {
+                if is_zh { "禁用紧凑目录折叠" } else { "Disable Compact Folders" }
+            } else if is_zh {
+                "启用紧凑目录折叠"
+            } else {
+                "Enable Compact Folders"
+            };
+            menu_labels.push(compact_label.to_string());
+            items.push(make_item(
+                "explorer-bb-menu-toggle-compact",
+                compact_label.to_string(),
+                c.text_default,
+                Box::new(|state, _window, cx| {
+                    state.toggle_auto_fold_dirs(cx);
+                }),
+            ));
+
+            // 7. Toggle Hide Git-Ignored Files
+            let hide_git = self.hide_gitignore;
+            let gitignore_label = if hide_git {
+                if is_zh { "显示 Git 忽略文件" } else { "Show Git-Ignored Files" }
+            } else if is_zh {
+                "隐藏 Git 忽略文件"
+            } else {
+                "Hide Git-Ignored Files"
+            };
+            menu_labels.push(gitignore_label.to_string());
+            items.push(make_item(
+                "explorer-bb-menu-toggle-gitignore",
+                gitignore_label.to_string(),
+                c.text_default,
+                Box::new(|state, _window, cx| {
+                    state.toggle_hide_gitignore(cx);
+                }),
+            ));
+
+            // 8. Toggle Hidden Files
             let hidden_label = if hide_hidden {
                 if is_zh {
                     "显示隐藏文件"
