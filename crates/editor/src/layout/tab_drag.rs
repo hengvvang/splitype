@@ -18,39 +18,99 @@ pub enum TabDockTarget {
     OuterEditor(Direction),
 }
 
+/// Normalized coordinates for ergonomic tab docking layout based on the Golden Ratio (φ ≈ 1.618):
+/// - Outer editor perimeter: 19.1% golden margin along all edges (0.19), creating prominent, balanced outer zones
+/// - Middle inner pane box: 61.8% golden section (0.19..=0.81)
+/// - Center merge zone: 30% wide (0.35..=0.65) by 28% tall (0.36..=0.64), perfectly aligned with perspective diagonal vectors
+/// - Inner pane split zones: 16% horizontal / 17% vertical depth, creating a beautifully continuous 3D frustum perspective
+pub const DOCK_OUTER_MARGIN: f32 = 0.19;
+pub const DOCK_CENTER_X_MIN: f32 = 0.35;
+pub const DOCK_CENTER_X_MAX: f32 = 0.65;
+pub const DOCK_CENTER_Y_MIN: f32 = 0.36;
+pub const DOCK_CENTER_Y_MAX: f32 = 0.64;
+
+/// Helper to test if a 2D point lies inside a convex quadrilateral.
+fn point_in_convex_quad(px: f32, py: f32, quad: &[(f32, f32); 4]) -> bool {
+    let mut sign = None;
+    for i in 0..4 {
+        let (x1, y1) = quad[i];
+        let (x2, y2) = quad[(i + 1) % 4];
+        let cross = (x2 - x1) * (py - y1) - (y2 - y1) * (px - x1);
+        if cross.abs() < 1e-5 {
+            continue;
+        }
+        let cross_sign = cross > 0.0;
+        match sign {
+            None => sign = Some(cross_sign),
+            Some(s) if s != cross_sign => return false,
+            _ => {}
+        }
+    }
+    true
+}
+
 /// Calculates the tab dock target from normalized relative coordinates [0.0..=1.0].
 ///
-/// Follows the nested quadrants geometry:
-/// - (0.40..=0.60, 0.40..=0.60) is the center merge zone.
-/// - The remainder of the inner box (0.25..=0.75, 0.25..=0.75) is divided by diagonals into 4 inner pane triangles.
-/// - Outside the inner box is divided by diagonals into 4 outer editor trapezoids.
+/// Follows the ergonomic trapezoid partition geometry:
+/// - Center merge zone: 40% wide x 30% tall rectangular target (0.30..=0.70, 0.35..=0.65).
+/// - Inner pane split zones: 4 wide directional trapezoids between outer edge and center.
+/// - Outer editor split zones: 14% perimeter edge snap trapezoids.
 pub fn calc_tab_dock_target(rel_x: f32, rel_y: f32) -> TabDockTarget {
     let u = rel_x.clamp(0.0, 1.0);
     let v = rel_y.clamp(0.0, 1.0);
 
-    // 1. Center merge zone (0.40..=0.60)
-    if (0.40..=0.60).contains(&u) && (0.40..=0.60).contains(&v) {
+    // 1. Center merge zone (generous 40% wide x 30% tall ergonomic target)
+    if (DOCK_CENTER_X_MIN..=DOCK_CENTER_X_MAX).contains(&u)
+        && (DOCK_CENTER_Y_MIN..=DOCK_CENTER_Y_MAX).contains(&v)
+    {
         return TabDockTarget::MergeCenter;
     }
 
-    // 2. Cardinal quadrant from diagonals:
-    let dir = if v <= u && v <= (1.0 - u) {
-        Direction::Up
-    } else if v >= u && v >= (1.0 - u) {
-        Direction::Down
-    } else if u <= v && u <= (1.0 - v) {
-        Direction::Left
-    } else {
-        Direction::Right
-    };
+    let ix0 = DOCK_OUTER_MARGIN;
+    let iy0 = DOCK_OUTER_MARGIN;
+    let ix1 = 1.0 - DOCK_OUTER_MARGIN;
+    let iy1 = 1.0 - DOCK_OUTER_MARGIN;
 
-    // 3. Inner vs Outer boundary (0.25..=0.75)
-    let in_inner_box = (0.25..=0.75).contains(&u) && (0.25..=0.75).contains(&v);
-    if in_inner_box {
-        TabDockTarget::InnerPane(dir)
-    } else {
-        TabDockTarget::OuterEditor(dir)
+    let mx0 = DOCK_CENTER_X_MIN;
+    let my0 = DOCK_CENTER_Y_MIN;
+    let mx1 = DOCK_CENTER_X_MAX;
+    let my1 = DOCK_CENTER_Y_MAX;
+
+    // 2. Inner pane quadrants (comfortable 16% horizontal / 21% vertical depth)
+    let inner_up = [(ix0, iy0), (ix1, iy0), (mx1, my0), (mx0, my0)];
+    let inner_down = [(ix0, iy1), (mx0, my1), (mx1, my1), (ix1, iy1)];
+    let inner_left = [(ix0, iy0), (mx0, my0), (mx0, my1), (ix0, iy1)];
+    let inner_right = [(mx1, my0), (ix1, iy0), (ix1, iy1), (mx1, my1)];
+
+    if point_in_convex_quad(u, v, &inner_up) {
+        return TabDockTarget::InnerPane(Direction::Up);
     }
+    if point_in_convex_quad(u, v, &inner_down) {
+        return TabDockTarget::InnerPane(Direction::Down);
+    }
+    if point_in_convex_quad(u, v, &inner_left) {
+        return TabDockTarget::InnerPane(Direction::Left);
+    }
+    if point_in_convex_quad(u, v, &inner_right) {
+        return TabDockTarget::InnerPane(Direction::Right);
+    }
+
+    // 3. Outer editor perimeter (slender 14% edge snap zones)
+    let outer_up = [(0.0, 0.0), (1.0, 0.0), (ix1, iy0), (ix0, iy0)];
+    let outer_down = [(ix0, iy1), (ix1, iy1), (1.0, 1.0), (0.0, 1.0)];
+    let outer_left = [(0.0, 0.0), (ix0, iy0), (ix0, iy1), (0.0, 1.0)];
+
+    if point_in_convex_quad(u, v, &outer_up) {
+        return TabDockTarget::OuterEditor(Direction::Up);
+    }
+    if point_in_convex_quad(u, v, &outer_down) {
+        return TabDockTarget::OuterEditor(Direction::Down);
+    }
+    if point_in_convex_quad(u, v, &outer_left) {
+        return TabDockTarget::OuterEditor(Direction::Left);
+    }
+
+    TabDockTarget::OuterEditor(Direction::Right)
 }
 
 /// Hover information describing the active docking partition and modifiers.
@@ -103,6 +163,11 @@ impl Render for DraggedTabView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.global::<theme::ThemeManager>().current_arc();
         let style = OverlayStyle::from_theme(&theme);
+
+        // Faint black background close to pure black, with crisp light text
+        let top_bg = hsla(0.0, 0.0, 0.09, 0.96);
+        let top_text = hsla(0.0, 0.0, 0.94, 1.0);
+        let top_border = hsla(0.0, 0.0, 1.0, 0.12);
 
         if let Some(hover) = self.hover {
             // Spliced unified card combining tab title and split/swap cursor action panel
@@ -200,40 +265,77 @@ impl Render for DraggedTabView {
                 );
             }
 
+            // Calculate content width so top and bottom panels are guaranteed to be strictly equal in width
+            let action_title_w = estimate_text_width(title, 13.0);
+            let action_detail_w = detail
+                .map(|d| 7.0 + estimate_text_width(d, 12.5))
+                .unwrap_or(0.0);
+            let action_row_w = 15.0 + 7.0 + action_title_w + action_detail_w + 28.0;
+
+            let mut hints_content_w = 0.0;
+            for (i, hint) in hints.iter().enumerate() {
+                if i > 0 {
+                    hints_content_w += 16.0;
+                }
+                let key_w = estimate_text_width(hint.key, 10.5) + 10.0;
+                let desc_w = estimate_text_width(hint.desc, 11.0);
+                hints_content_w += key_w + 4.0 + desc_w;
+            }
+            let hints_row_w = if hints.is_empty() {
+                0.0
+            } else {
+                hints_content_w + 28.0
+            };
+
+            let tab_title_w = estimate_text_width(&self.title, 11.5) + 24.0;
+            let needed_w = action_row_w.max(hints_row_w).max(tab_title_w);
+            let card_w = needed_w.clamp(210.0, 320.0).ceil();
+
             div()
+                .w(px(card_w))
                 .flex()
                 .flex_col()
-                .rounded(px(2.0))
-                .bg(style.surface)
-                .shadow_lg()
-                .overflow_hidden()
-                // Top header: The dragged tab title seamlessly spliced (rounded 2px)
+                .items_stretch()
+                .gap(px(2.0))
+                // Top panel: Independent tab title card (4px rounded, faint black bg, strictly equal width, truncated)
                 .child(
                     div()
+                        .w(px(card_w))
+                        .px(px(12.0))
+                        .py(px(4.5))
+                        .rounded(px(4.0))
+                        .bg(top_bg)
+                        .border(px(1.0))
+                        .border_color(top_border)
+                        .shadow_md()
                         .flex()
                         .items_center()
-                        .gap(px(6.0))
-                        .px(px(14.0))
-                        .py(px(6.0))
-                        .bg(style.hover)
-                        .border_b(px(1.0))
-                        .border_color(style.border.opacity(0.40))
+                        .overflow_hidden()
                         .child(
                             div()
+                                .flex_1()
+                                .min_w(px(0.0))
+                                .truncate()
                                 .text_size(px(11.5))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(style.text)
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(top_text)
                                 .child(self.title.clone()),
                         ),
                 )
-                // Bottom content: matches split panel and swap panel (cursor_action_panel) design
-                .child(
-                    div()
+                // Bottom panel: Independent action card matching split panel and swap panel design (4px rounded, strictly equal width, compact)
+                .child({
+                    let mut action_card = div()
+                        .w(px(card_w))
                         .px(px(14.0))
-                        .py(px(9.0))
+                        .py(px(8.0))
+                        .rounded(px(4.0))
+                        .bg(style.surface)
+                        .border(px(1.0))
+                        .border_color(style.border)
+                        .shadow_md()
                         .flex()
                         .flex_col()
-                        .gap(px(6.0))
+                        .gap(px(5.0))
                         .child(
                             div()
                                 .flex()
@@ -255,36 +357,67 @@ impl Render for DraggedTabView {
                                         .text_color(style.accent)
                                         .child(d)
                                 })),
-                        )
-                        .children(
-                            if !hint_elements.is_empty() {
-                                Some(
-                                    div()
-                                        .flex()
-                                        .flex_wrap()
-                                        .items_center()
-                                        .gap(px(7.0))
-                                        .children(hint_elements),
-                                )
-                            } else {
-                                None
-                            },
-                        ),
-                )
+                        );
+
+                    if !hint_elements.is_empty() {
+                        action_card = action_card.child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap(px(6.0))
+                                .children(hint_elements),
+                        );
+                    }
+
+                    action_card
+                })
         } else {
             // Standalone tab pill (during normal drag before entering recognition zones)
             div()
-                .px(px(10.0))
-                .py(px(4.0))
-                .rounded(px(2.0))
-                .bg(style.surface.opacity(0.95))
-                .shadow_lg()
-                .text_size(px(11.0))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(style.text)
-                .child(self.title.clone())
+                .max_w(px(260.0))
+                .px(px(12.0))
+                .py(px(4.5))
+                .rounded(px(4.0))
+                .bg(top_bg)
+                .border(px(1.0))
+                .border_color(top_border)
+                .shadow_md()
+                .flex()
+                .items_center()
+                .overflow_hidden()
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .truncate()
+                        .text_size(px(11.5))
+                        .font_weight(FontWeight::MEDIUM)
+                        .text_color(top_text)
+                        .child(self.title.clone()),
+                )
         }
     }
+}
+
+/// Helper to estimate rendered text width for equal-width panel sizing
+fn estimate_text_width(text: &str, font_size: f32) -> f32 {
+    text.chars()
+        .map(|ch| {
+            if ch.is_ascii_whitespace() {
+                font_size * 0.35
+            } else if ch.is_ascii_punctuation() {
+                font_size * 0.45
+            } else if ch.is_ascii_uppercase() {
+                font_size * 0.68
+            } else if ch.is_ascii() {
+                font_size * 0.56
+            } else if ch as u32 > 0x2E80 {
+                font_size * 1.0
+            } else {
+                font_size * 0.85
+            }
+        })
+        .sum()
 }
 
 /// Renders the 8-quadrant surface wireframe and highlights the active drop zone
@@ -297,6 +430,9 @@ pub fn render_tab_drag_compass(
     let c = &theme.colors;
     let accent = c.split_indicator;
     let target = hover.target;
+
+    // Line thickness is uniform for all lines (do not increase width on active)
+    let line_width = 1.5;
 
     // Neutral gray for inactive partitions clearly visible on both light and dark themes
     let inactive_fill = c.dialog_muted.opacity(0.14);
@@ -325,17 +461,17 @@ pub fn render_tab_drag_compass(
             let x1 = ox + w;
             let y1 = oy + h;
 
-            // Coordinates: Inner bounds (0.25 ..= 0.75)
-            let ix0 = ox + w * 0.25;
-            let iy0 = oy + h * 0.25;
-            let ix1 = ox + w * 0.75;
-            let iy1 = oy + h * 0.75;
+            // Coordinates: Inner bounds (DOCK_OUTER_MARGIN ..= 1.0 - DOCK_OUTER_MARGIN)
+            let ix0 = ox + w * DOCK_OUTER_MARGIN;
+            let iy0 = oy + h * DOCK_OUTER_MARGIN;
+            let ix1 = ox + w * (1.0 - DOCK_OUTER_MARGIN);
+            let iy1 = oy + h * (1.0 - DOCK_OUTER_MARGIN);
 
-            // Coordinates: Center box (0.40 ..= 0.60)
-            let mx0 = ox + w * 0.40;
-            let my0 = oy + h * 0.40;
-            let mx1 = ox + w * 0.60;
-            let my1 = oy + h * 0.60;
+            // Coordinates: Center box (DOCK_CENTER_X_MIN..DOCK_CENTER_X_MAX, DOCK_CENTER_Y_MIN..DOCK_CENTER_Y_MAX)
+            let mx0 = ox + w * DOCK_CENTER_X_MIN;
+            let my0 = oy + h * DOCK_CENTER_Y_MIN;
+            let mx1 = ox + w * DOCK_CENTER_X_MAX;
+            let my1 = oy + h * DOCK_CENTER_Y_MAX;
 
             let fill_poly = |pts: &[(f32, f32)], color: Hsla, window: &mut Window| {
                 if pts.len() < 3 {
@@ -369,33 +505,45 @@ pub fn render_tab_drag_compass(
 
             // The 9 exact recognition zones:
             let zones: [(TabDockTarget, &[(f32, f32)]); 9] = [
-                // Outer 4 Editor zones (actual outer trapezoids)
+                // Outer 4 Editor zones (19% golden perimeter edge snap trapezoids)
                 (TabDockTarget::OuterEditor(Direction::Up), &[(x0, y0), (x1, y0), (ix1, iy0), (ix0, iy0)]),
                 (TabDockTarget::OuterEditor(Direction::Down), &[(ix0, iy1), (ix1, iy1), (x1, y1), (x0, y1)]),
                 (TabDockTarget::OuterEditor(Direction::Left), &[(x0, y0), (ix0, iy0), (ix0, iy1), (x0, y1)]),
                 (TabDockTarget::OuterEditor(Direction::Right), &[(ix1, iy0), (x1, y0), (x1, y1), (ix1, iy1)]),
-                // Inner 4 Pane zones (actual inner trapezoids)
+                // Inner 4 Pane zones (comfortable directional trapezoids)
                 (TabDockTarget::InnerPane(Direction::Up), &[(ix0, iy0), (ix1, iy0), (mx1, my0), (mx0, my0)]),
                 (TabDockTarget::InnerPane(Direction::Down), &[(ix0, iy1), (mx0, my1), (mx1, my1), (ix1, iy1)]),
                 (TabDockTarget::InnerPane(Direction::Left), &[(ix0, iy0), (mx0, my0), (mx0, my1), (ix0, iy1)]),
                 (TabDockTarget::InnerPane(Direction::Right), &[(mx1, my0), (ix1, iy0), (ix1, iy1), (mx1, my1)]),
-                // Center Merge zone (actual center rectangle)
+                // Center Merge zone (30% x 28% golden center rectangle)
                 (TabDockTarget::MergeCenter, &[(mx0, my0), (mx1, my0), (mx1, my1), (mx0, my1)]),
             ];
 
-            // 1. Draw all inactive recognition zones in neutral gray
+            // 1. Draw all inactive recognition zone fills in neutral gray
             for (zone_target, pts) in &zones {
                 if *zone_target != target {
                     fill_poly(pts, inactive_fill, window);
-                    stroke_poly(pts, inactive_stroke, 1.5, window);
                 }
             }
 
-            // 2. Draw the active recognition zone in vibrant blue with a prominent 3px glowing border
+            // 2. Draw active recognition zone fill in vivid blue
             for (zone_target, pts) in &zones {
                 if *zone_target == target {
                     fill_poly(pts, active_fill, window);
-                    stroke_poly(pts, active_stroke, 3.0, window);
+                }
+            }
+
+            // 3. Draw inactive boundary strokes in neutral gray (line_width = 1.5)
+            for (zone_target, pts) in &zones {
+                if *zone_target != target {
+                    stroke_poly(pts, inactive_stroke, line_width, window);
+                }
+            }
+
+            // 4. Draw active boundary strokes in vivid blue without increasing width (line_width = 1.5)
+            for (zone_target, pts) in &zones {
+                if *zone_target == target {
+                    stroke_poly(pts, active_stroke, line_width, window);
                 }
             }
         },
@@ -420,21 +568,23 @@ mod tests {
         assert_eq!(calc_tab_dock_target(0.5, 0.5), TabDockTarget::MergeCenter);
         assert_eq!(calc_tab_dock_target(0.45, 0.45), TabDockTarget::MergeCenter);
         assert_eq!(calc_tab_dock_target(0.55, 0.55), TabDockTarget::MergeCenter);
+        assert_eq!(calc_tab_dock_target(0.38, 0.5), TabDockTarget::MergeCenter);
+        assert_eq!(calc_tab_dock_target(0.62, 0.5), TabDockTarget::MergeCenter);
     }
 
     #[core::prelude::v1::test]
     fn test_calc_tab_dock_target_inner() {
-        assert_eq!(calc_tab_dock_target(0.5, 0.3), TabDockTarget::InnerPane(Direction::Up));
-        assert_eq!(calc_tab_dock_target(0.5, 0.7), TabDockTarget::InnerPane(Direction::Down));
-        assert_eq!(calc_tab_dock_target(0.3, 0.5), TabDockTarget::InnerPane(Direction::Left));
-        assert_eq!(calc_tab_dock_target(0.7, 0.5), TabDockTarget::InnerPane(Direction::Right));
+        assert_eq!(calc_tab_dock_target(0.5, 0.25), TabDockTarget::InnerPane(Direction::Up));
+        assert_eq!(calc_tab_dock_target(0.5, 0.75), TabDockTarget::InnerPane(Direction::Down));
+        assert_eq!(calc_tab_dock_target(0.26, 0.5), TabDockTarget::InnerPane(Direction::Left));
+        assert_eq!(calc_tab_dock_target(0.74, 0.5), TabDockTarget::InnerPane(Direction::Right));
     }
 
     #[core::prelude::v1::test]
     fn test_calc_tab_dock_target_outer() {
-        assert_eq!(calc_tab_dock_target(0.5, 0.1), TabDockTarget::OuterEditor(Direction::Up));
-        assert_eq!(calc_tab_dock_target(0.5, 0.9), TabDockTarget::OuterEditor(Direction::Down));
-        assert_eq!(calc_tab_dock_target(0.1, 0.5), TabDockTarget::OuterEditor(Direction::Left));
-        assert_eq!(calc_tab_dock_target(0.9, 0.5), TabDockTarget::OuterEditor(Direction::Right));
+        assert_eq!(calc_tab_dock_target(0.5, 0.10), TabDockTarget::OuterEditor(Direction::Up));
+        assert_eq!(calc_tab_dock_target(0.5, 0.90), TabDockTarget::OuterEditor(Direction::Down));
+        assert_eq!(calc_tab_dock_target(0.10, 0.5), TabDockTarget::OuterEditor(Direction::Left));
+        assert_eq!(calc_tab_dock_target(0.90, 0.5), TabDockTarget::OuterEditor(Direction::Right));
     }
 }
