@@ -81,7 +81,7 @@ description = "Accent bar color of the selected file-tree row"
 [commands.operations]
 title = "File Operations"
 description = "File and folder manipulation in workspace tree"
-context = "ExplorerPanel"
+context = "ExplorerPanel && not_editing"
 
 [[commands.operations.items]]
 id = "new-file"
@@ -105,17 +105,54 @@ shortcuts = ["f2"]
 id = "delete"
 title = "Delete Permanently"
 description = "Permanently delete the selected file or directory"
-shortcuts = ["delete"]
+shortcuts = ["shift-delete"]
 
 [[commands.operations.items]]
 id = "trash"
 title = "Move to Trash"
 description = "Move the selected file or directory to system trash"
+shortcuts = ["delete", "backspace"]
+
+[[commands.operations.items]]
+id = "duplicate"
+title = "Duplicate Entry"
+description = "Duplicate the selected file or directory"
+shortcuts = ["ctrl-d"]
+
+[[commands.operations.items]]
+id = "undo"
+title = "Undo File Operation"
+description = "Undo the last file creation, rename, or deletion"
+shortcuts = ["ctrl-z"]
+
+[[commands.operations.items]]
+id = "redo"
+title = "Redo File Operation"
+description = "Redo the previously undone file operation"
+shortcuts = ["ctrl-shift-z", "ctrl-y"]
+
+[[commands.operations.items]]
+id = "copy"
+title = "Copy Entry"
+description = "Copy the selected file or directory"
+shortcuts = ["ctrl-c"]
+
+[[commands.operations.items]]
+id = "cut"
+title = "Cut Entry"
+description = "Cut the selected file or directory"
+shortcuts = ["ctrl-x"]
+
+[[commands.operations.items]]
+id = "paste"
+title = "Paste Entry"
+description = "Paste clipboard contents into the selected directory"
+shortcuts = ["ctrl-v"]
 
 [commands.selection]
 title = "Tree Selection"
 description = "File tree item navigation and cursor movement"
-context = "ExplorerPanel"
+context = "ExplorerPanel && not_editing"
 
 [[commands.selection.items]]
 id = "select-previous"
@@ -150,7 +187,7 @@ shortcuts = ["end"]
 [commands.tree]
 title = "Tree Operations"
 description = "Tree node expand, collapse, and activation"
-context = "ExplorerPanel"
+context = "ExplorerPanel && not_editing"
 
 [[commands.tree.items]]
 id = "expand-selected"

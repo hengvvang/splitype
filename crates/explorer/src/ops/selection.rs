@@ -103,10 +103,55 @@ impl ExplorerState {
         self.explorer_entry_by_id(sel.entry_id)
     }
 
+    /// Filter out entries that are descendants of other selected directories (mirrors Zed's `disjoint_entries`).
+    pub(crate) fn disjoint_explorer_entries(
+        &self,
+        entries: Vec<SelectedEntry>,
+    ) -> Vec<SelectedEntry> {
+        if entries.is_empty() {
+            return Vec::new();
+        }
+        let mut dir_paths_by_wt: std::collections::HashMap<WorktreeId, std::collections::BTreeSet<PathBuf>> =
+            std::collections::HashMap::new();
+        for entry in &entries {
+            if let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == entry.worktree_id) {
+                if let Some(wentry) = snapshot.entry_for_id(entry.entry_id) {
+                    if wentry.kind == crate::state::worktree::WorktreeEntryKind::Directory {
+                        dir_paths_by_wt
+                            .entry(entry.worktree_id)
+                            .or_default()
+                            .insert(wentry.path.clone());
+                    }
+                }
+            }
+        }
+
+        entries
+            .into_iter()
+            .filter(|entry| {
+                let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == entry.worktree_id) else {
+                    return false;
+                };
+                let Some(wentry) = snapshot.entry_for_id(entry.entry_id) else {
+                    return false;
+                };
+                if let Some(dirs) = dir_paths_by_wt.get(&entry.worktree_id) {
+                    let is_descendant = dirs.iter().any(|dir| {
+                        &wentry.path != dir && wentry.path.starts_with(dir)
+                    });
+                    !is_descendant
+                } else {
+                    true
+                }
+            })
+            .collect()
+    }
+
     /// Resolve the entries an operation applies to (Zed's `effective_entries`):
     /// the selection when nothing is marked, otherwise the marked set. The
     /// worktree roots are excluded so destructive operations (delete / cut /
-    /// move / copy) can never target a root row.
+    /// move / copy) can never target a root row. Descendant entries of
+    /// selected directories are pruned to prevent double operations.
     pub(crate) fn effective_explorer_entries(&self) -> Vec<SelectedEntry> {
         let root_ids: HashSet<ExplorerEntryId> = self
             .snapshots
@@ -114,17 +159,19 @@ impl ExplorerState {
             .filter_map(|snap| snap.root_entry().map(|e| e.id))
             .collect();
         let filter = |sel: &SelectedEntry| !root_ids.contains(&sel.entry_id);
-        if self.marked.is_empty() {
-            return match self.selected {
+        let raw: Vec<SelectedEntry> = if self.marked.is_empty() {
+            match self.selected {
                 Some(sel) if filter(&sel) => vec![sel],
                 _ => Vec::new(),
-            };
-        }
-        self.marked
-            .iter()
-            .filter(|sel| filter(sel))
-            .copied()
-            .collect()
+            }
+        } else {
+            self.marked
+                .iter()
+                .filter(|sel| filter(sel))
+                .copied()
+                .collect()
+        };
+        self.disjoint_explorer_entries(raw)
     }
 
     /// Look up a visible entry row by its stable id.
@@ -187,15 +234,69 @@ impl ExplorerState {
         cx.refresh_windows();
     }
 
-    /// Choose the next selection after deleting `deleted_ids` (mirrors Zed's
-    /// `find_next_selection_after_deletion`): the next visible sibling, else
-    /// the previous one, else the parent directory.
+    /// Choose the next selection after deleting `deleted_selections` (mirrors Zed's
+    /// `find_next_selection_after_deletion`): the next sibling in the folder, else
+    /// the previous sibling, else the parent directory.
     pub(crate) fn next_explorer_selection_after_deletion(
         &self,
         deleted_selections: &[SelectedEntry],
     ) -> Option<SelectedEntry> {
+        if deleted_selections.is_empty() {
+            return None;
+        }
         let deleted: HashSet<ExplorerEntryId> =
             deleted_selections.iter().map(|sel| sel.entry_id).collect();
+
+        // 1. Prefer selecting a surviving sibling in the same folder (Zed)
+        if let Some(last_sel) = deleted_selections.last() {
+            if let Some(snapshot) = self.snapshots.iter().find(|s| s.id() == last_sel.worktree_id) {
+                if let Some(deleted_entry) = snapshot.entry_for_id(last_sel.entry_id) {
+                    if let Some(parent_path) = deleted_entry.path.parent() {
+                        if let Some(parent_entry) = snapshot.entry_for_path(parent_path) {
+                            let child_ids = snapshot.child_ids(parent_entry.id);
+                            let all_children: Vec<&crate::state::worktree::WorktreeEntry> = child_ids
+                                .iter()
+                                .filter_map(|id| snapshot.entry_for_id(*id))
+                                .collect();
+                            let mut sorted_all = all_children;
+                            sorted_all.sort_by(|a, b| {
+                                crate::state::compare_worktree_entries(a, b, self.sort_mode, self.sort_order)
+                            });
+
+                            if let Some(pos) = sorted_all.iter().position(|e| e.id == deleted_entry.id) {
+                                if let Some(next) = sorted_all[pos + 1..]
+                                    .iter()
+                                    .find(|e| !deleted.contains(&e.id))
+                                {
+                                    return Some(SelectedEntry {
+                                        worktree_id: last_sel.worktree_id,
+                                        entry_id: next.id,
+                                    });
+                                }
+                                if let Some(prev) = sorted_all[..pos]
+                                    .iter()
+                                    .rev()
+                                    .find(|e| !deleted.contains(&e.id))
+                                {
+                                    return Some(SelectedEntry {
+                                        worktree_id: last_sel.worktree_id,
+                                        entry_id: prev.id,
+                                    });
+                                }
+                            }
+
+                            // No sibling left in this folder — select parent directory!
+                            return Some(SelectedEntry {
+                                worktree_id: last_sel.worktree_id,
+                                entry_id: parent_entry.id,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback to flat list traversal
         let rows = &self.entries;
         let last_deleted = rows.iter().rposition(
             |row| matches!(row, ExplorerRow::Entry(entry) if deleted.contains(&entry.id)),
@@ -219,14 +320,6 @@ impl ExplorerState {
                     entry_id: entry.id,
                 });
             }
-        }
-        if let ExplorerRow::Entry(last) = &rows[last_deleted]
-            && let Some(parent_id) = last.parent_id
-        {
-            return Some(SelectedEntry {
-                worktree_id: last.worktree_id,
-                entry_id: parent_id,
-            });
         }
         None
     }

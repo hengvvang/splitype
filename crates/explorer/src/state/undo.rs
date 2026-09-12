@@ -70,8 +70,8 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), FsError> {
         ExplorerChange::Created { path, is_dir } => {
             if *is_dir {
                 crate::fs::create_dir_all(path)?;
-            } else {
-                crate::fs::write_file(path, "")?;
+            } else if !path.exists() {
+                crate::fs::create_new_file(path)?;
             }
             Ok(())
         }

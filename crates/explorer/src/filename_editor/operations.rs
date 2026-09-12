@@ -8,7 +8,9 @@ use crate::state::ExplorerState;
 
 use crate::filename_editor::ExplorerFilenameImeHost;
 use crate::state::undo::ExplorerChange;
-use crate::state::{ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation};
+use crate::state::{
+    ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation, SelectedEntry,
+};
 use platform_contracts::actions::{Copy, Cut, DismissTransientUi, Paste, SelectAll};
 
 impl ExplorerState {
@@ -20,7 +22,7 @@ impl ExplorerState {
             return;
         };
         let filename = edit.filename.text.clone();
-        let is_rename = edit.target_id.is_some();
+        let _is_rename = edit.target_id.is_some();
 
         let validation = if filename.trim() != filename {
             Some(ExplorerValidation::Warning(
@@ -30,18 +32,13 @@ impl ExplorerState {
             Some(ExplorerValidation::Error(
                 "File name cannot contain null characters.".into(),
             ))
-        } else if is_rename && filename.contains(['/', '\\']) {
-            Some(ExplorerValidation::Error(
-                "Rename target cannot contain '/' or '\\'.".into(),
-            ))
         } else if filename.contains([':', '*', '?', '"', '<', '>', '|']) {
             Some(ExplorerValidation::Error(
                 "File name contains illegal characters (: * ? \" < > |).".into(),
             ))
-        } else if !is_rename
-            && filename
-                .split(['/', '\\'])
-                .any(|segment| segment == "." || segment == "..")
+        } else if filename
+            .split(['/', '\\'])
+            .any(|segment| segment == "." || segment == "..")
         {
             Some(ExplorerValidation::Error(
                 "Path components cannot be '.' or '..'.".into(),
@@ -79,7 +76,12 @@ impl ExplorerState {
             path
         } else {
             let parent = edit.path.parent()?;
-            parent.join(trimmed)
+            let relative_parts = trimmed.split(['/', '\\']).filter(|s| !s.is_empty());
+            let mut path = parent.to_path_buf();
+            for part in relative_parts {
+                path.push(part);
+            }
+            path
         };
         let existing = snapshot.entry_for_path(&new_path);
         let is_self = edit
@@ -146,6 +148,7 @@ impl ExplorerState {
                 filename: ExplorerFilenameEditor::default(),
                 previously_selected: self.selected,
                 processing: false,
+                processing_filename: None,
                 ime_host: None,
             },
             window,
@@ -168,6 +171,9 @@ impl ExplorerState {
         {
             return;
         }
+        self.expand_to_path(&target_path);
+        self.rebuild_explorer_entries();
+
         let Some(sel) = self.explorer_id_for_path(&target_path) else {
             return;
         };
@@ -224,6 +230,7 @@ impl ExplorerState {
                 filename,
                 previously_selected: self.selected,
                 processing: false,
+                processing_filename: None,
                 ime_host: None,
             },
             window,
@@ -272,13 +279,25 @@ impl ExplorerState {
                         }
                     }
                     if state.edit.is_some() && !state.confirm_explorer_edit(window, cx) {
-                        state.discard_explorer_edit(cx);
+                        state.discard_explorer_edit(Some(window), cx);
                     }
                 });
             })
             .detach();
         });
-        self.selected = None;
+        let edited_selection = if let Some(target_id) = edit.target_id {
+            SelectedEntry {
+                worktree_id: edit.worktree_id,
+                entry_id: target_id,
+            }
+        } else {
+            SelectedEntry {
+                worktree_id: edit.worktree_id,
+                entry_id: crate::state::worktree::NEW_ENTRY_ID,
+            }
+        };
+        self.selected = Some(edited_selection);
+        self.marked.clear();
         self.edit = Some(edit);
         self.rebuild_explorer_entries();
         self.autoscroll_explorer_edit(window, cx);
@@ -287,13 +306,12 @@ impl ExplorerState {
     }
 
     /// Scroll the edit row into view and keep it visible while typing.
-    pub(crate) fn autoscroll_explorer_edit(&mut self, _window: &mut Window, cx: &mut App) {
+    pub(crate) fn autoscroll_explorer_edit(&mut self, _window: &mut Window, _cx: &mut App) {
         let Some(index) = self.explorer_edit_row_index() else {
             return;
         };
         self.scroll_handle
             .scroll_to_item(index, ScrollStrategy::Center);
-        cx.refresh_windows();
     }
 
     /// Row index of the inline edit row in the flat list, if any.
@@ -351,19 +369,22 @@ impl ExplorerState {
         };
         // If an existing entry was not renamed, cleanly dismiss the edit (mirrors Zed).
         if !is_create && old_path == new_path {
-            self.discard_explorer_edit(cx);
+            self.discard_explorer_edit(Some(window), cx);
             return true;
         }
-        let missing_dirs = if is_create {
-            if let Some(snapshot) = self.snapshots.iter().find(|snap| snap.id() == worktree_id) {
-                crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
-            } else {
-                Vec::new()
-            }
+        let missing_dirs = if let Some(snapshot) = self.snapshots.iter().find(|snap| snap.id() == worktree_id) {
+            crate::state::worktree::missing_parent_dirs(snapshot, &new_path)
         } else {
             Vec::new()
         };
-        self.edit.as_mut().unwrap().processing = true;
+        {
+            let edit = self.edit.as_mut().unwrap();
+            edit.processing = true;
+            edit.processing_filename = Some(filename.clone());
+        }
+        if let Some(focus_handle) = &self.focus_handle {
+            window.focus(focus_handle, cx);
+        }
         let window_handle = window.window_handle();
         let new_path_for_update = new_path.clone();
         let old_path_for_record = old_path.clone();
@@ -391,6 +412,9 @@ impl ExplorerState {
                             })
                         }
                     } else {
+                        if let Some(parent) = new_path.parent() {
+                            crate::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+                        }
                         crate::fs::rename(&old_path, &new_path).map_err(|err| err.to_string())
                     }
                 })
@@ -399,7 +423,6 @@ impl ExplorerState {
                 let path_for_open = weak.update(cx, |state, cx| {
                     match result {
                         Ok(()) => {
-                            state.edit = None;
                             // Record the operation for panel undo/redo.
                             let change = if is_create {
                                 if !missing_dirs.is_empty() {
@@ -419,9 +442,21 @@ impl ExplorerState {
                                     }
                                 }
                             } else {
-                                ExplorerChange::Renamed {
-                                    from: old_path_for_record,
-                                    to: new_path_for_update.clone(),
+                                if !missing_dirs.is_empty() {
+                                    let mut batch = Vec::new();
+                                    for dir in missing_dirs.into_iter().rev() {
+                                        batch.push(ExplorerChange::DirCreated(dir));
+                                    }
+                                    batch.push(ExplorerChange::Renamed {
+                                        from: old_path_for_record,
+                                        to: new_path_for_update.clone(),
+                                    });
+                                    ExplorerChange::Batch(batch)
+                                } else {
+                                    ExplorerChange::Renamed {
+                                        from: old_path_for_record,
+                                        to: new_path_for_update.clone(),
+                                    }
                                 }
                             };
                             state.record_explorer_change(change);
@@ -429,6 +464,9 @@ impl ExplorerState {
                             state.expand_to_path(&new_path_for_update);
                             state.rescan_explorer_worktrees(cx);
                             state.sync_explorer_models(cx);
+                            if state.pending_select.is_none() {
+                                state.edit = None;
+                            }
                             if is_create && !is_dir {
                                 Some(new_path_for_update.clone())
                             } else {
@@ -438,6 +476,7 @@ impl ExplorerState {
                         Err(err) => {
                             if let Some(edit) = state.edit.as_mut() {
                                 edit.processing = false;
+                                edit.processing_filename = None;
                                 edit.validation = Some(ExplorerValidation::Error(err));
                             }
                             None
@@ -464,12 +503,15 @@ impl ExplorerState {
     }
 
     /// Cancel the inline edit, restoring the previous selection.
-    pub(crate) fn discard_explorer_edit(&mut self, cx: &mut App) {
+    pub(crate) fn discard_explorer_edit(&mut self, window: Option<&mut Window>, cx: &mut App) {
         let Some(edit) = self.edit.take() else {
             return;
         };
         self.selected = edit.previously_selected;
         self.rebuild_explorer_entries();
+        if let (Some(window), Some(focus_handle)) = (window, &self.focus_handle) {
+            window.focus(focus_handle, cx);
+        }
         cx.refresh_windows();
     }
 
@@ -480,65 +522,121 @@ impl ExplorerState {
     pub(crate) fn on_explorer_escape(
         &mut self,
         _: &DismissTransientUi,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) {
         if self.edit.is_some() {
-            self.discard_explorer_edit(cx);
+            self.discard_explorer_edit(Some(window), cx);
             cx.stop_propagation();
         }
     }
 
     /// Keyboard handling for the inline filename input.
+    /// Returns `true` if the keystroke was handled and propagation should be stopped.
     pub(crate) fn on_explorer_filename_key_down(
         &mut self,
         event: &KeyDownEvent,
         window: &mut Window,
         cx: &mut App,
-    ) {
+    ) -> bool {
         let Some(edit) = self.edit.as_mut() else {
-            return;
+            return false;
         };
         let keystroke = &event.keystroke;
         // While an IME composition is pending the platform drives edits
         // through the input handler; plain keys only apply outside of it.
         let composing = edit.filename.marked_range.is_some();
         if composing && !matches!(keystroke.key.as_str(), "enter" | "escape" | "backspace") {
-            return;
+            return false;
         }
 
-        if keystroke.modifiers.control || keystroke.modifiers.platform {
-            return; // ctrl/cmd shortcuts are handled via actions
+        let ctrl = keystroke.modifiers.control || keystroke.modifiers.platform;
+        let alt = keystroke.modifiers.alt;
+        let shift = keystroke.modifiers.shift;
+
+        if ctrl && !alt {
+            match keystroke.key.as_str() {
+                "left" => {
+                    edit.filename.move_word_left(shift);
+                    self.autoscroll_explorer_edit(window, cx);
+                    return true;
+                }
+                "right" => {
+                    edit.filename.move_word_right(shift);
+                    self.autoscroll_explorer_edit(window, cx);
+                    return true;
+                }
+                "backspace" => {
+                    edit.filename.delete_word_backward();
+                    self.populate_explorer_validation(cx);
+                    self.autoscroll_explorer_edit(window, cx);
+                    return true;
+                }
+                "delete" => {
+                    edit.filename.delete_word_forward();
+                    self.populate_explorer_validation(cx);
+                    self.autoscroll_explorer_edit(window, cx);
+                    return true;
+                }
+                _ => return false, // other ctrl shortcuts handled via actions
+            }
+        }
+
+        if ctrl || alt {
+            return false;
         }
 
         match keystroke.key.as_str() {
             "enter" => {
                 self.confirm_explorer_edit(window, cx);
-                return;
+                true
             }
             "escape" => {
-                self.discard_explorer_edit(cx);
-                return;
+                self.discard_explorer_edit(Some(window), cx);
+                true
             }
             "backspace" => {
-                if !composing {
+                if let Some(marked) = edit.filename.marked_range.take() {
+                    edit.filename.replace_range(marked, "");
+                } else {
                     edit.filename.delete_backward();
                 }
+                self.populate_explorer_validation(cx);
+                self.autoscroll_explorer_edit(window, cx);
+                true
             }
             "delete" => {
-                if !composing {
+                if let Some(marked) = edit.filename.marked_range.take() {
+                    edit.filename.replace_range(marked, "");
+                } else {
                     edit.filename.delete_forward();
                 }
+                self.populate_explorer_validation(cx);
+                self.autoscroll_explorer_edit(window, cx);
+                true
             }
-            "left" => edit.filename.move_left(keystroke.modifiers.shift),
-            "right" => edit.filename.move_right(keystroke.modifiers.shift),
-            "home" => edit.filename.move_home(keystroke.modifiers.shift),
-            "end" => edit.filename.move_end(keystroke.modifiers.shift),
-            _ => return,
+            "left" => {
+                edit.filename.move_left(shift);
+                self.autoscroll_explorer_edit(window, cx);
+                true
+            }
+            "right" => {
+                edit.filename.move_right(shift);
+                self.autoscroll_explorer_edit(window, cx);
+                true
+            }
+            "home" => {
+                edit.filename.move_home(shift);
+                self.autoscroll_explorer_edit(window, cx);
+                true
+            }
+            "end" => {
+                edit.filename.move_end(shift);
+                self.autoscroll_explorer_edit(window, cx);
+                true
+            }
+            _ => false,
         }
-        self.populate_explorer_validation(cx);
-        self.autoscroll_explorer_edit(window, cx);
-        cx.refresh_windows();
     }
 
     pub(crate) fn on_explorer_filename_copy(

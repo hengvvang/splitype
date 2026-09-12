@@ -165,15 +165,20 @@ impl ExplorerState {
     }
 
     /// Target directory for a paste: the selected directory, the parent of a
-    /// selected file, or the last worktree root.
-    fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
+    /// selected file, or the last worktree root. If a directory is being duplicated
+    /// or pasted into itself, it goes into its parent directory (Zed).
+    pub(crate) fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
+        let clipboard = self.clipboard.as_ref();
         match self.selected {
             Some(sel) => {
-                let path = self.explorer_path_for_id(sel.entry_id)?;
-                if path.is_dir() {
-                    Some(path)
+                let snapshot = self.snapshots.iter().find(|s| s.id() == sel.worktree_id)?;
+                let entry = snapshot.entry_for_id(sel.entry_id)?;
+                let is_dir = entry.kind == crate::state::worktree::WorktreeEntryKind::Directory;
+                let is_in_clipboard = clipboard.is_some_and(|c| c.items().contains(&sel));
+                if is_dir && !is_in_clipboard {
+                    Some(entry.path.clone())
                 } else {
-                    path.parent().map(Path::to_path_buf)
+                    entry.path.parent().map(Path::to_path_buf)
                 }
             }
             _ => self.last_explorer_root_path(),

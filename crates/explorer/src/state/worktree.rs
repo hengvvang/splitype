@@ -29,6 +29,9 @@ pub struct WorktreeId(pub u64);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExplorerEntryId(pub u64);
 
+/// Virtual entry identifier for in-flight creation (mirrors Zed's `NEW_ENTRY_ID`).
+pub const NEW_ENTRY_ID: ExplorerEntryId = ExplorerEntryId(u64::MAX);
+
 // ── Entry model ─────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

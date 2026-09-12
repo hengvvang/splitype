@@ -1,3 +1,4 @@
+use gpui::prelude::*;
 use gpui::*;
 
 use crate::state::ExplorerState;
@@ -51,9 +52,13 @@ impl ExplorerState {
             (file_type_icon(&ext), c.text_default)
         };
 
-        let validation_label = match validation {
-            Some(ExplorerValidation::Warning(message)) => Some((message, c.callout_warning_border)),
-            Some(ExplorerValidation::Error(message)) => Some((message, c.callout_caution_border)),
+        let validation_label = match &validation {
+            Some(ExplorerValidation::Warning(message)) => {
+                Some((message.clone(), c.callout_warning_border))
+            }
+            Some(ExplorerValidation::Error(message)) => {
+                Some((message.clone(), c.callout_caution_border))
+            }
             None => None,
         };
 
@@ -66,14 +71,12 @@ impl ExplorerState {
             .relative()
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
-            .overflow_hidden()
             .flex()
             .items_center()
             .gap(px(6.0))
             .pl(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
             .bg(c.panel_row_hover)
-            .children(Some(ui::selection_indicator(c.focus_accent, px(4.0), px(4.0))))
             .children((0..depth).map(|k| {
                 div()
                     .absolute()
@@ -111,20 +114,59 @@ impl ExplorerState {
                     .track_focus(&focus_handle)
                     .flex_1()
                     .min_w(px(0.0))
-                    .h(px(22.0))
-                    .px(px(4.0))
-                    .rounded(px(2.0))
-                    .bg(c.editor_background)
-                    .border_1()
-                    .border_color(c.focus_accent)
+                    .h(px(EXPLORER_NODE_HEIGHT))
                     .flex()
                     .items_center()
                     .on_key_down({
                         let weak = weak.clone();
                         move |event, window, cx| {
+                            let handled = weak
+                                .update(cx, |state, cx| {
+                                    state.on_explorer_filename_key_down(event, window, cx)
+                                })
+                                .unwrap_or(false);
+                            if handled {
+                                cx.stop_propagation();
+                            }
+                        }
+                    })
+                    .on_action({
+                        let weak = weak.clone();
+                        move |_: &crate::ops::selection::TrashSelectedEntry, window, cx| {
+                            cx.stop_propagation();
                             let _ = weak.update(cx, |state, cx| {
-                                state.on_explorer_filename_key_down(event, window, cx);
+                                if let Some(edit) = state.edit.as_mut() {
+                                    if let Some(marked) = edit.filename.marked_range.take() {
+                                        edit.filename.replace_range(marked, "");
+                                    } else {
+                                        edit.filename.delete_backward();
+                                    }
+                                }
+                                state.populate_explorer_validation(cx);
+                                state.autoscroll_explorer_edit(window, cx);
                             });
+                        }
+                    })
+                    .on_action({
+                        let weak = weak.clone();
+                        move |_: &crate::ops::selection::DeleteSelectedEntry, window, cx| {
+                            cx.stop_propagation();
+                            let _ = weak.update(cx, |state, cx| {
+                                if let Some(edit) = state.edit.as_mut() {
+                                    if let Some(marked) = edit.filename.marked_range.take() {
+                                        edit.filename.replace_range(marked, "");
+                                    } else {
+                                        edit.filename.delete_forward();
+                                    }
+                                }
+                                state.populate_explorer_validation(cx);
+                                state.autoscroll_explorer_edit(window, cx);
+                            });
+                        }
+                    })
+                    .on_action({
+                        move |_: &crate::ops::selection::DuplicateSelectedEntry, _window, cx| {
+                            cx.stop_propagation();
                         }
                     })
                     // The global keymap binds escape to DismissTransientUi;
@@ -172,6 +214,16 @@ impl ExplorerState {
                             });
                         }
                     })
+                    .on_action({
+                        move |_: &crate::ops::selection::UndoFileOperation, _window, cx| {
+                            cx.stop_propagation();
+                        }
+                    })
+                    .on_action({
+                        move |_: &crate::ops::selection::RedoFileOperation, _window, cx| {
+                            cx.stop_propagation();
+                        }
+                    })
                     .on_mouse_down(MouseButton::Left, {
                         let weak = weak.clone();
                         move |event, window, cx| {
@@ -203,15 +255,26 @@ impl ExplorerState {
                         state: state_entity,
                     }),
             )
-            .children(validation_label.map(|(message, color)| {
-                div()
-                    .max_w(px(160.0))
-                    .truncate()
-                    .text_size(px(t.text_size * 0.72))
-                    .text_color(color)
-                    .child(message)
-                    .into_any_element()
-            }))
+            .when_some(validation_label, |this, (message, color)| {
+                this.child(deferred(
+                    div()
+                        .occlude()
+                        .absolute()
+                        .top(px(EXPLORER_NODE_HEIGHT + 2.0))
+                        .left(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT + 42.0))
+                        .right(px(8.0))
+                        .py(px(4.0))
+                        .px(px(8.0))
+                        .rounded(px(4.0))
+                        .border_1()
+                        .border_color(color)
+                        .bg(c.editor_background)
+                        .shadow_md()
+                        .text_size(px(t.text_size * 0.82))
+                        .text_color(color)
+                        .child(message),
+                ))
+            })
             .into_any_element()
     }
 }

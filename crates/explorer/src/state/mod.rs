@@ -39,7 +39,7 @@ use crate::state::undo::ExplorerUndoHistory;
 use crate::state::worktree::{Worktree, WorktreeEntry, WorktreeEntryKind, WorktreeSnapshot};
 
 pub use crate::state::store::WorktreeStore;
-pub use crate::state::worktree::{ExplorerEntryId, WorktreeEvent, WorktreeId};
+pub use crate::state::worktree::{ExplorerEntryId, WorktreeEvent, WorktreeId, NEW_ENTRY_ID};
 
 /// Explorer row right-click menu: a window-level overlay rendered by the
 /// Shell (it must float over every area at window coordinates).
@@ -148,10 +148,11 @@ pub struct ExplorerFilenameEditor {
     pub marked_range: Option<Range<usize>>,
     pub focus_handle: Option<FocusHandle>,
     /// Bounds of the input element from the last frame (IME hit-testing).
-    pub last_bounds: Option<Bounds<Pixels>>,
-    pub last_layout: Option<ShapedLine>,
+    pub last_bounds: std::cell::Cell<Option<Bounds<Pixels>>>,
+    pub last_layout: std::cell::RefCell<Option<ShapedLine>>,
     pub is_selecting: bool,
     pub opened_at: Option<std::time::Instant>,
+    pub scroll_offset: std::cell::Cell<Pixels>,
 }
 
 /// Inline create/rename state (mirrors Zed's `EditState`).
@@ -167,6 +168,7 @@ pub struct ExplorerEditState {
     pub filename: ExplorerFilenameEditor,
     pub previously_selected: Option<SelectedEntry>,
     pub processing: bool,
+    pub processing_filename: Option<String>,
     /// IME host entity registered as the filename input's window handler.
     pub ime_host: Option<Entity<crate::filename_editor::ExplorerFilenameImeHost>>,
 }
@@ -673,6 +675,7 @@ mod tests {
     use super::*;
     use std::cmp::Ordering;
     use std::path::PathBuf;
+    use crate::state::undo::ExplorerChange;
 
     #[test]
     fn test_natural_cmp() {
@@ -1094,6 +1097,47 @@ mod tests {
     }
 
     #[test]
+    fn test_filename_editor_backspace_and_marked_range() {
+        let mut editor = ExplorerFilenameEditor::default();
+
+        // 1. Backspace on empty text does not panic or underflow
+        editor.delete_backward();
+        assert_eq!(editor.text, "");
+        assert_eq!(editor.cursor(), 0);
+
+        // 2. Normal deletion
+        editor.insert_at_selection("hello");
+        assert_eq!(editor.text, "hello");
+        editor.delete_backward();
+        assert_eq!(editor.text, "hell");
+        editor.delete_forward();
+        assert_eq!(editor.text, "hell");
+
+        // 3. Selection deletion
+        editor.selection = 1..3;
+        editor.delete_backward();
+        assert_eq!(editor.text, "hl");
+        assert_eq!(editor.cursor(), 1);
+
+        // 4. Marked range (IME composition) deletion
+        editor.set_text("nihk".to_string(), None);
+        editor.marked_range = Some(2..4);
+        if let Some(marked) = editor.marked_range.take() {
+            editor.replace_range(marked, "");
+        } else {
+            editor.delete_backward();
+        }
+        assert_eq!(editor.text, "ni");
+        assert_eq!(editor.marked_range, None);
+
+        // 5. Interior mutability verification: setting layout, bounds, and scroll does not require &mut
+        editor.last_bounds.set(Some(gpui::Bounds::default()));
+        assert!(editor.last_bounds.get().is_some());
+        editor.scroll_offset.set(gpui::px(42.0));
+        assert_eq!(editor.scroll_offset.get(), gpui::px(42.0));
+    }
+
+    #[test]
     fn test_drag_and_drop_move_to_different_folder() {
         let temp = TestDir::new();
         let folder_a = temp.path().join("folder_a");
@@ -1202,6 +1246,231 @@ mod tests {
         assert!(
             !is_menu_target_path2,
             "file2 should not be recognized as active context menu target"
+        );
+    }
+
+    #[test]
+    fn test_filename_editor_word_motion_and_delete() {
+        let mut editor = ExplorerFilenameEditor::default();
+        editor.set_text("hello_world.test.txt".to_string(), None);
+        assert_eq!(editor.cursor(), 20);
+
+        // Move word left: should stop at "txt" boundary (index 17)
+        editor.move_word_left(false);
+        assert_eq!(editor.cursor(), 17);
+
+        // Move word left: should stop at delimiter "." (index 16)
+        editor.move_word_left(false);
+        assert_eq!(editor.cursor(), 16);
+
+        // Move word left: should stop at "test" boundary (index 12)
+        editor.move_word_left(false);
+        assert_eq!(editor.cursor(), 12);
+
+        // Move word right: should jump over "test" to delimiter (index 16)
+        editor.move_word_right(false);
+        assert_eq!(editor.cursor(), 16);
+
+        // Move word right: should jump over "." to "txt" (index 17)
+        editor.move_word_right(false);
+        assert_eq!(editor.cursor(), 17);
+
+        // Move word right: should jump to end (index 20)
+        editor.move_word_right(false);
+        assert_eq!(editor.cursor(), 20);
+
+        // Delete word backward: deletes "txt"
+        editor.delete_word_backward();
+        assert_eq!(editor.text, "hello_world.test.");
+        assert_eq!(editor.cursor(), 17);
+
+        // Delete word backward: deletes "."
+        editor.delete_word_backward();
+        assert_eq!(editor.text, "hello_world.test");
+        assert_eq!(editor.cursor(), 16);
+
+        // Delete word backward: deletes "test"
+        editor.delete_word_backward();
+        assert_eq!(editor.text, "hello_world.");
+        assert_eq!(editor.cursor(), 12);
+    }
+
+    #[test]
+    fn test_disjoint_explorer_entries() {
+        let wt_id = WorktreeId(1);
+        let root_dir = WorktreeEntry {
+            id: ExplorerEntryId(1),
+            path: PathBuf::from("/workspace/src"),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+        let child_dir = WorktreeEntry {
+            id: ExplorerEntryId(2),
+            path: PathBuf::from("/workspace/src/nested"),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+        let child_file = WorktreeEntry {
+            id: ExplorerEntryId(3),
+            path: PathBuf::from("/workspace/src/nested/main.rs"),
+            kind: WorktreeEntryKind::File,
+            inode: None,
+        };
+        let sibling_file = WorktreeEntry {
+            id: ExplorerEntryId(4),
+            path: PathBuf::from("/workspace/src/lib.rs"),
+            kind: WorktreeEntryKind::File,
+            inode: None,
+        };
+
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+
+        for entry in [&root_dir, &child_dir, &child_file, &sibling_file] {
+            entries_by_path.insert(entry.path.clone(), (*entry).clone());
+            id_for_path.insert(entry.path.clone(), entry.id);
+            path_for_id.insert(entry.id, entry.path.clone());
+        }
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: wt_id,
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent: std::collections::HashMap::new(),
+        });
+
+        let mut state = ExplorerState::default();
+        state.snapshots = vec![snapshot];
+
+        // Scenario: Multi-selection has both `nested` (directory) and `main.rs` (child file)
+        let selections = vec![
+            SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(2), // nested dir
+            },
+            SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(3), // main.rs (inside nested dir)
+            },
+            SelectedEntry {
+                worktree_id: wt_id,
+                entry_id: ExplorerEntryId(4), // lib.rs (sibling)
+            },
+        ];
+
+        let disjoint = state.disjoint_explorer_entries(selections);
+
+        // Child file `main.rs` must be pruned because `nested` is selected
+        assert_eq!(disjoint.len(), 2);
+        assert!(disjoint.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(2),
+        }));
+        assert!(disjoint.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(4),
+        }));
+        assert!(!disjoint.contains(&SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(3),
+        }));
+    }
+
+    #[test]
+    fn test_explorer_paste_target_dir_folder_duplication() {
+        let wt_id = WorktreeId(1);
+        let folder = WorktreeEntry {
+            id: ExplorerEntryId(10),
+            path: PathBuf::from("/workspace/my_folder"),
+            kind: WorktreeEntryKind::Directory,
+            inode: None,
+        };
+
+        let mut entries_by_path = std::collections::BTreeMap::new();
+        let mut id_for_path = std::collections::HashMap::new();
+        let mut path_for_id = std::collections::HashMap::new();
+
+        entries_by_path.insert(folder.path.clone(), folder.clone());
+        id_for_path.insert(folder.path.clone(), folder.id);
+        path_for_id.insert(folder.id, folder.path.clone());
+
+        let snapshot = Arc::new(WorktreeSnapshot {
+            worktree_id: wt_id,
+            entries_by_path,
+            id_for_path,
+            path_for_id,
+            inode_to_id: std::collections::HashMap::new(),
+            dir_child_counts: std::collections::HashMap::new(),
+            children_by_parent: std::collections::HashMap::new(),
+        });
+
+        let mut state = ExplorerState::default();
+        state.snapshots = vec![snapshot];
+
+        let selected = SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(10),
+        };
+        state.selected = Some(selected);
+
+        // When clipboard contains the selected folder (e.g. user duplicated or copied it),
+        // paste target directory MUST pop to parent ("/workspace"), NOT stay as "/workspace/my_folder"!
+        let mut clipboard_items = std::collections::BTreeSet::new();
+        clipboard_items.insert(selected);
+        state.clipboard = Some(ExplorerClipboard::Copied(clipboard_items));
+
+        let target_dir = state.explorer_paste_target_dir();
+        assert_eq!(
+            target_dir,
+            Some(PathBuf::from("/workspace")),
+            "folder duplicate/paste into itself must target parent folder"
+        );
+
+        // When clipboard contains a DIFFERENT item, paste target directory is the folder itself
+        let other_item = SelectedEntry {
+            worktree_id: wt_id,
+            entry_id: ExplorerEntryId(999),
+        };
+        let mut other_clipboard = std::collections::BTreeSet::new();
+        other_clipboard.insert(other_item);
+        state.clipboard = Some(ExplorerClipboard::Copied(other_clipboard));
+
+        let target_dir_other = state.explorer_paste_target_dir();
+        assert_eq!(
+            target_dir_other,
+            Some(PathBuf::from("/workspace/my_folder")),
+            "pasting a different item into a directory must target that directory"
+        );
+    }
+
+    #[test]
+    fn test_non_destructive_redo() {
+        let unique_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let file_path = std::env::temp_dir().join(format!("splitype_test_redo_{unique_id}.txt"));
+
+        // Write initial content
+        std::fs::write(&file_path, "important content").unwrap();
+
+        let change = ExplorerChange::Created {
+            path: file_path.clone(),
+            is_dir: false,
+        };
+
+        // Redo should NOT overwrite existing file with empty string!
+        let redo_result = crate::state::undo::execute_explorer_change(&change);
+        assert!(redo_result.is_ok());
+
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert_eq!(
+            content, "important content",
+            "redo must never overwrite existing content with empty string"
         );
     }
 }

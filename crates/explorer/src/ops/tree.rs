@@ -186,6 +186,9 @@ impl ExplorerState {
                     self.expand_to_path(&path_clone);
                 }
                 self.pending_select = None;
+                if self.edit.as_ref().is_some_and(|e| e.processing) {
+                    self.edit = None;
+                }
             }
             return;
         }

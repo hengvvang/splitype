@@ -137,9 +137,17 @@ impl ExplorerState {
         .min_h(px(0.0))
         .py(px(4.0));
 
+        let mut key_ctx = KeyContext::new_with_defaults();
+        key_ctx.add("ExplorerPanel");
+        if self.edit.is_some() {
+            key_ctx.add("editing");
+        } else {
+            key_ctx.add("not_editing");
+        }
+
         let mut root = div()
             .id(("explorer-root", panel_id.as_usize()))
-            .key_context("ExplorerPanel");
+            .key_context(key_ctx);
         if let Some(handle) = self.focus_handle.as_ref() {
             root = root.track_focus(handle);
         }

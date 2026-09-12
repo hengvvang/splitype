@@ -83,11 +83,14 @@ impl ExplorerFilenameEditor {
         if self.text.is_empty() {
             return 0;
         }
-        let (Some(bounds), Some(line)) = (self.last_bounds.as_ref(), self.last_layout.as_ref())
-        else {
+        let Some(bounds) = self.last_bounds.get() else {
             return 0;
         };
-        let rel_x = position.x - bounds.left();
+        let layout_ref = self.last_layout.borrow();
+        let Some(line) = layout_ref.as_ref() else {
+            return 0;
+        };
+        let rel_x = position.x - bounds.left() + self.scroll_offset.get();
         line.closest_index_for_x(rel_x)
     }
 
@@ -220,6 +223,94 @@ impl ExplorerFilenameEditor {
         } else {
             self.selection = cursor..cursor;
             self.reversed = false;
+        }
+    }
+
+    fn is_word_char(ch: char) -> bool {
+        ch.is_alphanumeric() || ch == '_'
+    }
+
+    pub(crate) fn prev_word_boundary(&self, offset: usize) -> usize {
+        if offset == 0 || self.text.is_empty() {
+            return 0;
+        }
+        let chars: Vec<(usize, char)> = self.text.char_indices().collect();
+        let current_idx = chars
+            .iter()
+            .position(|&(idx, _)| idx >= offset)
+            .unwrap_or(chars.len());
+        if current_idx == 0 {
+            return 0;
+        }
+        let mut i = current_idx - 1;
+        let start_is_word = Self::is_word_char(chars[i].1);
+        while i > 0 && Self::is_word_char(chars[i - 1].1) == start_is_word {
+            i -= 1;
+        }
+        chars[i].0
+    }
+
+    pub(crate) fn next_word_boundary(&self, offset: usize) -> usize {
+        if self.text.is_empty() {
+            return 0;
+        }
+        let chars: Vec<(usize, char)> = self.text.char_indices().collect();
+        let current_idx = chars
+            .iter()
+            .position(|&(idx, _)| idx >= offset)
+            .unwrap_or(chars.len());
+        if current_idx >= chars.len() {
+            return self.text.len();
+        }
+        let mut i = current_idx;
+        let start_is_word = Self::is_word_char(chars[i].1);
+        while i < chars.len() && Self::is_word_char(chars[i].1) == start_is_word {
+            i += 1;
+        }
+        if i < chars.len() {
+            chars[i].0
+        } else {
+            self.text.len()
+        }
+    }
+
+    pub(crate) fn move_word_left(&mut self, extend: bool) {
+        let cursor = self.cursor();
+        let anchor = self.selection_anchor();
+        let target = self.prev_word_boundary(cursor);
+        self.set_cursor(target, anchor, extend);
+    }
+
+    pub(crate) fn move_word_right(&mut self, extend: bool) {
+        let cursor = self.cursor();
+        let anchor = self.selection_anchor();
+        let target = self.next_word_boundary(cursor);
+        self.set_cursor(target, anchor, extend);
+    }
+
+    pub(crate) fn delete_word_backward(&mut self) {
+        let range = self.selection_range();
+        if !range.is_empty() {
+            self.replace_range(range, "");
+            return;
+        }
+        let cursor = self.cursor();
+        if cursor > 0 {
+            let start = self.prev_word_boundary(cursor);
+            self.replace_range(start..cursor, "");
+        }
+    }
+
+    pub(crate) fn delete_word_forward(&mut self) {
+        let range = self.selection_range();
+        if !range.is_empty() {
+            self.replace_range(range, "");
+            return;
+        }
+        let cursor = self.cursor();
+        if cursor < self.text.len() {
+            let end = self.next_word_boundary(cursor);
+            self.replace_range(cursor..end, "");
         }
     }
 }

@@ -30,6 +30,7 @@ pub struct ExplorerFilenamePrepaintState {
     selection: Option<PaintQuad>,
     cursor: Option<PaintQuad>,
     hitbox: Option<Hitbox>,
+    scroll_offset: Pixels,
 }
 
 /// Custom element painting the inline filename text, selection, cursor, and
@@ -86,22 +87,20 @@ impl Element for ExplorerFilenameInputElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let theme = cx.global::<ThemeManager>().current_arc();
-        let Some(edit) = self.state.read(cx).edit.clone() else {
+        let state = self.state.read(cx);
+        let Some(edit) = state.edit.as_ref() else {
             return ExplorerFilenamePrepaintState {
                 line: None,
                 selection: None,
                 cursor: None,
                 hitbox: None,
+                scroll_offset: px(0.0),
             };
         };
         let filename = &edit.filename;
 
-        // Remember the bounds for IME hit-testing.
-        self.state.update(cx, |state, _cx| {
-            if let Some(edit) = state.edit.as_mut() {
-                edit.filename.last_bounds = Some(bounds);
-            }
-        });
+        // Remember the bounds for IME hit-testing (interior mutability, pure read).
+        filename.last_bounds.set(Some(bounds));
 
         let text: SharedString = filename.text.clone().into();
         let focused = filename
@@ -146,20 +145,47 @@ impl Element for ExplorerFilenameInputElement {
             vec![base_run]
         };
 
-        let font_size = window.text_style().font_size.to_pixels(window.rem_size());
+        let font_size = px(theme.typography.text_size * 0.9);
         let line = window
             .text_system()
             .shape_line(text, font_size, &runs, None);
         let line_height = bounds.size.height;
         let selection_range = filename.selection_range();
         let is_editing = self.state.read(cx).edit.is_some();
+
+        let raw_cursor_x = line.x_for_index(if filename.reversed {
+            filename.selection.start
+        } else {
+            filename.selection.end
+        });
+
+        // Compute horizontal scroll offset so cursor stays visible within input box bounds
+        let available_w = bounds.size.width.max(px(0.0));
+        let mut scroll_offset = filename.scroll_offset.get();
+        if raw_cursor_x - scroll_offset > available_w {
+            scroll_offset = raw_cursor_x - available_w;
+        } else if raw_cursor_x - scroll_offset < px(0.0) {
+            scroll_offset = raw_cursor_x;
+        }
+        let total_w = line.width();
+        if total_w <= available_w {
+            scroll_offset = px(0.0);
+        } else if scroll_offset > total_w - available_w {
+            scroll_offset = total_w - available_w;
+        }
+        let scroll_offset = scroll_offset.max(px(0.0));
+
+        filename.scroll_offset.set(scroll_offset);
+
         let selection = if (focused || is_editing) && !selection_range.is_empty() {
-            let start = line.x_for_index(selection_range.start);
-            let end = line.x_for_index(selection_range.end);
+            let start = line.x_for_index(selection_range.start) - scroll_offset;
+            let end = line.x_for_index(selection_range.end) - scroll_offset;
+            let sel_height = font_size * 1.35;
+            let sel_y = bounds.top() + (line_height - sel_height) / 2.0;
             Some(fill(
                 Bounds::from_corners(
-                    point(bounds.left() + start, bounds.top()),
-                    point(bounds.left() + end, bounds.bottom()),
+                    point(bounds.left() + start, sel_y),
+                    point(bounds.left() + end, sel_y + sel_height),
                 ),
                 theme.colors.selection,
             ))
@@ -167,17 +193,15 @@ impl Element for ExplorerFilenameInputElement {
             None
         };
         let cursor = if (focused || is_editing) && selection_range.is_empty() {
-            let cursor_x = line.x_for_index(if filename.reversed {
-                filename.selection.start
-            } else {
-                filename.selection.end
-            });
+            let cursor_x = raw_cursor_x - scroll_offset;
             let mut cursor_color = theme.colors.cursor;
             cursor_color.a = 1.0;
+            let cursor_height = font_size * 1.25;
+            let cursor_y = bounds.top() + (line_height - cursor_height) / 2.0;
             Some(fill(
                 Bounds::new(
-                    point(bounds.left() + cursor_x, bounds.top()),
-                    size(px(theme.dimensions.cursor_width), line_height),
+                    point(bounds.left() + cursor_x, cursor_y),
+                    size(px(theme.dimensions.cursor_width.max(1.5)), cursor_height),
                 ),
                 cursor_color,
             ))
@@ -191,6 +215,7 @@ impl Element for ExplorerFilenameInputElement {
             selection,
             cursor,
             hitbox,
+            scroll_offset,
         }
     }
 
@@ -224,29 +249,31 @@ impl Element for ExplorerFilenameInputElement {
             );
         }
 
-        if let Some(selection) = prepaint.selection.take() {
-            window.paint_quad(selection);
-        }
+        window.with_content_mask(Some(ContentMask { bounds }), |window| {
+            if let Some(selection) = prepaint.selection.take() {
+                window.paint_quad(selection);
+            }
 
-        if let Some(line) = prepaint.line.take() {
-            self.state.update(cx, |state, _cx| {
-                if let Some(edit) = state.edit.as_mut() {
-                    edit.filename.last_layout = Some(line.clone());
+            if let Some(line) = prepaint.line.take() {
+                if let Some(edit) = self.state.read(cx).edit.as_ref() {
+                    *edit.filename.last_layout.borrow_mut() = Some(line.clone());
                 }
-            });
-            line.paint(
-                bounds.origin,
-                bounds.size.height,
-                TextAlign::Left,
-                None,
-                window,
-                cx,
-            )
-            .ok();
-        }
+                let scroll_offset = prepaint.scroll_offset;
+                let origin = point(bounds.origin.x - scroll_offset, bounds.origin.y);
+                line.paint(
+                    origin,
+                    bounds.size.height,
+                    TextAlign::Left,
+                    None,
+                    window,
+                    cx,
+                )
+                .ok();
+            }
 
-        if let Some(cursor) = prepaint.cursor.take() {
-            window.paint_quad(cursor);
-        }
+            if let Some(cursor) = prepaint.cursor.take() {
+                window.paint_quad(cursor);
+            }
+        });
     }
 }

@@ -341,6 +341,30 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
             label: |_| SharedString::from("Open Selected"),
             make_action: || Box::new(explorer::ops::selection::OpenSelectedEntry),
         },
+        ("splitype.explorer", "duplicate") => CommandBinding {
+            label: |_| SharedString::from("Duplicate"),
+            make_action: || Box::new(explorer::ops::selection::DuplicateSelectedEntry),
+        },
+        ("splitype.explorer", "undo") => CommandBinding {
+            label: |_| SharedString::from("Undo File Operation"),
+            make_action: || Box::new(explorer::ops::selection::UndoFileOperation),
+        },
+        ("splitype.explorer", "redo") => CommandBinding {
+            label: |_| SharedString::from("Redo File Operation"),
+            make_action: || Box::new(explorer::ops::selection::RedoFileOperation),
+        },
+        ("splitype.explorer", "copy") => CommandBinding {
+            label: |_| SharedString::from("Copy"),
+            make_action: || Box::new(platform_contracts::actions::Copy),
+        },
+        ("splitype.explorer", "cut") => CommandBinding {
+            label: |_| SharedString::from("Cut"),
+            make_action: || Box::new(platform_contracts::actions::Cut),
+        },
+        ("splitype.explorer", "paste") => CommandBinding {
+            label: |_| SharedString::from("Paste"),
+            make_action: || Box::new(platform_contracts::actions::Paste),
+        },
         _ => return None,
     })
 }
