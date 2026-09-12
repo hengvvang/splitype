@@ -129,9 +129,9 @@ fn split_line_vertical(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
 
 /// A prompt hint pairing a bold key/action tag (黑体字) with a muted functional explanation (灰体字).
 #[derive(Clone, Copy, Debug)]
-struct ActionHint {
-    key: &'static str,
-    desc: &'static str,
+pub struct ActionHint {
+    pub key: &'static str,
+    pub desc: &'static str,
 }
 
 const SPLIT_HINTS: &[ActionHint] = &[
@@ -201,7 +201,7 @@ fn split_preview_overlay(
 
 /// Cursor-following operation tooltip panel matching Blender's area drag status indicator.
 /// Positioned dynamically near the mouse pointer and clamped inside the window bounds.
-fn cursor_action_panel(
+pub fn cursor_action_panel(
     pointer_pos: Option<Point<Pixels>>,
     container_size: Size<Pixels>,
     icon_path: Option<&'static str>,

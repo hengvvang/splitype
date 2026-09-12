@@ -81,15 +81,112 @@ impl Render for Editor {
                 leaf_count,
                 is_maximized,
                 cx,
-            ))
-            .child(
-                div()
-                    .w_full()
-                    .flex_1()
-                    .min_h(px(0.0))
-                    .relative()
-                    .child(self.render_editor_pane_layout(&theme, &strings, window, cx)),
-            )
+            ));
+        let content_body_editor = cx.entity().downgrade();
+        let content_drop_editor = cx.entity().downgrade();
+
+        let mut content_body = div()
+            .id(("editor-content-body", panel_id.as_usize()))
+            .w_full()
+            .flex_1()
+            .min_h(px(0.0))
+            .relative()
+            .on_drag_move::<crate::layout::tab_drag::DraggedTab>({
+                let content_body_editor = content_body_editor.clone();
+                move |event, _window, cx| {
+                    let bounds = event.bounds;
+                    let pos = event.event.position;
+                    if bounds.size.width > px(0.0) && bounds.size.height > px(0.0) {
+                        let rel_x = f32::from(pos.x - bounds.origin.x) / f32::from(bounds.size.width);
+                        let rel_y = f32::from(pos.y - bounds.origin.y) / f32::from(bounds.size.height);
+                        let target = crate::layout::tab_drag::calc_tab_dock_target(rel_x, rel_y);
+                        let shift_held = event.event.modifiers.shift;
+                        let pointer_pos = point(pos.x - bounds.origin.x, pos.y - bounds.origin.y);
+                        let _ = content_body_editor.update(cx, |ed, cx| {
+                            ed.tab_drag_hover = Some(crate::layout::tab_drag::TabDragHoverState {
+                                target,
+                                shift_held,
+                                pointer_pos,
+                            });
+                            cx.notify();
+                        });
+                    }
+                }
+            })
+            .on_drop::<crate::layout::tab_drag::DraggedTab>({
+                let content_drop_editor = content_drop_editor.clone();
+                move |dragged, _window, cx| {
+                    let _ = content_drop_editor.update(cx, |ed, cx| {
+                        let hover = ed.tab_drag_hover.take();
+                        if let Some(hover) = hover {
+                            match hover.target {
+                                crate::layout::tab_drag::TabDockTarget::MergeCenter => {
+                                    if dragged.source_panel_id == ed.panel_id {
+                                        let last = ed.session.tab_count().saturating_sub(1);
+                                        ed.reorder_tab(dragged.source_tab_index, last, cx);
+                                    } else {
+                                        let source_panel = dragged.source_panel_id;
+                                        let tab_idx = dragged.source_tab_index;
+                                        ed.defer_host_action(cx, move |host, cx| {
+                                            host.split_editor_with_tab(
+                                                source_panel,
+                                                tab_idx,
+                                                splitter::Direction::Right,
+                                                false,
+                                                cx,
+                                            );
+                                        });
+                                    }
+                                }
+                                crate::layout::tab_drag::TabDockTarget::InnerPane(dir) => {
+                                    if dragged.source_panel_id == ed.panel_id {
+                                        if dragged.source_tab_index != ed.session.active_tab_index() {
+                                            ed.activate_tab(dragged.source_tab_index, cx);
+                                        }
+                                        let axis = match dir {
+                                            splitter::Direction::Up | splitter::Direction::Down => splitter::SplitAxis::Vertical,
+                                            splitter::Direction::Left | splitter::Direction::Right => splitter::SplitAxis::Horizontal,
+                                        };
+                                        let active_pane = ed.active_pane_id();
+                                        ed.split_pane_with_ratio(active_pane, axis, 0.5);
+                                    }
+                                }
+                                crate::layout::tab_drag::TabDockTarget::OuterEditor(dir) => {
+                                    let source_panel = dragged.source_panel_id;
+                                    let tab_idx = dragged.source_tab_index;
+                                    let copy_tab = hover.shift_held;
+                                    ed.defer_host_action(cx, move |host, cx| {
+                                        host.split_editor_with_tab(
+                                            source_panel,
+                                            tab_idx,
+                                            dir,
+                                            copy_tab,
+                                            cx,
+                                        );
+                                    });
+                                }
+                            }
+                        }
+                        cx.notify();
+                    });
+                }
+            })
+            .child(self.render_editor_pane_layout(&theme, &strings, window, cx));
+
+        if let Some(hover) = &self.tab_drag_hover {
+            let container_size = self
+                .panel_rect
+                .map(|r| r.size)
+                .unwrap_or_else(|| window.viewport_size());
+            content_body = content_body.child(crate::layout::tab_drag::render_tab_drag_compass(
+                hover,
+                container_size,
+                &theme,
+            ));
+        }
+
+        let base = base
+            .child(content_body)
             .child(self.render_editor_bottombar(&theme, &strings, cx));
 
         let base =

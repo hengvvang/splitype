@@ -57,6 +57,17 @@ pub trait DocumentPanel: PanelView {
     /// Close every tab without prompting.
     fn clear_tabs(&mut self, cx: &mut App);
 
+    /// Extracts or clones a single tab at `index` as a standalone single-tab session state.
+    /// When `copy_tab` is false, removes the tab from this panel.
+    fn take_tab_session(
+        &mut self,
+        _index: usize,
+        _copy_tab: bool,
+        _cx: &mut App,
+    ) -> Option<Box<dyn std::any::Any>> {
+        None
+    }
+
     // ── Unsaved-changes confirmation dialog ─────────────────────────────
 
     /// Whether any tab currently requests the unsaved-changes dialog.

@@ -54,6 +54,8 @@ pub struct Editor {
     /// Last known render width per pane id. Preserves pane layout width across tab switches
     /// so newly mounted tabs do not suffer from a 0-width initial frame offset shift.
     pub last_pane_widths: HashMap<PaneId, f32>,
+    /// Active drag-hover state when a tab is dragged over this editor.
+    pub tab_drag_hover: Option<crate::layout::tab_drag::TabDragHoverState>,
 }
 
 impl Editor {
@@ -77,6 +79,7 @@ impl Editor {
             buffer_subscriptions: HashMap::new(),
             documents_released: false,
             last_pane_widths: HashMap::new(),
+            tab_drag_hover: None,
         };
         let buffers: Vec<Entity<DocumentBuffer>> = editor
             .session
@@ -260,6 +263,13 @@ impl Editor {
         if self.search.visible {
             self.execute_search(cx);
         }
+        cx.notify();
+    }
+
+    /// Reorders the tab from `from` index to `to` index.
+    pub fn reorder_tab(&mut self, from: usize, to: usize, cx: &mut Context<Self>) {
+        self.session.reorder_tab(from, to);
+        self.sync_panes_with_active_tab(cx);
         cx.notify();
     }
 

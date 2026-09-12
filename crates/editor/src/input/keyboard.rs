@@ -33,10 +33,11 @@ impl Editor {
     /// applying them), the border context menu, and open pane-kind
     /// dropdowns. Returns whether anything was dismissed.
     pub fn dismiss_transient_ui(&mut self, cx: &mut Context<Self>) -> bool {
+        let had_tab_drag = self.tab_drag_hover.take().is_some();
         let cancelled_drag = self.session.root.cancel_drag_gesture();
         let closed_menu = self.session.root.interaction.clear_border_menu();
         let closed_dropdown = self.session.root.interaction.clear_dropdowns();
-        let handled = cancelled_drag || closed_menu || closed_dropdown;
+        let handled = had_tab_drag || cancelled_drag || closed_menu || closed_dropdown;
         if handled {
             cx.notify();
         }

@@ -4,6 +4,12 @@
 pub(crate) mod drag;
 pub(crate) mod menu;
 pub(crate) mod node;
+pub mod tab_drag;
+
+pub use tab_drag::{
+    calc_tab_dock_target, render_tab_drag_compass, DraggedTab, DraggedTabView, TabDockTarget,
+    TabDragHoverState,
+};
 
 use gpui::*;
 

@@ -238,6 +238,51 @@ impl DocumentPanel for EditorPanelView {
         });
     }
 
+    fn take_tab_session(
+        &mut self,
+        index: usize,
+        copy_tab: bool,
+        cx: &mut App,
+    ) -> Option<Box<dyn std::any::Any>> {
+        self.editor.update(cx, |editor, cx| {
+            let active_kind = editor.active_pane_kind();
+            if copy_tab {
+                let tab = editor.session.tab(index)?;
+                let buffer_id = tab.buffer.read(cx).id;
+                let tab_kind = tab.kind;
+                let mut tab_list = crate::session::EditorTabList::new();
+                tab_list.push(crate::session::PersistedTab {
+                    buffer: buffer_id,
+                    kind: tab_kind,
+                });
+                let session = crate::session::PersistedEditorSession {
+                    tab_list,
+                    tree: splitter::SplitTree::Leaf(splitter::SplitterContainer::new(
+                        1,
+                        active_kind,
+                    )),
+                    allocator: splitter::NodeIdAllocator::with_start(2),
+                };
+                Some(Box::new(session) as Box<dyn std::any::Any>)
+            } else {
+                let tab = editor.session.close_tab(index)?;
+                if editor.session.has_tabs() {
+                    let active_idx = editor.session.active_tab_index();
+                    editor.activate_tab(active_idx, cx);
+                } else {
+                    cx.notify();
+                }
+                let mut tab_list = crate::session::EditorTabList::new();
+                tab_list.push(tab);
+                let session = crate::session::EditorSession {
+                    tab_list,
+                    root: splitter::SplitterRoot::single_leaf(1, active_kind),
+                };
+                Some(Box::new(session) as Box<dyn std::any::Any>)
+            }
+        })
+    }
+
     fn has_unsaved_dialog(&self, cx: &App) -> bool {
         let editor = self.editor.read(cx);
         editor

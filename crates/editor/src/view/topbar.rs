@@ -193,7 +193,7 @@ impl Editor {
         {
             let list = self.tab_list_mut();
             let active_tab = list.active_index();
-            let tab_infos: Vec<(String, bool, bool)> = list
+            let tab_infos: Vec<(String, bool, bool, editor_contracts::DocumentId)> = list
                 .iter()
                 .map(|tab| {
                     let buffer = tab.buffer.read(cx);
@@ -202,12 +202,12 @@ impl Editor {
                         .as_ref()
                         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
                         .unwrap_or_else(|| "Untitled".to_string());
-                    (name, tab.is_transient(), buffer.dirty)
+                    (name, tab.is_transient(), buffer.dirty, buffer.id)
                 })
                 .collect();
 
             let mut tab_elements: Vec<AnyElement> = Vec::new();
-            for (index, (file_name, is_transient, _is_dirty)) in tab_infos.iter().enumerate() {
+            for (index, (file_name, is_transient, _is_dirty, doc_id)) in tab_infos.iter().enumerate() {
                 let is_active = index == active_tab;
                 let tab_bg = if is_active {
                     c.panel_row_hover
@@ -222,6 +222,14 @@ impl Editor {
 
                 let tab_editor = editor.clone();
                 let close_editor = editor.clone();
+                let drop_editor = editor.clone();
+
+                let drag_payload = crate::layout::tab_drag::DraggedTab {
+                    source_panel_id: panel_id,
+                    source_tab_index: index,
+                    document_id: *doc_id,
+                    title: SharedString::from(file_name.clone()),
+                };
 
                 let mut title_div = div()
                     .text_color(tab_text)
@@ -234,6 +242,7 @@ impl Editor {
 
                 let height = toolbar_button_size(d.topbar_height);
                 let tab_button = div()
+                    .id(("editor-tab", index))
                     .h(px(height))
                     .px(px(6.0))
                     .flex()
@@ -244,6 +253,21 @@ impl Editor {
                     .hover(|this| this.bg(c.panel_row_hover))
                     .text_size(px(11.0))
                     .cursor_pointer()
+                    .on_drag(drag_payload, move |payload, _offset, _window, cx| {
+                        cx.new(|_| crate::layout::tab_drag::DraggedTabView::new(payload.title.clone()))
+                    })
+                    .on_drop::<crate::layout::tab_drag::DraggedTab>({
+                        let drop_editor = drop_editor.clone();
+                        move |dragged, _window, cx| {
+                            let _ = drop_editor.update(cx, |ed, cx| {
+                                if dragged.source_panel_id == panel_id {
+                                    ed.reorder_tab(dragged.source_tab_index, index, cx);
+                                }
+                                ed.tab_drag_hover = None;
+                                cx.notify();
+                            });
+                        }
+                    })
                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                         let is_double = event.click_count > 1;
                         let _ = tab_editor.update(cx, |ed, cx| {
@@ -316,11 +340,26 @@ impl Editor {
                     .into_any_element(),
             );
 
+            let bar_drop_editor = editor.clone();
             left_section = left_section.child(
                 div()
+                    .id(("tab-bar-container", panel_id.as_usize()))
                     .flex()
                     .items_center()
                     .gap(px(2.0))
+                    .on_drop::<crate::layout::tab_drag::DraggedTab>({
+                        let bar_drop_editor = bar_drop_editor.clone();
+                        move |dragged, _window, cx| {
+                            let _ = bar_drop_editor.update(cx, |ed, cx| {
+                                if dragged.source_panel_id == panel_id {
+                                    let last = ed.session.tab_count().saturating_sub(1);
+                                    ed.reorder_tab(dragged.source_tab_index, last, cx);
+                                }
+                                ed.tab_drag_hover = None;
+                                cx.notify();
+                            });
+                        }
+                    })
                     .children(tab_elements),
             );
         }

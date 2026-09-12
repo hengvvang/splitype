@@ -14,4 +14,4 @@ pub mod chrome;
 pub mod drag_preview;
 
 pub use chrome::{OverlayStyle, border_menu_style, overlay_container};
-pub use drag_preview::render_corner_drag_preview;
+pub use drag_preview::{ActionHint, cursor_action_panel, render_corner_drag_preview};

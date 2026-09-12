@@ -80,4 +80,17 @@ impl DocumentHost for ShellDocumentHost {
     fn record_recent_file(&self, path: &Path, cx: &mut App) {
         record_recent_file_and_refresh(path, cx);
     }
+
+    fn split_editor_with_tab(
+        &self,
+        source_panel: PanelId,
+        tab_index: usize,
+        direction: splitter::Direction,
+        copy_tab: bool,
+        cx: &mut App,
+    ) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.split_editor_with_tab(source_panel, tab_index, direction, copy_tab, cx);
+        });
+    }
 }

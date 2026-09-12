@@ -111,6 +111,21 @@ impl<T> EditorTabList<T> {
         Some(removed)
     }
 
+    pub fn move_tab(&mut self, from: usize, to: usize) {
+        if from >= self.tabs.len() || to >= self.tabs.len() || from == to {
+            return;
+        }
+        let tab = self.tabs.remove(from);
+        self.tabs.insert(to, tab);
+        if self.active_tab == from {
+            self.active_tab = to;
+        } else if from < self.active_tab && to >= self.active_tab {
+            self.active_tab -= 1;
+        } else if from > self.active_tab && to <= self.active_tab {
+            self.active_tab += 1;
+        }
+    }
+
     #[inline]
     pub fn clear(&mut self) {
         self.tabs.clear();
@@ -246,6 +261,11 @@ impl EditorSession {
     #[inline]
     pub fn close_tab(&mut self, index: usize) -> Option<DocumentTab> {
         self.tab_list.close_tab(index)
+    }
+
+    #[inline]
+    pub fn reorder_tab(&mut self, from: usize, to: usize) {
+        self.tab_list.move_tab(from, to);
     }
 
     #[inline]

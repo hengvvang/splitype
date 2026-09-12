@@ -44,6 +44,49 @@ impl Shell {
         Some(PanelId::from(new_id))
     }
 
+    /// Splits an editor panel along `direction` carrying `tab_index`.
+    /// When `copy_tab` is false, moves the tab; when true, duplicates it.
+    pub(crate) fn split_editor_with_tab(
+        &mut self,
+        source_panel: impl Into<PanelId>,
+        tab_index: usize,
+        direction: splitter::Direction,
+        copy_tab: bool,
+        cx: &mut Context<Self>,
+    ) -> Option<PanelId> {
+        if self.panels.layout.interaction.is_maximized() {
+            return None;
+        }
+        let source_panel = source_panel.into();
+        let kind = self.panels.layout.tree.find_leaf_kind(source_panel.0)?;
+        let state = self
+            .document_panel_mut_for(source_panel)?
+            .take_tab_session(tab_index, copy_tab, cx)?;
+        let axis = match direction {
+            splitter::Direction::Up | splitter::Direction::Down => SplitAxis::Vertical,
+            splitter::Direction::Left | splitter::Direction::Right => SplitAxis::Horizontal,
+        };
+        let new_leaf = self.panels.layout.split_leaf(source_panel.0, axis, 0.5).ok()?;
+        let new_panel = PanelId::from(new_leaf);
+
+        let target_new_panel = if matches!(direction, splitter::Direction::Left | splitter::Direction::Up) {
+            if let Some(mut existing_view) = self.panel_views.remove(&source_panel) {
+                existing_view.set_panel_id(new_panel, cx);
+                self.insert_panel_view(new_panel, existing_view, cx);
+            }
+            self.restore_retained_view(source_panel, kind, state, cx);
+            source_panel
+        } else {
+            self.restore_retained_view(new_panel, kind, state, cx);
+            new_panel
+        };
+
+        self.activate_panel(target_new_panel, cx);
+        self.push_active_document_context(cx);
+        cx.notify();
+        Some(target_new_panel)
+    }
+
     /// Split at an internal divider via context menu or shortcut.
     pub(crate) fn split_panel_divider(
         &mut self,

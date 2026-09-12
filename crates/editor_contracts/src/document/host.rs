@@ -26,4 +26,14 @@ pub trait DocumentHost: Send + Sync + 'static {
     /// the shell decides which window-level services need to react.
     fn on_document_path_changed(&self, cx: &mut App);
     fn record_recent_file(&self, path: &Path, cx: &mut App);
+    /// Splits an editor panel along `direction` carrying `tab_index`.
+    /// When `copy_tab` is false, moves the tab; when true, duplicates it.
+    fn split_editor_with_tab(
+        &self,
+        source_panel: PanelId,
+        tab_index: usize,
+        direction: splitter::Direction,
+        copy_tab: bool,
+        cx: &mut App,
+    );
 }
