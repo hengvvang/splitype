@@ -58,6 +58,8 @@ pub struct Editor {
     pub tab_drag_hover: Option<crate::layout::tab_drag::TabDragHoverState>,
     /// Active tab reorder target index when a tab is dragged over this editor's tab bar.
     pub tab_reorder_target: Option<usize>,
+    /// Navigation history stack tracking jump locations across documents and anchors.
+    pub jump_stack: crate::session::EditorJumpStack,
 }
 
 impl Editor {
@@ -83,6 +85,7 @@ impl Editor {
             last_pane_widths: HashMap::new(),
             tab_drag_hover: None,
             tab_reorder_target: None,
+            jump_stack: crate::session::EditorJumpStack::new(),
         };
         let buffers: Vec<Entity<DocumentBuffer>> = editor
             .session
@@ -276,26 +279,16 @@ impl Editor {
         cx.notify();
     }
 
-    /// Opens a file in this editor's tab list: activates its tab if the
-    /// shared buffer is already shown here, otherwise opens the document
-    /// through the store (reusing the in-memory buffer when it exists).
-    pub fn open_file_in_panel(
+    /// Opens a file in this editor's tab list without splitting the window.
+    pub fn open_file(
         &mut self,
         path: &std::path::Path,
         kind: TabKind,
-        window: &mut Window,
         cx: &mut Context<Self>,
-    ) {
+    ) -> Result<(), String> {
         let buffer = match DocumentStore::open(path, cx) {
             Ok(buffer) => buffer,
-            Err(err) => {
-                self.show_drop_open_failed_prompt(
-                    format!("failed to read '{}': {err}", path.display()),
-                    window,
-                    cx,
-                );
-                return;
-            }
+            Err(err) => return Err(format!("failed to read '{}': {err}", path.display())),
         };
         if let Some(index) = self
             .session
@@ -309,7 +302,7 @@ impl Editor {
                 }
             }
             self.activate_tab(index, cx);
-            return;
+            return Ok(());
         }
 
         let snapshot = buffer.read(cx).snapshot();
@@ -330,14 +323,297 @@ impl Editor {
                 self.detach_tab(&old, cx);
                 self.activate_tab(index, cx);
                 self.record_recent_file(path, cx);
-                return;
+                return Ok(());
             }
         }
 
         self.attach_tab(tab, cx);
         self.activate_tab(self.session.tab_count() - 1, cx);
         self.record_recent_file(path, cx);
+        Ok(())
     }
+
+    /// Opens a file in this editor's tab list: activates its tab if the
+    /// shared buffer is already shown here, otherwise opens the document
+    /// through the store (reusing the in-memory buffer when it exists).
+    pub fn open_file_in_panel(
+        &mut self,
+        path: &std::path::Path,
+        kind: TabKind,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Err(err) = self.open_file(path, kind, cx) {
+            self.show_drop_open_failed_prompt(err, window, cx);
+        }
+    }
+
+    /// Captures the current jump location for back/forward navigation.
+    pub fn current_jump_point(&self, cx: &App) -> Option<crate::session::JumpPoint> {
+        let tab = self.session.active_tab()?;
+        let buffer = tab.buffer.read(cx);
+        let pane_id = self.active_pane_id();
+        let scroll_y = self
+            .pane_state_ref(pane_id)
+            .map(|s| f32::from(-s.scroll.handle.offset().y))
+            .unwrap_or(0.0);
+        Some(crate::session::JumpPoint {
+            document_id: buffer.id,
+            file_path: buffer.path.clone(),
+            scroll_y,
+        })
+    }
+
+    /// Navigates back to the previous jump point (Alt+Left).
+    pub fn navigate_back(&mut self, cx: &mut Context<Self>) {
+        let Some(current) = self.current_jump_point(cx) else {
+            return;
+        };
+        let Some(target) = self.jump_stack.pop_back(current) else {
+            return;
+        };
+        self.restore_jump_point(target, cx);
+    }
+
+    /// Navigates forward to the next jump point (Alt+Right).
+    pub fn navigate_forward(&mut self, cx: &mut Context<Self>) {
+        let Some(current) = self.current_jump_point(cx) else {
+            return;
+        };
+        let Some(target) = self.jump_stack.pop_forward(current) else {
+            return;
+        };
+        self.restore_jump_point(target, cx);
+    }
+
+    fn restore_jump_point(&mut self, point: crate::session::JumpPoint, cx: &mut Context<Self>) {
+        let found_idx = self.session.tabs().position(|t| {
+            let b = t.buffer.read(cx);
+            b.id == point.document_id || (point.file_path.is_some() && b.path == point.file_path)
+        });
+        if let Some(idx) = found_idx {
+            self.activate_tab(idx, cx);
+        } else if let Some(path) = &point.file_path {
+            if path.exists() {
+                let _ = self.open_file(path, TabKind::Persistent, cx);
+            }
+        }
+        let pane_id = self.active_pane_id();
+        self.scroll_pane_to_y(pane_id, point.scroll_y, cx);
+    }
+
+    /// Navigates to a target link (external URL, wikilink, or markdown file/anchor).
+    pub fn navigate_to_link(&mut self, target: &str, cx: &mut Context<Self>) {
+        let target = target.trim();
+        if target.is_empty() {
+            return;
+        }
+
+        if target.starts_with("http://")
+            || target.starts_with("https://")
+            || target.starts_with("mailto:")
+        {
+            cx.open_url(target);
+            return;
+        }
+
+        let raw_target = target.strip_prefix("wikilink:").unwrap_or(target);
+        let (file_target, anchor) = if let Some((f, a)) = raw_target.split_once('#') {
+            (f.trim(), Some(a.trim()))
+        } else {
+            (raw_target.trim(), None)
+        };
+
+        if let Some(current) = self.current_jump_point(cx) {
+            self.jump_stack.push(current);
+        }
+
+        if file_target.is_empty() {
+            if let Some(anchor) = anchor {
+                self.jump_to_anchor(anchor, cx);
+            }
+            return;
+        }
+
+        let resolved_path = self.resolve_link_target_path(file_target, cx);
+        if let Some(path) = resolved_path {
+            if self.open_file(&path, TabKind::Persistent, cx).is_ok() {
+                if let Some(anchor) = anchor {
+                    self.jump_to_anchor(anchor, cx);
+                }
+            }
+        }
+    }
+
+    /// Resolves a link or wikilink note name into a physical filesystem path.
+    pub fn resolve_link_target_path(&self, target: &str, cx: &App) -> Option<std::path::PathBuf> {
+        let target_path = std::path::Path::new(target);
+        if target_path.is_absolute() && target_path.exists() {
+            return Some(target_path.to_path_buf());
+        }
+
+        let current_dir = self
+            .session
+            .active_tab()
+            .and_then(|t| t.buffer.read(cx).path.as_ref())
+            .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+        let candidates = [
+            target.to_string(),
+            if !target.ends_with(".md") && !target.ends_with(".markdown") {
+                format!("{target}.md")
+            } else {
+                target.to_string()
+            },
+        ];
+
+        if let Some(dir) = &current_dir {
+            for c in &candidates {
+                let candidate_path = dir.join(c);
+                if candidate_path.exists() {
+                    return Some(candidate_path);
+                }
+            }
+        }
+
+        for tab in self.session.tabs() {
+            if let Some(p) = tab.buffer.read(cx).path.as_ref() {
+                if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                    for c in &candidates {
+                        if name.eq_ignore_ascii_case(c) {
+                            return Some(p.clone());
+                        }
+                    }
+                }
+                if let Some(stem) = p.file_stem().and_then(|n| n.to_str()) {
+                    if stem.eq_ignore_ascii_case(target) {
+                        return Some(p.clone());
+                    }
+                }
+            }
+        }
+
+        if let Some(dir) = current_dir {
+            let file_name = if target.ends_with(".md") {
+                target.to_string()
+            } else {
+                format!("{target}.md")
+            };
+            let new_path = dir.join(file_name);
+            let _ = std::fs::write(&new_path, "");
+            return Some(new_path);
+        }
+
+        None
+    }
+
+    /// Jumps to an anchor (heading or block ^id) in the active pane.
+    pub fn jump_to_anchor(&mut self, anchor: &str, cx: &mut Context<Self>) {
+        let pane_id = self.active_pane_id();
+        let theme = cx.global::<theme::ThemeManager>().current_arc();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            if let Some(target_y) = state.pane_mut().navigate_to_anchor(anchor, &theme, cx) {
+                state
+                    .scroll
+                    .handle
+                    .set_offset(point(px(0.0), px(-target_y.max(0.0))));
+                cx.notify();
+            }
+        }
+    }
+
+    /// Provides a preview snippet for hovering over a link or anchor.
+    pub fn peek_link(&self, target: &str, cx: &App) -> Option<String> {
+        let target = target.trim();
+        if target.is_empty() {
+            return None;
+        }
+
+        if target.starts_with("http://")
+            || target.starts_with("https://")
+            || target.starts_with("mailto:")
+        {
+            return Some(target.to_string());
+        }
+
+        let raw_target = target.strip_prefix("wikilink:").unwrap_or(target);
+        let (file_target, anchor) = if let Some((f, a)) = raw_target.split_once('#') {
+            (f.trim(), Some(a.trim()))
+        } else {
+            (raw_target.trim(), None)
+        };
+
+        let content = if file_target.is_empty() {
+            self.session.active_tab().map(|t| t.buffer.read(cx).snapshot().text.to_string())
+        } else {
+            let path = self.resolve_link_target_path(file_target, cx)?;
+            if let Some(tab) = self.session.tabs().find(|t| t.buffer.read(cx).path.as_ref() == Some(&path)) {
+                Some(tab.buffer.read(cx).snapshot().text.to_string())
+            } else {
+                std::fs::read_to_string(&path).ok()
+            }
+        }?;
+
+        if let Some(anchor) = anchor {
+            if let Some(block_id) = anchor.strip_prefix('^') {
+                let token = format!("^{block_id}");
+                for line in content.lines() {
+                    if line.contains(&token) {
+                        return Some(format!("{line}\n\n(Block: ^{block_id})"));
+                    }
+                }
+            } else {
+                let mut found_heading = false;
+                let mut snippet = Vec::new();
+                let normalize = |s: &str| -> String {
+                    s.to_lowercase()
+                        .replace(['-', '_', '#'], " ")
+                        .split_whitespace()
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                };
+                let target_norm = normalize(anchor);
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with('#') {
+                        let heading_title = trimmed.trim_start_matches('#').trim();
+                        if normalize(heading_title) == target_norm || heading_title.eq_ignore_ascii_case(anchor) {
+                            found_heading = true;
+                            snippet.push(line);
+                            continue;
+                        } else if found_heading {
+                            break;
+                        }
+                    }
+                    if found_heading {
+                        snippet.push(line);
+                        if snippet.len() >= 8 {
+                            snippet.push("...");
+                            break;
+                        }
+                    }
+                }
+                if !snippet.is_empty() {
+                    return Some(snippet.join("\n"));
+                }
+            }
+        }
+
+        let preview_lines: Vec<&str> = content
+            .lines()
+            .take(10)
+            .collect();
+        if !preview_lines.is_empty() {
+            let mut summary = preview_lines.join("\n");
+            if content.lines().count() > 10 {
+                summary.push_str("\n...");
+            }
+            Some(summary)
+        } else {
+            Some(format!("(Empty note: {raw_target})"))
+        }
+    }
+
 
     fn record_recent_file(&self, path: &std::path::Path, cx: &mut Context<Self>) {
         if let Some(host) = &self.host {

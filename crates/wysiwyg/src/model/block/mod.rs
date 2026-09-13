@@ -118,6 +118,9 @@ pub struct Block {
     /// Footnote id currently hovered inside this block's text (reference
     /// hovers), used to avoid re-emitting tooltip events on every move.
     pub hovered_footnote_id: Option<String>,
+    /// Link target currently hovered inside this block's text, used to avoid
+    /// re-emitting tooltip events on every move.
+    pub hovered_link_target: Option<String>,
     pub list_group_separator_candidate: bool,
     pub numbered_list_restart_requested: bool,
     pub quote_reparse_requested: bool,
@@ -189,6 +192,7 @@ impl Block {
             link_reference_definitions: Arc::default(),
             footnote_registry: Arc::default(),
             hovered_footnote_id: None,
+            hovered_link_target: None,
             list_group_separator_candidate: false,
             numbered_list_restart_requested: false,
             quote_reparse_requested: false,

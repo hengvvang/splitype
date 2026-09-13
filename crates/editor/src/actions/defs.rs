@@ -23,5 +23,7 @@ actions!(
         FindPrevious,
         ReplaceCurrent,
         ReplaceAll,
+        NavigateBack,
+        NavigateForward,
     ]
 );

@@ -2,12 +2,14 @@
 //! split topology. The authoritative document state lives in
 //! [`crate::document::DocumentBuffer`].
 
+pub mod jump;
 pub mod lifecycle;
 pub mod ops;
 pub mod pane_state;
 pub mod tab;
 
 use editor_contracts::{PaneKind, TabKind};
+pub use jump::{EditorJumpStack, JumpPoint};
 pub use pane_state::{PaneState, ScrollState};
 pub use tab::{DocumentTab, PersistedTab, TabPendingState};
 

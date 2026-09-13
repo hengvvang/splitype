@@ -68,6 +68,10 @@ pub trait PaneHost: Send + Sync + 'static {
         window: &mut Window,
         cx: &mut App,
     );
+    fn open_link(&self, _target: &str, _cx: &mut App) {}
+    fn peek_link(&self, _target: &str, _cx: &App) -> Option<String> {
+        None
+    }
 }
 
 pub struct PaneOutlineHost {

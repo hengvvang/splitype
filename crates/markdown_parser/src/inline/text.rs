@@ -433,7 +433,8 @@ impl BlockText {
                 let run_plain_len = run_map.plain_to_source.len().saturating_sub(1);
                 let link_start = output.len();
                 let editable_text = link.editable_text();
-                output.push_str(link.open_marker());
+                let open_marker = link.open_marker();
+                output.push_str(&open_marker);
                 output.push_str(run_map.source());
                 if let Some(middle_marker) = link.middle_marker() {
                     output.push_str(middle_marker);
@@ -443,7 +444,7 @@ impl BlockText {
                 }
                 output.push_str(link.close_marker());
                 let link_end = output.len();
-                let label_source_start = link_start + link.open_marker().len();
+                let label_source_start = link_start + open_marker.len();
 
                 for local_plain in 0..=run_plain_len {
                     plain_to_source[plain_cursor + local_plain] =
@@ -451,7 +452,7 @@ impl BlockText {
                 }
 
                 source_to_plain.resize(link_end + 1, plain_cursor);
-                for local in 0..=link.open_marker().len() {
+                for local in 0..=open_marker.len() {
                     source_to_plain[link_start + local] = plain_cursor;
                 }
                 for local_source in 0..run_map.source().len() {
@@ -783,5 +784,91 @@ mod tests {
             InlineFragment::new("b", InlineAttributes::default()),
         ]);
         assert_eq!(fragmented.plain_line_count(), 2);
+    }
+
+    #[test]
+    fn wikilink_parsing_and_serialization() {
+        use crate::inline::link::{InlineLink, WikiLinkAnchor};
+
+        // Basic [[note]]
+        let text = "Check out [[my_note]] here.";
+        let res = BlockText::plain(text.to_string())
+            .normalize_inline_syntax_with_link_references(&Default::default());
+        let fragments = &res.tree.fragments;
+        assert_eq!(fragments.len(), 3);
+        assert_eq!(fragments[0].text, "Check out ");
+        assert_eq!(fragments[1].text, "my_note");
+        assert_eq!(
+            fragments[1].link(),
+            Some(&InlineLink::WikiLink {
+                target: "my_note".to_string(),
+                anchor: None,
+                alias: None,
+                is_embed: false,
+            })
+        );
+        assert_eq!(fragments[2].text, " here.");
+        assert_eq!(res.tree.serialize_markdown(), text);
+
+        // Heading anchor [[note#Intro]]
+        let text = "[[doc#Intro]]";
+        let res = BlockText::plain(text.to_string())
+            .normalize_inline_syntax_with_link_references(&Default::default());
+        assert_eq!(
+            res.tree.fragments[0].link(),
+            Some(&InlineLink::WikiLink {
+                target: "doc".to_string(),
+                anchor: Some(WikiLinkAnchor::Heading("Intro".to_string())),
+                alias: None,
+                is_embed: false,
+            })
+        );
+        assert_eq!(res.tree.serialize_markdown(), text);
+
+        // Block anchor [[doc#^block1]]
+        let text = "[[doc#^block1]]";
+        let res = BlockText::plain(text.to_string())
+            .normalize_inline_syntax_with_link_references(&Default::default());
+        assert_eq!(
+            res.tree.fragments[0].link(),
+            Some(&InlineLink::WikiLink {
+                target: "doc".to_string(),
+                anchor: Some(WikiLinkAnchor::Block("block1".to_string())),
+                alias: None,
+                is_embed: false,
+            })
+        );
+        assert_eq!(res.tree.serialize_markdown(), text);
+
+        // Alias [[doc|Custom Label]]
+        let text = "[[doc|Custom Label]]";
+        let res = BlockText::plain(text.to_string())
+            .normalize_inline_syntax_with_link_references(&Default::default());
+        assert_eq!(res.tree.fragments[0].text, "Custom Label");
+        assert_eq!(
+            res.tree.fragments[0].link(),
+            Some(&InlineLink::WikiLink {
+                target: "doc".to_string(),
+                anchor: None,
+                alias: Some("Custom Label".to_string()),
+                is_embed: false,
+            })
+        );
+        assert_eq!(res.tree.serialize_markdown(), text);
+
+        // Embed ![[doc#^b1]]
+        let text = "![[doc#^b1]]";
+        let res = BlockText::plain(text.to_string())
+            .normalize_inline_syntax_with_link_references(&Default::default());
+        assert_eq!(
+            res.tree.fragments[0].link(),
+            Some(&InlineLink::WikiLink {
+                target: "doc".to_string(),
+                anchor: Some(WikiLinkAnchor::Block("b1".to_string())),
+                alias: None,
+                is_embed: true,
+            })
+        );
+        assert_eq!(res.tree.serialize_markdown(), text);
     }
 }

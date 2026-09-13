@@ -3,6 +3,13 @@
 //! Links are stored as enum variants so the serializer can reconstruct
 //! the correct Markdown syntax (inline, reference, or autolink).
 
+/// Target anchor within a WikiLink destination (heading or block-id).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WikiLinkAnchor {
+    Heading(String),
+    Block(String),
+}
+
 /// Link metadata attached to a formatted inline text fragment.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InlineLink {
@@ -20,6 +27,13 @@ pub enum InlineLink {
     },
     /// Autolink from `<scheme:target>` or email-like syntax.
     Autolink { destination: String },
+    /// WikiLink style link: `[[target]]`, `[[target#anchor]]`, `[[target|alias]]`, or `![[embed]]`.
+    WikiLink {
+        target: String,
+        anchor: Option<WikiLinkAnchor>,
+        alias: Option<String>,
+        is_embed: bool,
+    },
 }
 
 /// Link target pair used by hit-testing and open-link prompts.
@@ -38,6 +52,7 @@ impl InlineLink {
             Self::Inline { destination, .. }
             | Self::Reference { destination, .. }
             | Self::Autolink { destination } => destination,
+            Self::WikiLink { target, .. } => target,
         }
     }
 
@@ -46,46 +61,104 @@ impl InlineLink {
         match self {
             Self::Inline { destination, .. } | Self::Autolink { destination } => destination,
             Self::Reference { label, .. } => label,
+            Self::WikiLink { target, .. } => target,
         }
     }
 
-    /// Whether this link represents an image expression (`![alt](src)`).
+    /// Whether this link represents an image or embedded expression (`![alt](src)` or `![[embed]]`).
     pub fn is_image(&self) -> bool {
         match self {
             Self::Inline { is_image, .. } | Self::Reference { is_image, .. } => *is_image,
             Self::Autolink { .. } => false,
+            Self::WikiLink { is_embed, .. } => *is_embed,
         }
     }
 
     /// Build a hit-test payload from this link.
     pub(crate) fn hit(&self) -> InlineLinkHit {
-        InlineLinkHit {
-            prompt_target: self.raw_target().to_string(),
-            open_target: self.open_target().to_string(),
+        match self {
+            Self::WikiLink {
+                target,
+                anchor,
+                alias,
+                ..
+            } => {
+                let mut prompt = target.clone();
+                let mut open = format!("wikilink:{target}");
+                if let Some(anchor) = anchor {
+                    match anchor {
+                        WikiLinkAnchor::Heading(h) => {
+                            prompt.push_str(&format!("#{h}"));
+                            open.push_str(&format!("#{h}"));
+                        }
+                        WikiLinkAnchor::Block(b) => {
+                            prompt.push_str(&format!("#^{b}"));
+                            open.push_str(&format!("#^{b}"));
+                        }
+                    }
+                }
+                if let Some(alias) = alias {
+                    prompt.push_str(&format!("|{alias}"));
+                }
+                InlineLinkHit {
+                    prompt_target: prompt,
+                    open_target: open,
+                }
+            }
+            _ => InlineLinkHit {
+                prompt_target: self.raw_target().to_string(),
+                open_target: self.open_target().to_string(),
+            },
         }
     }
 
     /// Whether the link syntax is source-preserving (cannot be losslessly
     /// reconstructed from plain text alone).
     pub fn is_source_preserving(&self) -> bool {
-        matches!(self, Self::Reference { .. } | Self::Autolink { .. })
+        matches!(
+            self,
+            Self::Reference { .. } | Self::Autolink { .. } | Self::WikiLink { .. }
+        )
     }
 
     /// Opening marker for Markdown serialization.
-    pub fn open_marker(&self) -> &'static str {
+    pub fn open_marker(&self) -> std::borrow::Cow<'static, str> {
         match self {
-            Self::Autolink { .. } => "<",
-            Self::Inline { is_image: true, .. } | Self::Reference { is_image: true, .. } => "![",
-            Self::Inline { .. } | Self::Reference { .. } => "[",
+            Self::Autolink { .. } => std::borrow::Cow::Borrowed("<"),
+            Self::Inline { is_image: true, .. } | Self::Reference { is_image: true, .. } => {
+                std::borrow::Cow::Borrowed("![")
+            }
+            Self::Inline { .. } | Self::Reference { .. } => std::borrow::Cow::Borrowed("["),
+            Self::WikiLink {
+                target,
+                anchor,
+                alias,
+                is_embed,
+            } => {
+                let prefix = if *is_embed { "![[" } else { "[[" };
+                if alias.is_some() {
+                    let mut marker = format!("{prefix}{target}");
+                    if let Some(anchor) = anchor {
+                        match anchor {
+                            WikiLinkAnchor::Heading(h) => marker.push_str(&format!("#{h}")),
+                            WikiLinkAnchor::Block(b) => marker.push_str(&format!("#^{b}")),
+                        }
+                    }
+                    marker.push('|');
+                    std::borrow::Cow::Owned(marker)
+                } else {
+                    std::borrow::Cow::Borrowed(prefix)
+                }
+            }
         }
     }
 
-    /// Middle marker between label and target (None for autolinks).
+    /// Middle marker between label and target (None for autolinks and wikilinks).
     pub fn middle_marker(&self) -> Option<&'static str> {
         match self {
             Self::Inline { .. } => Some("]("),
             Self::Reference { .. } => Some("]["),
-            Self::Autolink { .. } => None,
+            Self::Autolink { .. } | Self::WikiLink { .. } => None,
         }
     }
 
@@ -93,10 +166,12 @@ impl InlineLink {
     pub fn editable_text(&self) -> Option<String> {
         match self {
             Self::Inline {
-                destination, title, ..
+                destination,
+                title,
+                ..
             } => Some(format_inline_link_target(destination, title.as_deref())),
             Self::Reference { label, .. } => Some(label.clone()),
-            Self::Autolink { .. } => None,
+            Self::Autolink { .. } | Self::WikiLink { .. } => None,
         }
     }
 
@@ -106,6 +181,7 @@ impl InlineLink {
             Self::Inline { .. } => ")",
             Self::Reference { .. } => "]",
             Self::Autolink { .. } => ">",
+            Self::WikiLink { .. } => "]]",
         }
     }
 }

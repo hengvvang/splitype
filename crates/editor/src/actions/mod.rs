@@ -205,4 +205,23 @@ impl Editor {
         let max_offset_y = self.active_pane_scroll().handle.max_offset().y.max(px(0.0));
         self.set_vertical_scroll_offset(self.active_pane_id(), -max_offset_y, window, cx);
     }
+
+    pub(crate) fn on_navigate_back(
+        &mut self,
+        _: &NavigateBack,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.navigate_back(cx);
+    }
+
+    pub(crate) fn on_navigate_forward(
+        &mut self,
+        _: &NavigateForward,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.navigate_forward(cx);
+    }
 }
+

@@ -5,7 +5,7 @@
 use std::ops::Range;
 
 use super::latex::{InlineLatex, InlineLatexDelimiter};
-use super::link::InlineLink;
+use super::link::{InlineLink, WikiLinkAnchor};
 use super::serialize::{
     Delimiter, apply_delimiter_style, backtick_run_len, can_close_emphasis, emphasis_requires_body,
     has_closing_delimiter, match_open_delimiter,
@@ -605,12 +605,7 @@ pub(crate) fn parse_inline_link(
 ) -> Option<usize> {
     let located = locate_inline_link(tokens, index, reference_definitions)?;
     let label_end = located.label_end;
-    let bracket_index = if located.link.is_image() {
-        index + 1
-    } else {
-        index
-    };
-    let label_tokens = &tokens[bracket_index + 1..label_end];
+    let label_tokens = &tokens[located.prefix_end + 1..label_end];
     let label_markdown = tokens_to_string(label_tokens);
     let mut label_result = BlockText::plain(label_markdown)
         .normalize_inline_syntax_with_link_references(reference_definitions);
@@ -624,7 +619,7 @@ pub(crate) fn parse_inline_link(
     let normalized_start = builder.normalized_len;
     let label_len = label_result.tree.plain_len();
 
-    for token in &tokens[index..=bracket_index] {
+    for token in &tokens[index..=located.prefix_end] {
         for boundary in token.source_range.start..=token.source_range.end {
             builder.visible_to_normalized[boundary] = normalized_start;
         }
@@ -851,9 +846,69 @@ fn merge_html_styles(
 /// Located inline link syntax inside the token stream.
 #[derive(Clone)]
 struct LocatedInlineLink {
+    prefix_end: usize,
     label_end: usize,
     end_index: usize,
     link: InlineLink,
+}
+
+fn locate_wikilink(
+    tokens: &[CharToken],
+    index: usize,
+    is_embed: bool,
+) -> Option<LocatedInlineLink> {
+    let bracket_index = if is_embed { index + 2 } else { index + 1 };
+    let mut cursor = bracket_index + 1;
+    let mut pipe_index = None;
+    let close_start = loop {
+        let token = tokens.get(cursor)?;
+        if token.ch == '\\' {
+            cursor += 2;
+            continue;
+        }
+        if token.ch == '|' && pipe_index.is_none() {
+            pipe_index = Some(cursor);
+        }
+        if token.ch == ']' && tokens.get(cursor + 1).map(|t| t.ch) == Some(']') {
+            break cursor;
+        }
+        cursor += 1;
+    };
+    let end_index = close_start + 1;
+
+    let (prefix_end, label_end, target_str, alias) = if let Some(pipe_idx) = pipe_index {
+        let target = tokens_to_string(&tokens[bracket_index + 1..pipe_idx]);
+        let alias = tokens_to_string(&tokens[pipe_idx + 1..close_start]);
+        (pipe_idx, close_start, target, Some(alias))
+    } else {
+        let target = tokens_to_string(&tokens[bracket_index + 1..close_start]);
+        (bracket_index, close_start, target, None)
+    };
+
+    let (target, anchor) = if let Some(hash_pos) = target_str.find('#') {
+        let target = target_str[..hash_pos].trim().to_string();
+        let anchor_str = &target_str[hash_pos + 1..];
+        let anchor = if let Some(block_id) = anchor_str.strip_prefix('^') {
+            Some(WikiLinkAnchor::Block(block_id.trim().to_string()))
+        } else {
+            Some(WikiLinkAnchor::Heading(anchor_str.trim().to_string()))
+        };
+        (target, anchor)
+    } else {
+        (target_str.trim().to_string(), None)
+    };
+
+    Some(LocatedInlineLink {
+        prefix_end,
+        label_end,
+        end_index,
+        link: InlineLink::WikiLink {
+            target,
+            anchor,
+            alias,
+            is_embed,
+        },
+    })
 }
 
 fn locate_inline_link(
@@ -861,6 +916,18 @@ fn locate_inline_link(
     index: usize,
     reference_definitions: &LinkReferenceDefinitions,
 ) -> Option<LocatedInlineLink> {
+    if tokens.get(index)?.ch == '!'
+        && tokens.get(index + 1).map(|token| token.ch) == Some('[')
+        && tokens.get(index + 2).map(|token| token.ch) == Some('[')
+    {
+        return locate_wikilink(tokens, index, true);
+    } else if tokens.get(index)?.ch == '['
+        && tokens.get(index + 1).map(|token| token.ch) == Some('[')
+        && (index == 0 || tokens[index - 1].ch != '!')
+    {
+        return locate_wikilink(tokens, index, false);
+    }
+
     let (is_image, bracket_index) = if tokens.get(index)?.ch == '!'
         && tokens.get(index + 1).map(|token| token.ch) == Some('[')
     {
@@ -922,6 +989,7 @@ fn locate_inline_link(
                 parse_link_target(&tokens_to_string(&tokens[url_start..url_end]))?
             };
             Some(LocatedInlineLink {
+                prefix_end: bracket_index,
                 label_end,
                 end_index: url_end,
                 link: InlineLink::Inline {
@@ -956,6 +1024,7 @@ fn locate_inline_link(
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
             Some(LocatedInlineLink {
+                prefix_end: bracket_index,
                 label_end,
                 end_index: reference_end,
                 link: InlineLink::Reference {
@@ -971,6 +1040,7 @@ fn locate_inline_link(
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
             Some(LocatedInlineLink {
+                prefix_end: bracket_index,
                 label_end,
                 end_index: label_end,
                 link: InlineLink::Reference {

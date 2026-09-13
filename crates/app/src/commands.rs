@@ -148,6 +148,14 @@ pub(crate) fn binding_for(plugin: &str, id: &str) -> Option<CommandBinding> {
             label: |_| SharedString::from("Jump to Bottom"),
             make_action: || Box::new(editor::actions::JumpToBottom),
         },
+        ("splitype.editor", "navigate-back") => CommandBinding {
+            label: |_| SharedString::from("Navigate Back"),
+            make_action: || Box::new(editor::actions::NavigateBack),
+        },
+        ("splitype.editor", "navigate-forward") => CommandBinding {
+            label: |_| SharedString::from("Navigate Forward"),
+            make_action: || Box::new(editor::actions::NavigateForward),
+        },
         ("splitype.editor", "toggle-pane-kind") => CommandBinding {
             label: |_| SharedString::from("Toggle Pane Kind"),
             make_action: || Box::new(editor::actions::TogglePaneKind),

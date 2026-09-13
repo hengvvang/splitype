@@ -193,6 +193,36 @@ pub trait PaneView: Any + 'static {
         None
     }
 
+    /// Gate: `outline`.
+    /// Navigates to a heading or block anchor (e.g. `Introduction` or `^p1`).
+    /// Returns the target scroll Y offset if located.
+    fn navigate_to_anchor(
+        &mut self,
+        anchor: &str,
+        theme: &Theme,
+        cx: &mut App,
+    ) -> Option<f32> {
+        let anchor = anchor.trim();
+        if anchor.is_empty() {
+            return None;
+        }
+        let headings = self.outline_headings(cx);
+        let normalize = |s: &str| -> String {
+            s.to_lowercase()
+                .replace(['-', '_', '#'], " ")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        let target_norm = normalize(anchor);
+        for (idx, node) in headings.iter().enumerate() {
+            if normalize(&node.label) == target_norm || node.label.eq_ignore_ascii_case(anchor) {
+                return self.navigate_to_outline(idx, theme, cx);
+            }
+        }
+        None
+    }
+
     // ── Reflection ──────────────────────────────────────────────────────────
 
     fn as_any(&self) -> &dyn Any;

@@ -58,6 +58,11 @@ impl PaneView for WysiwygPane {
         controller.update(cx, |c, cx| c.navigate_to_outline(index, theme, cx))
     }
 
+    fn navigate_to_anchor(&mut self, anchor: &str, theme: &Theme, cx: &mut App) -> Option<f32> {
+        let controller = self.ensure_controller(cx);
+        controller.update(cx, |c, cx| c.navigate_to_anchor(anchor, theme, cx))
+    }
+
     fn search_matches(&self, query: &SearchQuery, cx: &App) -> Vec<SearchMatch> {
         self.controller
             .as_ref()

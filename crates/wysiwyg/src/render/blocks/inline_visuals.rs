@@ -331,7 +331,19 @@ impl Block {
         // gates the hand cursor on that same modifier, matching the normal-text
         // path where links render through `BlockTextElement`.
         if let Some(link) = span.link.clone() {
+            let hover_target = link.open_target.clone();
             let element = element
+                .id(("wysiwyg-link", span.range.start))
+                .on_hover(cx.listener(move |_block, hovered: &bool, window, cx| {
+                    let anchor_pos = window.mouse_position();
+                    let immediate = window.modifiers().secondary();
+                    cx.emit(crate::model::protocol::BlockEvent::RequestLinkTooltip {
+                        target: hover_target.clone(),
+                        position: anchor_pos,
+                        show: *hovered,
+                        immediate,
+                    });
+                }))
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(Self::on_wysiwyg_link_mouse_down),

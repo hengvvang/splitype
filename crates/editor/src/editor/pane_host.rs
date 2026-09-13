@@ -124,4 +124,18 @@ impl PaneHost for EditorPaneHost {
             });
         }
     }
+
+    fn open_link(&self, target: &str, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            editor.update(cx, |editor, cx| {
+                editor.navigate_to_link(target, cx);
+            });
+        }
+    }
+
+    fn peek_link(&self, target: &str, cx: &App) -> Option<String> {
+        let editor = self.editor.upgrade()?;
+        editor.read(cx).peek_link(target, cx)
+    }
 }
+

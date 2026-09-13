@@ -77,6 +77,18 @@ title = "Jump to Document Bottom"
 description = "Move cursor and viewport to the end of document"
 shortcuts = ["ctrl-end", "cmd-down"]
 
+[[commands.navigation.items]]
+id = "navigate-back"
+title = "Navigate Back"
+description = "Return to previous jump or link location"
+shortcuts = ["alt-left"]
+
+[[commands.navigation.items]]
+id = "navigate-forward"
+title = "Navigate Forward"
+description = "Go forward to next jump or link location"
+shortcuts = ["alt-right"]
+
 [commands.layout]
 title = "Pane & Workspace Layout"
 description = "Switching and toggling editor panes"

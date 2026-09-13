@@ -83,6 +83,13 @@ pub enum BlockEvent {
         prompt_target: String,
         open_target: String,
     },
+    /// Show or hide the floating link target/preview tooltip.
+    RequestLinkTooltip {
+        target: String,
+        position: Point<Pixels>,
+        show: bool,
+        immediate: bool,
+    },
     /// Jump from a rendered footnote reference to the corresponding
     /// in-place footnote definition block.
     RequestJumpToFootnoteDefinition {

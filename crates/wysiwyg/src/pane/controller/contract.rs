@@ -91,6 +91,59 @@ impl WysiwygDocumentController {
         }
     }
 
+    pub fn navigate_to_anchor(
+        &mut self,
+        anchor: &str,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> Option<f32> {
+        let anchor = anchor.trim();
+        if anchor.is_empty() {
+            return None;
+        }
+
+        if let Some(block_id) = anchor.strip_prefix('^') {
+            let target_token = format!("^{block_id}");
+            if let Some(doc) = &self.document {
+                for (idx, entry) in doc.blocks().iter().enumerate() {
+                    let block_text = entry.entity.read(cx).display_text().to_string();
+                    if block_text.contains(&target_token) {
+                        let block = entry.entity.clone();
+                        self.active_entity = Some(block.clone());
+                        block.update(cx, |b, cx| {
+                            b.assign_collapsed_selection_offset(
+                                0,
+                                CollapsedCaretAffinity::Default,
+                                None,
+                            );
+                            b.start_cursor_blink(cx);
+                            cx.notify();
+                        });
+                        let target_y = self.calculate_block_scroll_offset(idx);
+                        return Some(target_y);
+                    }
+                }
+            }
+        } else {
+            let headings = self.outline_headings(cx);
+            let normalize = |s: &str| -> String {
+                s.to_lowercase()
+                    .replace(['-', '_', '#'], " ")
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            };
+            let target_norm = normalize(anchor);
+            for (idx, node) in headings.iter().enumerate() {
+                if normalize(&node.label) == target_norm || node.label.eq_ignore_ascii_case(anchor) {
+                    return self.navigate_to_outline(idx, theme, cx);
+                }
+            }
+        }
+        None
+    }
+
+
     /// Keeps the block at `block_index` visible: the virtualized render
     /// mounts rows only around the viewport, so cross-block caret movement
     /// scrolls the pane to the block's estimated position through the host.

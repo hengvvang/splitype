@@ -9,8 +9,13 @@ use markdown_parser::block::table::{TableAxis, TableAxisMarker, TableCellPositio
 use markdown_parser::inline::text::BlockText;
 use markdown_parser::parse::{BlockData, BlockKind};
 
+use std::time::Duration;
+
 use super::WysiwygDocumentController;
-use super::{ContextSubmenu, FootnoteTooltipState, WysiwygContextMenuState};
+use super::{
+    ContextSubmenu, FootnoteTooltipState, LinkTooltipKind, LinkTooltipState,
+    WysiwygContextMenuState,
+};
 impl WysiwygDocumentController {
     pub fn on_block_event(
         &mut self,
@@ -188,6 +193,9 @@ impl WysiwygDocumentController {
             BlockEvent::RequestFocus => {
                 self.active_entity = Some(block.clone());
                 self.footnote_tooltip = None;
+                self.link_tooltip = None;
+                self.link_hover_task = None;
+                self.hovered_link_target = None;
                 self.clear_all_table_axis_selections(cx);
                 cx.notify();
             }
@@ -594,6 +602,63 @@ impl WysiwygDocumentController {
                     cx.notify();
                 }
             }
+            BlockEvent::RequestLinkTooltip {
+                target,
+                position,
+                show,
+                immediate,
+            } => {
+                if *show {
+                    let target = target.clone();
+                    let position = *position;
+                    let immediate = *immediate;
+                    self.hovered_link_target = Some(target.clone());
+
+                    if self.link_tooltip.as_ref().map(|t| &t.target) == Some(&target) {
+                        return;
+                    }
+
+                    self.link_hover_task = None;
+
+                    if immediate {
+                        self.show_link_tooltip(&target, position, cx);
+                    } else {
+                        let target_check = target.clone();
+                        self.link_hover_task = Some(cx.spawn(async move |this, cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(300))
+                                .await;
+                            let _ = this.update(cx, |controller, cx| {
+                                controller.link_hover_task = None;
+                                if controller.hovered_link_target.as_ref() == Some(&target_check) {
+                                    controller.show_link_tooltip(&target_check, position, cx);
+                                }
+                            });
+                        }));
+                    }
+                } else {
+                    self.hovered_link_target = None;
+                    self.link_hover_task = None;
+                    if self.link_tooltip.as_ref().map(|t| &t.target) == Some(target) {
+                        let target_check = target.clone();
+                        self.link_hover_task = Some(cx.spawn(async move |this, cx| {
+                            cx.background_executor()
+                                .timer(Duration::from_millis(150))
+                                .await;
+                            let _ = this.update(cx, |controller, cx| {
+                                controller.link_hover_task = None;
+                                if controller.hovered_link_target.is_none()
+                                    && controller.link_tooltip.as_ref().map(|t| &t.target)
+                                        == Some(&target_check)
+                                {
+                                    controller.link_tooltip = None;
+                                    cx.notify();
+                                }
+                            });
+                        }));
+                    }
+                }
+            }
             BlockEvent::RequestJumpToFootnoteDefinition { id } => {
                 if let Some(binding) = self.references.footnotes.binding(id)
                     && let Some(doc) = &self.document
@@ -778,7 +843,11 @@ impl WysiwygDocumentController {
                 }
             }
             BlockEvent::RequestOpenLink { open_target, .. } => {
-                cx.open_url(open_target);
+                if let Some(host) = self.host.clone() {
+                    host.open_link(open_target, cx);
+                } else {
+                    cx.open_url(open_target);
+                }
             }
             _ => {}
         }
@@ -837,4 +906,53 @@ impl WysiwygDocumentController {
             }
         }
     }
+
+    pub fn show_link_tooltip(
+        &mut self,
+        target: &str,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let is_external = target.starts_with("http://")
+            || target.starts_with("https://")
+            || target.starts_with("mailto:");
+
+        let kind = if is_external {
+            LinkTooltipKind::ExternalUrl {
+                url: target.to_string(),
+            }
+        } else {
+            let raw = target.strip_prefix("wikilink:").unwrap_or(target);
+            let (file_part, anchor_part) = if let Some((f, a)) = raw.split_once('#') {
+                (f.trim(), Some(a.trim().to_string()))
+            } else {
+                (raw.trim(), None)
+            };
+            let title = if file_part.is_empty() {
+                "Current Document".to_string()
+            } else {
+                file_part.to_string()
+            };
+            let snippet_text = if let Some(host) = self.host.clone() {
+                host.peek_link(target, cx)
+            } else {
+                None
+            };
+            LinkTooltipKind::NotePreview {
+                title,
+                anchor: anchor_part,
+                snippet: SharedString::from(
+                    snippet_text.unwrap_or_else(|| "(Empty note)".to_string()),
+                ),
+            }
+        };
+
+        self.link_tooltip = Some(LinkTooltipState {
+            target: target.to_string(),
+            kind,
+            position,
+        });
+        cx.notify();
+    }
 }
+

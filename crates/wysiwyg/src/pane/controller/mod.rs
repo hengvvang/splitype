@@ -14,9 +14,9 @@ use editor_contracts::{
     render_pane_layout,
 };
 use gpui::{
-    AnyElement, App, AppContext, Context, Div, ElementId, Entity, EntityId, InteractiveElement,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, SharedString,
-    StatefulInteractiveElement, Styled, Window, div, px,
+    AnyElement, App, AppContext, Context, Div, ElementId, Entity, EntityId, FontWeight,
+    InteractiveElement, IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point,
+    SharedString, StatefulInteractiveElement, Styled, Task, Window, div, px, relative,
 };
 use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 
@@ -33,6 +33,29 @@ use markdown_parser::parse::{BlockData, BlockKind};
 pub struct FootnoteTooltipState {
     pub id: String,
     pub content: SharedString,
+    pub position: Point<Pixels>,
+}
+
+/// Kind of link hover tooltip.
+#[derive(Clone, Debug, PartialEq)]
+pub enum LinkTooltipKind {
+    /// External web link: minimal single-line indicator.
+    ExternalUrl {
+        url: String,
+    },
+    /// Internal note or heading/block: rich PKM preview card.
+    NotePreview {
+        title: String,
+        anchor: Option<String>,
+        snippet: SharedString,
+    },
+}
+
+/// State for a floating link target/preview tooltip.
+#[derive(Clone, Debug)]
+pub struct LinkTooltipState {
+    pub target: String,
+    pub kind: LinkTooltipKind,
     pub position: Point<Pixels>,
 }
 
@@ -87,6 +110,9 @@ pub struct WysiwygDocumentController {
     pub tables: TableGrids,
     pub references: ReferenceRegistries,
     pub footnote_tooltip: Option<FootnoteTooltipState>,
+    pub link_tooltip: Option<LinkTooltipState>,
+    pub link_hover_task: Option<Task<()>>,
+    pub hovered_link_target: Option<String>,
     pub context_menu: Option<WysiwygContextMenuState>,
     /// Serialization of the document after the previous commit, used as
     /// the diff baseline for the next commit (which therefore carries
@@ -125,6 +151,9 @@ impl WysiwygDocumentController {
                 ..ReferenceRegistries::default()
             },
             footnote_tooltip: None,
+            link_tooltip: None,
+            link_hover_task: None,
+            hovered_link_target: None,
             context_menu: None,
             last_committed: None,
             last_synced_len: 0,
@@ -555,6 +584,107 @@ impl WysiwygDocumentController {
                     .into_any_element()
             });
 
+            let link_tooltip_element = self.link_tooltip.as_ref().map(|tooltip| {
+                let top = (tooltip.position.y - origin.y + px(18.0)).max(px(0.0));
+                let mut left_f32 = f32::from(tooltip.position.x - origin.x);
+                match &tooltip.kind {
+                    LinkTooltipKind::ExternalUrl { url } => {
+                        let max_width = 380.0_f32;
+                        if left_f32 + 200.0 > pane_width {
+                            left_f32 = (pane_width - max_width.min(pane_width) - 16.0).max(8.0);
+                        }
+                        let left = px(left_f32.max(8.0));
+                        div()
+                            .occlude()
+                            .absolute()
+                            .left(left)
+                            .top(top)
+                            .max_w(px(max_width))
+                            .rounded(px(d.button_radius))
+                            .bg(c.dialog_surface)
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .shadow_md()
+                            .px(px(8.0))
+                            .py(px(4.0))
+                            .child(
+                                div()
+                                    .text_size(px(12.0))
+                                    .text_color(c.dialog_title)
+                                    .overflow_hidden()
+                                    .text_ellipsis()
+                                    .child(url.clone()),
+                            )
+                            .into_any_element()
+                    }
+                    LinkTooltipKind::NotePreview {
+                        title,
+                        anchor,
+                        snippet,
+                    } => {
+                        let max_width = 460.0_f32;
+                        if left_f32 + 250.0 > pane_width {
+                            left_f32 = (pane_width - max_width.min(pane_width) - 16.0).max(8.0);
+                        }
+                        let left = px(left_f32.max(8.0));
+                        div()
+                            .occlude()
+                            .absolute()
+                            .left(left)
+                            .top(top)
+                            .max_w(px(max_width))
+                            .rounded(px(d.button_radius))
+                            .bg(c.dialog_surface)
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .shadow_md()
+                            .p(px(10.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(6.0))
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_row()
+                                    .items_center()
+                                    .gap(px(6.0))
+                                    .child(
+                                        div()
+                                            .text_size(px(13.0))
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                            .text_color(c.dialog_title)
+                                            .child(title.clone()),
+                                    )
+                                    .children(anchor.as_ref().map(|a| {
+                                        div()
+                                            .text_size(px(11.0))
+                                            .px(px(4.0))
+                                            .py(px(1.0))
+                                            .rounded(px(3.0))
+                                            .bg(c.focus_accent.opacity(0.12))
+                                            .text_color(c.focus_accent)
+                                            .child(if a.starts_with('^') {
+                                                format!("^{}", &a[1..])
+                                            } else {
+                                                format!("#{}", a)
+                                            })
+                                    })),
+                            )
+                            .child(div().h(px(1.0)).bg(c.dialog_border))
+                            .child(
+                                div()
+                                    .max_h(px(200.0))
+                                    .overflow_hidden()
+                                    .text_size(px(12.5))
+                                    .text_color(c.dialog_body)
+                                    .line_height(relative(1.45))
+                                    .child(snippet.clone()),
+                            )
+                            .into_any_element()
+                    }
+                }
+            });
+
             let context_menu_element = self.context_menu.clone().map(|menu_state| {
                 crate::render::context_menu::render_wysiwyg_context_menu(
                     self,
@@ -641,6 +771,7 @@ impl WysiwygDocumentController {
                         .children(row_elements),
                 )
                 .children(footnote_tooltip_element)
+                .children(link_tooltip_element)
                 .children(context_menu_element)
                 .into_any_element();
 

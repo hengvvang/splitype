@@ -238,6 +238,22 @@ impl Block {
                 show,
             });
         }
+
+        // Link hover: surface preview/destination tooltip while pointer rests on link.
+        let link_hit = self.pointer_link_hit(event.position);
+        let hovered_link = link_hit.as_ref().map(|l| l.open_target.clone());
+        if hovered_link != self.hovered_link_target {
+            let show = hovered_link.is_some();
+            let target = hovered_link.clone().unwrap_or_default();
+            self.hovered_link_target = hovered_link;
+            let immediate = event.modifiers.secondary();
+            cx.emit(BlockEvent::RequestLinkTooltip {
+                target,
+                position: event.position,
+                show,
+                immediate,
+            });
+        }
     }
 
     pub fn on_task_checkbox_mouse_down(
