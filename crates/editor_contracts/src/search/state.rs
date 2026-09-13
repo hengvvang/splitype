@@ -335,8 +335,8 @@ pub struct SearchMatch {
     pub preview_suffix: String,
 }
 
-/// Search panel UI and query state.
-pub struct SearchPanelState {
+/// Search widget UI and query state.
+pub struct SearchWidgetState {
     /// Whether the search & replace floating overlay is open.
     pub visible: bool,
     /// Whether the replace input row is expanded.
@@ -371,10 +371,15 @@ pub struct SearchPanelState {
     pub replace_focus_handle: FocusHandle,
     /// Monotonic generation counter to invalidate outdated asynchronous searches.
     pub search_generation: u64,
+    /// The specific pane bound to this search session, if any.
+    pub target_pane_id: Option<crate::pane::PaneId>,
 }
 
-impl SearchPanelState {
-    /// Creates a new default search panel state.
+/// Backwards-compatible type alias for `SearchWidgetState`.
+pub type SearchPanelState = SearchWidgetState;
+
+impl SearchWidgetState {
+    /// Creates a new default search widget state.
     pub fn new<T>(cx: &mut gpui::Context<T>) -> Self {
         Self {
             visible: false,
@@ -394,6 +399,7 @@ impl SearchPanelState {
             search_focus_handle: cx.focus_handle(),
             replace_focus_handle: cx.focus_handle(),
             search_generation: 0,
+            target_pane_id: None,
         }
     }
 

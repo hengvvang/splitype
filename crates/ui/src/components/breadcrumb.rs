@@ -71,16 +71,22 @@ pub fn format_root_relative_path(path: &Path) -> String {
 /// Layout:
 /// - Height: 24px (compact)
 /// - Left: Root-relative file path
-/// - Right: Outline toggle button (active indicator when outline is visible)
-pub fn render_pane_breadcrumb<F>(
+/// - Right: Link relations button + Outline toggle button
+pub fn render_pane_breadcrumb<F1, F2, F3>(
     id: impl Into<ElementId>,
     file_path: Option<&Path>,
     is_outline_docked: bool,
+    is_links_open: bool,
+    is_search_open: bool,
     theme: &Theme,
-    on_toggle_outline: F,
+    on_toggle_outline: F1,
+    on_toggle_links: F2,
+    on_toggle_search: F3,
 ) -> AnyElement
 where
-    F: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+    F1: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+    F2: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
+    F3: Fn(&MouseDownEvent, &mut Window, &mut App) + 'static,
 {
     let c = &theme.colors;
     let d = &theme.dimensions;
@@ -89,7 +95,9 @@ where
         .unwrap_or_else(|| "Untitled".to_string());
 
     let id = id.into();
-    let btn_id = ElementId::Name(format!("{id:?}-outline-btn").into());
+    let outline_btn_id = ElementId::Name(format!("{id:?}-outline-btn").into());
+    let links_btn_id = ElementId::Name(format!("{id:?}-links-btn").into());
+    let search_btn_id = ElementId::Name(format!("{id:?}-search-btn").into());
 
     div()
         .id(id)
@@ -117,28 +125,80 @@ where
                         .child(path_display),
                 ),
         )
-        // Right: Outline toggle button
+        // Right: Search button + Links toggle button + Outline toggle button
         .child(
             div()
-                .id(btn_id)
-                .size(px(20.0))
                 .flex()
                 .items_center()
-                .justify_center()
-                .rounded(px(d.icon_button_radius))
-                .cursor_pointer()
-                .when(is_outline_docked, |this| this.bg(c.panel_row_hover))
-                .hover(|this| this.bg(c.panel_row_hover))
-                .on_mouse_down(MouseButton::Left, on_toggle_outline)
+                .gap(px(2.0))
                 .child(
-                    svg()
-                        .path("plugin://splitype.editor/outline/outline.svg")
-                        .size(px(13.5))
-                        .text_color(if is_outline_docked {
-                            c.focus_accent
-                        } else {
-                            c.dialog_muted
-                        }),
+                    div()
+                        .id(search_btn_id)
+                        .size(px(20.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(d.icon_button_radius))
+                        .cursor_pointer()
+                        .when(is_search_open, |this| this.bg(c.panel_row_hover))
+                        .hover(|this| this.bg(c.panel_row_hover))
+                        .on_mouse_down(MouseButton::Left, on_toggle_search)
+                        .child(
+                            svg()
+                                .path("plugin://splitype.editor/topbar/search.svg")
+                                .size(px(13.5))
+                                .text_color(if is_search_open {
+                                    c.focus_accent
+                                } else {
+                                    c.dialog_muted
+                                }),
+                        ),
+                )
+                .child(
+                    div()
+                        .id(links_btn_id)
+                        .size(px(20.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(d.icon_button_radius))
+                        .cursor_pointer()
+                        .when(is_links_open, |this| this.bg(c.panel_row_hover))
+                        .hover(|this| this.bg(c.panel_row_hover))
+                        .on_mouse_down(MouseButton::Left, on_toggle_links)
+                        .child(
+                            svg()
+                                .path("plugin://splitype.editor/links/links.svg")
+                                .size(px(13.5))
+                                .text_color(if is_links_open {
+                                    c.focus_accent
+                                } else {
+                                    c.dialog_muted
+                                }),
+                        ),
+                )
+                .child(
+                    div()
+                        .id(outline_btn_id)
+                        .size(px(20.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .rounded(px(d.icon_button_radius))
+                        .cursor_pointer()
+                        .when(is_outline_docked, |this| this.bg(c.panel_row_hover))
+                        .hover(|this| this.bg(c.panel_row_hover))
+                        .on_mouse_down(MouseButton::Left, on_toggle_outline)
+                        .child(
+                            svg()
+                                .path("plugin://splitype.editor/outline/outline.svg")
+                                .size(px(13.5))
+                                .text_color(if is_outline_docked {
+                                    c.focus_accent
+                                } else {
+                                    c.dialog_muted
+                                }),
+                        ),
                 ),
         )
         .into_any_element()

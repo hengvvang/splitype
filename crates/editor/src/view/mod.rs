@@ -275,13 +275,6 @@ impl Render for Editor {
             .child(content_body)
             .child(self.render_editor_bottombar(&theme, &strings, cx));
 
-        let base =
-            if let Some(search_overlay) = self.render_search_panel_overlay(&theme, window, cx) {
-                base.child(search_overlay)
-            } else {
-                base
-            };
-
         base.into_any_element()
     }
 }

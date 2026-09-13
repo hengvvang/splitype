@@ -326,7 +326,7 @@ impl Editor {
             .unwrap_or_else(|| self.default_pane_kind());
         let (effective_kind, read_only) =
             Self::resolve_effective_pane(&configured_kind, Some(&document));
-        let is_outline_docked = self.is_outline_enabled_for_kind(&configured_kind);
+        let is_outline_open = self.is_outline_open_for_pane(pane_id);
 
         if let Some(state) = self.pane_state_ref(pane_id) {
             let current_w = f32::from(state.scroll.handle.bounds().size.width);
@@ -345,7 +345,18 @@ impl Editor {
                 if w > 0.0 { Some(w) } else { None }
             });
 
-        if let Some(state) = self.pane_state_mut(pane_id) {
+        let is_links_open = self
+            .links_widget
+            .as_ref()
+            .map(|p| {
+                p.target_pane_id == Some(pane_id)
+                    || (p.target_pane_id.is_none() && p.target_file_path.as_deref() == document.path.as_deref())
+            })
+            .unwrap_or(false);
+
+        let is_search_open = self.search.visible && self.search.target_pane_id == Some(pane_id);
+
+        let (pane_content, outline_headings, has_state) = if let Some(state) = self.pane_state_mut(pane_id) {
             state.ensure_kind(effective_kind);
             // Syncing here every frame is the activation catch-up: a kind
             // switch (ensure_kind) happens just above, and the revision
@@ -366,19 +377,54 @@ impl Editor {
                 scroll: &scroll,
                 host: &host,
                 is_outline_hovered,
-                is_outline_docked,
+                is_outline_docked: is_outline_open,
+                is_links_open,
+                is_search_open,
                 file_path: document.path.as_deref(),
                 read_only,
                 estimated_viewport_width,
             };
-            let pane_content = state.pane_mut().render(&render_ctx, window, cx);
+            let content = state.pane_mut().render(&render_ctx, window, cx);
+            let headings = if is_outline_open {
+                state.pane().outline_headings(cx)
+            } else {
+                Vec::new()
+            };
+            (Some(content), headings, true)
+        } else {
+            (None, Vec::new(), false)
+        };
+
+        if has_state {
+            let theme = cx.global::<theme::ThemeManager>().current_arc();
+            let search_widget = if self.search.visible && self.search.target_pane_id == Some(pane_id) {
+                self.render_search_widget(&theme, window, cx)
+            } else {
+                None
+            };
+
+            let links_widget = if is_links_open {
+                self.render_links_widget(&theme, window, cx)
+            } else {
+                None
+            };
+
+            let outline_widget = if is_outline_open {
+                Some(self.render_outline_widget(pane_id, &outline_headings, &theme, cx))
+            } else {
+                None
+            };
 
             div()
                 .id(("pane-container", pane_id.as_usize()))
                 .w_full()
                 .h_full()
                 .overflow_hidden()
-                .child(pane_content)
+                .relative()
+                .children(pane_content)
+                .children(search_widget)
+                .children(links_widget)
+                .children(outline_widget)
                 .into_any_element()
         } else {
             div().into_any_element()

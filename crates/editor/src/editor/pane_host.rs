@@ -137,5 +137,40 @@ impl PaneHost for EditorPaneHost {
         let editor = self.editor.upgrade()?;
         editor.read(cx).peek_link(target, cx)
     }
+
+    fn toggle_links_widget(&self, pane_id: PaneId, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            editor.update(cx, |editor, cx| {
+                editor.toggle_links_widget(pane_id, cx);
+            });
+        }
+    }
+
+    fn toggle_links_panel(&self, pane_id: PaneId, cx: &mut App) {
+        self.toggle_links_widget(pane_id, cx);
+    }
+
+    fn toggle_search(&self, pane_id: PaneId, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            editor.update(cx, |editor, cx| {
+                if editor.search.visible && editor.search.target_pane_id == Some(pane_id) {
+                    editor.toggle_search(window, cx);
+                } else {
+                    if editor.search.visible {
+                        editor.clear_search_highlights_from_document(cx);
+                    }
+                    editor.search.target_pane_id = Some(pane_id);
+                    editor.focused_pane_id = Some(pane_id);
+                    if !editor.search.visible {
+                        editor.toggle_search(window, cx);
+                    } else {
+                        window.focus(&editor.search.search_focus_handle, cx);
+                        editor.execute_search(cx);
+                        cx.notify();
+                    }
+                }
+            });
+        }
+    }
 }
 

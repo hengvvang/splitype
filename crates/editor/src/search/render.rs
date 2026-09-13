@@ -13,7 +13,7 @@ use editor_contracts::SearchHost;
 use theme::Theme;
 
 impl Editor {
-    pub(crate) fn render_search_panel_overlay(
+    pub(crate) fn render_search_widget(
         &mut self,
         theme: &Theme,
         window: &mut Window,
@@ -24,6 +24,6 @@ impl Editor {
         }
         let host: Arc<dyn SearchHost> =
             crate::editor::search_host::EditorSearchHost::new(cx.weak_entity());
-        crate::search::panel::render_search_panel_overlay(&self.search, &host, theme, window, cx)
+        crate::search::widget::render_search_widget(&self.search, &host, theme, window, cx)
     }
 }

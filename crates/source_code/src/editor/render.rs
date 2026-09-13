@@ -7,7 +7,6 @@
 //! mouse hit-testing.
 
 use std::ops::Range;
-use std::sync::Arc;
 
 use gpui::{
     AnyElement, App, Bounds, Context, Element, ElementId, GlobalElementId, Hitbox, HitboxBehavior,
@@ -19,10 +18,7 @@ use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 use crate::editor::SourceCodeEditor;
 use crate::indent_guides::compute_indent_guide_columns;
-use editor_contracts::{
-    OutlineHost, PaneId, PaneOutlineHost, PaneRenderContext, render_outline_indicator_strip,
-    render_pane_layout,
-};
+use editor_contracts::{PaneId, PaneRenderContext, render_pane_layout};
 use syntax_highlighter::highlight::build_line_text_runs;
 use ui::{render_horizontal_scrollbar, render_pane_breadcrumb, render_vertical_scrollbar};
 
@@ -51,8 +47,6 @@ impl SourceCodeEditor {
         self.scroll = Some(ctx.scroll.clone());
 
         let theme = cx.global::<ThemeManager>().current_arc();
-        let font_size = theme.typography.code_size.max(12.0);
-        let line_height = (font_size * theme.typography.text_line_height).round();
 
         let viewport_width = f32::from(ctx.scroll.bounds().size.width);
         // Skip the first frame(s) before the scroll container has a real
@@ -67,18 +61,6 @@ impl SourceCodeEditor {
         // foldable regions come from the background highlight pipeline.
         self.ensure_rows_cache();
         self.bracket_offset = self.matching_bracket();
-        let headings = self.cached_outline_headings();
-        let scroll_y = -f32::from(ctx.scroll.offset().y);
-        let top_visible_line = (scroll_y / line_height).floor().max(0.0) as usize;
-        let active_index = headings
-            .iter()
-            .rposition(|h| h.block_index <= top_visible_line)
-            .or(if headings.is_empty() { None } else { Some(0) });
-
-        let outline_host: Arc<dyn OutlineHost> = Arc::new(PaneOutlineHost {
-            pane_id: ctx.pane_id,
-            host: ctx.host.clone(),
-        });
 
         let focus_handle = self.focus_handle.clone();
         let editor_entity = cx.entity();
@@ -120,28 +102,27 @@ impl SourceCodeEditor {
         });
 
         let host_toggle = host.clone();
+        let host_links = host.clone();
+        let host_search = host.clone();
         let breadcrumb = render_pane_breadcrumb(
             ("source-breadcrumb", pane_id.as_usize()),
             ctx.file_path,
             ctx.is_outline_docked,
+            ctx.is_links_open,
+            ctx.is_search_open,
             &theme,
             move |_event, _window, cx| {
                 host_toggle.toggle_outline_docked(pane_id, cx);
             },
+            move |_event, _window, cx| {
+                host_links.toggle_links_widget(pane_id, cx);
+            },
+            move |_event, window, cx| {
+                host_search.toggle_search(pane_id, window, cx);
+            },
         );
 
-        let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
-            Some(render_outline_indicator_strip(
-                pane_id,
-                &headings,
-                active_index,
-                ctx.is_outline_hovered,
-                &theme,
-                &outline_host,
-            ))
-        } else {
-            None
-        };
+        let outline_indicator: Option<AnyElement> = None;
 
         let v_scrollbar = render_vertical_scrollbar(
             ("source-v-scrollbar", pane_id.as_usize()),

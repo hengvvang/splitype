@@ -107,6 +107,11 @@ pub fn match_icon(path: &str) -> Option<Cow<'static, [u8]>> {
             "../assets/icons/outline/outline.svg"
         ))),
 
+        // ── Editor: links panel ───────────────────────────────────────
+        "links/links.svg" => Some(Cow::Borrowed(include_bytes!(
+            "../assets/icons/links/links.svg"
+        ))),
+
         _ => None,
     }
 }

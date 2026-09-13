@@ -13,5 +13,5 @@ pub use host::SearchHost;
 pub use query::{RawMatch, SearchQuery, compute_preserve_case_replacement};
 pub use state::{
     SearchActiveField, SearchMatch, SearchPanelState, SearchScope, SearchTextInput,
-    ceil_char_boundary, floor_char_boundary,
+    SearchWidgetState, ceil_char_boundary, floor_char_boundary,
 };

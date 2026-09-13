@@ -9,10 +9,7 @@ pub mod tables;
 
 use std::sync::Arc;
 
-use editor_contracts::{
-    CursorHint, PaneOutlineHost, PaneRenderContext, render_outline_indicator_strip,
-    render_pane_layout,
-};
+use editor_contracts::{CursorHint, PaneRenderContext, render_pane_layout};
 use gpui::{
     AnyElement, App, AppContext, Context, Div, ElementId, Entity, EntityId, FontWeight,
     InteractiveElement, IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point,
@@ -553,20 +550,6 @@ impl WysiwygDocumentController {
                 );
             }
 
-            let headings = self.outline_headings(cx);
-            let active_index = headings
-                .iter()
-                .rposition(|node| {
-                    self.calculate_block_scroll_offset(node.block_index) <= scroll_y + 30.0
-                })
-                .or(if headings.is_empty() { None } else { Some(0) });
-
-            let outline_host: std::sync::Arc<dyn editor_contracts::OutlineHost> =
-                std::sync::Arc::new(PaneOutlineHost {
-                    pane_id: ctx.pane_id,
-                    host: ctx.host.clone(),
-                });
-
             let footnote_tooltip_element = self.footnote_tooltip.as_ref().map(|tooltip| {
                 let top = (tooltip.position.y - origin.y + px(4.0)).max(px(0.0));
                 let max_width = 420.0_f32;
@@ -698,28 +681,27 @@ impl WysiwygDocumentController {
             });
 
             let host_toggle = ctx.host.clone();
+            let host_links = ctx.host.clone();
+            let host_search = ctx.host.clone();
             let breadcrumb = render_pane_breadcrumb(
                 ("wysiwyg-breadcrumb", pane_id.as_usize()),
                 ctx.file_path,
                 ctx.is_outline_docked,
+                ctx.is_links_open,
+                ctx.is_search_open,
                 &theme,
                 move |_event, _window, cx| {
                     host_toggle.toggle_outline_docked(pane_id, cx);
                 },
+                move |_event, _window, cx| {
+                    host_links.toggle_links_widget(pane_id, cx);
+                },
+                move |_event, window, cx| {
+                    host_search.toggle_search(pane_id, window, cx);
+                },
             );
 
-            let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
-                Some(render_outline_indicator_strip(
-                    pane_id,
-                    &headings,
-                    active_index,
-                    ctx.is_outline_hovered,
-                    &theme,
-                    &outline_host,
-                ))
-            } else {
-                None
-            };
+            let outline_indicator: Option<AnyElement> = None;
 
             let v_scrollbar = render_vertical_scrollbar(
                 ("wysiwyg-v-scrollbar", pane_id.as_usize()),

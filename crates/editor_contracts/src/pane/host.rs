@@ -10,6 +10,8 @@ pub struct PaneRenderContext<'a> {
     pub host: &'a Arc<dyn PaneHost>,
     pub is_outline_hovered: bool,
     pub is_outline_docked: bool,
+    pub is_links_open: bool,
+    pub is_search_open: bool,
     pub file_path: Option<&'a std::path::Path>,
     pub read_only: bool,
     pub estimated_viewport_width: Option<f32>,
@@ -72,6 +74,11 @@ pub trait PaneHost: Send + Sync + 'static {
     fn peek_link(&self, _target: &str, _cx: &App) -> Option<String> {
         None
     }
+    fn toggle_links_widget(&self, pane_id: PaneId, cx: &mut App) {
+        self.toggle_links_panel(pane_id, cx);
+    }
+    fn toggle_links_panel(&self, _pane_id: PaneId, _cx: &mut App) {}
+    fn toggle_search(&self, _pane_id: PaneId, _window: &mut Window, _cx: &mut App) {}
 }
 
 pub struct PaneOutlineHost {

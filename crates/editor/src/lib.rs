@@ -9,6 +9,7 @@ pub mod document;
 pub mod editor;
 pub mod input;
 pub mod layout;
+pub mod links;
 pub mod outline;
 pub mod plugin;
 pub mod search;

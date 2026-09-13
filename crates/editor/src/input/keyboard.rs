@@ -47,8 +47,13 @@ impl Editor {
         let cancelled_drag = self.session.root.cancel_drag_gesture();
         let closed_menu = self.session.root.interaction.clear_border_menu();
         let closed_dropdown = self.session.root.interaction.clear_dropdowns();
-        let handled =
-            had_tab_drag || had_reorder || cancelled_drag || closed_menu || closed_dropdown;
+        let closed_links = self.links_widget.take().is_some();
+        let handled = had_tab_drag
+            || had_reorder
+            || cancelled_drag
+            || closed_menu
+            || closed_dropdown
+            || closed_links;
         if handled {
             cx.notify();
         }

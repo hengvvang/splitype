@@ -8,5 +8,6 @@
 //! `Editor` entity), plus the render shell in `render`.
 
 pub mod engine;
-pub mod panel;
 pub mod render;
+pub mod widget;
+pub use widget as panel;

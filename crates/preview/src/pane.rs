@@ -3,10 +3,7 @@
 use std::sync::Arc;
 
 use editor_contracts::OutlineNode;
-use editor_contracts::{
-    PaneKind, PaneOutlineHost, PaneRenderContext, PaneView, render_outline_indicator_strip,
-    render_pane_layout,
-};
+use editor_contracts::{PaneKind, PaneRenderContext, PaneView, render_pane_layout};
 use editor_contracts::{SearchMatch, SearchQuery};
 use gpui::{AnyElement, App, IntoElement, ParentElement, Styled, Window};
 use theme::Theme;
@@ -128,49 +125,29 @@ impl PaneView for PreviewPane {
         let strings = config::language::I18nStrings::en_us();
         let preview_body =
             crate::render::render_preview_pane(self, ctx, &theme, &strings, window, cx);
-        let headings = self.outline_headings(cx);
-        let font_size = theme.typography.text_size.max(14.0);
-        let line_height = (font_size * theme.typography.text_line_height)
-            .round()
-            .max(22.0);
-        let scroll_y = -f32::from(ctx.scroll.offset().y);
-        let active_index = headings
-            .iter()
-            .rposition(|node| {
-                let node_y =
-                    crate::outline::calculate_scroll_offset_for_node(self, node, line_height);
-                node_y <= scroll_y + 20.0
-            })
-            .or(if headings.is_empty() { None } else { Some(0) });
-
-        let outline_host: Arc<dyn editor_contracts::OutlineHost> = Arc::new(PaneOutlineHost {
-            pane_id: ctx.pane_id,
-            host: ctx.host.clone(),
-        });
         let host_toggle = ctx.host.clone();
+        let host_links = ctx.host.clone();
+        let host_search = ctx.host.clone();
         let pane_id = ctx.pane_id;
         let breadcrumb = render_pane_breadcrumb(
             ("preview-breadcrumb", pane_id.as_usize()),
             ctx.file_path,
             ctx.is_outline_docked,
+            ctx.is_links_open,
+            ctx.is_search_open,
             &theme,
             move |_event, _window, cx| {
                 host_toggle.toggle_outline_docked(pane_id, cx);
             },
+            move |_event, _window, cx| {
+                host_links.toggle_links_widget(pane_id, cx);
+            },
+            move |_event, window, cx| {
+                host_search.toggle_search(pane_id, window, cx);
+            },
         );
 
-        let outline_indicator = if ctx.is_outline_docked && !headings.is_empty() {
-            Some(render_outline_indicator_strip(
-                pane_id,
-                &headings,
-                active_index,
-                ctx.is_outline_hovered,
-                &theme,
-                &outline_host,
-            ))
-        } else {
-            None
-        };
+        let outline_indicator: Option<AnyElement> = None;
 
         let v_scrollbar = render_vertical_scrollbar(
             ("preview-v-scrollbar", pane_id.as_usize()),

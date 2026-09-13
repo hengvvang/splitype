@@ -115,32 +115,10 @@ impl Editor {
                 })
             });
 
-        let search_editor = editor.clone();
-        let is_search_active = self.search.visible;
-        let search_button = icon_chip_button(c, d)
-            .id(("panel-topbar-search", panel_id.as_usize()))
-            .when(is_search_active, |this| this.bg(c.panel_row_hover))
-            .child(
-                svg()
-                    .path("plugin://splitype.editor/topbar/search.svg")
-                    .size(px(btn_icon_size))
-                    .text_color(if is_search_active {
-                        c.focus_accent
-                    } else {
-                        c.dialog_muted
-                    }),
-            )
-            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                let _ = search_editor.update(cx, |editor, cx| {
-                    editor.toggle_search(window, cx);
-                });
-            });
-
         let mut actions = div()
             .flex()
             .items_center()
             .gap(px(4.0))
-            .child(search_button)
             .child(split_v_button)
             .child(split_h_button);
 

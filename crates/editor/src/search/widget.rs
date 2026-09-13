@@ -1,6 +1,6 @@
-//! Search and replace floating overlay panel UI (VS Code / Zed inspired layout with separated results card).
+//! Search and replace floating overlay widget UI (VS Code / Zed inspired layout with separated results card).
 //!
-//! Pure presentation over [`editor_contracts::SearchPanelState`]; coordination
+//! Pure presentation over [`editor_contracts::SearchWidgetState`]; coordination
 //! actions re-enter the editor through [`editor_contracts::SearchHost`].
 
 use std::sync::Arc;
@@ -8,14 +8,14 @@ use std::sync::Arc;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use editor_contracts::{SearchHost, SearchPanelState, SearchScope};
+use editor_contracts::{SearchHost, SearchScope, SearchWidgetState};
 use theme::{Theme, TypographyScope, TypographyStore};
 use ui::SearchInput;
 
-/// Renders the floating Search and Replace overlay panel in the top-right
-/// corner, or `None` when the panel is hidden.
-pub fn render_search_panel_overlay(
-    state: &SearchPanelState,
+/// Renders the floating Search and Replace overlay widget in the top-right
+/// corner, or `None` when the widget is hidden.
+pub fn render_search_widget(
+    state: &SearchWidgetState,
     host: &Arc<dyn SearchHost>,
     theme: &Theme,
     _window: &mut Window,
@@ -687,14 +687,15 @@ pub fn render_search_panel_overlay(
     };
 
     // ── Root Floating Container (Positions top card and separated results card) ─
-    let panel_top = d.topbar_height + 4.0;
+    let panel_top = 28.0;
     let mut container = div()
         .id("editor-search-overlay-container")
         .occlude()
         .absolute()
         .top(px(panel_top))
-        .right(px(12.0))
+        .right(px(8.0))
         .w(px(420.0))
+        .max_w(relative(0.96))
         .flex()
         .flex_col()
         .gap(px(6.0))
@@ -705,4 +706,15 @@ pub fn render_search_panel_overlay(
     }
 
     Some(deferred(container.into_any_element()).into_any_element())
+}
+
+#[inline]
+pub fn render_search_panel_overlay(
+    state: &SearchWidgetState,
+    host: &Arc<dyn SearchHost>,
+    theme: &Theme,
+    window: &mut Window,
+    cx: &mut App,
+) -> Option<AnyElement> {
+    render_search_widget(state, host, theme, window, cx)
 }

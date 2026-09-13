@@ -12,10 +12,11 @@
 //! strictly inside each pane plugin implementation.
 
 pub mod export;
+pub mod links_host;
 pub mod pane_host;
 pub mod search_host;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use gpui::*;
@@ -45,6 +46,8 @@ pub struct Editor {
     /// Panes of the same kind within this editor share this setting;
     /// different kinds are independent; different editors are independent.
     pub outline_enabled_by_kind: HashMap<PaneKind, bool>,
+    /// Track open outline panels per individual pane id.
+    pub outline_open_by_pane: HashSet<PaneId>,
     pub focused_pane_id: Option<PaneId>,
     pub search: editor_contracts::SearchPanelState,
     /// Observer subscriptions per shared buffer, keyed by buffer id.
@@ -60,6 +63,9 @@ pub struct Editor {
     pub tab_reorder_target: Option<usize>,
     /// Navigation history stack tracking jump locations across documents and anchors.
     pub jump_stack: crate::session::EditorJumpStack,
+    /// Active link relationships widget state (when opened).
+    pub links_widget: Option<crate::links::LinksWidgetState>,
+    pub links_host: Arc<dyn crate::links::LinksWidgetHost>,
 }
 
 impl Editor {
@@ -78,6 +84,7 @@ impl Editor {
             leaf_count: 1,
             outline: OutlineHudState::default(),
             outline_enabled_by_kind: HashMap::new(),
+            outline_open_by_pane: HashSet::new(),
             focused_pane_id: None,
             search: editor_contracts::SearchPanelState::new(cx),
             buffer_subscriptions: HashMap::new(),
@@ -86,6 +93,8 @@ impl Editor {
             tab_drag_hover: None,
             tab_reorder_target: None,
             jump_stack: crate::session::EditorJumpStack::new(),
+            links_widget: None,
+            links_host: crate::editor::links_host::EditorLinksHost::new(cx.weak_entity()),
         };
         let buffers: Vec<Entity<DocumentBuffer>> = editor
             .session
@@ -923,20 +932,104 @@ impl Editor {
         new_state
     }
 
-    /// Toggles the outline state for the kind of the pane identified by `pane_id`.
-    /// All panes of that kind in this editor will update their outline state.
+    /// Returns whether the outline panel is open for the specific pane identified by `pane_id`.
+    #[inline]
+    pub fn is_outline_open_for_pane(&self, pane_id: PaneId) -> bool {
+        self.outline_open_by_pane.contains(&pane_id)
+    }
+
+    /// Toggles the outline panel overlay for the pane identified by `pane_id`.
+    /// Scoped strictly to this pane, closing conflicting panels on this pane.
     pub fn toggle_outline_for_pane(&mut self, pane_id: PaneId) -> bool {
-        let kind = self
-            .session
-            .root
-            .tree
-            .find_leaf_kind(pane_id.0)
-            .or_else(|| self.pane_state_ref(pane_id).map(|s| s.pane().kind()));
-        if let Some(kind) = kind {
-            self.toggle_outline_for_kind(kind)
-        } else {
+        if self.outline_open_by_pane.contains(&pane_id) {
+            self.outline_open_by_pane.remove(&pane_id);
             false
+        } else {
+            if let Some(ref p) = self.links_widget {
+                if p.target_pane_id == Some(pane_id) {
+                    self.links_widget = None;
+                }
+            }
+            if self.search.target_pane_id == Some(pane_id) {
+                self.search.visible = false;
+            }
+            self.outline_open_by_pane.insert(pane_id);
+            true
         }
+    }
+
+    /// Closes the outline widget for the given pane.
+    pub fn close_outline_for_pane(&mut self, pane_id: PaneId) {
+        self.outline_open_by_pane.remove(&pane_id);
+    }
+
+    /// Toggles the link relationships widget for the active document.
+    pub fn toggle_links_widget(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
+        let active_path = self
+            .session
+            .active_tab()
+            .and_then(|tab| tab.buffer.read(cx).path.clone());
+
+        if let Some(ref current_widget) = self.links_widget {
+            if current_widget.target_pane_id == Some(pane_id) {
+                self.links_widget = None;
+                cx.notify();
+                return;
+            }
+        }
+
+        // Opening links widget on this pane: close search and outline on this pane
+        self.outline_open_by_pane.remove(&pane_id);
+        if self.search.target_pane_id == Some(pane_id) {
+            self.search.visible = false;
+        }
+
+        let mut widget_state = crate::links::LinksWidgetState::new(active_path.clone(), Some(pane_id));
+
+        if let Some(active_tab) = self.session.active_tab() {
+            let buffer_entity = active_tab.buffer.clone();
+            let snapshot = buffer_entity.read(cx).snapshot();
+            let outgoing = crate::links::extract_outgoing_links(&snapshot.text);
+            widget_state.report = Some(crate::links::LinkRelationReport {
+                outgoing,
+                backlinks: Vec::new(),
+            });
+        }
+
+        self.links_widget = Some(widget_state);
+        cx.notify();
+
+        if let Some(target_file) = active_path {
+            let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let weak_editor = cx.entity().downgrade();
+            cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
+                let backlinks = cx
+                    .background_executor()
+                    .spawn(async move {
+                        crate::links::scan_workspace_backlinks(&root, &target_file)
+                    })
+                  .await;
+
+                let _ = weak_editor.update(cx, |editor, cx| {
+                    if let Some(ref mut widget) = editor.links_widget {
+                        if let Some(ref mut report) = widget.report {
+                            report.backlinks = backlinks;
+                        }
+                        widget.is_loading = false;
+                        cx.notify();
+                    }
+                });
+            })
+            .detach();
+        } else if let Some(ref mut widget) = self.links_widget {
+            widget.is_loading = false;
+        }
+    }
+
+    /// Backwards-compatible alias for toggle_links_widget.
+    #[inline]
+    pub fn toggle_links_panel(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
+        self.toggle_links_widget(pane_id, cx);
     }
 }
 
@@ -997,5 +1090,31 @@ mod tests {
             Editor::resolve_effective_pane(&universal_kind, Some(&rs_doc));
         assert_eq!(eff_univ_rs, takeover_target);
         assert!(ro_univ_rs);
+    }
+
+    #[test]
+    fn test_breadcrumb_actions_pane_isolation() {
+        let mut outline_open_by_pane: HashSet<PaneId> = HashSet::new();
+        let pane1 = PaneId::from(1);
+        let pane2 = PaneId::from(2);
+
+        // Initially both closed
+        assert!(!outline_open_by_pane.contains(&pane1));
+        assert!(!outline_open_by_pane.contains(&pane2));
+
+        // Toggle on pane 1
+        outline_open_by_pane.insert(pane1);
+        assert!(outline_open_by_pane.contains(&pane1));
+        assert!(!outline_open_by_pane.contains(&pane2));
+
+        // Toggle on pane 2
+        outline_open_by_pane.insert(pane2);
+        assert!(outline_open_by_pane.contains(&pane1));
+        assert!(outline_open_by_pane.contains(&pane2));
+
+        // Toggle off pane 1
+        outline_open_by_pane.remove(&pane1);
+        assert!(!outline_open_by_pane.contains(&pane1));
+        assert!(outline_open_by_pane.contains(&pane2));
     }
 }

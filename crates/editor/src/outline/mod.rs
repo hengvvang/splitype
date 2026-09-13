@@ -10,7 +10,57 @@ use crate::editor::Editor;
 use editor_contracts::PaneId;
 use theme::Theme;
 
+pub mod widget;
+pub use widget as panel;
+pub use widget::{
+    OutlinePanelHost, OutlineWidgetHost, render_outline_panel_overlay, render_outline_widget,
+};
+
+struct OutlineHostBridge {
+    pane_id: PaneId,
+    editor: WeakEntity<Editor>,
+}
+
+impl OutlineWidgetHost for OutlineHostBridge {
+    fn navigate_to(&self, index: usize, cx: &mut App) {
+        let pane_id = self.pane_id;
+        let _ = self.editor.update(cx, |editor, cx| {
+            let theme = cx.global::<theme::ThemeManager>().current_arc();
+            editor.navigate_to_outline_index(pane_id, index, &theme, cx);
+        });
+    }
+
+    fn close_widget(&self, cx: &mut App) {
+        let pane_id = self.pane_id;
+        let _ = self.editor.update(cx, |editor, cx| {
+            editor.close_outline_for_pane(pane_id);
+            cx.notify();
+        });
+    }
+}
+
 impl Editor {
+    /// Renders the floating outline widget overlay for the given pane.
+    pub(crate) fn render_outline_widget(
+        &mut self,
+        pane_id: PaneId,
+        headings: &[editor_contracts::OutlineNode],
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let host: std::sync::Arc<dyn OutlineWidgetHost> = std::sync::Arc::new(OutlineHostBridge {
+            pane_id,
+            editor: cx.entity().downgrade(),
+        });
+        widget::render_outline_widget(
+            pane_id,
+            headings,
+            self.outline.active_index,
+            &host,
+            theme,
+        )
+    }
+
     /// Sets whether the outline HUD popover is hovered with a debounce on exit.
     pub(crate) fn set_outline_hovered(
         &mut self,

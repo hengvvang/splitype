@@ -15,7 +15,8 @@ impl Editor {
         if self.search.visible {
             self.search.visible = false;
             self.clear_search_highlights_from_document(cx);
-            let active_pane = self.active_pane_id();
+            let active_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+            self.search.target_pane_id = None;
             self.focused_pane_id = Some(active_pane);
             if let Some(state) = self.pane_state_mut(active_pane) {
                 if let Some(handle) = state.pane().focus_handle(cx) {
@@ -23,6 +24,15 @@ impl Editor {
                 }
             }
         } else {
+            let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+            self.search.target_pane_id = Some(target_pane);
+            self.outline_open_by_pane.remove(&target_pane);
+            if let Some(ref p) = self.links_widget {
+                if p.target_pane_id == Some(target_pane) {
+                    self.links_widget = None;
+                }
+            }
+            self.focused_pane_id = Some(target_pane);
             self.search.visible = true;
             self.search.active_field = SearchActiveField::Query;
             window.focus(&self.search.search_focus_handle, cx);
@@ -191,6 +201,7 @@ impl Editor {
         self.search.active_match_index = None;
         self.search.expanded_match_indices.clear();
         self.clear_search_highlights_from_document(cx);
+        self.search.target_pane_id = None;
         cx.notify();
     }
 
@@ -199,7 +210,7 @@ impl Editor {
     /// are passed to the pane with the active match index; the pane renders
     /// them however it decorates its content.
     pub fn sync_search_highlights_to_document(&mut self, cx: &mut App) {
-        let active_pane = self.active_pane_id();
+        let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
         let active_file_path = self
             .active_tab()
             .and_then(|tab| tab.buffer.read(cx).path.clone());
@@ -214,7 +225,7 @@ impl Editor {
             }
             highlights.push(item.clone());
         }
-        let Some(state) = self.pane_state_mut(active_pane) else {
+        let Some(state) = self.pane_state_mut(target_pane) else {
             return;
         };
         if state.pane().capabilities().searchable {
@@ -226,7 +237,8 @@ impl Editor {
 
     /// Clears search highlights from the active pane.
     pub fn clear_search_highlights_from_document(&mut self, cx: &mut App) {
-        if let Some(state) = self.pane_state_mut(self.active_pane_id()) {
+        let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+        if let Some(state) = self.pane_state_mut(target_pane) {
             if state.pane().capabilities().searchable {
                 state.pane_mut().set_search_highlights(&[], None, cx);
             }
@@ -249,8 +261,8 @@ impl Editor {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
             .unwrap_or_else(|| "Untitled".to_string());
 
-        let active_pane = self.active_pane_id();
-        let mut pane_matches = if let Some(state) = self.pane_state_ref(active_pane) {
+        let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+        let mut pane_matches = if let Some(state) = self.pane_state_ref(target_pane) {
             if state.pane().capabilities().searchable {
                 state.pane().search_matches(query, cx)
             } else {
@@ -394,8 +406,8 @@ impl Editor {
             self.open_file_in_panel(file_path, editor_contracts::TabKind::Persistent, window, cx);
         }
 
-        let active_pane = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(active_pane) {
+        let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+        if let Some(state) = self.pane_state_mut(target_pane) {
             if state.pane().capabilities().searchable {
                 if let Some(target_y) = state.pane_mut().navigate_to_search_match(&match_item, cx) {
                     state
@@ -435,8 +447,8 @@ impl Editor {
         );
         let range = match_item.byte_range.clone();
 
-        let active_pane = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(active_pane) {
+        let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+        if let Some(state) = self.pane_state_mut(target_pane) {
             if !state.pane().capabilities().replaceable {
                 return;
             }
@@ -474,8 +486,8 @@ impl Editor {
             self.search.whole_word,
             self.search.use_regex,
         );
-        let active_pane = self.active_pane_id();
-        if let Some(state) = self.pane_state_mut(active_pane) {
+        let target_pane = self.search.target_pane_id.unwrap_or_else(|| self.active_pane_id());
+        if let Some(state) = self.pane_state_mut(target_pane) {
             if !state.pane().capabilities().replaceable {
                 return;
             }
